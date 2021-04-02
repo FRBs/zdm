@@ -126,6 +126,8 @@ def main():
 		names=['ASKAP/FE','ASKAP/ICS','Parkes/Mb']
 		
 		surveys=[lat50,ICS,pks]
+		if not os.path.isdir('Pickle'):
+			os.mkdir('Pickle')
 		with open('Pickle/'+sprefix+'surveys.pkl', 'wb') as output:
 			pickle.dump(surveys, output, pickle.HIGHEST_PROTOCOL)
 			pickle.dump(names, output, pickle.HIGHEST_PROTOCOL)
@@ -200,7 +202,9 @@ def main():
 	print("Initialised grids")
 	
 	
-	Location='Plots/'
+	Location='Plots'
+	if not os.path.isdir(Location):
+		os.mkdir(Location)
 	prefix='bestfit_'
 	
 	do2DPlots=True
@@ -208,14 +212,26 @@ def main():
 		muDM=10**pset[5]
 		Macquart=muDM
 		# plots zdm distribution
-		misc_functions.plot_grid_2(gpks.rates,gpks.zvals,gpks.dmvals,zmax=3,DMmax=3000,name=Location+prefix+'nop_pks_optimised_grid.pdf',norm=2,log=True,label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$',project=False,FRBDM=pks.DMEGs,FRBZ=None,Aconts=[0.01,0.1,0.5],Macquart=Macquart)
-		misc_functions.plot_grid_2(gICS.rates,gICS.zvals,gICS.dmvals,zmax=1,DMmax=2000,name=Location+prefix+'nop_ICS_optimised_grid.pdf',norm=2,log=True,label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$',project=False,FRBDM=ICS.DMEGs,FRBZ=ICS.frbs["Z"],Aconts=[0.01,0.1,0.5],Macquart=Macquart)
-		misc_functions.plot_grid_2(glat50.rates,glat50.zvals,glat50.dmvals,zmax=0.6,DMmax=1500,name=Location+prefix+'nop_lat50_optimised_grid.pdf',norm=2,log=True,label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$',project=False,FRBDM=lat50.DMEGs,FRBZ=None,Aconts=[0.01,0.1,0.5],Macquart=Macquart)
+		misc_functions.plot_grid_2(gpks.rates,gpks.zvals,gpks.dmvals,zmax=3,DMmax=3000,
+                             name=os.path.join(Location,prefix+'nop_pks_optimised_grid.pdf'),
+                             norm=2,log=True,label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$',project=False,FRBDM=pks.DMEGs,FRBZ=None,Aconts=[0.01,0.1,0.5],Macquart=Macquart)
+		misc_functions.plot_grid_2(gICS.rates,gICS.zvals,gICS.dmvals,zmax=1,DMmax=2000,
+                             name=os.path.join(Location,prefix+'nop_ICS_optimised_grid.pdf'),
+                             norm=2,log=True,label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$',project=False,FRBDM=ICS.DMEGs,FRBZ=ICS.frbs["Z"],Aconts=[0.01,0.1,0.5],Macquart=Macquart)
+		misc_functions.plot_grid_2(glat50.rates,glat50.zvals,glat50.dmvals,zmax=0.6,DMmax=1500,
+                             name=os.path.join(Location,prefix+'nop_lat50_optimised_grid.pdf'),
+                             norm=2,log=True,label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$',project=False,FRBDM=lat50.DMEGs,FRBZ=None,Aconts=[0.01,0.1,0.5],Macquart=Macquart)
 		
 		# plots zdm distribution, including projections onto z and DM axes
-		misc_functions.plot_grid_2(gpks.rates,gpks.zvals,gpks.dmvals,zmax=3,DMmax=3000,name=Location+prefix+'pks_optimised_grid.pdf',norm=2,log=True,label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$',project=True,FRBDM=pks.DMEGs,FRBZ=None,Aconts=[0.01,0.1,0.5],Macquart=Macquart)
-		misc_functions.plot_grid_2(gICS.rates,gICS.zvals,gICS.dmvals,zmax=1,DMmax=2000,name=Location+prefix+'ICS_optimised_grid.pdf',norm=2,log=True,label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$',project=True,FRBDM=ICS.DMEGs,FRBZ=ICS.frbs["Z"],Aconts=[0.01,0.1,0.5],Macquart=Macquart)
-		misc_functions.plot_grid_2(glat50.rates,glat50.zvals,glat50.dmvals,zmax=0.5,DMmax=1000,name=Location+prefix+'lat50_optimised_grid.pdf',norm=2,log=True,label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$',project=True,FRBDM=lat50.DMEGs,FRBZ=None,Aconts=[0.01,0.1,0.5],Macquart=Macquart)
+		misc_functions.plot_grid_2(gpks.rates,gpks.zvals,gpks.dmvals,zmax=3,DMmax=3000,
+                             name=os.path.join(Location,prefix+'pks_optimised_grid.pdf'),
+                             norm=2,log=True,label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$',project=True,FRBDM=pks.DMEGs,FRBZ=None,Aconts=[0.01,0.1,0.5],Macquart=Macquart)
+		misc_functions.plot_grid_2(gICS.rates,gICS.zvals,gICS.dmvals,zmax=1,DMmax=2000,
+                             name=os.path.join(Location,prefix+'ICS_optimised_grid.pdf'),
+                             norm=2,log=True,label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$',project=True,FRBDM=ICS.DMEGs,FRBZ=ICS.frbs["Z"],Aconts=[0.01,0.1,0.5],Macquart=Macquart)
+		misc_functions.plot_grid_2(glat50.rates,glat50.zvals,glat50.dmvals,zmax=0.5,DMmax=1000,
+                             name=os.path.join(Location,prefix+'lat50_optimised_grid.pdf'),
+                             norm=2,log=True,label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$',project=True,FRBDM=lat50.DMEGs,FRBZ=None,Aconts=[0.01,0.1,0.5],Macquart=Macquart)
 	
 	doMaquart=True
 	# generates the Macquart relation for each set
@@ -224,9 +240,15 @@ def main():
 		muDM=10**pset[5]
 		Macquart=muDM
 		# the badly named variable 'Macquart', if not None, sets the mean host contribution
-		misc_functions.make_dm_redshift(glat50,Location+prefix+'lat50_macquart_relation.pdf',DMmax=1000,zmax=0.75,loc='upper right',Macquart=Macquart)
-		misc_functions.make_dm_redshift(gICS,Location+prefix+'ICS_macquart_relation.pdf',DMmax=2000,zmax=1,loc='upper right',Macquart=Macquart)
-		misc_functions.make_dm_redshift(gpks,Location+prefix+'pks_macquart_relation.pdf',DMmax=4000,zmax=3,loc='upper left',Macquart=Macquart)
+		misc_functions.make_dm_redshift(glat50,
+                                  os.path.join(Location,prefix+'lat50_macquart_relation.pdf'),
+                                  DMmax=1000,zmax=0.75,loc='upper right',Macquart=Macquart)
+		misc_functions.make_dm_redshift(gICS,
+                                  os.path.join(Location,prefix+'ICS_macquart_relation.pdf'),
+                                  DMmax=2000,zmax=1,loc='upper right',Macquart=Macquart)
+		misc_functions.make_dm_redshift(gpks,
+                                  os.path.join(Location,prefix+'pks_macquart_relation.pdf'),
+                                  DMmax=4000,zmax=3,loc='upper left',Macquart=Macquart)
 	
 	
 	
@@ -235,8 +257,12 @@ def main():
 		#uncomment this!
 		print("Plotting basic zdm")
 		# It is just the intrinsic distribution!
-		misc_functions.plot_zdm_basic_paper(grids[0].smear_grid,grids[0].zvals,grids[0].dmvals,zmax=3,DMmax=3000,name=Location+'dm_EG.pdf',norm=1,log=True,ylabel='${\\rm DM_{\\rm EG}}$',label='$\\log_{10} p({\\rm DM_{cosmic}+DM_{host}}|z)$',conts=[0.023, 0.159,0.5,0.841,0.977])
-		misc_functions.plot_zdm_basic_paper(grids[0].grid,grids[0].zvals,grids[0].dmvals,zmax=3,DMmax=3000,name=Location+'dm_cosmic_only.pdf',norm=1,log=True,ylabel='${\\rm DM_{\\rm cosmic}}$',label='$\\log_{10} p({\\rm DM_{cosmic}}|z)$',conts=[0.023, 0.159,0.5,0.841,0.977])
+		misc_functions.plot_zdm_basic_paper(grids[0].smear_grid,grids[0].zvals,grids[0].dmvals,zmax=3,DMmax=3000,
+                                      name=os.path.join(Location,'dm_EG.pdf'),
+                                      norm=1,log=True,ylabel='${\\rm DM_{\\rm EG}}$',label='$\\log_{10} p({\\rm DM_{cosmic}+DM_{host}}|z)$',conts=[0.023, 0.159,0.5,0.841,0.977])
+		misc_functions.plot_zdm_basic_paper(grids[0].grid,grids[0].zvals,grids[0].dmvals,zmax=3,DMmax=3000,
+                                      name=os.path.join(Location,'dm_cosmic_only.pdf'),
+                                      norm=1,log=True,ylabel='${\\rm DM_{\\rm cosmic}}$',label='$\\log_{10} p({\\rm DM_{cosmic}}|z)$',conts=[0.023, 0.159,0.5,0.841,0.977])
 	
 	
 	BasicF0=True

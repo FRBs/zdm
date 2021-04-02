@@ -1,28 +1,27 @@
-
-from frb import dlas
-from frb.dm import igm
-
-from zdm import cosmology as cos
-import argparse
-from zdm import survey
+import os
+import sys
 import numpy as np
-from zdm import zdm
-from zdm import pcosmic
+import argparse
+import pickle
+
+import scipy as sp
+
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 import matplotlib.cm as cm
 import matplotlib
-import os
-import sys
+from matplotlib.ticker import NullFormatter
 
-import scipy as sp
+from frb import dlas
+from frb.dm import igm
 
 import time
-from matplotlib.ticker import NullFormatter
 from zdm import iteration as it
-
 from zdm import beams
-import pickle
+from zdm import cosmology as cos
+from zdm import survey
+from zdm import zdm
+from zdm import pcosmic
 
 
 def marginalise(pset,grids,surveys,which,vals,disable=None,psnr=True,PenTypes=None,PenParams=None,Verbose=False,steps=None):
@@ -382,7 +381,6 @@ def make_dm_redshift(grid,savename,DMmax=1000,zmax=1,loc='upper left',Macquart=N
 		nz=zvals.size
 		
 		plt.xlim(0,xtvals.size)
-		from frb import igm
 		zmax=zvals[-1]
 		DMbar, zeval = igm.average_DM(zmax, cumul=True, neval=nz+1)
 		DMbar=np.array(DMbar)
@@ -1685,12 +1683,11 @@ def get_zdm_grid(new=True,plot=False,method='analytic',F=0.32,nz=500,zmax=5,ndm=
 		zdmgrid=np.zeros([nz,ndm])
 		
 		if method=='MC':
-			import frb
 			# generate DM grid from the models
 			print("Generating the zdm Monte Carlo grid")
 			nfrb=10000
 			t0=time.process_time()
-			DMs = frb.dlas.monte_DM(np.array(zvals)*3000, nrand=nfrb)
+			DMs = dlas.monte_DM(np.array(zvals)*3000, nrand=nfrb)
 			#DMs *= 200000 #seems to be a good fit...
 			t1=time.process_time()
 			dt=t1-t0
