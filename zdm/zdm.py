@@ -1,5 +1,5 @@
 import numpy as np
-import cosmology as cos
+from zdm import cosmology as cos
 import time
 
 class grid:

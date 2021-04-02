@@ -7,25 +7,27 @@ gets saved to Pickle for massive speedups (e.g. if just fine-tuning plots); but 
 
 """
 
-import cosmology as cos
 import argparse
 
 import numpy as np
-import zdm
-import pcosmic
+from zdm import zdm
+#import pcosmic
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 import matplotlib.cm as cm
 import matplotlib
+from pkg_resources import resource_filename
 import os
 import sys
 
 import scipy as sp
 import time
 from matplotlib.ticker import NullFormatter
-import iteration as it
+from zdm import iteration as it
 
-import beams
+from zdm import survey
+from zdm import cosmology as cos
+from zdm import beams
 
 import pickle
 
@@ -48,8 +50,8 @@ matplotlib.rc('font', **font)
 	# [5}: log10 mean host DM
 	# [6]: log10 sigma host DM
 	
-from misc_functions import *
-import pcosmic
+from zdm import misc_functions# import *
+#import pcosmic
 
 defaultsize=14
 ds=4
@@ -65,7 +67,7 @@ def main():
 	
 	# get the grid of p(DM|z). See function for default values.
 	# set new to False once this is already initialised
-	zDMgrid, zvals,dmvals=get_zdm_grid(new=True,plot=False,method='analytic')
+	zDMgrid, zvals,dmvals=misc_functions.get_zdm_grid(new=True,plot=False,method='analytic')
 	# NOTE: if this is new, we also need new surveys and grids!
 	
 	# constants of beam method
@@ -79,7 +81,6 @@ def main():
 	Wlogsigma=0.899148
 	DMhalo=50
 	
-	import survey
 	
 	#These surveys combine time-normalised and time-unnormalised samples 
 	NewSurveys=True
@@ -98,7 +99,7 @@ def main():
 	if NewSurveys:
 		#load the lat50 survey data
 		lat50=survey.survey()
-		lat50.process_survey_file('Surveys/CRAFT_class_I_and_II.dat')
+		lat50.process_survey_file('CRAFT_class_I_and_II.dat')
 		lat50.init_DMEG(DMhalo)
 		lat50.init_beam(nbins=Nbeams[0],method=2,plot=False,thresh=thresh) # tells the survey to use the beam file
 		pwidths,pprobs=survey.make_widths(lat50,Wlogmean,Wlogsigma,Wbins,scale=Wscale)
@@ -107,7 +108,7 @@ def main():
 		
 		# load ICS data
 		ICS=survey.survey()
-		ICS.process_survey_file('Surveys/CRAFT_ICS.dat')
+		ICS.process_survey_file('CRAFT_ICS.dat')
 		ICS.init_DMEG(DMhalo)
 		ICS.init_beam(nbins=Nbeams[1],method=2,plot=False,thresh=thresh) # tells the survey to use the beam file
 		pwidths,pprobs=survey.make_widths(ICS,Wlogmean,Wlogsigma,Wbins,scale=Wscale)
@@ -115,7 +116,7 @@ def main():
 		
 		# load Parkes data
 		pks=survey.survey()
-		pks.process_survey_file('Surveys/parkes_mb_class_I_and_II.dat')
+		pks.process_survey_file('parkes_mb_class_I_and_II.dat')
 		pks.init_DMEG(DMhalo)
 		pks.init_beam(nbins=Nbeams[2],method=2,plot=False,thresh=thresh) # need more bins for Parkes!
 		pwidths,pprobs=survey.make_widths(pks,Wlogmean,Wlogsigma,Wbins,scale=Wscale)
@@ -160,7 +161,7 @@ def main():
 		print("Plotting final beam rates")
 		#tempnames=['ASKAP/FE','ASKAP/ICS','Parkes/MB']
 		#final_plot_beam_values(surveys,zDMgrid,zvals,dmvals,pset,[5,5,10],names,Wlogsigma,Wlogmean,'FinalFitPlots')
-		final_plot_beam_rates(surveys,zDMgrid,zvals,dmvals,pset,[5,5,10],names,Wlogsigma,Wlogmean,'Plots',LOAD=False)
+		misc_functions.final_plot_beam_rates(surveys,zDMgrid,zvals,dmvals,pset,[5,5,10],names,Wlogsigma,Wlogmean,'Plots',LOAD=False)
 	
 	
 	# This routine is similar to the above
@@ -175,7 +176,7 @@ def main():
 		for i,s in enumerate(surveys):
 			#test_beam_rates(s,zDMgrid, zvals,dmvals,pset,[0,1,2,5,10,50,100,'all'],method=1)
 			outdir=outdir='Plots/'+dirnames[i]+'_BeamTest_'+str(method)+'_'+str(thresh)+'/'
-			test_beam_rates(s,zDMgrid, zvals,dmvals,pset,[0,1,2,5,10,50,100,'all'],method=method,outdir=outdir,thresh=thresh,zmax=zmaxs[i],DMmax=DMmaxs[i])
+			misc_functions.test_beam_rates(s,zDMgrid, zvals,dmvals,pset,[0,1,2,5,10,50,100,'all'],method=method,outdir=outdir,thresh=thresh,zmax=zmaxs[i],DMmax=DMmaxs[i])
 	
 	# generates zdm grids for the specified parameter set
 	NewGrids=True
@@ -186,7 +187,7 @@ def main():
 	
 	if NewGrids:
 		
-		grids=initialise_grids(surveys,zDMgrid, zvals,dmvals,pset,wdist=True)
+		grids=misc_functions.initialise_grids(surveys,zDMgrid, zvals,dmvals,pset,wdist=True)
 		with open('Pickle/'+gprefix+'grids.pkl', 'wb') as output:
 			pickle.dump(grids, output, pickle.HIGHEST_PROTOCOL)
 	else:
@@ -207,14 +208,14 @@ def main():
 		muDM=10**pset[5]
 		Macquart=muDM
 		# plots zdm distribution
-		plot_grid_2(gpks.rates,gpks.zvals,gpks.dmvals,zmax=3,DMmax=3000,name=Location+prefix+'nop_pks_optimised_grid.pdf',norm=2,log=True,label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$',project=False,FRBDM=pks.DMEGs,FRBZ=None,Aconts=[0.01,0.1,0.5],Macquart=Macquart)
-		plot_grid_2(gICS.rates,gICS.zvals,gICS.dmvals,zmax=1,DMmax=2000,name=Location+prefix+'nop_ICS_optimised_grid.pdf',norm=2,log=True,label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$',project=False,FRBDM=ICS.DMEGs,FRBZ=ICS.frbs["Z"],Aconts=[0.01,0.1,0.5],Macquart=Macquart)
-		plot_grid_2(glat50.rates,glat50.zvals,glat50.dmvals,zmax=0.6,DMmax=1500,name=Location+prefix+'nop_lat50_optimised_grid.pdf',norm=2,log=True,label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$',project=False,FRBDM=lat50.DMEGs,FRBZ=None,Aconts=[0.01,0.1,0.5],Macquart=Macquart)
+		misc_functions.plot_grid_2(gpks.rates,gpks.zvals,gpks.dmvals,zmax=3,DMmax=3000,name=Location+prefix+'nop_pks_optimised_grid.pdf',norm=2,log=True,label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$',project=False,FRBDM=pks.DMEGs,FRBZ=None,Aconts=[0.01,0.1,0.5],Macquart=Macquart)
+		misc_functions.plot_grid_2(gICS.rates,gICS.zvals,gICS.dmvals,zmax=1,DMmax=2000,name=Location+prefix+'nop_ICS_optimised_grid.pdf',norm=2,log=True,label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$',project=False,FRBDM=ICS.DMEGs,FRBZ=ICS.frbs["Z"],Aconts=[0.01,0.1,0.5],Macquart=Macquart)
+		misc_functions.plot_grid_2(glat50.rates,glat50.zvals,glat50.dmvals,zmax=0.6,DMmax=1500,name=Location+prefix+'nop_lat50_optimised_grid.pdf',norm=2,log=True,label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$',project=False,FRBDM=lat50.DMEGs,FRBZ=None,Aconts=[0.01,0.1,0.5],Macquart=Macquart)
 		
 		# plots zdm distribution, including projections onto z and DM axes
-		plot_grid_2(gpks.rates,gpks.zvals,gpks.dmvals,zmax=3,DMmax=3000,name=Location+prefix+'pks_optimised_grid.pdf',norm=2,log=True,label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$',project=True,FRBDM=pks.DMEGs,FRBZ=None,Aconts=[0.01,0.1,0.5],Macquart=Macquart)
-		plot_grid_2(gICS.rates,gICS.zvals,gICS.dmvals,zmax=1,DMmax=2000,name=Location+prefix+'ICS_optimised_grid.pdf',norm=2,log=True,label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$',project=True,FRBDM=ICS.DMEGs,FRBZ=ICS.frbs["Z"],Aconts=[0.01,0.1,0.5],Macquart=Macquart)
-		plot_grid_2(glat50.rates,glat50.zvals,glat50.dmvals,zmax=0.5,DMmax=1000,name=Location+prefix+'lat50_optimised_grid.pdf',norm=2,log=True,label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$',project=True,FRBDM=lat50.DMEGs,FRBZ=None,Aconts=[0.01,0.1,0.5],Macquart=Macquart)
+		misc_functions.plot_grid_2(gpks.rates,gpks.zvals,gpks.dmvals,zmax=3,DMmax=3000,name=Location+prefix+'pks_optimised_grid.pdf',norm=2,log=True,label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$',project=True,FRBDM=pks.DMEGs,FRBZ=None,Aconts=[0.01,0.1,0.5],Macquart=Macquart)
+		misc_functions.plot_grid_2(gICS.rates,gICS.zvals,gICS.dmvals,zmax=1,DMmax=2000,name=Location+prefix+'ICS_optimised_grid.pdf',norm=2,log=True,label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$',project=True,FRBDM=ICS.DMEGs,FRBZ=ICS.frbs["Z"],Aconts=[0.01,0.1,0.5],Macquart=Macquart)
+		misc_functions.plot_grid_2(glat50.rates,glat50.zvals,glat50.dmvals,zmax=0.5,DMmax=1000,name=Location+prefix+'lat50_optimised_grid.pdf',norm=2,log=True,label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$',project=True,FRBDM=lat50.DMEGs,FRBZ=None,Aconts=[0.01,0.1,0.5],Macquart=Macquart)
 	
 	doMaquart=True
 	# generates the Macquart relation for each set
@@ -223,9 +224,9 @@ def main():
 		muDM=10**pset[5]
 		Macquart=muDM
 		# the badly named variable 'Macquart', if not None, sets the mean host contribution
-		make_dm_redshift(glat50,Location+prefix+'lat50_macquart_relation.pdf',DMmax=1000,zmax=0.75,loc='upper right',Macquart=Macquart)
-		make_dm_redshift(gICS,Location+prefix+'ICS_macquart_relation.pdf',DMmax=2000,zmax=1,loc='upper right',Macquart=Macquart)
-		make_dm_redshift(gpks,Location+prefix+'pks_macquart_relation.pdf',DMmax=4000,zmax=3,loc='upper left',Macquart=Macquart)
+		misc_functions.make_dm_redshift(glat50,Location+prefix+'lat50_macquart_relation.pdf',DMmax=1000,zmax=0.75,loc='upper right',Macquart=Macquart)
+		misc_functions.make_dm_redshift(gICS,Location+prefix+'ICS_macquart_relation.pdf',DMmax=2000,zmax=1,loc='upper right',Macquart=Macquart)
+		misc_functions.make_dm_redshift(gpks,Location+prefix+'pks_macquart_relation.pdf',DMmax=4000,zmax=3,loc='upper left',Macquart=Macquart)
 	
 	
 	
@@ -234,8 +235,8 @@ def main():
 		#uncomment this!
 		print("Plotting basic zdm")
 		# It is just the intrinsic distribution!
-		plot_zdm_basic_paper(grids[0].smear_grid,grids[0].zvals,grids[0].dmvals,zmax=3,DMmax=3000,name=Location+'dm_EG.pdf',norm=1,log=True,ylabel='${\\rm DM_{\\rm EG}}$',label='$\\log_{10} p({\\rm DM_{cosmic}+DM_{host}}|z)$',conts=[0.023, 0.159,0.5,0.841,0.977])
-		plot_zdm_basic_paper(grids[0].grid,grids[0].zvals,grids[0].dmvals,zmax=3,DMmax=3000,name=Location+'dm_cosmic_only.pdf',norm=1,log=True,ylabel='${\\rm DM_{\\rm cosmic}}$',label='$\\log_{10} p({\\rm DM_{cosmic}}|z)$',conts=[0.023, 0.159,0.5,0.841,0.977])
+		misc_functions.plot_zdm_basic_paper(grids[0].smear_grid,grids[0].zvals,grids[0].dmvals,zmax=3,DMmax=3000,name=Location+'dm_EG.pdf',norm=1,log=True,ylabel='${\\rm DM_{\\rm EG}}$',label='$\\log_{10} p({\\rm DM_{cosmic}+DM_{host}}|z)$',conts=[0.023, 0.159,0.5,0.841,0.977])
+		misc_functions.plot_zdm_basic_paper(grids[0].grid,grids[0].zvals,grids[0].dmvals,zmax=3,DMmax=3000,name=Location+'dm_cosmic_only.pdf',norm=1,log=True,ylabel='${\\rm DM_{\\rm cosmic}}$',label='$\\log_{10} p({\\rm DM_{cosmic}}|z)$',conts=[0.023, 0.159,0.5,0.841,0.977])
 	
 	
 	BasicF0=True
@@ -254,7 +255,7 @@ def main():
 		
 		grids[0].calc_pdv(Emin,Emax,gamma,beam_b=np.array([1]),beam_o=np.array([1]))
 		grids[0].calc_rates()
-		plot_grid_2(grids[0].rates,grids[0].zvals,grids[0].dmvals,zmax=4,DMmax=5000,norm=0,log=True,name='Plots/basic_F0.pdf',label='$\\log_{10}p({\\rm DM},z) {\\rm [a.u.]}$',project=False,conts=False,FRBZ=None,FRBDM=None,Aconts=[0.01,0.1,0.5],Macquart=muDM)
+		misc_functions.plot_grid_2(grids[0].rates,grids[0].zvals,grids[0].dmvals,zmax=4,DMmax=5000,norm=0,log=True,name='Plots/basic_F0.pdf',label='$\\log_{10}p({\\rm DM},z) {\\rm [a.u.]}$',project=False,conts=False,FRBZ=None,FRBDM=None,Aconts=[0.01,0.1,0.5],Macquart=muDM)
 	
 	do_width_test=False
 	if do_width_test:
@@ -270,7 +271,7 @@ def main():
 		# uncomment this if you wish - takes a while though!
 		#fit_width_test(pset,surveys,grids,names) # finds something close to log is 1.7026718749999896, 0.8991484374999986
 		
-		width_test(pset,surveys,grids,names,logmean=1.70267,logsigma=0.899148,outdir='FinalFitPlots',NP=Wbins,scale=Wscale)
+		misc_functions.width_test(pset,surveys,grids,names,logmean=1.70267,logsigma=0.899148,outdir='FinalFitPlots',NP=Wbins,scale=Wscale)
 	
 	exit()
 	

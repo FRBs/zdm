@@ -14,6 +14,7 @@ import sys
 import matplotlib.pyplot as plt
 import numpy as np
 #from frb import dlas
+from frb.dm import igm
 
 import scipy as sp
 #import astropy.units as u
@@ -87,7 +88,6 @@ def get_mean_DM(zeds):
 	zmax=zeds[-1]
 	nz=zeds.size
 	sys.path.insert(1, '/Users/cjames/CRAFT/FRB_library/FRB-master/')
-	from frb import igm
 	DMbar, zeval = igm.average_DM(zmax, cumul=True, neval=nz+1)
 	
 	DMbar=np.array(DMbar)

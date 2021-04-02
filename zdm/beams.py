@@ -1,8 +1,12 @@
 # collection of functions to handle telescope beam effects
+from pkg_resources import resource_filename
+import os
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.constants as constants
 
+# Path to survey data
+beams_path = os.path.join(resource_filename('zdm', 'data'), 'BeamData')
 
 def gauss_beam(thresh=1e-3,nbins=10,freq=1.4e9,D=64,sigma=None):
 	'''initialises a Gaussian beam
@@ -29,11 +33,11 @@ def gauss_beam(thresh=1e-3,nbins=10,freq=1.4e9,D=64,sigma=None):
 	omega_b=np.full([nbins],2*np.pi*dlnb*sigma**2) #omega_b per dlnb - makes sense
 	return b,omega_b
 
-def load_beam(suffix,basedir='BeamData/'):
+def load_beam(suffix,basedir=beams_path):
 	
-	logb=np.load(basedir+suffix+'_bins.npy')
+	logb=np.load(os.path.join(basedir,suffix+'_bins.npy'))
 	# standard, gets best beam estimates: no truncation
-	omega_b=np.load(basedir+suffix+'_hist.npy')
+	omega_b=np.load(os.path.join(basedir,suffix+'_hist.npy'))
 	
 	# checks if the log-bins are 10^logb or just actual b values
 	#in a linear scale the first few may be zero...

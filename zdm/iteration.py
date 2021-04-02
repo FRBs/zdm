@@ -2,10 +2,10 @@
 # values on a zdm grid
 #import matplotlib.pyplot as plt
 import numpy as np
-import pcosmic
+from zdm import pcosmic
 from scipy.optimize import minimize
 # to hold one of these parameters constant, just remove it from the arg set here
-import cosmology as cos
+from zdm import cosmology as cos
 import zdm
 import time
 import os

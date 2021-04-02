@@ -1,10 +1,12 @@
 
-import cosmology as cos
+from frb import dlas
+
+from zdm import cosmology as cos
 import argparse
-import survey
+from zdm import survey
 import numpy as np
-import zdm
-import pcosmic
+from zdm import zdm
+from zdm import pcosmic
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 import matplotlib.cm as cm
@@ -16,9 +18,9 @@ import scipy as sp
 
 import time
 from matplotlib.ticker import NullFormatter
-import iteration as it
+from zdm import iteration as it
 
-import beams
+from zdm import beams
 import pickle
 
 
@@ -1667,7 +1669,6 @@ def get_zdm_grid(new=True,plot=False,method='analytic',F=0.32,nz=500,zmax=5,ndm=
 	
 	if new:
 		
-		from frb import dlas
 		#nz=500
 		#zmax=5
 		dz=zmax/nz
