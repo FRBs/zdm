@@ -1,5 +1,6 @@
 
 from frb import dlas
+from frb.dm import igm
 
 from zdm import cosmology as cos
 import argparse
@@ -2062,7 +2063,6 @@ def plot_grid_2(zDMgrid,zvals,dmvals,zmax=1,DMmax=1000,norm=0,log=True,name='tem
 	if Macquart is not None:
 		plt.ylim(0,ndm-1)
 		plt.xlim(0,nz-1)
-		from frb import igm
 		zmax=zvals[-1]
 		nz=zvals.size
 		DMbar, zeval = igm.average_DM(zmax, cumul=True, neval=nz+1)
