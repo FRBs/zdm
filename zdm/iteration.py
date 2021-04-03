@@ -301,6 +301,7 @@ def calc_likelihoods_1D(grid,survey,pset,doplot=False,norm=True,psnr=False,Pn=Tr
 	else:
 		log_global_norm=0
 	
+	# This will need to be modified if we allow for varying F and Omega_b H0
 	llsum=np.sum(np.log10(pvals))-log_global_norm*DMobs.size
 	lllist=[llsum]
 	
