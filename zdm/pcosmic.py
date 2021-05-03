@@ -192,8 +192,9 @@ def plot_mean(zvals,saveas):
 	plt.savefig(saveas)
 	plt.close()
 
-def get_dm_mask(dmvals,params,zvals=None,plot=False):
+def get_dm_mask(dmvals, params, zvals=None, plot=False):
 	""" Generates a mask over which to integrate the lognormal
+	for the host+MW contribution.
 	Apply this mask as DM[i] = DM[set[i]]*mask[i]
 	DMvals: these give local probabilities of p(DM).
 	We simply assign lognormal values at the midpoints
@@ -264,6 +265,18 @@ def get_dm_mask(dmvals,params,zvals=None,plot=False):
 	return mask
 
 def integrate_pdm(ddm,ndm,logmean,logsigma,csumcut=0.999):
+	"""[summary]
+
+	Args:
+		ddm ([type]): [description]
+		ndm ([type]): [description]
+		logmean ([type]): [description]
+		logsigma ([type]): [description]
+		csumcut (float, optional): [description]. Defaults to 0.999.
+
+	Returns:
+		[type]: [description]
+	"""
 	# do this for the z=0 case
 	mask=np.zeros([ndm])
 	args=(logmean,logsigma)

@@ -1522,7 +1522,8 @@ def test_beam_rates(survey,zDMgrid, zvals,dmvals,pset,binset,method=2,outdir='Pl
 	
 	acc.close()
 
-def initialise_grids(surveys,zDMgrid, zvals,dmvals,pset,wdist=False):
+def initialise_grids(surveys, zDMgrid, zvals, dmvals, pset,
+                     wdist=False):
 	""" For a list of surveys, construct a zDMgrid object
 	wdist indicates a distribution of widths in the survey,
 	i.e. do not use the mean efficiency
@@ -1539,7 +1540,8 @@ def initialise_grids(surveys,zDMgrid, zvals,dmvals,pset,wdist=False):
 	
 	# generates a DM mask
 	# creates a mask of values in DM space to convolve with the DM grid
-	mask=pcosmic.get_dm_mask(dmvals,(logmean,logsigma),zvals,plot=True)
+	mask=pcosmic.get_dm_mask(dmvals,(logmean,logsigma),
+                          zvals=zvals,plot=True)
 	grids=[]
 	for survey in surveys:
 		if wdist:
@@ -1555,11 +1557,13 @@ def initialise_grids(surveys,zDMgrid, zvals,dmvals,pset,wdist=False):
 		
 		grid.smear_dm(mask,logmean,logsigma)
 		
-		grid.calc_thresholds(survey.meta['THRESH'],efficiencies,alpha=alpha,weights=weights)
+		grid.calc_thresholds(survey.meta['THRESH'],efficiencies,
+                       alpha=alpha,weights=weights)
 		grid.calc_dV()
 		grid.calc_pdv(Emin,Emax,gamma,survey.beam_b,survey.beam_o) # calculates volumetric-weighted probabilities
 		grid.set_evolution(sfr_n) # sets star-formation rate scaling with z - here, no evoltion...
 		grid.calc_rates() # calculates rates by multiplying above with pdm plot
+		# Add to our list of grids
 		grids.append(grid)
 	
 	return grids
@@ -1651,7 +1655,8 @@ def plot_1d(pvec,lset,xlabel,savename):
 def get_zdm_grid(new=True,plot=False,method='analytic',
                  F=0.32,nz=500,zmax=5,ndm=1400,dmmax=7000.,
                  datdir='GridData',tag="", orig=False):
-	"""[summary]
+	"""Generate a grid of z vs. DM for an assumed F value
+	for a specified z range and DM range.
 
 	Args:
 		new (bool, optional): [description]. Defaults to True.

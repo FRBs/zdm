@@ -67,7 +67,7 @@ def main():
 	
 	# get the grid of p(DM|z). See function for default values.
 	# set new to False once this is already initialised
-	zDMgrid, zvals,dmvals=misc_functions.get_zdm_grid(
+	zDMgrid, zvals, dmvals=misc_functions.get_zdm_grid(
 		new=True,plot=False,method='analytic')
 	# NOTE: if this is new, we also need new surveys and grids!
 	
@@ -172,7 +172,7 @@ def main():
 	# and estimates various parmeters based on that
 	# used only in initial investigations to determine how many points to use
 	TestBeams=False
-	if TestBeams==True:
+	if TestBeams:
 		method=2
 		zmaxs=[1,2,4]
 		DMmaxs=[1000,2000,4000]
@@ -190,7 +190,8 @@ def main():
 	
 	if NewGrids:
 		
-		grids=misc_functions.initialise_grids(surveys,zDMgrid, zvals,dmvals,pset,wdist=True)
+		grids=misc_functions.initialise_grids(
+			surveys, zDMgrid, zvals,dmvals,pset,wdist=True)
 		with open('Pickle/'+gprefix+'grids.pkl', 'wb') as output:
 			pickle.dump(grids, output, pickle.HIGHEST_PROTOCOL)
 	else:
@@ -322,7 +323,7 @@ def main():
 			C_ll,C_p=it.my_minimise(pset,grids,surveys,disable=[0,2,4,5,6],psnr=False,PenTypes=None,PenParams=None)
 			t1=time.process_time()
 			print("My iteration took",t1-t0," seconds")
-			print("Results: ",C_ll,C_p)
+			print("Results: ",C_ll,C_pbestfit_ICS_macquart_relation.pdf)
 			
 		
 		if old:

@@ -19,6 +19,13 @@ class grid:
 		self.b_fractions=None
 		
 	def pass_grid(self,grid,zvals,dmvals):
+		"""[summary]
+
+		Args:
+			grid (np.ndarray): zDMgrid
+			zvals (np.ndarray): redshifts for the grid
+			dmvals (np.darray): DM values of the grid
+		"""
 		self.grid=grid
 		self.zvals=zvals
 		self.dmvals=dmvals
@@ -146,6 +153,7 @@ class grid:
 		# here, b-fractions are unweighted according to the value of b.
 		self.fractions=np.sum(self.b_fractions,axis=2) # sums over b-axis [ we could ignore this step?]
 		self.pdv=np.multiply(self.fractions.T,self.dV).T
+
 	def calc_rates(self):
 		""" multiplies the rate per cell with the appropriate pdm plot """
 		
