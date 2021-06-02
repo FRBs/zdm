@@ -10,16 +10,14 @@
 
 ##############################################
 
-from pkg_resources import resource_filename
+
 import numpy as np
-from zdm import beams
+import beams
 
 import os
-from zdm import pcosmic
+import pcosmic
 from scipy.integrate import quad
 
-# Path to survey data
-survey_path = os.path.join(resource_filename('zdm', 'data'), 'Surveys')
 class survey:
 	"""A class to hold an FRB survey"""
 	
@@ -70,14 +68,13 @@ class survey:
 		self.mean_efficiencies=mean_efficiencies #be careful here!!! This may not be what we want!
 		return efficiencies
 	
-	def process_survey_file(self, basename, path=survey_path):
+	def process_survey_file(self,filename):
 		""" Loads a survey file, then creates dictionaries of the loaded variables """
-		filename = os.path.join(path, basename)
 		info=[]
 		keys=[]
 		self.meta={} # dict to contain survey metadata, in dictionary format
 		self.frbs={} # dict to contain arrays of data for each FRB proprty
-		#basename=os.path.basename(filename)
+		basename=os.path.basename(filename)
 		name=os.path.splitext(basename)[0]
 		self.name=name
 		# read in raw data from survey file
@@ -125,9 +122,11 @@ class survey:
 		which=1
 		self.do_keyword_char('BEAM',which,None) # prefix of beam file
 		self.do_keyword('TOBS',which,None) # total observation time, hr
-		self.do_keyword('DIAM',which,None) # total observation time, hr
-		self.do_keyword('NBEAMS',which,1) # total observation time, hr
+		self.do_keyword('DIAM',which,None) # Telescope diamater (in case of Gauss beam)
+		self.do_keyword('NBEAMS',which,1) # Number of beams (multiplies sr)
+		self.do_keyword('NORM_FRB',which,self.NFRB) # number of FRBs to norm obs time by
 		
+		self.NORM_FRB=self.meta['NORM_FRB']
 		# the following properties can either be FRB-by-FRB, or metadata
 		which=3
 		

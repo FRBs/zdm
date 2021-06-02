@@ -2,10 +2,10 @@
 # values on a zdm grid
 #import matplotlib.pyplot as plt
 import numpy as np
-from zdm import pcosmic
+import pcosmic
 from scipy.optimize import minimize
 # to hold one of these parameters constant, just remove it from the arg set here
-from zdm import cosmology as cos
+import cosmology as cos
 import zdm
 import time
 import os
@@ -301,7 +301,6 @@ def calc_likelihoods_1D(grid,survey,pset,doplot=False,norm=True,psnr=False,Pn=Tr
 	else:
 		log_global_norm=0
 	
-	# This will need to be modified if we allow for varying F and Omega_b H0
 	llsum=np.sum(np.log10(pvals))-log_global_norm*DMobs.size
 	lllist=[llsum]
 	
@@ -309,7 +308,7 @@ def calc_likelihoods_1D(grid,survey,pset,doplot=False,norm=True,psnr=False,Pn=Tr
 	if Pn and (survey.TOBS is not None):
 		expected=CalculateIntegral(grid,survey)
 		expected *= 10**pset[7]
-		observed=survey.NFRB
+		observed=survey.NORM_FRB
 		Pn=Poisson_p(observed,expected)
 		Nll=np.log10(Pn)
 		lllist.append(Nll)
@@ -542,7 +541,7 @@ def calc_likelihoods_2D(grid,survey,pset,doplot=False,norm=True,psnr=False,print
 	if Pn and (survey.TOBS is not None):
 		expected=CalculateIntegral(grid,survey)
 		expected *= 10**pset[7]
-		observed=survey.NFRB
+		observed=survey.NORM_FRB
 		Pn=Poisson_p(observed,expected)
 		Pll=np.log10(Pn)
 		lllist.append(Pll)
@@ -805,7 +804,7 @@ def cube_likelihoods(grids,surveys,psetmins,psetmaxes,npoints,run,howmany,outfil
 	"""
 	
 	# check feasible range of job number
-	if (howmany <= 0) or (run <= 0) or np.prod(np.abs(npoints)) < run*howmany:
+	if (howmany <= 0) or (run <= 0) or np.prod(np.abs(npoints)) < (run-1)*howmany+1:
 		print("Invalid range of run=",run," and howmany=",howmany," for ",np.prod(npoints)," points")
 		exit()
 	
@@ -1388,7 +1387,7 @@ def CalculateConstant(grid,survey):
 	"""
 	
 	expected=CalculateIntegral(grid,survey)
-	observed=survey.NFRB
+	observed=survey.NORM_FRB
 	constant=observed/expected
 	return constant
 
@@ -1466,7 +1465,7 @@ def minimise_const_only(pset,grids,surveys):
 		if s.TOBS is not None:
 			r=np.sum(grids[j].rates)*s.TOBS
 			r*=10**pset[7]
-			o=s.NFRB
+			o=s.NORM_FRB
 			rs.append(r)
 			os.append(o)
 	print("Total sum of ll w/o const is ",np.sum(lls[j]))

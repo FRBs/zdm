@@ -6,6 +6,7 @@ DIAM 12
 NBEAMS 36
 BEAM lat50_log #prefix of beam file
 NFRB 24 #Number of FRBs
+NORM_FRB 20 #Number corresponding to Tobs
 TOBS 1274.6
 THRESH 22 #Jy ms to a 1 ms burst
 SNRTHRESH 9.5 # signal-to-noise threshold: scales jy ms to snr
