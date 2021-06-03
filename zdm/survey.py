@@ -12,10 +12,10 @@
 
 
 import numpy as np
-import beams
+from zdm import beams
 
 import os
-import pcosmic
+from zdm import pcosmic
 from scipy.integrate import quad
 
 class survey:

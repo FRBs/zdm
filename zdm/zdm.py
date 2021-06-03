@@ -11,12 +11,19 @@ class grid:
 	It also assumes a linear uniform grid.
 	"""
 	
-	def __init__(self):
+	def __init__(self,source_evolution=0):
+		"""
+		Class constructor.
+		Source evolution is the function that determines z-dependence.
+		0: SFR^n
+		1: (1+z)^2.7 n
+		"""
 		self.grid=None
 		# we need to set these to trivial values to ensure correct future behaviour
 		self.beam_b=np.array([1])
 		self.beam_o=np.array([1])
 		self.b_fractions=None
+		self.source_evolution=cos.choose_source_evolution_function(source_evolution)
 		
 	def pass_grid(self,grid,zvals,dmvals):
 		self.grid=grid
@@ -94,7 +101,8 @@ class grid:
 	def set_evolution(self,n):
 		""" Scales volumetric rate by SFR """
 		self.sfr_n=n
-		self.sfr=cos.sfr(self.zvals)**n
+		#self.sfr=cos.sfr(self.zvals)**n #old hard-coded value
+		self.sfr=self.source_evolution(self.zvals,n)
 	
 	
 	# not used
