@@ -75,16 +75,22 @@ def main():
 	thresh=0
 	method=2
 	
+	
+	# sets which kind of source evolution function is being used
+	source_evolution=0 # SFR^n scaling
+	#source_evolution=1 # (1+z)^(2.7n) scaling
+	
+	
+	# sets the nature of scaling with the 'spectral index' alpha
+	alpha_method=0 # spectral index interpretation: includes k-correction. Slower to update
+	#alpha_method=1 # rate interpretation: extra factor of (1+z)^alpha in source evolution
+	
 	############## Initialise surveys ##############
 	
 	# constants of intrinsic width distribution
 	Wlogmean=1.70267
 	Wlogsigma=0.899148
 	DMhalo=50
-	
-	# sets which kind of source evolution function is being used
-	source_evolution=0 # SFR^n scaling
-	#source_evolution=1 # (1+z)^(2.7n) scaling
 	
 	#These surveys combine time-normalised and time-unnormalised samples 
 	NewSurveys=True
@@ -197,7 +203,7 @@ def main():
 	
 	if NewGrids:
 		print("Generating new grids, set NewGrids=False to save time later")
-		grids=misc_functions.initialise_grids(surveys,zDMgrid, zvals,dmvals,pset,wdist=True,source_evolution=source_evolution)
+		grids=misc_functions.initialise_grids(surveys,zDMgrid, zvals,dmvals,pset,wdist=True,source_evolution=source_evolution,alpha_method=alpha_method)
 		with open('Pickle/'+gprefix+'grids.pkl', 'wb') as output:
 			pickle.dump(grids, output, pickle.HIGHEST_PROTOCOL)
 	else:

@@ -219,15 +219,22 @@ def update_grid(grid,pset):
 		oldsmean=smear_mean
 	
 	###### checks to see if the sfr parameters have changed ######
-	if sfrn != oldsfrn:
-		grid.set_evolution(sfrn)
-		new_sfr_smear=True
-		oldsfrn=sfrn
+	if grid.alpha_method==0:
+		if sfrn != oldsfrn:
+			grid.set_evolution(sfrn)
+			new_sfr_smear=True
+			oldsfrn=sfrn
+	elif grid.alpha_method==1:
+		if sfrn != oldsfrn or alpha != oldalpha:
+			grid.set_evolution(sfrn,alpha=alpha)
+			new_sfr_smear=True
+			oldsfrn=sfrn
+			oldalpha=alpha
 	
 	##### examines the 'pdv tree' affecting sensitivity #####
 	# begin with alpha
-	
-	if alpha != oldalpha:
+	# alpha does not change thresholds under rate scaling, only spec index
+	if grid.alpha_method==0 and alpha != oldalpha:
 		grid.calc_thresholds(grid.F0,grid.eff_table,alpha,grid.bandwidth,grid.eff_weights)
 		changed_alpha=True
 		oldalpha=alpha
@@ -252,6 +259,7 @@ def update_grid(grid,pset):
 	
 	# checks if we need to calculate new pdv: this depends on thresholds, i.e. alpha
 	# OK now we need to be careful, and distinguish between the different changes
+	# note that changed_alpha is always 0 if alpha_method=1
 	if changed_alpha or clEmin or clEmax or clgamma:
 		grid.calc_pdv(Emin,Emax,gamma)#,newbg=changed_alpha,newEmin=clEmin,newEmax=clEmax,newGamma=clgamma)
 		oldlEmin=lEmin
@@ -264,7 +272,7 @@ def update_grid(grid,pset):
 	if new_sfr_smear:
 		grid.calc_rates() #includes sfr smearing factors and pdv mult
 	elif new_pdv_smear:
-		grid.rates=grid.pdv*grid.sfr_smear
+		grid.rates=grid.pdv*grid.sfr_smear #does pdv mult only, 'by hand'
 	
 
 def calc_likelihoods_1D(grid,survey,pset,doplot=False,norm=True,psnr=False,Pn=True,dolist=False):
@@ -359,7 +367,7 @@ def calc_likelihoods_1D(grid,survey,pset,doplot=False,norm=True,psnr=False,Pn=Tr
 			#wbEths=bEths #this is the only bit that depends on j, but OK also!
 			bEobs=bEths*survey.Ss #should correctky multiply the last dimensions
 			for j,w in enumerate(grid.eff_weights):
-				temp=(zdm.array_diff_power_law(bEobs[j,:,:],Emin,Emax,gamma).T*grid.FtoE).T
+				temp=(grid.array_diff_lf(bEobs[j,:,:],Emin,Emax,gamma).T*grid.FtoE).T
 				zpsnr += temp*survey.beam_o[i]*w #weights this be beam solid angle and efficiency
 		
 		
@@ -611,7 +619,7 @@ def calc_likelihoods_2D(grid,survey,pset,doplot=False,norm=True,psnr=False,print
 			bEths=Eths/b # array of shape NFRB, 1/b
 			bEobs=bEths*survey.Ss
 			for j,w in enumerate(grid.eff_weights):
-				temp=zdm.array_diff_power_law(bEobs[j,:],Emin,Emax,gamma) * FtoE #one dim in beamshape, one dim in FRB
+				temp=grid.array_diff_lf(bEobs[j,:],Emin,Emax,gamma) * FtoE #one dim in beamshape, one dim in FRB
 				
 				psnr += temp.T*survey.beam_o[i]*w #multiplies by beam factors and weight
 				
@@ -848,8 +856,15 @@ def cube_likelihoods(grids,surveys,psetmins,psetmaxes,npoints,run,howmany,outfil
 	
 	# this is the order of fastest to slowest, i.e. we update index
 	# order[0] first, then order [1], etc
-	
-	order=[7,4,5,6,0,1,2,3]
+	# the order can depend on the methods being used
+	# note: takes this from the first grid, it should be identical for all grids
+	if grids[0].alpha_method==0:
+		order=[7,4,5,6,0,1,2,3]
+	elif grids[0].alpha_method==0:
+		order=[7,4,2,5,6,0,1,3]
+	else:
+		raise ValueError("Unknown value of alpha method!",grids[0].alpha_method)
+			
 	r_npoints=npoints[order]
 	ndims=npoints.size
 	iorder=np.zeros([ndims],dtype='int')

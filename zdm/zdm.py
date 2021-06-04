@@ -11,7 +11,7 @@ class grid:
 	It also assumes a linear uniform grid.
 	"""
 	
-	def __init__(self,source_evolution=0):
+	def __init__(self,source_evolution=0,alpha_method=1,luminosity_function=0):
 		"""
 		Class constructor.
 		Source evolution is the function that determines z-dependence.
@@ -24,7 +24,19 @@ class grid:
 		self.beam_o=np.array([1])
 		self.b_fractions=None
 		self.source_evolution=cos.choose_source_evolution_function(source_evolution)
-		
+		self.alpha_method=alpha_method
+		self.luminosity_function=0
+		self.init_luminosity_functions()
+	
+	def init_luminosity_functions(self):
+		if self.luminosity_function==0:
+			self.array_cum_lf=array_cum_power_law
+			self.vector_cum_lf=vector_cum_power_law
+			self.array_diff_lf=array_diff_power_law
+			self.vector_diff_lf=vector_diff_power_law
+		else:
+			raise ValueError("Luminosity function must be 0, not ",self.luminosity_function)
+	
 	def pass_grid(self,grid,zvals,dmvals):
 		self.grid=grid
 		self.zvals=zvals
@@ -96,15 +108,23 @@ class grid:
 	def EF(self,alpha=0,bandwidth=1e9):
 		"""Calculates the fluence--energy conversion factors as a function of redshift
 		"""
-		self.FtoE=cos.F_to_E(1,self.zvals,alpha=alpha,bandwidth=bandwidth)
+		if self.alpha_method==0:
+			self.FtoE=cos.F_to_E(1,self.zvals,alpha=alpha,bandwidth=bandwidth)
+		elif self.alpha_method==1:
+			self.FtoE=cos.F_to_E(1,self.zvals,alpha=0.,bandwidth=bandwidth)
+		else:
+			raise ValueError("alpha method must be 0 or 1, not ",self.alpha_method)
 	
-	def set_evolution(self,n):
+	def set_evolution(self,n,alpha=None):
 		""" Scales volumetric rate by SFR """
 		self.sfr_n=n
+		if alpha is not None:
+			self.alpha=alpha
 		#self.sfr=cos.sfr(self.zvals)**n #old hard-coded value
 		self.sfr=self.source_evolution(self.zvals,n)
-	
-	
+		if self.alpha_method==1:
+			self.sfr *= (1.+self.zvals)**(-self.alpha) #reduces rate with alpha
+			
 	# not used
 	#def set_efficiencies(self, eff_func):
 	#	""" Sets the efficiency function that
@@ -147,9 +167,9 @@ class grid:
 			for j,w in enumerate(self.eff_weights):
 				
 				if j==0:
-					self.b_fractions[:,:,i] = self.beam_o[i]*w*array_power_law(self.thresholds[j,:,:]/b,Emin,Emax,gamma)
+					self.b_fractions[:,:,i] = self.beam_o[i]*w*self.array_cum_lf(self.thresholds[j,:,:]/b,Emin,Emax,gamma)
 				else:
-					self.b_fractions[:,:,i] += self.beam_o[i]*w*array_power_law(self.thresholds[j,:,:]/b,Emin,Emax,gamma)
+					self.b_fractions[:,:,i] += self.beam_o[i]*w*self.array_cum_lf(self.thresholds[j,:,:]/b,Emin,Emax,gamma)
 				
 		# here, b-fractions are unweighted according to the value of b.
 		self.fractions=np.sum(self.b_fractions,axis=2) # sums over b-axis [ we could ignore this step?]
@@ -227,6 +247,7 @@ class grid:
 			self.eff_weights=weights/np.sum(weights) #normalises this!
 			self.eff_table=eff_table
 		Eff_thresh=F0/self.eff_table
+		
 		
 		self.EF(alpha,bandwidth) #sets FtoE values - could have been done *WAY* earlier
 		
@@ -320,56 +341,95 @@ class grid:
 		self.smear=grid.smear
 		self.smear_grid=grid.smear_grid
 		
-		
-		
-def array_power_law(Eth,Emin,Emax,gamma):
+
+############## this section defines different luminosity functions ##########
+
+def template_array_cumulative_luminosity_function(Eth,*params):
+	"""
+	Template for a cumulative luminosity function
+	Returns fraction of cumulative distribution above Eth
+	Luminosity function is defined by *params
+	Eth is a multidimensional numpy array
+	Always just wraps the vector version
+	"""
+	dims=Eth.shape
+	Eth=Eth.flatten()
+	result=template_vector_cumulative_luminosity_function(Eth,*params)
+	result=result.reshape(dims)
+	return result
+
+def template_vector_cumulative_luminosity_function(Eth,*params):
+	"""
+	Template for a cumulative luminosity function
+	Returns fraction of cumulative distribution above Eth
+	Luminosity function is defined by *params
+	Eth is a 1D numpy array
+	This example uses a cumulative power law
+	"""
+	#result=f(params)
+	#return result
+	return None
+
+########### simple power law functions #############
+	
+def array_cum_power_law(Eth,*params):
 	""" Calculates the fraction of bursts above a certain power law
 	for a given Eth, where Eth is an N-dimensional array
 	"""
 	dims=Eth.shape
 	Eth=Eth.flatten()
-	if gamma >= 0: #handles crazy dodgy cases. Or just return 0?
-		result=np.zeros([Eth.size])
-		result[np.where(Eth < Emax)]=1.
-		result=result.reshape(dims)
-		Eth=Eth.reshape(dims)
-		return result
-	result=array_power_law2(Eth,Emin,Emax,gamma)
+	#if gamma >= 0: #handles crazy dodgy cases. Or just return 0?
+	#	result=np.zeros([Eth.size])
+	#	result[np.where(Eth < Emax)]=1.
+	#	result=result.reshape(dims)
+	#	Eth=Eth.reshape(dims)
+	#	return result
+	result=vector_cum_power_law(Eth,*params)
 	result=result.reshape(dims)
 	return result
 
 
-def array_power_law2(Eth,Emin,Emax,gamma):		
+#def array_power_law2(Eth,Emin,Emax,gamma):		
+def vector_cum_power_law(Eth,*params):
+	""" Calculates the fraction of bursts above a certain power law
+	for a given Eth.
+	"""
+	params=np.array(params)
+	Emin=params[0]
+	Emax=params[1]
+	gamma=params[2]
 	result=(Eth**gamma-Emax**gamma ) / (Emin**gamma-Emax**gamma )
-	# should not happen
 	low=np.where(Eth < Emin)[0]
 	if len(low) > 0:
 		result[low]=1.
 	high=np.where(Eth > Emax)[0]
 	if len(high)>0:
 		result[high]=0.
-	
 	return result
 
-def array_diff_power_law(Eth,Emin,Emax,gamma):
+def array_diff_power_law(Eth,*params):
 	""" Calculates the differential fraction of bursts for a power law
 	at a given Eth, where Eth is an N-dimensional array
 	"""
 	dims=Eth.shape
 	Eth=Eth.flatten()
-	if gamma >= 0: #handles crazy dodgy cases. Or just return 0?
-		result=np.zeros([Eth.size])
-		result[np.where(Eth < Emax)]=1.
-		result=result.reshape(dims)
-		Eth=Eth.reshape(dims)
-		return result
+	#if gamma >= 0: #handles crazy dodgy cases. Or just return 0?
+	#	result=np.zeros([Eth.size])
+	#	result[np.where(Eth < Emax)]=1.
+	#	result=result.reshape(dims)
+	#	Eth=Eth.reshape(dims)
+	#	return result
 	
-	result=array_diff_power_law2(Eth,Emin,Emax,gamma)
+	result=vector_diff_power_law(Eth,*params)
 	result=result.reshape(dims)
 	return result
 
 
-def array_diff_power_law2(Eth,Emin,Emax,gamma):
+def vector_diff_power_law(Eth,*params):
+	Emin=params[0]
+	Emax=params[1]
+	gamma=params[2]
+	
 	result=-(gamma*Eth**(gamma-1)) / (Emin**gamma-Emax**gamma )
 	
 	low=np.where(Eth < Emin)[0]
@@ -381,34 +441,26 @@ def array_diff_power_law2(Eth,Emin,Emax,gamma):
 	
 	return result
 
-def vector_power_law(Eth,Emin,Emax,gamma):
-	""" Calculates the fraction of bursts above a certain power law
-	for a given Eth.
-	"""
-	result=(Eth**gamma-Emax**gamma ) / (Emin**gamma-Emax**gamma )
-	low=np.where(Eth < Emin)[0]
-	if len(low) > 0:
-		result[low]=1.
-	high=np.where(Eth > Emax)[0]
-	if len(high)>0:
-		results[high]=0.
-	return result
 
+############### unused - to delete ##########
 # power-laws here are differential
-def power_law_norm(Emin,Emax,gamma):
-	""" Calculates the normalisation factor for a power-law """
-	return Emin**gamma-Emax**-gamma
+#def power_law_norm(Emin,Emax,gamma):
+#	""" Calculates the normalisation factor for a power-law """
+#	return Emin**gamma-Emax**-gamma
 
-def power_law(Eth,Emin,Emax,gamma):
-	""" Calculates the fraction of bursts above a certain power law
-	for a given Eth.
-	"""
-	if Eth <= Emin:
-		return 1
-	elif Eth >= Emax:
-		return 0
-	else:
-		return (Eth**gamma-Emax**gamma ) / (Emin**gamma-Emax**gamma )
+#def power_law(Eth,Emin,Emax,gamma):
+#	""" Calculates the fraction of bursts above a certain power law
+#	for a given Eth.
+#	"""
+#	if Eth <= Emin:
+#		return 1
+#	elif Eth >= Emax:
+#		return 0
+#	else:
+#		return (Eth**gamma-Emax**gamma ) / (Emin**gamma-Emax**gamma )
+
+
+######### misc function to load some data - do we ever use it? ##########
 
 def load_data(filename):
 	if filename.endswith('.npy'):

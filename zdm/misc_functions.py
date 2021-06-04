@@ -1522,7 +1522,7 @@ def test_beam_rates(survey,zDMgrid, zvals,dmvals,pset,binset,method=2,outdir='Pl
 	
 	acc.close()
 
-def initialise_grids(surveys,zDMgrid, zvals,dmvals,pset,wdist=False,source_evolution=0):
+def initialise_grids(surveys,zDMgrid, zvals,dmvals,pset,wdist=False,source_evolution=0,alpha_method=1):
 	""" For a list of surveys, construct a zDMgrid object
 	wdist indicates a distribution of widths in the survey,
 	i.e. do not use the mean efficiency
@@ -1550,7 +1550,7 @@ def initialise_grids(surveys,zDMgrid, zvals,dmvals,pset,wdist=False,source_evolu
 			weights=None
 			#efficiencies=survey.get_efficiency(dmvals)
 		
-		grid=zdm.grid(source_evolution=source_evolution)
+		grid=zdm.grid(source_evolution=source_evolution,alpha_method=alpha_method)
 		grid.pass_grid(zDMgrid,zvals,dmvals)
 		grid.smear_dm(mask,logmean,logsigma)
 		
