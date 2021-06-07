@@ -1660,11 +1660,11 @@ def get_zdm_grid(H0=67.74,new=True,plot=False,method='analytic',F=0.32,nz=500,zm
 		zfile=datdir+'/'+tag+'zdm_MC_z_'+str(F)+'.npy'
 		dmfile=datdir+'/'+tag+'zdm_MC_dm_'+str(F)+'.npy'
 	elif method=='analytic':
-		savefile=datdir+'/'+tag+'zdm_A_grid_'+str(F)+'.npy'
-		datfile=datdir+'/'+tag+'zdm_A_data_'+str(F)+'.npy'
-		zfile=datdir+'/'+tag+'zdm_A_z_'+str(F)+'.npy'
-		dmfile=datdir+'/'+tag+'zdm_A_dm_'+str(F)+'.npy'
-		C0file=datdir+'/'+tag+'zdm_A_C0_'+str(F)+'.npy'
+		savefile=datdir+'/'+tag+'zdm_A_grid_'+str(F)+'H0_'+str(H0)+'.npy'
+		datfile=datdir+'/'+tag+'zdm_A_data_'+str(F)+'H0_'+str(H0)+'.npy'
+		zfile=datdir+'/'+tag+'zdm_A_z_'+str(F)+'H0_'+str(H0)+'.npy'
+		dmfile=datdir+'/'+tag+'zdm_A_dm_'+str(F)+'H0_'+str(H0)+'.npy'
+		C0file=datdir+'/'+tag+'zdm_A_C0_'+str(F)+'H0_'+str(H0)+'.npy'
 	
 	if new:
 		
