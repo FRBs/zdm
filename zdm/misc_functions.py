@@ -1665,7 +1665,7 @@ def get_zdm_grid(H0=67.74,new=True,plot=False,method='analytic',F=0.32,nz=500,zm
 		zfile=datdir+'/'+tag+'zdm_A_z_'+str(F)+'H0_'+str(H0)+'.npy'
 		dmfile=datdir+'/'+tag+'zdm_A_dm_'+str(F)+'H0_'+str(H0)+'.npy'
 		C0file=datdir+'/'+tag+'zdm_A_C0_'+str(F)+'H0_'+str(H0)+'.npy'
-	
+	#labelled pickled files with H0
 	if new:
 		
 		#nz=500

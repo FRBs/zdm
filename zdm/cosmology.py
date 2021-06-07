@@ -52,7 +52,7 @@ das=1
 dls=1
 zs=1
 dvs=1
-dvdtaus=1
+dvdtaus=1 
 
 # tracks whether or not this module has been initialised
 INIT=False
@@ -78,6 +78,7 @@ def set_cosmology(H0=DEF_H0,Omega_k=DEF_Omega_k,
 	
 	stupid_trick(Omega_k,Omega_lambda,Omega_m,H0)
 	init_dist_measures(this_ZMIN=DEF_ZMIN,this_ZMAX=DEF_ZMAX,this_NZ=DEF_NZ)
+	#added init_dist_measure to be called from set_cosmology
 
 def stupid_trick(a,b,c,d):
 	global Omega_k,Omega_lambda,Omega_m,H0,DH,c_light_kms
@@ -139,7 +140,7 @@ def dVdtau(z):
 	it is weighted by an extra (1+z) factor to reflect the rate
 	in the rest frame vs the observer frame
 	"""
-	return DH*(1+z)*DA(z)**2/E(z)
+	return DH*(1+z)*DA(z)**2/E(z) #changed (1+z)**2 to (1+z)
 
 #################### SECTION 2 ###################
 # these functions are numerical, and require initialisation
@@ -170,7 +171,7 @@ def init_dist_measures(this_ZMIN=DEF_ZMIN,this_ZMAX=DEF_ZMAX,this_NZ=DEF_NZ):
 	for i,z in enumerate(zs):
 		dms[i]=DM(z)
 		dvs[i]=dV(z)
-		dvdtaus[i]=dVdtau(z)
+		dvdtaus[i]=dVdtau(z) #created for iterpolation
 	das=dms/(1.+zs)
 	dls=dms*(1.+zs)
 	INIT=True
@@ -227,7 +228,7 @@ def dvdtau(z):
 	""" 
 	iz=np.array(np.floor(z/DZ)).astype('int')
 	kz=z/DZ-iz
-	return (dvdtaus[iz]*(1.-kz)+dvdtaus[iz+1]*kz)
+	return (dvdtaus[iz]*(1.-kz)+dvdtaus[iz+1]*kz) #removed the 1/(1+z) dependency
 
 #################### SECTION 3 ###################
 # functions related to FRB scaling

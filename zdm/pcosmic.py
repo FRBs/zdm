@@ -92,7 +92,7 @@ def get_mean_DM(zeds,H0=67.74):
 	
 	DMbar = DMbar*H0/67.74
 	DMbar=np.array(DMbar)
-
+	#added H0 dependency
 	#DMbar = DMbar.to(u.dimensionless_unscaled)
 	return DMbar
 	
@@ -144,7 +144,7 @@ def get_pDM_grid(H0,F,DMgrid,zgrid,C0s):
 	
 	
 	"""
-	
+	#added H0 dependency
 	DMbars=get_mean_DM(zgrid,H0)
 	
 	pDMgrid=np.zeros([zgrid.size,DMgrid.size])
