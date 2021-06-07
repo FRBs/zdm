@@ -29,7 +29,7 @@ DEF_Omega_m=0.315 #Plank says 0.315
 DEF_Omega_b=0.044
 DEF_Omega_b_h2=0.0224 #Planck says 0.0224, WMAP 0.02264
 # hubble constant in current epoch
-DEF_H0 = 67.4 #km s^-1 Mpc^-1 #planck
+DEF_H0 = 67.74 #km s^-1 Mpc^-1 #planck15 used in frb.igm
 
 
 # default value for calculation of cosmological distance measures
@@ -52,6 +52,7 @@ das=1
 dls=1
 zs=1
 dvs=1
+dvdtaus=1
 
 # tracks whether or not this module has been initialised
 INIT=False
@@ -76,6 +77,7 @@ def set_cosmology(H0=DEF_H0,Omega_k=DEF_Omega_k,
 	"""
 	
 	stupid_trick(Omega_k,Omega_lambda,Omega_m,H0)
+	init_dist_measures(this_ZMIN=DEF_ZMIN,this_ZMAX=DEF_ZMAX,this_NZ=DEF_NZ)
 
 def stupid_trick(a,b,c,d):
 	global Omega_k,Omega_lambda,Omega_m,H0,DH,c_light_kms
@@ -137,7 +139,7 @@ def dVdtau(z):
 	it is weighted by an extra (1+z) factor to reflect the rate
 	in the rest frame vs the observer frame
 	"""
-	return DH*(1+z)**2*DA(z)**2/E(z)
+	return DH*(1+z)*DA(z)**2/E(z)
 
 #################### SECTION 2 ###################
 # these functions are numerical, and require initialisation
@@ -153,7 +155,7 @@ def init_dist_measures(this_ZMIN=DEF_ZMIN,this_ZMAX=DEF_ZMAX,this_NZ=DEF_NZ):
 	"""
 	
 	#sets up initial grid of DMZ
-	global zs, das, dms, dls, dvs,DZ
+	global zs, das, dms, dls, dvs,DZ, dvdtaus
 	global ZMAX,ZMIN,NZ
 	global INIT
 	NZ=this_NZ
@@ -164,9 +166,11 @@ def init_dist_measures(this_ZMIN=DEF_ZMIN,this_ZMAX=DEF_ZMAX,this_NZ=DEF_NZ):
 	zs=np.linspace(ZMIN,ZMAX,NZ)
 	dms=np.zeros([NZ])
 	dvs=np.zeros([NZ])
+	dvdtaus=np.zeros([NZ])
 	for i,z in enumerate(zs):
 		dms[i]=DM(z)
 		dvs[i]=dV(z)
+		dvdtaus[i]=dVdtau(z)
 	das=dms/(1.+zs)
 	dls=dms*(1.+zs)
 	INIT=True
@@ -223,7 +227,7 @@ def dvdtau(z):
 	""" 
 	iz=np.array(np.floor(z/DZ)).astype('int')
 	kz=z/DZ-iz
-	return (dvs[iz]*(1.-kz)+dvs[iz+1]*kz)/(1.+z)
+	return (dvdtaus[iz]*(1.-kz)+dvdtaus[iz+1]*kz)
 
 #################### SECTION 3 ###################
 # functions related to FRB scaling

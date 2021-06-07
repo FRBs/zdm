@@ -13,7 +13,7 @@ import matplotlib
 from matplotlib.ticker import NullFormatter
 
 from frb import dlas
-from frb.dm import igm
+from frb import igm
 
 import time
 from zdm import iteration as it
@@ -1647,7 +1647,7 @@ def plot_1d(pvec,lset,xlabel,savename):
 	plt.close()
 	
 # generates grid based on Monte Carlo model
-def get_zdm_grid(new=True,plot=False,method='analytic',F=0.32,nz=500,zmax=5,ndm=1400,dmmax=7000.,datdir='GridData',tag=""):
+def get_zdm_grid(H0=67.74,new=True,plot=False,method='analytic',F=0.32,nz=500,zmax=5,ndm=1400,dmmax=7000.,datdir='GridData',tag=""):
 	
 	# no action in fail case - it will already exist
 	try:
@@ -1706,7 +1706,7 @@ def get_zdm_grid(new=True,plot=False,method='analytic',F=0.32,nz=500,zmax=5,ndm=
 			# calculate constants for p_DM distribution
 			C0s=pcosmic.make_C0_grid(zvals,F)
 			# generate pDM grid using those COs
-			zDMgrid=pcosmic.get_pDM_grid(F,dmvals,zvals,C0s)
+			zDMgrid=pcosmic.get_pDM_grid(H0,F,dmvals,zvals,C0s)
 			t1=time.process_time()
 			dt=t1-t0
 			print("Done. Took ",dt," seconds")
@@ -1992,7 +1992,7 @@ def plot_grid_2(zDMgrid,zvals,dmvals,zmax=1,DMmax=1000,norm=0,log=True,name='tem
 	dz=zvals[1]-zvals[0]
 	if norm==1:
 		zDMgrid /= ddm
-		if Aconst:
+		if Aconts:
 			alevels /= ddm
 	if norm==2:
 		xnorm=np.sum(zDMgrid)

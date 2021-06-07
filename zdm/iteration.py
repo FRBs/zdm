@@ -6,7 +6,7 @@ from zdm import pcosmic
 from scipy.optimize import minimize
 # to hold one of these parameters constant, just remove it from the arg set here
 from zdm import cosmology as cos
-import zdm
+from zdm import zdm
 import time
 import os
 from scipy.stats import poisson
@@ -81,14 +81,14 @@ def set_defaults(grid):
 #	global oldsfrn
 #	global olddmparams
 	
-	oldlEmin=np.log10(grid.Emin)
-	oldlEmax=np.log10(grid.Emax)
+	oldlEmin=np.log10(float(grid.Emin))
+	oldlEmax=np.log10(float(grid.Emax))
 	oldalpha=grid.alpha
 	oldgamma=grid.gamma
 	oldsfrn=grid.sfr_n
 	old_smean=grid.smear_mean
 	old_ssigma=grid.smear_sigma
-	C=1 # this is NOT a sensible default!
+	C=1 # this is NOT a sensible default! #use 4.19 for best fit values to get sensible values
 	pset=[oldlEmin,oldlEmax,oldalpha,oldgamma,oldsfrn,old_smean,old_ssigma,C]
 	return pset
 
@@ -198,8 +198,8 @@ def update_grid(grid,pset):
 	# assumes all parameters following this are passed to DM distribution
 	smear_mean=pset[5]
 	smear_sigma=pset[6]
-	oldlEmin=np.log10(grid.Emin)
-	oldlEmax=np.log10(grid.Emax)
+	oldlEmin=np.log10(float(grid.Emin))
+	oldlEmax=np.log10(float(grid.Emax))
 	oldalpha=grid.alpha
 	oldgamma=grid.gamma
 	oldsfrn=grid.sfr_n
@@ -498,7 +498,6 @@ def calc_likelihoods_2D(grid,survey,pset,doplot=False,norm=True,psnr=False,print
 	
 	DMobs=survey.DMEGs
 	Zobs=survey.Zs
-	print(Zobs)
 	#if survey.meta["TOBS"] is not None:
 	#	TotalRate=np.sum(rates)*survey.meta["TOBS"]
 		# this is in units of number per MPc^3 at Emin
