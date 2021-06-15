@@ -15,6 +15,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 #from frb import dlas
 from frb import igm
+from zdm import cosmology as cos
 
 import scipy as sp
 #import astropy.units as u
@@ -82,7 +83,7 @@ def make_C0_grid(zeds,F):
 		C0s[i]=iterate_C0(z,F)
 	return C0s
 
-def get_mean_DM(zeds,H0=67.74):
+def get_mean_DM(zeds,H0=cos.DEF_H0):
 	""" Gets mean average z to which can be applied deltas """
 	
 	zmax=zeds[-1]
@@ -90,7 +91,7 @@ def get_mean_DM(zeds,H0=67.74):
 	sys.path.insert(1, '/Users/cjames/CRAFT/FRB_library/FRB-master/')
 	DMbar, zeval = igm.average_DM(zmax, cumul=True, neval=nz+1)
 	
-	DMbar = DMbar*H0/67.74
+	DMbar = DMbar*H0/(cos.DEF_H0)
 	DMbar=np.array(DMbar)
 	#added H0 dependency
 	#DMbar = DMbar.to(u.dimensionless_unscaled)
@@ -192,6 +193,7 @@ def plot_mean(zvals,saveas):
 	plt.plot(zvals,mean,linewidth=2)
 	plt.tight_layout()
 	plt.savefig(saveas)
+	plt.show()
 	plt.close()
 
 def get_dm_mask(dmvals,params,zvals=None,plot=False):
