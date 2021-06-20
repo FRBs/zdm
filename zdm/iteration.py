@@ -275,7 +275,7 @@ def update_grid(grid,pset):
 		grid.rates=grid.pdv*grid.sfr_smear #does pdv mult only, 'by hand'
 	
 
-def calc_likelihoods_1D(grid,survey,pset,doplot=False,norm=True,psnr=False,Pn=True,dolist=False):
+def calc_likelihoods_1D(grid,survey,pset,doplot=False,norm=True,psnr=False,Pn=True,dolist=0):
 	""" Calculates 1D likelihoods using only observedDM values
 	Here, Zfrbs is a dummy variable allowing it to be treated like a 2D function
 	for purposes of calling.
@@ -309,6 +309,10 @@ def calc_likelihoods_1D(grid,survey,pset,doplot=False,norm=True,psnr=False,Pn=Tr
 	else:
 		log_global_norm=0
 	
+	# holds individual FRB data
+	longlist=np.log10(pvals)-log_global_norm
+	
+	# sums over all FRBs for total likelihood
 	llsum=np.sum(np.log10(pvals))-log_global_norm*DMobs.size
 	lllist=[llsum]
 	
@@ -387,6 +391,9 @@ def calc_likelihoods_1D(grid,survey,pset,doplot=False,norm=True,psnr=False,Pn=Tr
 		# sums down the z-axis
 		psnr=np.sum(wzpsnr,axis=0)
 		psnr /= norms #normalises according to the per-DM probability
+		
+		# keeps individual FRB values
+		longlist += np.log10(psnr)
 		
 		# checks to ensure all frbs have a chance of being detected
 		bad=np.array(np.where(psnr == 0.))
@@ -486,13 +493,15 @@ def calc_likelihoods_1D(grid,survey,pset,doplot=False,norm=True,psnr=False,Pn=Tr
 		plt.savefig('Plots/1d_dm_fit.pdf')
 		plt.close()
 	
-	if dolist:
-		return llsum,lllist,expected
-	else:
+	if dolist==0:
 		return llsum
+	elif dolist==0:
+		return llsum,lllist,expected
+	elif dolist==2:
+		return llsum,lllist,expected,longlist
 	
 
-def calc_likelihoods_2D(grid,survey,pset,doplot=False,norm=True,psnr=False,printit=False,Pn=True,dolist=False):
+def calc_likelihoods_2D(grid,survey,pset,doplot=False,norm=True,psnr=False,printit=False,Pn=True,dolist=0):
 	""" Calculates 2D likelihoods using observed DM,z values """
 	
 	######## Calculates p(DM,z | FRB) ########
@@ -506,7 +515,6 @@ def calc_likelihoods_2D(grid,survey,pset,doplot=False,norm=True,psnr=False,print
 	
 	DMobs=survey.DMEGs
 	Zobs=survey.Zs
-	print(Zobs)
 	#if survey.meta["TOBS"] is not None:
 	#	TotalRate=np.sum(rates)*survey.meta["TOBS"]
 		# this is in units of number per MPc^3 at Emin
@@ -541,6 +549,11 @@ def calc_likelihoods_2D(grid,survey,pset,doplot=False,norm=True,psnr=False,print
 	bad=np.array(np.where(pvals <= 0.))
 	if bad.size > 0:
 		pvals[bad]=1e-20 # hopefully small but not infinitely so
+	
+	
+	# holds individual FRB data
+	longlist=np.log10(pvals)-np.log10(norm)
+	
 	llsum=np.sum(np.log10(pvals))#-norm
 	llsum -= np.log10(norm)*Zobs.size # once per event
 	lllist=[llsum]
@@ -658,6 +671,10 @@ def calc_likelihoods_2D(grid,survey,pset,doplot=False,norm=True,psnr=False,print
 		
 		wzpsnr /= pvals
 		
+		
+		# keeps individual FRB values
+		longlist += np.log10(wzpsnr)
+		
 		# checks to ensure all frbs have a chance of being detected
 		bad=np.array(np.where(wzpsnr == 0.))
 		if bad.size > 0:
@@ -672,10 +689,12 @@ def calc_likelihoods_2D(grid,survey,pset,doplot=False,norm=True,psnr=False,print
 				print(i,snr,psnr[i])
 	else:
 		lllist.append(0)
-	if dolist:
-		return llsum,lllist,expected
-	else:
+	if dolist==0:
 		return llsum
+	elif dolist==0:
+		return llsum,lllist,expected
+	elif dolist==2:
+		return llsum,lllist,expected,longlist
 
 def check_cube_opfile(run,howmany,opfile):
 	"""
@@ -938,7 +957,7 @@ def cube_likelihoods(grids,surveys,psetmins,psetmaxes,npoints,run,howmany,outfil
 					func=calc_likelihoods_1D
 				else:
 					func=calc_likelihoods_2D
-				lls[j],alist,expected=func(grids[j],s,pset,norm=norm,psnr=psnr,dolist=True)
+				lls[j],alist,expected=func(grids[j],s,pset,norm=norm,psnr=psnr,dolist=1)
 				# these are slow operations but negligible in the grand scheme of things
 				
 				string += ' {:8.2f}'.format(lls[j]) # for now, we are recording the individual log likelihoods, but not the components

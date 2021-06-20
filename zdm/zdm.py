@@ -300,10 +300,167 @@ class grid:
 			priors[i,:] /= np.sum(priors[i,:])
 		return priors
 	
+	def GenMCSample(self,N,Poisson=False):
+		"""
+		Generate a MC sample of FRB events
+		
+		If Poisson=True, then interpret N as a Poisson expectation value
+		Otherwise, generate precisely N FRBs
+		
+		Generated values are DM, z, B, w, and SNR
+		NOTE: the routine GenMCFRB does not know 'w', merely
+			which w bin it generates.
+		
+		"""
+		
+		if Poisson:
+			#from np.random import poisson
+			NFRB=np.random.poisson(N)
+		else:
+			NFRB=int(N) #just to be sure...
+		sample=[]
+		pwb=None #feeds this back to save time. Lots of time.
+		for i in np.arange(NFRB):
+			frb,pwb=self.GenMCFRB(pwb)
+			sample.append(frb)
+		sample=np.array(sample)
+		return sample
+	
+	def GenMCFRB(self,pwb=None):
+		"""
+		Generates a single FRB according to the grid distributions
+		
+		Samples beam position b, FRB DM, z, s=SNR/SNRth, and w
+		Currently: no interpolation included.
+		This should be implemented in s,DM, and z.
+		
+		NOTE: currently, the actual FRB widths are not part of 'grid'
+			only the relative probabilities of any given width.
+			Hence, this routine only returns the integer of the width bin
+			not the width itelf.
+		
+		"""
+		# grid of beam values, weights
+		nw=self.eff_weights.size
+		nb=self.beam_b.size
+		
+		# we do this to allow efficient recalculation of this when generating many FRBs
+		if pwb is not None:
+			pwbc=np.cumsum(pwb)
+			pwbc/=pwbc[-1]
+		else:
+			pwb=np.zeros([nw*nb])
+			
+			# Generates a joint distribution in B,w
+			for i,b in enumerate(self.beam_b):
+				for j,w in enumerate(self.eff_weights):
+					# each of the following is a 2D array over DM, z which we sum to generate B,w values
+					wb_fraction=self.beam_o[i]*w*self.array_cum_lf(self.thresholds[j,:,:]/b,self.Emin,self.Emax,self.gamma)
+					pdv=np.multiply(wb_fraction.T,self.dV).T
+					rate=pdv*self.sfr_smear
+					pwb[i*nw+j]=np.sum(rate)
+			pwbc=np.cumsum(pwb)
+			pwbc/=pwbc[-1]
+		
+		# sample distribution in w,b
+		# we do NOT interpolate here - we treat these as qualitative values
+		# i.e. as if there was an irregular grid of them
+		r=np.random.rand(1)[0]
+		which=np.where(pwbc>r)[0][0]
+		i=int(which/nw)
+		j=which-i*nw
+		MCb=self.beam_b[i]
+		MCw=self.eff_weights[j]
+		
+		# calculate zdm distribution for sampled w,b only
+		pzDM=self.array_cum_lf(self.thresholds[j,:,:]/MCb,self.Emin,self.Emax,self.gamma)
+		wb_fraction=self.array_cum_lf(self.thresholds[j,:,:]/MCb,self.Emin,self.Emax,self.gamma)
+		pdv=np.multiply(wb_fraction.T,self.dV).T
+		pzDM=pdv*self.sfr_smear
+		
+		
+		# sample distribution in z,DM
+		pz=np.sum(pzDM,axis=1)
+		pzc=np.cumsum(pz)
+		pzc /= pzc[-1]
+		r=np.random.rand(1)[0]
+		iz2=np.where(pzc>r)[0][0]
+		if iz2 > 0:
+			iz1=iz2-1
+			dr=r-pzc[iz1]
+			kz2=dr/(pzc[iz2]-pzc[iz1]) # fraction of way to second value
+			kz1=1.-kz2
+			MCz=self.zvals[iz1]*kz1+self.zvals[iz2]*kz2
+			pDM=pzDM[iz1,:]*kz1 + pzDM[iz2,:]*kz2
+		else:
+			# we perform a simple linear interpolation in z from 0 to minimum bin
+			kz2=r/pzc[iz2]
+			kz1=1.-kz2
+			MCz=self.zvals[iz2]*kz2
+			pDM=pzDM[iz2,:] # just use the value of lowest bin
+		
+		
+		# NOW DO dm
+		#pDM=pzDM[k,:]
+		pDMc=np.cumsum(pDM)
+		pDMc /= pDMc[-1]
+		r=np.random.rand(1)[0]
+		iDM2=np.where(pDMc>r)[0][0]
+		if iDM2 > 0:
+			iDM1=iDM2-1
+			dDM=r-pDMc[iDM1]
+			kDM2=dDM/(pDMc[iDM2] - pDMc[iDM1])
+			kDM1=1.-kDM2
+			MCDM=self.dmvals[iDM1]*kDM1 + self.dmvals[iDM2]*kDM2
+			if iz2>0:
+				Eth=self.thresholds[j,iz1,iDM1]*kz1*kDM1 \
+					+ self.thresholds[j,iz1,iDM2]*kz1*kDM2 \
+					+ self.thresholds[j,iz2,iDM1]*kz2*kDM1 \
+					+ self.thresholds[j,iz2,iDM2]*kz2*kDM2
+			else: 
+				Eth=self.thresholds[j,iz2,iDM1]*kDM1 \
+					+ self.thresholds[j,iz2,iDM2]*kDM2
+				Eth *= kz2**2 #assume threshold goes as Eth~z^2 in the near Universe
+		else:
+			# interpolate linearly from 0 to the minimum value
+			kDM2=r/pDMc[iDM2]
+			MCDM=self.dmvals[iDM2]*kDM2
+			if iz2>0: # ignore effect of lowest DM bin on threshold
+				Eth=self.thresholds[j,iz1,iDM2]*kz1 \
+					+ self.thresholds[j,iz2,iDM2]*kz2
+			else: 
+				Eth=self.thresholds[j,iz2,iDM2]*kDM2
+				Eth *= kz2**2 #assume threshold goes as Eth~z^2 in the near Universe
+		
+		# now account for beamshape
+		Eth /= MCb
+		
+		# NOW GET snr
+		#Eth=self.thresholds[j,k,l]/MCb
+		Es=np.logspace(np.log10(Eth),np.log10(self.Emax),100)
+		PEs=self.vector_cum_lf(Es,self.Emin,self.Emax,self.gamma)
+		PEs /= PEs[0] # normalises: this is now cumulative distribution from 1 to 0
+		r=np.random.rand(1)[0]
+		iE1=np.where(PEs>r)[0][-1] #returns list starting at 0 and going upwards
+		iE2 = iE1+1
+		# iE1 should never be the highest energy, since it will always have a probability of 0
+		kE1=(r-PEs[iE2])/(PEs[iE1]-PEs[iE2])
+		kE2=1.-kE1
+		MCE=10**(np.log10(Es[iE1])*kE1 + np.log10(Es[iE2])*kE2)
+		MCs=MCE/Eth
+		
+		FRBparams=[MCz,MCDM,MCb,j,MCs]
+		return FRBparams,pwb
+		
+	
 	def copy(self,grid):
 		""" copies all values from grid to here
 		is OK if this is a shallow copy
 		explicit function to open the possibility of making it faster
+		This is likely now deprecated, and was made before the difference
+		in NFRB and NORM_FRB was implemented to allow two grids with
+		identical properties, but only one of which had a normalise time,
+		to be rapidly evaluated.
 		"""
 		self.grid=grid.grid
 		self.beam_b=grid.beam_b
