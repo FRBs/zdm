@@ -84,8 +84,8 @@ def main():
 	
 	
 	# sets which kind of source evolution function is being used
-	source_evolution=0 # SFR^n scaling
-	#source_evolution=1 # (1+z)^(2.7n) scaling
+	#source_evolution=0 # SFR^n scaling
+	source_evolution=1 # (1+z)^(2.7n) scaling
 	
 	
 	# sets the nature of scaling with the 'spectral index' alpha
