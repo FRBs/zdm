@@ -14,6 +14,7 @@ from matplotlib.ticker import NullFormatter
 
 from frb import dlas
 from frb.dm import igm
+from frb.dm import cosmic
 
 import time
 from zdm import iteration as it
@@ -1521,7 +1522,7 @@ def test_beam_rates(survey,zDMgrid, zvals,dmvals,pset,binset,method=2,outdir='Pl
 	
 	acc.close()
 
-def initialise_grids(surveys,zDMgrid, zvals,dmvals,pset,wdist=False):
+def initialise_grids(surveys,zDMgrid, zvals,dmvals,pset,wdist=False,source_evolution=0,alpha_method=1):
 	""" For a list of surveys, construct a zDMgrid object
 	wdist indicates a distribution of widths in the survey,
 	i.e. do not use the mean efficiency
@@ -1549,9 +1550,8 @@ def initialise_grids(surveys,zDMgrid, zvals,dmvals,pset,wdist=False):
 			weights=None
 			#efficiencies=survey.get_efficiency(dmvals)
 		
-		grid=zdm.grid()
+		grid=zdm.grid(source_evolution=source_evolution,alpha_method=alpha_method)
 		grid.pass_grid(zDMgrid,zvals,dmvals)
-		
 		grid.smear_dm(mask,logmean,logsigma)
 		
 		grid.calc_thresholds(survey.meta['THRESH'],efficiencies,alpha=alpha,weights=weights)
@@ -1647,7 +1647,27 @@ def plot_1d(pvec,lset,xlabel,savename):
 	plt.close()
 	
 # generates grid based on Monte Carlo model
-def get_zdm_grid(new=True,plot=False,method='analytic',F=0.32,nz=500,zmax=5,ndm=1400,dmmax=7000.,datdir='GridData',tag=""):
+def get_zdm_grid(new=True,plot=False,method='analytic',
+                 F=0.32,nz=500,zmax=5,ndm=1400,dmmax=7000.,
+                 datdir='GridData',tag="", orig=False):
+	"""[summary]
+
+	Args:
+		new (bool, optional): [description]. Defaults to True.
+		plot (bool, optional): [description]. Defaults to False.
+		method (str, optional): [description]. Defaults to 'analytic'.
+		F (float, optional): Feedback parameter. Defaults to 0.32.
+		nz (int, optional): Size of grid in redshift. Defaults to 500.
+		zmax (int, optional): [description]. Defaults to 5.
+		ndm (int, optional): Size of grid in DM.  Defaults to 1400.
+		dmmax ([type], optional): Maximum DM of grid. Defaults to 7000..
+		datdir (str, optional): [description]. Defaults to 'GridData'.
+		tag (str, optional): [description]. Defaults to "".
+		orig (bool, optional): Use original calculations for things like C0. Defaults to False.
+
+	Returns:
+		tuple: zDMgrid, zvals, dmvals
+	"""
 	
 	# no action in fail case - it will already exist
 	try:
@@ -1704,7 +1724,12 @@ def get_zdm_grid(new=True,plot=False,method='analytic',F=0.32,nz=500,zmax=5,ndm=
 			print("Generating the zdm analytic grid")
 			t0=time.process_time()
 			# calculate constants for p_DM distribution
-			C0s=pcosmic.make_C0_grid(zvals,F)
+			if orig:
+				C0s=pcosmic.make_C0_grid(zvals,F)
+			else:
+				f_C0_3 = cosmic.grab_C0_spline()
+				sigma = F / np.sqrt(zvals)
+				C0s = f_C0_3(sigma)
 			# generate pDM grid using those COs
 			zDMgrid=pcosmic.get_pDM_grid(F,dmvals,zvals,C0s)
 			t1=time.process_time()
