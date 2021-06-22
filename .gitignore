@@ -127,3 +127,13 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+#untitles files
+untitled*
+
+#largefiles
+GridData/
+Pickle/
+zdm/tests/GridData/
+zdm/tests/Pickle/
+zdm/tests/mc_sample.npy

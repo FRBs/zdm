@@ -67,13 +67,23 @@ def main():
 	
 	# get the grid of p(DM|z). See function for default values.
 	# set new to False once this is already initialised
-	zDMgrid, zvals, dmvals=misc_functions.get_zdm_grid(
+	zDMgrid, zvals,dmvals,H0=misc_functions.get_zdm_grid(
 		new=True,plot=False,method='analytic')
 	# NOTE: if this is new, we also need new surveys and grids!
 	
 	# constants of beam method
 	thresh=0
 	method=2
+	
+	
+	# sets which kind of source evolution function is being used
+	source_evolution=0 # SFR^n scaling
+	#source_evolution=1 # (1+z)^(2.7n) scaling
+	
+	
+	# sets the nature of scaling with the 'spectral index' alpha
+	#alpha_method=0 # spectral index interpretation: includes k-correction. Slower to update
+	alpha_method=1 # rate interpretation: extra factor of (1+z)^alpha in source evolution
 	
 	############## Initialise surveys ##############
 	
@@ -82,11 +92,10 @@ def main():
 	Wlogsigma=0.899148
 	DMhalo=50
 	
-	
 	#These surveys combine time-normalised and time-unnormalised samples 
 	NewSurveys=True
-	sprefix='Full' # more detailed estimates. Takes more space and time
-	#sprefix='Std' # faster - fine for max likelihood calculations, not as pretty
+	#sprefix='Full' # more detailed estimates. Takes more space and time
+	sprefix='Std' # faster - fine for max likelihood calculations, not as pretty
 	
 	if sprefix=='Full':
 		Wbins=10
@@ -97,10 +106,14 @@ def main():
 		Wscale=3.5
 		Nbeams=[5,5,10]
 	
+	# location for survey data
+	sdir = os.path.join(resource_filename('zdm', 'data'), 'Surveys/')
 	if NewSurveys:
+		
+		print("Generating new surveys, set NewSurveys=False to save time later")
 		#load the lat50 survey data
 		lat50=survey.survey()
-		lat50.process_survey_file('CRAFT_class_I_and_II.dat')
+		lat50.process_survey_file(sdir+'CRAFT_class_I_and_II.dat')
 		lat50.init_DMEG(DMhalo)
 		lat50.init_beam(nbins=Nbeams[0],method=2,plot=False,thresh=thresh) # tells the survey to use the beam file
 		pwidths,pprobs=survey.make_widths(lat50,Wlogmean,Wlogsigma,Wbins,scale=Wscale)
@@ -109,7 +122,7 @@ def main():
 		
 		# load ICS data
 		ICS=survey.survey()
-		ICS.process_survey_file('CRAFT_ICS.dat')
+		ICS.process_survey_file(sdir+'CRAFT_ICS.dat')
 		ICS.init_DMEG(DMhalo)
 		ICS.init_beam(nbins=Nbeams[1],method=2,plot=False,thresh=thresh) # tells the survey to use the beam file
 		pwidths,pprobs=survey.make_widths(ICS,Wlogmean,Wlogsigma,Wbins,scale=Wscale)
@@ -117,7 +130,7 @@ def main():
 		
 		# load Parkes data
 		pks=survey.survey()
-		pks.process_survey_file('parkes_mb_class_I_and_II.dat')
+		pks.process_survey_file(sdir+'parkes_mb_class_I_and_II.dat')
 		pks.init_DMEG(DMhalo)
 		pks.init_beam(nbins=Nbeams[2],method=2,plot=False,thresh=thresh) # need more bins for Parkes!
 		pwidths,pprobs=survey.make_widths(pks,Wlogmean,Wlogsigma,Wbins,scale=Wscale)
@@ -154,7 +167,7 @@ def main():
 	lmean=2.16 # log10 mean of DM host contribution in pc cm^-3
 	lsigma=0.51 # log10 sigma of DM host contribution in pc cm^-3
 	C=4.19 # log10 constant in number per Gpc^-3 yr^-1 at z=0
-	pset=[lEmin,lEmax,alpha,gamma,sfr_n,lmean,lsigma,C]
+	pset=[lEmin,lEmax,alpha,gamma,sfr_n,lmean,lsigma,C,H0]
 	
 	# This routine takes a *long* time
 	# It estimates the difference between a full beam shape (~300 points) and various approximations to it
@@ -189,9 +202,8 @@ def main():
 		gprefix='Std_best'
 	
 	if NewGrids:
-		
-		grids=misc_functions.initialise_grids(
-			surveys, zDMgrid, zvals,dmvals,pset,wdist=True)
+		print("Generating new grids, set NewGrids=False to save time later")
+		grids=misc_functions.initialise_grids(surveys,zDMgrid, zvals,dmvals,pset,wdist=True,source_evolution=source_evolution,alpha_method=alpha_method)
 		with open('Pickle/'+gprefix+'grids.pkl', 'wb') as output:
 			pickle.dump(grids, output, pickle.HIGHEST_PROTOCOL)
 	else:
@@ -235,6 +247,8 @@ def main():
                              name=os.path.join(Location,prefix+'lat50_optimised_grid.pdf'),
                              norm=2,log=True,label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$',project=True,FRBDM=lat50.DMEGs,FRBZ=None,Aconts=[0.01,0.1,0.5],Macquart=Macquart)
 	
+	print("Exiting after generating 2-D plots, remove this exit code to continue")
+	exit()
 	doMaquart=True
 	# generates the Macquart relation for each set
 	if doMaquart:

@@ -10,7 +10,7 @@
 
 ##############################################
 
-from pkg_resources import resource_filename
+
 import numpy as np
 from zdm import beams
 
@@ -18,8 +18,6 @@ import os
 from zdm import pcosmic
 from scipy.integrate import quad
 
-# Path to survey data
-survey_path = os.path.join(resource_filename('zdm', 'data'), 'Surveys')
 class survey:
 	"""A class to hold an FRB survey"""
 	
@@ -70,14 +68,13 @@ class survey:
 		self.mean_efficiencies=mean_efficiencies #be careful here!!! This may not be what we want!
 		return efficiencies
 	
-	def process_survey_file(self, basename, path=survey_path):
+	def process_survey_file(self,filename):
 		""" Loads a survey file, then creates dictionaries of the loaded variables """
-		filename = os.path.join(path, basename)
 		info=[]
 		keys=[]
 		self.meta={} # dict to contain survey metadata, in dictionary format
 		self.frbs={} # dict to contain arrays of data for each FRB proprty
-		#basename=os.path.basename(filename)
+		basename=os.path.basename(filename)
 		name=os.path.splitext(basename)[0]
 		self.name=name
 		# read in raw data from survey file
@@ -125,9 +122,11 @@ class survey:
 		which=1
 		self.do_keyword_char('BEAM',which,None) # prefix of beam file
 		self.do_keyword('TOBS',which,None) # total observation time, hr
-		self.do_keyword('DIAM',which,None) # total observation time, hr
-		self.do_keyword('NBEAMS',which,1) # total observation time, hr
+		self.do_keyword('DIAM',which,None) # Telescope diamater (in case of Gauss beam)
+		self.do_keyword('NBEAMS',which,1) # Number of beams (multiplies sr)
+		self.do_keyword('NORM_FRB',which,self.NFRB) # number of FRBs to norm obs time by
 		
+		self.NORM_FRB=self.meta['NORM_FRB']
 		# the following properties can either be FRB-by-FRB, or metadata
 		which=3
 		
@@ -379,7 +378,7 @@ def calc_relative_sensitivity(DM_frb,DM,w,fbar,t_res,nu_res,model='Quadrature',d
 	return sensitivity
 	
 
-def make_widths(s,logmean,logsigma,nbins,scale=2,thresh=0.5):
+def make_widths(s,wlogmean,wlogsigma,nbins,scale=2,thresh=0.5):
 	""" Tries to get intelligent choices for width binning assuming some intrinsic distribution
 	Probably should make this a 'self' function.... oh well, for the future!
 	
@@ -402,9 +401,9 @@ def make_widths(s,logmean,logsigma,nbins,scale=2,thresh=0.5):
 	
 	weights=[]
 	widths=[]
-	args=(logmean,logsigma)
+	args=(wlogmean,wlogsigma)
 	wmax=wequality*thresh
-	wmin=wmax*np.exp(-3.*logsigma)
+	wmin=wmax*np.exp(-3.*wlogsigma)
 	wsum=0.
 	#print("Initialised wmin, wmax at ",wmin,wmax," from ",logmean,logsigma,wequality,thresh)
 	for i in np.arange(nbins):
