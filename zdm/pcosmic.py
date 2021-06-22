@@ -197,7 +197,7 @@ def plot_mean(zvals,saveas):
     plt.show()
     plt.close()
 
-def get_dm_mask(dmvals,params,zvals=None,plot=False):
+def get_dm_mask(dmvals, params, zvals=None, plot=False):
     """ Generates a mask over which to integrate the lognormal
     Apply this mask as DM[i] = DM[set[i]]*mask[i]
     DMvals: these give local probabilities of p(DM).

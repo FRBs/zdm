@@ -1653,7 +1653,8 @@ def plot_1d(pvec,lset,xlabel,savename):
 def get_zdm_grid(H0=cos.DEF_H0,new=True,plot=False,method='analytic',
                  F=0.32,nz=500,zmax=5,ndm=1400,dmmax=7000.,
                  datdir='GridData',tag="", orig=False):
-    """[summary]
+    """Generate a grid of z vs. DM for an assumed F value
+	for a specified z range and DM range.
 
     Args:
         new (bool, optional): [description]. Defaults to True.
