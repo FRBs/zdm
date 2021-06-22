@@ -1,85 +1,63 @@
 #!/usr/bin/env python
 # Licensed under a 3-clause BSD style license - see LICENSE.rst
-# Standard imports
-#
-import glob, os
-from distutils.extension import Extension
-#
-# setuptools' sdist command ignores MANIFEST.in
-#
-#from distutils.command.sdist import sdist as DistutilsSdist
-from setuptools import setup, find_packages
-#
-# DESI support code.
-#
-#from desiutil.setup import DesiTest, DesiVersion, get_version
-#
-# Begin setup
-#
-setup_keywords = dict()
-#
-# THESE SETTINGS NEED TO BE CHANGED FOR EVERY PRODUCT.
-#
-setup_keywords['name'] = 'zdm'
-setup_keywords['description'] = 'Python code for FRB z-DM calculations'
-setup_keywords['author'] = 'Clancy James'
-setup_keywords['author_email'] = 'tofillin'
-setup_keywords['license'] = 'BSD'
-setup_keywords['url'] = 'https://github.com/FRBs/zdm'
 
-#
-# END OF SETTINGS THAT NEED TO BE CHANGED.
-#
-setup_keywords['version'] = '0.1.dev0' #get_version(setup_keywords['name'])
-#
-# Use README.rst as long_description.
-#
-setup_keywords['long_description'] = ''
-if os.path.exists('README.md'):
-    with open('README.md') as readme:
-        setup_keywords['long_description'] = readme.read()
-#
-# Set other keywords for the setup function.  These are automated, & should
-# be left alone unless you are an expert.
-#
-# Treat everything in bin/ except *.rst as a script to be installed.
-#
-if os.path.isdir('bin'):
-    setup_keywords['scripts'] = [fname for fname in glob.glob(os.path.join('bin', '*'))
-        if not os.path.basename(fname).endswith('.rst')]
-setup_keywords['provides'] = [setup_keywords['name']]
-setup_keywords['requires'] = ['Python (>3.7.0)']
-# setup_keywords['install_requires'] = ['Python (>2.7.0)']
-setup_keywords['zip_safe'] = False
-#setup_keywords['use_2to3'] = True
-setup_keywords['packages'] = find_packages()
-#setup_keywords['package_dir'] = {'':'py'}
-#setup_keywords['cmdclass'] = {'version': DesiVersion, 'test': DesiTest, 'sdist': DistutilsSdist}
-#etup_keywords['test_suite']='{name}.tests.{name}_test_suite.{name}_test_suite'.format(**setup_keywords)
-setup_keywords['setup_requires']=['pytest-runner']
-setup_keywords['tests_require']=['pytest']
+# NOTE: The configuration for the package, including the name, version, and
+# other information are set in the setup.cfg file.
 
-# Autogenerate command-line scripts.
-# setup_keywords['entry_points'] = {'console_scripts':['desiInstall = desiutil.install.main:main']}
+import os
+import sys
 
-#
-# Add internal data directories.
-#
+from setuptools import setup
 
-data_files = []
+from extension_helpers import get_extensions
 
-# walk through the data directory, adding all files
-data_generator = os.walk('zdm/data')
-for path, directories, files in data_generator:
-    for f in files:
-        data_path = '/'.join(path.split('/')[1:])
-        data_files.append(data_path + '/' + f)
-setup_keywords['package_data'] = {'frb': data_files,
-                                  '': ['*.rst', '*.txt', '*.yaml']}
-setup_keywords['include_package_data'] = True
+# First provide helpful messages if contributors try and run legacy commands
+# for tests or docs.
 
-#
-# Run setup command.
-#
-setup(**setup_keywords)
+TEST_HELP = """
+Note: running tests via 'python setup.py test' is now deprecated. The recommended method
+is to run:
 
+    tox -e test-alldeps
+
+The Python version can also be specified, e.g.:
+
+    tox -e py38-test-alldeps
+
+You can list all available environments by doing:
+
+    tox -a
+
+If you don't already have tox installed, you can install it by doing:
+
+    pip install tox
+
+If you want to run all or part of the test suite within an existing environment,
+you can use pytest directly:
+
+    pip install -e .[dev]
+    pytest
+
+For more information, see:
+
+  http://docs.astropy.org/en/latest/development/testguide.html#running-tests
+"""
+
+if 'test' in sys.argv:
+    print(TEST_HELP)
+    sys.exit(1)
+
+VERSION_TEMPLATE = """
+# Note that we need to fall back to the hard-coded version if either
+# setuptools_scm can't be imported or setuptools_scm can't determine the
+# version, so we catch the generic 'Exception'.
+try:
+    from setuptools_scm import get_version
+    version = get_version(root='..', relative_to=__file__)
+except Exception:
+    version = '{version}'
+""".lstrip()
+
+setup(use_scm_version={'write_to': os.path.join('zdm', 'version.py'),
+                       'write_to_template': VERSION_TEMPLATE},
+      ext_modules=get_extensions())
