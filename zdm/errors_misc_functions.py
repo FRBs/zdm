@@ -991,7 +991,7 @@ def calc_psnr_1D(grid,survey,pset,slist,doplot=None,xlim=[1,100],ylim=[0.01,1]):
 			bEobs=bEths*s
 			
 			for j,w in enumerate(grid.eff_weights):
-				temp=(zdm.array_diff_power_law(bEobs[j,:,:],Emin,Emax,gamma).T*grid.FtoE).T
+				temp=(grid.array_diff_lf(bEobs[j,:,:],Emin,Emax,gamma).T*grid.FtoE).T
 				zpsnr += temp*survey.beam_o[i]*w #weights this be beam solid angle and efficiency
 		
 		
@@ -1202,7 +1202,7 @@ def calc_psnr_2D(grid,survey,pset,slist,doplot=None,xlim=[1,100],ylim=[0.01,1]):
 			#bEobs=bEths*survey.Ss
 			bEobs=bEths*s
 			for j,w in enumerate(grid.eff_weights):
-				temp=zdm.array_diff_power_law(bEobs[j,:],Emin,Emax,gamma) * FtoE #one dim in beamshape, one dim in FRB
+				temp=grid.array_diff_lf(bEobs[j,:],Emin,Emax,gamma) * FtoE #one dim in beamshape, one dim in FRB
 				
 				psnr += temp.T*survey.beam_o[i]*w #multiplies by beam factors and weight
 				

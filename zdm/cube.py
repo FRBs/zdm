@@ -83,20 +83,13 @@ def main(Cube):
 	
 	# Five surveys: we need to distinguish between those with and without a time normalisation
 	if NewSurveys:
-		#load the lat50 survey data
+		# contains both normalised and unnormalised Tobs FRBs
 		FE1=survey.survey()
-		FE1.process_survey_file('Surveys/CRAFT_lat50.dat')
+		FE1.process_survey_file('Surveys/CRAFT_class_I_and_II.dat')
 		FE1.init_DMEG(DMhalo)
 		FE1.init_beam(nbins=Nbeams[0],method=2,plot=False,thresh=thresh) # tells the survey to use the beam file
 		pwidths,pprobs=survey.make_widths(FE1,Wlogmean,Wlogsigma,Wbins,scale=Wscale)
 		efficiencies=FE1.get_efficiency_from_wlist(dmvals,pwidths,pprobs)
-		
-		FE2=survey.survey()
-		FE2.process_survey_file('Surveys/CRAFT_class_II.dat')
-		FE2.init_DMEG(DMhalo)
-		FE2.init_beam(nbins=Nbeams[0],method=2,plot=False,thresh=thresh) # tells the survey to use the beam file
-		pwidths,pprobs=survey.make_widths(FE2,Wlogmean,Wlogsigma,Wbins,scale=Wscale)
-		efficiencies=FE2.get_efficiency_from_wlist(dmvals,pwidths,pprobs)
 		
 		# load ICS data
 		ICS=survey.survey()
@@ -108,22 +101,15 @@ def main(Cube):
 		
 		# load Parkes data
 		p1=survey.survey()
-		p1.process_survey_file('Surveys/parkes_mb_class_I.dat')
+		p1.process_survey_file('Surveys/parkes_mb_class_I_and_II.dat')
 		p1.init_DMEG(DMhalo)
 		p1.init_beam(nbins=Nbeams[2],method=2,plot=False,thresh=thresh) # need more bins for Parkes!
 		pwidths,pprobs=survey.make_widths(p1,Wlogmean,Wlogsigma,Wbins,scale=Wscale)
 		efficiencies=p1.get_efficiency_from_wlist(dmvals,pwidths,pprobs)
 		
-		p2=survey.survey()
-		p2.process_survey_file('Surveys/parkes_mb_class_II.dat')
-		p2.init_DMEG(DMhalo)
-		p2.init_beam(nbins=Nbeams[2],method=2,plot=False,thresh=thresh) # need more bins for Parkes!
-		pwidths,pprobs=survey.make_widths(p2,Wlogmean,Wlogsigma,Wbins,scale=Wscale)
-		efficiencies=p2.get_efficiency_from_wlist(dmvals,pwidths,pprobs)
-		
-		names=['CRAFT/FE I','CRAFT/FE II','CRAFT/ICS','PKS/Mb I', 'PKS/Mb II']
+		names=['CRAFT/FE','CRAFT/ICS','PKS/Mb']
 	
-		surveys=[FE1,FE2,ICS,p1,p2]
+		surveys=[FE1,ICS,p1]
 		with open('Pickle/'+prefix+'surveys.pkl', 'wb') as output:
 			pickle.dump(surveys, output, pickle.HIGHEST_PROTOCOL)
 			pickle.dump(names, output, pickle.HIGHEST_PROTOCOL)
@@ -132,7 +118,7 @@ def main(Cube):
 		with open('Pickle/'+prefix+'surveys.pkl', 'rb') as infile:
 			surveys=pickle.load(infile)
 			names=pickle.load(infile)
-			FE1,FE2,ICS,p1,p2=surveys
+			FE1,ICS,p1=surveys
 	print("Initialised surveys ",names)
 	
 	
@@ -164,13 +150,14 @@ def main(Cube):
 	
 	
 	if Cube is not None:
-		# hard-coded cloning ability
-		clone=[-1,0,-1,-1,3] # if > 0, will clone that grid
+		# hard-coded cloning ability. This is now out-dated.
+		#clone=[-1,0,-1,-1,3] # if > 0, will clone that grid
 		# i.e. grid 1 is a clone of grid 0,
 		# grid 4 is a clone of grid 3, grid 0,2,3 do not
 		# clone anything. This is an approx speedup of 40%
 		# This is because these grids are identical except
 		# for the NFRB <=> Tobs likelihood estimate
+		clone=None
 		
 		if not os.path.exists(outdir):
 			os.mkdir(outdir)

@@ -32,10 +32,10 @@ def get_likelihood(pset,grid,survey,norm=True,psnr=True):
         update_grid(grid,pset,survey)
         if survey.nD==1:
             #loglik=calc_likelihoods_1D(grid,survey,pset,norm=norm,psnr=psnr)
-            llsum,lllist,expected=calc_likelihoods_1D(grid,survey,pset,norm=norm,psnr=True,dolist=True)
+            llsum,lllist,expected=calc_likelihoods_1D(grid,survey,pset,norm=norm,psnr=True,dolist=1)
         elif survey.nD==2:
             #loglik=calc_likelihoods_2D(grid,survey,pset,norm=norm,psnr=psnr)
-            llsum,lllist,expected=calc_likelihoods_2D(grid,survey,pset,norm=norm,psnr=True,dolist=True)
+            llsum,lllist,expected=calc_likelihoods_2D(grid,survey,pset,norm=norm,psnr=True,dolist=1)
         return llsum,lllist,expected
         #negative loglikelihood is NOT returned, positive is.    
     else:
@@ -45,10 +45,10 @@ def get_likelihood(pset,grid,survey,norm=True,psnr=True):
             update_grid(g,pset,s)
             if s.nD==1:
                 #ll=calc_likelihoods_1D(g,s,pset,norm=norm,psnr=psnr)
-                llsum,lllist,expected=calc_likelihoods_1D(g,s,pset,norm=norm,psnr=True,dolist=True)
+                llsum,lllist,expected=calc_likelihoods_1D(g,s,pset,norm=norm,psnr=True,dolist=1)
             elif s.nD==2:
                 #ll=calc_likelihoods_2D(g,s,pset,norm=norm,psnr=psnr)
-                llsum,lllist,expected=calc_likelihoods_2D(g,s,pset,norm=norm,psnr=True,dolist=True)
+                llsum,lllist,expected=calc_likelihoods_2D(g,s,pset,norm=norm,psnr=True,dolist=1)
             loglik += llsum
         return loglik,lllist,expected
         #negative loglikelihood is NOT returned, positive is.    
@@ -262,15 +262,22 @@ def update_grid(grid,pset,survey):
         oldsmean=smear_mean
     
     ###### checks to see if the sfr parameters have changed ######
-    if sfrn != oldsfrn:
-        grid.set_evolution(sfrn)
-        new_sfr_smear=True
-        oldsfrn=sfrn
+    if grid.alpha_method==0:
+        if sfrn != oldsfrn:
+            grid.set_evolution(sfrn)
+            new_sfr_smear=True
+            oldsfrn=sfrn
+    elif grid.alpha_method==1:
+        if sfrn != oldsfrn or alpha != oldalpha:
+            grid.set_evolution(sfrn,alpha=alpha)
+            new_sfr_smear=True
+            oldsfrn=sfrn
+            oldalpha=alpha
     
     ##### examines the 'pdv tree' affecting sensitivity #####
     # begin with alpha
-    
-    if alpha != oldalpha:
+    # alpha does not change thresholds under rate scaling, only spec index
+    if grid.alpha_method==0 and alpha != oldalpha:
         grid.calc_thresholds(grid.F0,grid.eff_table,alpha,grid.bandwidth,grid.eff_weights)
         changed_alpha=True
         oldalpha=alpha
@@ -307,10 +314,10 @@ def update_grid(grid,pset,survey):
     if new_sfr_smear:
         grid.calc_rates() #includes sfr smearing factors and pdv mult
     elif new_pdv_smear:
-        grid.rates=grid.pdv*grid.sfr_smear
+        grid.rates=grid.pdv*grid.sfr_smear #does pdv mult only, 'by hand'
     
 
-def calc_likelihoods_1D(grid,survey,pset,doplot=False,norm=True,psnr=False,Pn=True,dolist=False):
+def calc_likelihoods_1D(grid,survey,pset,doplot=False,norm=True,psnr=False,Pn=True,dolist=0):
     """ Calculates 1D likelihoods using only observedDM values
     Here, Zfrbs is a dummy variable allowing it to be treated like a 2D function
     for purposes of calling.
@@ -344,6 +351,10 @@ def calc_likelihoods_1D(grid,survey,pset,doplot=False,norm=True,psnr=False,Pn=Tr
     else:
         log_global_norm=0
     
+    # holds individual FRB data
+    longlist=np.log10(pvals)-log_global_norm
+    
+    # sums over all FRBs for total likelihood
     llsum=np.sum(np.log10(pvals))-log_global_norm*DMobs.size
     lllist=[llsum]
     
@@ -351,7 +362,7 @@ def calc_likelihoods_1D(grid,survey,pset,doplot=False,norm=True,psnr=False,Pn=Tr
     if Pn and (survey.TOBS is not None):
         expected=CalculateIntegral(grid,survey)
         expected *= 10**pset[7]
-        observed=survey.NFRB
+        observed=survey.NORM_FRB
         Pn=Poisson_p(observed,expected)
         Nll=np.log10(Pn)
         lllist.append(Nll)
@@ -402,7 +413,7 @@ def calc_likelihoods_1D(grid,survey,pset,doplot=False,norm=True,psnr=False,Pn=Tr
             #wbEths=bEths #this is the only bit that depends on j, but OK also!
             bEobs=bEths*survey.Ss #should correctky multiply the last dimensions
             for j,w in enumerate(grid.eff_weights):
-                temp=(zdm.array_diff_power_law(bEobs[j,:,:],Emin,Emax,gamma).T*grid.FtoE).T
+                temp=(grid.array_diff_lf(bEobs[j,:,:],Emin,Emax,gamma).T*grid.FtoE).T
                 zpsnr += temp*survey.beam_o[i]*w #weights this be beam solid angle and efficiency
         
         
@@ -422,6 +433,9 @@ def calc_likelihoods_1D(grid,survey,pset,doplot=False,norm=True,psnr=False,Pn=Tr
         # sums down the z-axis
         psnr=np.sum(wzpsnr,axis=0)
         psnr /= norms #normalises according to the per-DM probability
+        
+        # keeps individual FRB values
+        longlist += np.log10(psnr)
         
         # checks to ensure all frbs have a chance of being detected
         bad=np.array(np.where(psnr == 0.))
@@ -521,13 +535,15 @@ def calc_likelihoods_1D(grid,survey,pset,doplot=False,norm=True,psnr=False,Pn=Tr
         plt.savefig('Plots/1d_dm_fit.pdf')
         plt.close()
     
-    if dolist:
-        return llsum,lllist,expected
-    else:
+    if dolist==0:
         return llsum
+    elif dolist==1:
+        return llsum,lllist,expected
+    elif dolist==2:
+        return llsum,lllist,expected,longlist
     
 
-def calc_likelihoods_2D(grid,survey,pset,doplot=False,norm=True,psnr=False,printit=False,Pn=True,dolist=False):
+def calc_likelihoods_2D(grid,survey,pset,doplot=False,norm=True,psnr=False,printit=False,Pn=True,dolist=0):
     """ Calculates 2D likelihoods using observed DM,z values """
     
     ######## Calculates p(DM,z | FRB) ########
@@ -575,6 +591,11 @@ def calc_likelihoods_2D(grid,survey,pset,doplot=False,norm=True,psnr=False,print
     bad=np.array(np.where(pvals <= 0.))
     if bad.size > 0:
         pvals[bad]=1e-20 # hopefully small but not infinitely so
+    
+    
+    # holds individual FRB data
+    longlist=np.log10(pvals)-np.log10(norm)
+    
     llsum=np.sum(np.log10(pvals))#-norm
     llsum -= np.log10(norm)*Zobs.size # once per event
     lllist=[llsum]
@@ -583,7 +604,7 @@ def calc_likelihoods_2D(grid,survey,pset,doplot=False,norm=True,psnr=False,print
     if Pn and (survey.TOBS is not None):
         expected=CalculateIntegral(grid,survey)
         expected *= 10**pset[7]
-        observed=survey.NFRB
+        observed=survey.NORM_FRB
         Pn=Poisson_p(observed,expected)
         Pll=np.log10(Pn)
         lllist.append(Pll)
@@ -653,7 +674,7 @@ def calc_likelihoods_2D(grid,survey,pset,doplot=False,norm=True,psnr=False,print
             bEths=Eths/b # array of shape NFRB, 1/b
             bEobs=bEths*survey.Ss
             for j,w in enumerate(grid.eff_weights):
-                temp=zdm.array_diff_power_law(bEobs[j,:],Emin,Emax,gamma) * FtoE #one dim in beamshape, one dim in FRB
+                temp=grid.array_diff_lf(bEobs[j,:],Emin,Emax,gamma) * FtoE #one dim in beamshape, one dim in FRB
                 
                 psnr += temp.T*survey.beam_o[i]*w #multiplies by beam factors and weight
                 
@@ -691,6 +712,9 @@ def calc_likelihoods_2D(grid,survey,pset,doplot=False,norm=True,psnr=False,print
         # the normalisation - should be the un-normalised values.
         
         wzpsnr /= pvals
+
+        # keeps individual FRB values
+        longlist += np.log10(wzpsnr)
         
         # checks to ensure all frbs have a chance of being detected
         bad=np.array(np.where(wzpsnr == 0.))
@@ -706,10 +730,12 @@ def calc_likelihoods_2D(grid,survey,pset,doplot=False,norm=True,psnr=False,print
                 print(i,snr,psnr[i])
     else:
         lllist.append(0)
-    if dolist:
-        return llsum,lllist,expected
-    else:
+    if dolist==0:
         return llsum
+    elif dolist==1:
+        return llsum,lllist,expected
+    elif dolist==2:
+        return llsum,lllist,expected,longlist
 
 def check_cube_opfile(run,howmany,opfile):
     """
@@ -846,7 +872,7 @@ def cube_likelihoods(grids,surveys,psetmins,psetmaxes,npoints,run,howmany,outfil
     """
     
     # check feasible range of job number
-    if (howmany <= 0) or (run <= 0) or np.prod(np.abs(npoints)) < run*howmany:
+    if (howmany <= 0) or (run <= 0) or np.prod(np.abs(npoints)) < (run-1)*howmany+1:
         print("Invalid range of run=",run," and howmany=",howmany," for ",np.prod(npoints)," points")
         exit()
     
@@ -890,8 +916,15 @@ def cube_likelihoods(grids,surveys,psetmins,psetmaxes,npoints,run,howmany,outfil
     
     # this is the order of fastest to slowest, i.e. we update index
     # order[0] first, then order [1], etc
-    
-    order=[7,4,5,6,0,1,2,3]
+    # the order can depend on the methods being used
+    # note: takes this from the first grid, it should be identical for all grids
+    if grids[0].alpha_method==0:
+        order=[7,4,5,6,0,1,2,3]
+    elif grids[0].alpha_method==0:
+        order=[7,4,2,5,6,0,1,3]
+    else:
+        raise ValueError("Unknown value of alpha method!",grids[0].alpha_method)
+            
     r_npoints=npoints[order]
     ndims=npoints.size
     iorder=np.zeros([ndims],dtype='int')
@@ -965,7 +998,7 @@ def cube_likelihoods(grids,surveys,psetmins,psetmaxes,npoints,run,howmany,outfil
                     func=calc_likelihoods_1D
                 else:
                     func=calc_likelihoods_2D
-                lls[j],alist,expected=func(grids[j],s,pset,norm=norm,psnr=psnr,dolist=True)
+                lls[j],alist,expected=func(grids[j],s,pset,norm=norm,psnr=psnr,dolist=1)
                 # these are slow operations but negligible in the grand scheme of things
                 
                 string += ' {:8.2f}'.format(lls[j]) # for now, we are recording the individual log likelihoods, but not the components
@@ -1429,7 +1462,7 @@ def CalculateConstant(grid,survey):
     """
     
     expected=CalculateIntegral(grid,survey)
-    observed=survey.NFRB
+    observed=survey.NORM_FRB
     constant=observed/expected
     return constant
 
@@ -1507,7 +1540,7 @@ def minimise_const_only(pset,grids,surveys):
         if s.TOBS is not None:
             r=np.sum(grids[j].rates)*s.TOBS
             r*=10**pset[7]
-            o=s.NFRB
+            o=s.NORM_FRB
             rs.append(r)
             os.append(o)
     print("Total sum of ll w/o const is ",np.sum(lls[j]))

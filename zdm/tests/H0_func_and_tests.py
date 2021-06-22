@@ -47,9 +47,10 @@ method=2
 Wlogmean=1.70267
 Wlogsigma=0.899148
 
+sdir = os.path.join(resource_filename('zdm', 'data'), 'Surveys/')
 #load the lat50 survey data
 lat50=survey.survey()
-lat50.process_survey_file('CRAFT_class_I_and_II.dat')
+lat50.process_survey_file(sdir+'CRAFT_class_I_and_II.dat')
 DMhalo=50
 lat50.init_DMEG(DMhalo)
 lat50.init_beam(nbins=Nbeams[0],method=2,plot=False,thresh=thresh) # tells the survey to use the beam file
@@ -158,8 +159,7 @@ def scan_H0(H0_start,H0_stop,n_iterations,survey,surveyname,plots=True):
     """This function is useful for plotting the graphs for different H0 values (and also finding likelihoods but is VERY slow compared to the updated update_grid routine)"""
     
     t0=time.process_time()
-    #H0values=np.linspace(H0_start,H0_stop,n_iterations)
-    H0values=[50,58,66,67.74,82,114]
+    H0values=np.linspace(H0_start,H0_stop,n_iterations)
     H0likes=[]
     for i in H0values:
         setH0=i
@@ -168,7 +168,7 @@ def scan_H0(H0_start,H0_stop,n_iterations,survey,surveyname,plots=True):
            
         #parser.add_argument(", help
         # get the grid of p(DM|z)
-        zDMgrid, zvals,dmvals=misc_functions.get_zdm_grid(H0=setH0,new=True,plot=False,method='analytic')
+        zDMgrid, zvals,dmvals,H0=misc_functions.get_zdm_grid(H0=setH0,new=True,plot=False,method='analytic')
         #pcosmic.plot_mean(zvals,'Plots/mean_DM.pdf')
         
        
@@ -176,7 +176,7 @@ def scan_H0(H0_start,H0_stop,n_iterations,survey,surveyname,plots=True):
         weights=survey.wplist
         
         grid=zdm.grid()
-        grid.pass_grid(zDMgrid,zvals,dmvals)
+        grid.pass_grid(zDMgrid,zvals,dmvals,H0)
         # creates a mask of values in DM space to convolve with the DM
         # grid
         # best-fit values-ish from green curves in fig 3 of cosmic dm paper
@@ -250,4 +250,4 @@ def scan_H0(H0_start,H0_stop,n_iterations,survey,surveyname,plots=True):
     plt.show()
     plt.close()
     
-#scan_H0(50,130,21,survey=lat50,surveyname="lat50",plots=True)
+scan_H0(50,130,21,survey=lat50,surveyname="lat50",plots=True)
