@@ -11,13 +11,32 @@ class grid:
 	It also assumes a linear uniform grid.
 	"""
 	
-	def __init__(self):
+	def __init__(self,source_evolution=0,alpha_method=1,luminosity_function=0):
+		"""
+		Class constructor.
+		Source evolution is the function that determines z-dependence.
+		0: SFR^n
+		1: (1+z)^2.7 n
+		"""
 		self.grid=None
 		# we need to set these to trivial values to ensure correct future behaviour
 		self.beam_b=np.array([1])
 		self.beam_o=np.array([1])
 		self.b_fractions=None
-		
+		self.source_evolution=cos.choose_source_evolution_function(source_evolution)
+		self.alpha_method=alpha_method
+		self.luminosity_function=0
+		self.init_luminosity_functions()
+	
+	def init_luminosity_functions(self):
+		if self.luminosity_function==0:
+			self.array_cum_lf=array_cum_power_law
+			self.vector_cum_lf=vector_cum_power_law
+			self.array_diff_lf=array_diff_power_law
+			self.vector_diff_lf=vector_diff_power_law
+		else:
+			raise ValueError("Luminosity function must be 0, not ",self.luminosity_function)
+	
 	def pass_grid(self,grid,zvals,dmvals):
 		self.grid=grid
 		self.zvals=zvals
@@ -89,14 +108,23 @@ class grid:
 	def EF(self,alpha=0,bandwidth=1e9):
 		"""Calculates the fluence--energy conversion factors as a function of redshift
 		"""
-		self.FtoE=cos.F_to_E(1,self.zvals,alpha=alpha,bandwidth=bandwidth)
+		if self.alpha_method==0:
+			self.FtoE=cos.F_to_E(1,self.zvals,alpha=alpha,bandwidth=bandwidth)
+		elif self.alpha_method==1:
+			self.FtoE=cos.F_to_E(1,self.zvals,alpha=0.,bandwidth=bandwidth)
+		else:
+			raise ValueError("alpha method must be 0 or 1, not ",self.alpha_method)
 	
-	def set_evolution(self,n):
+	def set_evolution(self,n,alpha=None):
 		""" Scales volumetric rate by SFR """
 		self.sfr_n=n
-		self.sfr=cos.sfr(self.zvals)**n
-	
-	
+		if alpha is not None:
+			self.alpha=alpha
+		#self.sfr=cos.sfr(self.zvals)**n #old hard-coded value
+		self.sfr=self.source_evolution(self.zvals,n)
+		if self.alpha_method==1:
+			self.sfr *= (1.+self.zvals)**(-self.alpha) #reduces rate with alpha
+			
 	# not used
 	#def set_efficiencies(self, eff_func):
 	#	""" Sets the efficiency function that
@@ -139,9 +167,9 @@ class grid:
 			for j,w in enumerate(self.eff_weights):
 				
 				if j==0:
-					self.b_fractions[:,:,i] = self.beam_o[i]*w*array_power_law(self.thresholds[j,:,:]/b,Emin,Emax,gamma)
+					self.b_fractions[:,:,i] = self.beam_o[i]*w*self.array_cum_lf(self.thresholds[j,:,:]/b,Emin,Emax,gamma)
 				else:
-					self.b_fractions[:,:,i] += self.beam_o[i]*w*array_power_law(self.thresholds[j,:,:]/b,Emin,Emax,gamma)
+					self.b_fractions[:,:,i] += self.beam_o[i]*w*self.array_cum_lf(self.thresholds[j,:,:]/b,Emin,Emax,gamma)
 				
 		# here, b-fractions are unweighted according to the value of b.
 		self.fractions=np.sum(self.b_fractions,axis=2) # sums over b-axis [ we could ignore this step?]
@@ -220,6 +248,7 @@ class grid:
 			self.eff_table=eff_table
 		Eff_thresh=F0/self.eff_table
 		
+		
 		self.EF(alpha,bandwidth) #sets FtoE values - could have been done *WAY* earlier
 		
 		self.thresholds=np.zeros([self.nthresh,self.zvals.size,self.dmvals.size])
@@ -271,10 +300,167 @@ class grid:
 			priors[i,:] /= np.sum(priors[i,:])
 		return priors
 	
+	def GenMCSample(self,N,Poisson=False):
+		"""
+		Generate a MC sample of FRB events
+		
+		If Poisson=True, then interpret N as a Poisson expectation value
+		Otherwise, generate precisely N FRBs
+		
+		Generated values are DM, z, B, w, and SNR
+		NOTE: the routine GenMCFRB does not know 'w', merely
+			which w bin it generates.
+		
+		"""
+		
+		if Poisson:
+			#from np.random import poisson
+			NFRB=np.random.poisson(N)
+		else:
+			NFRB=int(N) #just to be sure...
+		sample=[]
+		pwb=None #feeds this back to save time. Lots of time.
+		for i in np.arange(NFRB):
+			frb,pwb=self.GenMCFRB(pwb)
+			sample.append(frb)
+		sample=np.array(sample)
+		return sample
+	
+	def GenMCFRB(self,pwb=None):
+		"""
+		Generates a single FRB according to the grid distributions
+		
+		Samples beam position b, FRB DM, z, s=SNR/SNRth, and w
+		Currently: no interpolation included.
+		This should be implemented in s,DM, and z.
+		
+		NOTE: currently, the actual FRB widths are not part of 'grid'
+			only the relative probabilities of any given width.
+			Hence, this routine only returns the integer of the width bin
+			not the width itelf.
+		
+		"""
+		# grid of beam values, weights
+		nw=self.eff_weights.size
+		nb=self.beam_b.size
+		
+		# we do this to allow efficient recalculation of this when generating many FRBs
+		if pwb is not None:
+			pwbc=np.cumsum(pwb)
+			pwbc/=pwbc[-1]
+		else:
+			pwb=np.zeros([nw*nb])
+			
+			# Generates a joint distribution in B,w
+			for i,b in enumerate(self.beam_b):
+				for j,w in enumerate(self.eff_weights):
+					# each of the following is a 2D array over DM, z which we sum to generate B,w values
+					wb_fraction=self.beam_o[i]*w*self.array_cum_lf(self.thresholds[j,:,:]/b,self.Emin,self.Emax,self.gamma)
+					pdv=np.multiply(wb_fraction.T,self.dV).T
+					rate=pdv*self.sfr_smear
+					pwb[i*nw+j]=np.sum(rate)
+			pwbc=np.cumsum(pwb)
+			pwbc/=pwbc[-1]
+		
+		# sample distribution in w,b
+		# we do NOT interpolate here - we treat these as qualitative values
+		# i.e. as if there was an irregular grid of them
+		r=np.random.rand(1)[0]
+		which=np.where(pwbc>r)[0][0]
+		i=int(which/nw)
+		j=which-i*nw
+		MCb=self.beam_b[i]
+		MCw=self.eff_weights[j]
+		
+		# calculate zdm distribution for sampled w,b only
+		pzDM=self.array_cum_lf(self.thresholds[j,:,:]/MCb,self.Emin,self.Emax,self.gamma)
+		wb_fraction=self.array_cum_lf(self.thresholds[j,:,:]/MCb,self.Emin,self.Emax,self.gamma)
+		pdv=np.multiply(wb_fraction.T,self.dV).T
+		pzDM=pdv*self.sfr_smear
+		
+		
+		# sample distribution in z,DM
+		pz=np.sum(pzDM,axis=1)
+		pzc=np.cumsum(pz)
+		pzc /= pzc[-1]
+		r=np.random.rand(1)[0]
+		iz2=np.where(pzc>r)[0][0]
+		if iz2 > 0:
+			iz1=iz2-1
+			dr=r-pzc[iz1]
+			kz2=dr/(pzc[iz2]-pzc[iz1]) # fraction of way to second value
+			kz1=1.-kz2
+			MCz=self.zvals[iz1]*kz1+self.zvals[iz2]*kz2
+			pDM=pzDM[iz1,:]*kz1 + pzDM[iz2,:]*kz2
+		else:
+			# we perform a simple linear interpolation in z from 0 to minimum bin
+			kz2=r/pzc[iz2]
+			kz1=1.-kz2
+			MCz=self.zvals[iz2]*kz2
+			pDM=pzDM[iz2,:] # just use the value of lowest bin
+		
+		
+		# NOW DO dm
+		#pDM=pzDM[k,:]
+		pDMc=np.cumsum(pDM)
+		pDMc /= pDMc[-1]
+		r=np.random.rand(1)[0]
+		iDM2=np.where(pDMc>r)[0][0]
+		if iDM2 > 0:
+			iDM1=iDM2-1
+			dDM=r-pDMc[iDM1]
+			kDM2=dDM/(pDMc[iDM2] - pDMc[iDM1])
+			kDM1=1.-kDM2
+			MCDM=self.dmvals[iDM1]*kDM1 + self.dmvals[iDM2]*kDM2
+			if iz2>0:
+				Eth=self.thresholds[j,iz1,iDM1]*kz1*kDM1 \
+					+ self.thresholds[j,iz1,iDM2]*kz1*kDM2 \
+					+ self.thresholds[j,iz2,iDM1]*kz2*kDM1 \
+					+ self.thresholds[j,iz2,iDM2]*kz2*kDM2
+			else: 
+				Eth=self.thresholds[j,iz2,iDM1]*kDM1 \
+					+ self.thresholds[j,iz2,iDM2]*kDM2
+				Eth *= kz2**2 #assume threshold goes as Eth~z^2 in the near Universe
+		else:
+			# interpolate linearly from 0 to the minimum value
+			kDM2=r/pDMc[iDM2]
+			MCDM=self.dmvals[iDM2]*kDM2
+			if iz2>0: # ignore effect of lowest DM bin on threshold
+				Eth=self.thresholds[j,iz1,iDM2]*kz1 \
+					+ self.thresholds[j,iz2,iDM2]*kz2
+			else: 
+				Eth=self.thresholds[j,iz2,iDM2]*kDM2
+				Eth *= kz2**2 #assume threshold goes as Eth~z^2 in the near Universe
+		
+		# now account for beamshape
+		Eth /= MCb
+		
+		# NOW GET snr
+		#Eth=self.thresholds[j,k,l]/MCb
+		Es=np.logspace(np.log10(Eth),np.log10(self.Emax),100)
+		PEs=self.vector_cum_lf(Es,self.Emin,self.Emax,self.gamma)
+		PEs /= PEs[0] # normalises: this is now cumulative distribution from 1 to 0
+		r=np.random.rand(1)[0]
+		iE1=np.where(PEs>r)[0][-1] #returns list starting at 0 and going upwards
+		iE2 = iE1+1
+		# iE1 should never be the highest energy, since it will always have a probability of 0
+		kE1=(r-PEs[iE2])/(PEs[iE1]-PEs[iE2])
+		kE2=1.-kE1
+		MCE=10**(np.log10(Es[iE1])*kE1 + np.log10(Es[iE2])*kE2)
+		MCs=MCE/Eth
+		
+		FRBparams=[MCz,MCDM,MCb,j,MCs]
+		return FRBparams,pwb
+		
+	
 	def copy(self,grid):
 		""" copies all values from grid to here
 		is OK if this is a shallow copy
 		explicit function to open the possibility of making it faster
+		This is likely now deprecated, and was made before the difference
+		in NFRB and NORM_FRB was implemented to allow two grids with
+		identical properties, but only one of which had a normalise time,
+		to be rapidly evaluated.
 		"""
 		self.grid=grid.grid
 		self.beam_b=grid.beam_b
@@ -312,56 +498,95 @@ class grid:
 		self.smear=grid.smear
 		self.smear_grid=grid.smear_grid
 		
-		
-		
-def array_power_law(Eth,Emin,Emax,gamma):
+
+############## this section defines different luminosity functions ##########
+
+def template_array_cumulative_luminosity_function(Eth,*params):
+	"""
+	Template for a cumulative luminosity function
+	Returns fraction of cumulative distribution above Eth
+	Luminosity function is defined by *params
+	Eth is a multidimensional numpy array
+	Always just wraps the vector version
+	"""
+	dims=Eth.shape
+	Eth=Eth.flatten()
+	result=template_vector_cumulative_luminosity_function(Eth,*params)
+	result=result.reshape(dims)
+	return result
+
+def template_vector_cumulative_luminosity_function(Eth,*params):
+	"""
+	Template for a cumulative luminosity function
+	Returns fraction of cumulative distribution above Eth
+	Luminosity function is defined by *params
+	Eth is a 1D numpy array
+	This example uses a cumulative power law
+	"""
+	#result=f(params)
+	#return result
+	return None
+
+########### simple power law functions #############
+	
+def array_cum_power_law(Eth,*params):
 	""" Calculates the fraction of bursts above a certain power law
 	for a given Eth, where Eth is an N-dimensional array
 	"""
 	dims=Eth.shape
 	Eth=Eth.flatten()
-	if gamma >= 0: #handles crazy dodgy cases. Or just return 0?
-		result=np.zeros([Eth.size])
-		result[np.where(Eth < Emax)]=1.
-		result=result.reshape(dims)
-		Eth=Eth.reshape(dims)
-		return result
-	result=array_power_law2(Eth,Emin,Emax,gamma)
+	#if gamma >= 0: #handles crazy dodgy cases. Or just return 0?
+	#	result=np.zeros([Eth.size])
+	#	result[np.where(Eth < Emax)]=1.
+	#	result=result.reshape(dims)
+	#	Eth=Eth.reshape(dims)
+	#	return result
+	result=vector_cum_power_law(Eth,*params)
 	result=result.reshape(dims)
 	return result
 
 
-def array_power_law2(Eth,Emin,Emax,gamma):		
+#def array_power_law2(Eth,Emin,Emax,gamma):		
+def vector_cum_power_law(Eth,*params):
+	""" Calculates the fraction of bursts above a certain power law
+	for a given Eth.
+	"""
+	params=np.array(params)
+	Emin=params[0]
+	Emax=params[1]
+	gamma=params[2]
 	result=(Eth**gamma-Emax**gamma ) / (Emin**gamma-Emax**gamma )
-	# should not happen
 	low=np.where(Eth < Emin)[0]
 	if len(low) > 0:
 		result[low]=1.
 	high=np.where(Eth > Emax)[0]
 	if len(high)>0:
 		result[high]=0.
-	
 	return result
 
-def array_diff_power_law(Eth,Emin,Emax,gamma):
+def array_diff_power_law(Eth,*params):
 	""" Calculates the differential fraction of bursts for a power law
 	at a given Eth, where Eth is an N-dimensional array
 	"""
 	dims=Eth.shape
 	Eth=Eth.flatten()
-	if gamma >= 0: #handles crazy dodgy cases. Or just return 0?
-		result=np.zeros([Eth.size])
-		result[np.where(Eth < Emax)]=1.
-		result=result.reshape(dims)
-		Eth=Eth.reshape(dims)
-		return result
+	#if gamma >= 0: #handles crazy dodgy cases. Or just return 0?
+	#	result=np.zeros([Eth.size])
+	#	result[np.where(Eth < Emax)]=1.
+	#	result=result.reshape(dims)
+	#	Eth=Eth.reshape(dims)
+	#	return result
 	
-	result=array_diff_power_law2(Eth,Emin,Emax,gamma)
+	result=vector_diff_power_law(Eth,*params)
 	result=result.reshape(dims)
 	return result
 
 
-def array_diff_power_law2(Eth,Emin,Emax,gamma):
+def vector_diff_power_law(Eth,*params):
+	Emin=params[0]
+	Emax=params[1]
+	gamma=params[2]
+	
 	result=-(gamma*Eth**(gamma-1)) / (Emin**gamma-Emax**gamma )
 	
 	low=np.where(Eth < Emin)[0]
@@ -373,34 +598,26 @@ def array_diff_power_law2(Eth,Emin,Emax,gamma):
 	
 	return result
 
-def vector_power_law(Eth,Emin,Emax,gamma):
-	""" Calculates the fraction of bursts above a certain power law
-	for a given Eth.
-	"""
-	result=(Eth**gamma-Emax**gamma ) / (Emin**gamma-Emax**gamma )
-	low=np.where(Eth < Emin)[0]
-	if len(low) > 0:
-		result[low]=1.
-	high=np.where(Eth > Emax)[0]
-	if len(high)>0:
-		results[high]=0.
-	return result
 
+############### unused - to delete ##########
 # power-laws here are differential
-def power_law_norm(Emin,Emax,gamma):
-	""" Calculates the normalisation factor for a power-law """
-	return Emin**gamma-Emax**-gamma
+#def power_law_norm(Emin,Emax,gamma):
+#	""" Calculates the normalisation factor for a power-law """
+#	return Emin**gamma-Emax**-gamma
 
-def power_law(Eth,Emin,Emax,gamma):
-	""" Calculates the fraction of bursts above a certain power law
-	for a given Eth.
-	"""
-	if Eth <= Emin:
-		return 1
-	elif Eth >= Emax:
-		return 0
-	else:
-		return (Eth**gamma-Emax**gamma ) / (Emin**gamma-Emax**gamma )
+#def power_law(Eth,Emin,Emax,gamma):
+#	""" Calculates the fraction of bursts above a certain power law
+#	for a given Eth.
+#	"""
+#	if Eth <= Emin:
+#		return 1
+#	elif Eth >= Emax:
+#		return 0
+#	else:
+#		return (Eth**gamma-Emax**gamma ) / (Emin**gamma-Emax**gamma )
+
+
+######### misc function to load some data - do we ever use it? ##########
 
 def load_data(filename):
 	if filename.endswith('.npy'):
