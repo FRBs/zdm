@@ -13,12 +13,8 @@ import matplotlib
 from matplotlib.ticker import NullFormatter
 
 from frb import dlas
-<<<<<<< HEAD
-from frb import igm
-=======
 from frb.dm import igm
 from frb.dm import cosmic
->>>>>>> bcc3528a6f6f38f93480d041532307c426c20746
 
 import time
 from zdm import iteration as it
@@ -1539,7 +1535,7 @@ def initialise_grids(surveys,zDMgrid, zvals,dmvals,pset,wdist=False,source_evolu
 		surveys=[surveys]
 	
 	# get parameter values
-	lEmin,lEmax,alpha,gamma,sfr_n,logmean,logsigma,lC=pset
+	lEmin,lEmax,alpha,gamma,sfr_n,logmean,logsigma,lC,H0=pset
 	Emin=10**lEmin
 	Emax=10**lEmax
 	
@@ -1557,7 +1553,7 @@ def initialise_grids(surveys,zDMgrid, zvals,dmvals,pset,wdist=False,source_evolu
 			#efficiencies=survey.get_efficiency(dmvals)
 		
 		grid=zdm.grid(source_evolution=source_evolution,alpha_method=alpha_method)
-		grid.pass_grid(zDMgrid,zvals,dmvals)
+		grid.pass_grid(zDMgrid,zvals,dmvals,H0)
 		grid.smear_dm(mask,logmean,logsigma)
 		
 		grid.calc_thresholds(survey.meta['THRESH'],efficiencies,alpha=alpha,weights=weights)
@@ -1654,7 +1650,7 @@ def plot_1d(pvec,lset,xlabel,savename):
 	plt.close()
 	
 # generates grid based on Monte Carlo model
-def get_zdm_grid(new=True,plot=False,method='analytic',
+def get_zdm_grid(H0=cos.DEF_H0,new=True,plot=False,method='analytic',
                  F=0.32,nz=500,zmax=5,ndm=1400,dmmax=7000.,
                  datdir='GridData',tag="", orig=False):
 	"""[summary]

@@ -14,7 +14,7 @@ import sys
 import matplotlib.pyplot as plt
 import numpy as np
 #from frb import dlas
-from frb import igm
+from frb.dm import igm
 from zdm import cosmology as cos
 
 import scipy as sp
@@ -89,7 +89,8 @@ def get_mean_DM(zeds,H0=cos.DEF_H0):
 	zmax=zeds[-1]
 	nz=zeds.size
 	sys.path.insert(1, '/Users/cjames/CRAFT/FRB_library/FRB-master/')
-	DMbar, zeval = igm.average_DM(zmax, cumul=True, neval=nz+1)
+	DMbar, zeval = igm.average_DM(zmax, cumul=True, neval=nz) #neval=nz+1 was giving 
+                                                              #wrong dimension
 	
 	DMbar = DMbar*H0/(cos.DEF_H0)
 	DMbar=np.array(DMbar)

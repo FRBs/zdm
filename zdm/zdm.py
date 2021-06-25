@@ -11,7 +11,7 @@ class grid:
 	It also assumes a linear uniform grid.
 	"""
 	
-	def __init__(self,source_evolution=0,alpha_method=1,luminosity_function=0):
+	def __init__(self,source_evolution=0,alpha_method=0,luminosity_function=0):
 		"""
 		Class constructor.
 		Source evolution is the function that determines z-dependence.
@@ -37,10 +37,11 @@ class grid:
 		else:
 			raise ValueError("Luminosity function must be 0, not ",self.luminosity_function)
 	
-	def pass_grid(self,grid,zvals,dmvals):
+	def pass_grid(self,grid,zvals,dmvals,H0):
 		self.grid=grid
 		self.zvals=zvals
 		self.dmvals=dmvals
+		self.H0=H0
 		self.check_grid()
 		self.calc_dV()
 		

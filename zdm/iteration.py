@@ -32,10 +32,10 @@ def get_likelihood(pset,grid,survey,norm=True,psnr=True):
 		update_grid(grid,pset,survey)
 		if survey.nD==1:
 			#loglik=calc_likelihoods_1D(grid,survey,pset,norm=norm,psnr=psnr)
-			llsum,lllist,expected=calc_likelihoods_1D(grid,survey,pset,norm=norm,psnr=True,dolist=True)
+			llsum,lllist,expected=calc_likelihoods_1D(grid,survey,pset,norm=norm,psnr=True,dolist=1)
 		elif survey.nD==2:
 			#loglik=calc_likelihoods_2D(grid,survey,pset,norm=norm,psnr=psnr)
-			llsum,lllist,expected=calc_likelihoods_2D(grid,survey,pset,norm=norm,psnr=True,dolist=True)
+			llsum,lllist,expected=calc_likelihoods_2D(grid,survey,pset,norm=norm,psnr=True,dolist=1)
 		return llsum,lllist,expected
 		#negative loglikelihood is NOT returned, positive is.	
 	else:
@@ -45,10 +45,10 @@ def get_likelihood(pset,grid,survey,norm=True,psnr=True):
 			update_grid(g,pset,s)
 			if s.nD==1:
 				#ll=calc_likelihoods_1D(g,s,pset,norm=norm,psnr=psnr)
-				llsum,lllist,expected=calc_likelihoods_1D(g,s,pset,norm=norm,psnr=True,dolist=True)
+				llsum,lllist,expected=calc_likelihoods_1D(g,s,pset,norm=norm,psnr=True,dolist=1)
 			elif s.nD==2:
 				#ll=calc_likelihoods_2D(g,s,pset,norm=norm,psnr=psnr)
-				llsum,lllist,expected=calc_likelihoods_2D(g,s,pset,norm=norm,psnr=True,dolist=True)
+				llsum,lllist,expected=calc_likelihoods_2D(g,s,pset,norm=norm,psnr=True,dolist=1)
 			loglik += llsum
 		return loglik,lllist,expected
 		#negative loglikelihood is NOT returned, positive is.	
@@ -538,7 +538,7 @@ def calc_likelihoods_1D(grid,survey,pset,doplot=False,norm=True,psnr=False,Pn=Tr
 	
 	if dolist==0:
 		return llsum
-	elif dolist==0:
+	elif dolist==1:
 		return llsum,lllist,expected
 	elif dolist==2:
 		return llsum,lllist,expected,longlist
@@ -734,7 +734,7 @@ def calc_likelihoods_2D(grid,survey,pset,doplot=False,norm=True,psnr=False,print
 		lllist.append(0)
 	if dolist==0:
 		return llsum
-	elif dolist==0:
+	elif dolist==1:
 		return llsum,lllist,expected
 	elif dolist==2:
 		return llsum,lllist,expected,longlist
