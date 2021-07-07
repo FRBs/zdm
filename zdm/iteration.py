@@ -37,7 +37,7 @@ def get_likelihood(pset,grid,survey,norm=True,psnr=True):
             #loglik=calc_likelihoods_2D(grid,survey,pset,norm=norm,psnr=psnr)
             llsum,lllist,expected=calc_likelihoods_2D(grid,survey,pset,norm=norm,psnr=True,dolist=1)
         return llsum,lllist,expected
-        #negative loglikelihood is NOT returned, positive is.    
+        #negative loglikelihood is NOT returned, positive is.	
     else:
         loglik=0
         for i,g in enumerate(grid):
@@ -51,7 +51,7 @@ def get_likelihood(pset,grid,survey,norm=True,psnr=True):
                 llsum,lllist,expected=calc_likelihoods_2D(g,s,pset,norm=norm,psnr=True,dolist=1)
             loglik += llsum
         return loglik,lllist,expected
-        #negative loglikelihood is NOT returned, positive is.    
+        #negative loglikelihood is NOT returned, positive is.	
     
 
 def scan_likelihoods_1D(grid,pset,survey,which,vals,norm=True):
@@ -302,6 +302,7 @@ def update_grid(grid,pset,survey):
     
     # checks if we need to calculate new pdv: this depends on thresholds, i.e. alpha
     # OK now we need to be careful, and distinguish between the different changes
+    # note that changed_alpha is always 0 if alpha_method=1
     if changed_alpha or clEmin or clEmax or clgamma:
         grid.calc_pdv(Emin,Emax,gamma)#,newbg=changed_alpha,newEmin=clEmin,newEmax=clEmax,newGamma=clgamma)
         oldlEmin=lEmin
@@ -397,7 +398,7 @@ def calc_likelihoods_1D(grid,survey,pset,doplot=False,norm=True,psnr=False,Pn=Tr
         # p(snr,DM)/p(DM) * p(DM)/b(burst)
         # get a vector of rates as a function of z
         #rs = rates[:,idms1[j]]*(1.-dkdms[j])+ rates[:,idms2[j]]*dkdms[j]
-        rs = rates[:,idms1]*(1.-dkdms)+ rates[:,idms2]*dkdms    
+        rs = rates[:,idms1]*(1.-dkdms)+ rates[:,idms2]*dkdms	
         #norms=np.sum(rs,axis=0)/global_norm
         norms=pvals
         
@@ -558,7 +559,7 @@ def calc_likelihoods_2D(grid,survey,pset,doplot=False,norm=True,psnr=False,print
     DMobs=survey.DMEGs
     Zobs=survey.Zs
     #if survey.meta["TOBS"] is not None:
-    #    TotalRate=np.sum(rates)*survey.meta["TOBS"]
+    #	TotalRate=np.sum(rates)*survey.meta["TOBS"]
         # this is in units of number per MPc^3 at Emin
     
     # normalise to total probability of 1
@@ -712,7 +713,8 @@ def calc_likelihoods_2D(grid,survey,pset,doplot=False,norm=True,psnr=False,print
         # the normalisation - should be the un-normalised values.
         
         wzpsnr /= pvals
-
+        
+        
         # keeps individual FRB values
         longlist += np.log10(wzpsnr)
         

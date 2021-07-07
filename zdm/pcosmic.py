@@ -84,24 +84,24 @@ def make_C0_grid(zeds,F):
     return C0s
 
 def get_mean_DM(zeds,H0=cos.DEF_H0):
-    """ Gets mean average z to which can be applied deltas """
-    
-    zmax=zeds[-1]
-    nz=zeds.size
-    sys.path.insert(1, '/Users/cjames/CRAFT/FRB_library/FRB-master/')
-    DMbar, zeval = igm.average_DM(zmax, cumul=True, neval=nz) #neval=nz+1 was giving 
+	""" Gets mean average z to which can be applied deltas """
+	
+	zmax=zeds[-1]
+	nz=zeds.size
+	sys.path.insert(1, '/Users/cjames/CRAFT/FRB_library/FRB-master/')
+	DMbar, zeval = igm.average_DM(zmax, cumul=True, neval=nz) #neval=nz+1 was giving 
                                                               #wrong dimension
-    
-    DMbar = DMbar*H0/(cos.DEF_H0)
-    DMbar=np.array(DMbar)
-    #added H0 dependency
-    #DMbar = DMbar.to(u.dimensionless_unscaled)
-    return DMbar
-    
-    #DMbar=dlas.approx_avgDM(z)
-    #DMbar=DMbar.value
-    #DMbar *= 200000 #rough guess on what is going wrong...
-    #return DMbar
+	
+	DMbar = DMbar*H0/(cos.DEF_H0)
+	DMbar=np.array(DMbar)
+	#added H0 dependency
+	#DMbar = DMbar.to(u.dimensionless_unscaled)
+	return DMbar
+	
+	#DMbar=dlas.approx_avgDM(z)
+	#DMbar=DMbar.value
+	#DMbar *= 200000 #rough guess on what is going wrong...
+	#return DMbar
 
 def get_C0(z,F,zgrid,Fgrid,C0grid):
     """ Takes a pre-generated table of C0 values,

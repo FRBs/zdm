@@ -130,6 +130,8 @@ dmypy.json
 
 #untitles files
 untitled*
+untitled.
+zdm/untitled0.py
 
 #largefiles
 GridData/

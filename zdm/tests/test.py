@@ -82,8 +82,8 @@ def main():
 	
 	
 	# sets the nature of scaling with the 'spectral index' alpha
-	#alpha_method=0 # spectral index interpretation: includes k-correction. Slower to update
-	alpha_method=1 # rate interpretation: extra factor of (1+z)^alpha in source evolution
+	alpha_method=0 # spectral index interpretation: includes k-correction. Slower to update
+	#lpha_method=1 # rate interpretation: extra factor of (1+z)^alpha in source evolution
 	
 	############## Initialise surveys ##############
 	

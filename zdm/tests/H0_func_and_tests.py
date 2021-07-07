@@ -50,7 +50,7 @@ Wlogsigma=0.899148
 sdir = os.path.join(resource_filename('zdm', 'data'), 'Surveys/')
 #load the lat50 survey data
 lat50=survey.survey()
-lat50.process_survey_file(sdir+'CRAFT_class_I_and_II.dat')
+lat50.process_survey_file(sdir+'parkes_mb_class_I_and_II.dat')
 DMhalo=50
 lat50.init_DMEG(DMhalo)
 lat50.init_beam(nbins=Nbeams[0],method=2,plot=False,thresh=thresh) # tells the survey to use the beam file
@@ -160,6 +160,10 @@ def scan_H0(H0_start,H0_stop,n_iterations,survey,surveyname,plots=True):
     
     t0=time.process_time()
     H0values=np.linspace(H0_start,H0_stop,n_iterations)
+<<<<<<< HEAD:zdm/tests/H0_func_and_tests.py
+=======
+    #H0values=[50,58,66,67.74,82,114]
+>>>>>>> origin/branchH0:zdm/H0_func_and_tests.py
     H0likes=[]
     for i in H0values:
         setH0=i
