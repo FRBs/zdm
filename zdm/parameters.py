@@ -1,20 +1,27 @@
 import numpy as np
+from dataclasses import dataclass, field, fields
 
-# Beam method
-beam_dmodel = {
-    'thresh': dict(dtype=(int),
-                help='??'),
-    'method': dict(dtype=(int),
-                help='??'),
-}
+# Add a few methods to be shared by them all
+@dataclass
+class myDataClass:
+    def meta(self, attribute_name):
+        return self.__dataclass_fields__[attribute_name].metadata
+    def chk_options(self, attribute_name):
+        options = self.__dataclass_fields__[attribute_name].metadata['options']
+
+# Beam parameters
+@dataclass
+class BeamParams(myDataClass):
+    thresh: int = field(metadata={'help': '??'})
+    method: int
+
 
 # FRB intrinsic width parameters
-width_dmodel = {
-    'logmean': dict(dtype=(float),
-                help='Intrinsic width log of mean'),
-    'logsigma': dict(dtype=(float),
-                help='Intrinsic width log of sigma'),
-}
+@dataclass
+class WidthParams(myDataClass):
+    logmean: float = field(metadata={'help': 'Intrinsic width log of mean'})
+    logsigma: float = field(metadata={'help': 'Intrinsic width log of sigma'})
+
 
 # Milky Way parameters
 MW_dmodel = {
@@ -126,3 +133,4 @@ def vet_param(obj, dmodel:dict, verbose=True):
     return chk, disallowed_keys, badtype_keys
 
 def vet_param():
+    pass
