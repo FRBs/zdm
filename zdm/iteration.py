@@ -19,6 +19,8 @@ NCF=0
 
 def get_likelihood(pset,grid,survey,norm=True,psnr=True):
 	""" Returns log-likelihood for parameter set
+	norm:normalizatiom
+	psnr: probability of snr (S/R)
 	"""
 	#changed this so that calc_likelihood doList=True, helps in debugging while checking likelihoods for different param values 
 	if isinstance(grid,list):
@@ -31,10 +33,8 @@ def get_likelihood(pset,grid,survey,norm=True,psnr=True):
 	if ng==1:
 		update_grid(grid,pset,survey)
 		if survey.nD==1:
-			#loglik=calc_likelihoods_1D(grid,survey,pset,norm=norm,psnr=psnr)
 			llsum,lllist,expected=calc_likelihoods_1D(grid,survey,pset,norm=norm,psnr=True,dolist=1)
 		elif survey.nD==2:
-			#loglik=calc_likelihoods_2D(grid,survey,pset,norm=norm,psnr=psnr)
 			llsum,lllist,expected=calc_likelihoods_2D(grid,survey,pset,norm=norm,psnr=True,dolist=1)
 		return llsum,lllist,expected
 		#negative loglikelihood is NOT returned, positive is.	
@@ -44,10 +44,8 @@ def get_likelihood(pset,grid,survey,norm=True,psnr=True):
 			s=survey[i]
 			update_grid(g,pset,s)
 			if s.nD==1:
-				#ll=calc_likelihoods_1D(g,s,pset,norm=norm,psnr=psnr)
 				llsum,lllist,expected=calc_likelihoods_1D(g,s,pset,norm=norm,psnr=True,dolist=1)
 			elif s.nD==2:
-				#ll=calc_likelihoods_2D(g,s,pset,norm=norm,psnr=psnr)
 				llsum,lllist,expected=calc_likelihoods_2D(g,s,pset,norm=norm,psnr=True,dolist=1)
 			loglik += llsum
 		return loglik,lllist,expected
@@ -59,19 +57,16 @@ def scan_likelihoods_1D(grid,pset,survey,which,vals,norm=True):
 	DM information.
 	"""
 	#changed so -loglik as well as list is returned for more efficient debugging
-	#set_defaults(grid)
 	lscan=np.zeros([vals.size])
 	lllist1=[]
-    expected1=[]
+	expected1=[]
 	for i,val in enumerate(vals):
 		pset[which]=val
-		#lscan[i]=get_likelihood(pset,grid,survey)
 		llsum,lllist,expected=get_likelihood(pset,grid,survey)
-        lscan[i]=-llsum
-        lllist1.append(lllist)
-        expected1.append(expected)
-    return lscan,lllist1,expected1
-	#return lscan
+		lscan[i]=-llsum
+		lllist1.append(lllist)
+		expected1.append(expected)
+		return lscan,lllist1,expected1
 
 def get_lnames(which=None):
 	''' Get names of parameters in latex formatting '''
@@ -128,7 +123,7 @@ def print_pset(pset):
 	print("DMx params    : ",pset[5:7])
 	print("Log_10 (C)    : ",pset[7])
 	if pset[8] is not None:
-        print("H0            : ",pset[8])
+		print("H0            : ",pset[8])
 	#print("DMx sigma     : ",pset[6])
 	#added H0 as a param
 
@@ -222,9 +217,9 @@ def update_grid(grid,pset,survey):
 	smear_sigma=pset[6]
 
 	#taking all the old grid parameters
-    oldmask=grid.smear
-    oldsmeargrid=grid.smear_grid
-    
+	oldmask=grid.smear
+	oldsmeargrid=grid.smear_grid
+
 	oldlEmin=np.log10(float(grid.Emin))
 	oldlEmax=np.log10(float(grid.Emax))
 	oldalpha=grid.alpha
@@ -237,18 +232,18 @@ def update_grid(grid,pset,survey):
 	
 	##check if H0 value changed
     
-    if oldH0value != pset[8]:
-        cos.set_cosmology(H0=H0value)
-        zDMgrid, zvals,dmvals,H0=misc_functions.get_zdm_grid(H0=H0value,new=True,plot=False,method='analytic')
-        grid.pass_grid(zDMgrid,zvals,dmvals,H0)
-        grid.smear_mean=oldsmean
-        grid.smear_sigma=oldssigma
-        grid.smear_dm(oldmask,oldsmean,oldssigma)
-        grid.calc_thresholds(survey.meta['THRESH'],survey.efficiencies,alpha=oldalpha, weights=survey.wplist)
-        grid.calc_dV()
-        grid.calc_pdv(Emin,Emax,gamma,survey.beam_b,survey.beam_o)
-        grid.set_evolution(oldsfrn) 
-        grid.calc_rates()
+	if oldH0value != H0value:
+		cos.set_cosmology(H0=H0value)
+		zDMgrid, zvals,dmvals,H0=misc_functions.get_zdm_grid(H0=H0value,new=True,plot=False,method='analytic')
+		grid.pass_grid(zDMgrid,zvals,dmvals,H0)
+		grid.smear_mean=oldsmean
+		grid.smear_sigma=oldssigma
+		grid.smear_dm(oldmask,oldsmean,oldssigma)
+		grid.calc_thresholds(survey.meta['THRESH'],survey.efficiencies,alpha=oldalpha, weights=survey.wplist)
+		grid.calc_dV()
+		grid.calc_pdv(Emin,Emax,gamma,survey.beam_b,survey.beam_o)
+		grid.set_evolution(oldsfrn) 
+		grid.calc_rates()
 
 	##### checks to see if the dmx parameters have changed ######
 	if oldsmean != pset[5] or oldssigma != pset[6]:
@@ -1421,7 +1416,7 @@ def CalculateMeaningfulConstant(pset,grid,survey,newC=False):
 	if newC:
 		rawconst=CalculateConstant(grid,survey) #required to convert the grid norm to Nobs
 	else:
-		rawconst=10**pset[-1]
+		rawconst=10**pset[7]
 	const = rawconst*units # to cubic Gpc and days to year
 	Eref=1e40 #erg per Hz
 	Emin=10**pset[0]
@@ -1437,7 +1432,7 @@ def ConvertToMeaningfulConstant(pset):
 	# also converts per Mpcs into per Gpc3
 	units=1e9*365.25
 	
-	const = (10**pset[-1])*units # to cubic Gpc and days to year
+	const = (10**pset[7])*units # to cubic Gpc and days to year
 	Eref=1e40 #erg per Hz
 	Emin=10**pset[0]
 	Emax=10**pset[1]

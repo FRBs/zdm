@@ -403,7 +403,7 @@ def make_dm_redshift(grid,savename="",DMmax=1000,zmax=1,loc='upper left',Macquar
 	plt.legend(loc=loc)
 	plt.savefig(savename)
 	plt.title("H0 " + str(H0))
-    plt.show()
+	plt.show()
 	plt.close()
 
 
@@ -1766,7 +1766,7 @@ def get_zdm_grid(H0=cos.DEF_H0,new=True,plot=False,method='analytic',
 		plt.close()
 
 	#return zDMgrid, zvals,dmvals    
-    return zDMgrid, zvals,dmvals, H0
+	return zDMgrid, zvals,dmvals, H0
 
 def plot_zdm_basic_paper(zDMgrid,zvals,dmvals,zmax=1,DMmax=1000,norm=0,log=True,name='temp.pdf',ylabel=None,label='$\\log_{10}p(DM_{\\rm EG},z)$',project=False,conts=False,FRBZ=None,FRBDM=None,title='Plot',H0=cos.DEF_H0):
 	''' Plots basic distributions of z and dm for the paper '''
@@ -1905,7 +1905,7 @@ def plot_zdm_basic_paper(zDMgrid,zvals,dmvals,zmax=1,DMmax=1000,norm=0,log=True,
 	
 	plt.savefig(name)
 	plt.title(title+str(H0))
-    plt.show()
+	plt.show()
 	plt.close()		
 
 
