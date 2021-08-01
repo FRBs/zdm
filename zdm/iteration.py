@@ -6,7 +6,8 @@ from zdm import pcosmic
 from scipy.optimize import minimize
 # to hold one of these parameters constant, just remove it from the arg set here
 from zdm import cosmology as cos
-import zdm
+from zdm import zdm
+from zdm import misc_functions
 import time
 import os
 from scipy.stats import poisson
@@ -16,10 +17,12 @@ NCF=0
 #### this verson currently works with 5 params.
 # soon to be upgraded with two values of local DM contribution
 
-def get_likelihood(pset,grid,survey,norm=True,psnr=False):
+def get_likelihood(pset,grid,survey,norm=True,psnr=True):
 	""" Returns log-likelihood for parameter set
+	norm:normalizatiom
+	psnr: probability of snr (S/R)
 	"""
-	
+	#changed this so that calc_likelihood doList=True, helps in debugging while checking likelihoods for different param values 
 	if isinstance(grid,list):
 		if not isinstance(survey,list):
 			raise ValueError("Grid is a list, survey is not...")
@@ -28,35 +31,42 @@ def get_likelihood(pset,grid,survey,norm=True,psnr=False):
 		ng=1
 		ns=1
 	if ng==1:
-		update_grid(grid,pset)
+		update_grid(grid,pset,survey)
 		if survey.nD==1:
-			loglik=calc_likelihoods_1D(grid,survey,pset,norm=norm,psnr=psnr)
+			llsum,lllist,expected=calc_likelihoods_1D(grid,survey,pset,norm=norm,psnr=True,dolist=1)
 		elif survey.nD==2:
-			loglik=calc_likelihoods_2D(grid,survey,pset,norm=norm,psnr=psnr)
-		
+			llsum,lllist,expected=calc_likelihoods_2D(grid,survey,pset,norm=norm,psnr=True,dolist=1)
+		return llsum,lllist,expected
+		#negative loglikelihood is NOT returned, positive is.	
 	else:
 		loglik=0
 		for i,g in enumerate(grid):
 			s=survey[i]
-			update_grid(g,pset)
+			update_grid(g,pset,s)
 			if s.nD==1:
-				ll=calc_likelihoods_1D(g,s,pset,norm=norm,psnr=psnr)
+				llsum,lllist,expected=calc_likelihoods_1D(g,s,pset,norm=norm,psnr=True,dolist=1)
 			elif s.nD==2:
-				ll=calc_likelihoods_2D(g,s,pset,norm=norm,psnr=psnr)
-			loglik += ll
+				llsum,lllist,expected=calc_likelihoods_2D(g,s,pset,norm=norm,psnr=True,dolist=1)
+			loglik += llsum
+		return loglik,lllist,expected
+		#negative loglikelihood is NOT returned, positive is.	
 	
-	return -loglik
 
 def scan_likelihoods_1D(grid,pset,survey,which,vals,norm=True):
 	""" Iterates to best-fit parameter set for a survey with only
 	DM information.
 	"""
-	set_defaults(grid)
+	#changed so -loglik as well as list is returned for more efficient debugging
 	lscan=np.zeros([vals.size])
+	lllist1=[]
+	expected1=[]
 	for i,val in enumerate(vals):
 		pset[which]=val
-		lscan[i]=get_likelihood_1D(pset,grid,survey)
-	return lscan
+		llsum,lllist,expected=get_likelihood(pset,grid,survey)
+		lscan[i]=-llsum
+		lllist1.append(lllist)
+		expected1.append(expected)
+		return lscan,lllist1,expected1
 
 def get_lnames(which=None):
 	''' Get names of parameters in latex formatting '''
@@ -81,16 +91,18 @@ def set_defaults(grid):
 #	global oldsfrn
 #	global olddmparams
 	
-	oldlEmin=np.log10(grid.Emin)
-	oldlEmax=np.log10(grid.Emax)
+	oldlEmin=np.log10(float(grid.Emin))
+	oldlEmax=np.log10(float(grid.Emax))
 	oldalpha=grid.alpha
 	oldgamma=grid.gamma
 	oldsfrn=grid.sfr_n
 	old_smean=grid.smear_mean
 	old_ssigma=grid.smear_sigma
-	C=1 # this is NOT a sensible default!
-	pset=[oldlEmin,oldlEmax,oldalpha,oldgamma,oldsfrn,old_smean,old_ssigma,C]
+	C=4.19 # 1 this is NOT a sensible default! #use 4.19 for best fit values to get sensible values
+	H0value=grid.H0value
+	pset=[oldlEmin,oldlEmax,oldalpha,oldgamma,oldsfrn,old_smean,old_ssigma,C,H0value]
 	return pset
+	#added H0 as a param
 
 def print_pset(pset):
 	""" pset defined as:
@@ -110,7 +122,10 @@ def print_pset(pset):
 	print("sfr scaling n : ",pset[4])
 	print("DMx params    : ",pset[5:7])
 	print("Log_10 (C)    : ",pset[7])
+	if pset[8] is not None:
+		print("H0            : ",pset[8])
 	#print("DMx sigma     : ",pset[6])
+	#added H0 as a param
 
 def maximise_likelihood(grid,survey):
 	# specifies which set of parameters to pass to the dmx function
@@ -152,7 +167,8 @@ def maximise_likelihood(grid,survey):
 	return results
 
 
-def update_grid(grid,pset):
+def update_grid(grid,pset,survey):
+	#added routine to update H0 values within grid
 	"""gets the likelihood
 	
 	Hierarchy:
@@ -194,19 +210,41 @@ def update_grid(grid,pset):
 	alpha=pset[2]
 	gamma=pset[3]
 	sfrn=pset[4]
-	
+	H0value=pset[8]
+
 	# assumes all parameters following this are passed to DM distribution
 	smear_mean=pset[5]
 	smear_sigma=pset[6]
-	oldlEmin=np.log10(grid.Emin)
-	oldlEmax=np.log10(grid.Emax)
+
+	#taking all the old grid parameters
+	oldmask=grid.smear
+	oldsmeargrid=grid.smear_grid
+
+	oldlEmin=np.log10(float(grid.Emin))
+	oldlEmax=np.log10(float(grid.Emax))
 	oldalpha=grid.alpha
 	oldgamma=grid.gamma
 	oldsfrn=grid.sfr_n
 	oldsmean=grid.smear_mean
 	oldssigma=grid.smear_sigma
+	oldH0value=grid.H0
 	new_sfr_smear=False #do not need to calculate new product of sfr and smearing
 	
+	##check if H0 value changed
+    
+	if oldH0value != H0value:
+		cos.set_cosmology(H0=H0value)
+		zDMgrid, zvals,dmvals,H0=misc_functions.get_zdm_grid(H0=H0value,new=True,plot=False,method='analytic')
+		grid.pass_grid(zDMgrid,zvals,dmvals,H0)
+		grid.smear_mean=oldsmean
+		grid.smear_sigma=oldssigma
+		grid.smear_dm(oldmask,oldsmean,oldssigma)
+		grid.calc_thresholds(survey.meta['THRESH'],survey.efficiencies,alpha=oldalpha, weights=survey.wplist)
+		grid.calc_dV()
+		grid.calc_pdv(Emin,Emax,gamma,survey.beam_b,survey.beam_o)
+		grid.set_evolution(oldsfrn) 
+		grid.calc_rates()
+
 	##### checks to see if the dmx parameters have changed ######
 	if oldsmean != pset[5] or oldssigma != pset[6]:
 		changed_smear=True
@@ -495,7 +533,7 @@ def calc_likelihoods_1D(grid,survey,pset,doplot=False,norm=True,psnr=False,Pn=Tr
 	
 	if dolist==0:
 		return llsum
-	elif dolist==0:
+	elif dolist==1:
 		return llsum,lllist,expected
 	elif dolist==2:
 		return llsum,lllist,expected,longlist
@@ -691,7 +729,7 @@ def calc_likelihoods_2D(grid,survey,pset,doplot=False,norm=True,psnr=False,print
 		lllist.append(0)
 	if dolist==0:
 		return llsum
-	elif dolist==0:
+	elif dolist==1:
 		return llsum,lllist,expected
 	elif dolist==2:
 		return llsum,lllist,expected,longlist
@@ -775,7 +813,7 @@ def missing_cube_likelihoods(grids,surveys,todo,outfile,norm=True,psnr=True,star
 		# in theory we could save the following step if we have already minimised by oh well. Too annoying!
 		ll=0.
 		for j,s in enumerate(surveys):
-			update_grid(grids[j],pset)
+			update_grid(grids[j],pset,s)
 			if s.nD==1:
 				func=calc_likelihoods_1D
 			else:
@@ -952,7 +990,7 @@ def cube_likelihoods(grids,surveys,psetmins,psetmaxes,npoints,run,howmany,outfil
 				if clone is not None and clone[j] > 0:
 					grids[j].copy(grids[clone[j]])
 				else:
-					update_grid(grids[j],pset)
+					update_grid(grids[j],pset,s)
 				if s.nD==1:
 					func=calc_likelihoods_1D
 				else:
@@ -1104,7 +1142,7 @@ def step_log_likelihood(pset,grids,surveys,step,active,lastsign,minstep,delta=1e
 	for j,grid in enumerate(grids):
 		# calculates derivatives in all the variables
 		s=surveys[j]
-		update_grid(grid,pset)
+		update_grid(grid,pset,s)
 		
 		# determine correct function: 1 or  D
 		if s.nD==1:
@@ -1119,7 +1157,7 @@ def step_log_likelihood(pset,grids,surveys,step,active,lastsign,minstep,delta=1e
 				continue
 			temp=pset[i]
 			pset[i] += delta
-			update_grid(grid,pset)
+			update_grid(grid,pset,s)
 			derivs[i]+=func(grid,s,pset,norm=norm,psnr=psnr)
 			
 			if np.isnan(derivs[i]) or np.isinf(derivs[i]):
@@ -1169,7 +1207,7 @@ def step_log_likelihood(pset,grids,surveys,step,active,lastsign,minstep,delta=1e
 	for j,grid in enumerate(grids):
 		# calculates derivatives in all the variables
 		s=surveys[j]
-		update_grid(grid,pset)
+		update_grid(grid,pset,s)
 		
 		# determine correct function: 1 or  D
 		if s.nD==1:
@@ -1236,7 +1274,7 @@ def step_log_likelihood2(pset,grids,surveys,step,active,lastsign,minstep,delta=1
 	for j,grid in enumerate(grids):
 		# calculates derivatives in all the variables
 		s=surveys[j]
-		update_grid(grid,pset)
+		update_grid(grid,pset,s)
 		
 		# determine correct function: 1 or  D
 		if s.nD==1:
@@ -1256,7 +1294,7 @@ def step_log_likelihood2(pset,grids,surveys,step,active,lastsign,minstep,delta=1
 				continue
 			temp=pset[i]
 			pset[i] -= step[i]
-			update_grid(grid,pset)
+			update_grid(grid,pset,s)
 			#derivs[i,0] += func(grid,s,pset,norm=norm,psnr=psnr)
 			tlls[i,j,0] = func(grid,s,pset,norm=norm,psnr=psnr)
 			derivs[i,0] += tlls[i,j,0] 
@@ -1264,7 +1302,7 @@ def step_log_likelihood2(pset,grids,surveys,step,active,lastsign,minstep,delta=1
 				derivs[i,0]=-1e99
 			
 			pset[i] += 2.*step[i]
-			update_grid(grid,pset)
+			update_grid(grid,pset,s)
 			#derivs[i,1] += func(grid,s,pset,norm=norm,psnr=psnr)
 			tlls[i,j,1] = func(grid,s,pset,norm=norm,psnr=psnr)
 			derivs[i,1] += tlls[i,j,1]
@@ -1321,7 +1359,7 @@ def step_log_likelihood2(pset,grids,surveys,step,active,lastsign,minstep,delta=1
 			for j,grid in enumerate(grids):
 				# calculates derivatives in all the variables
 				s=surveys[j]
-				update_grid(grid,pset)
+				update_grid(grid,pset,s)
 				
 				# determine correct function: 1 or  D
 				if s.nD==1:
@@ -1378,7 +1416,7 @@ def CalculateMeaningfulConstant(pset,grid,survey,newC=False):
 	if newC:
 		rawconst=CalculateConstant(grid,survey) #required to convert the grid norm to Nobs
 	else:
-		rawconst=10**pset[-1]
+		rawconst=10**pset[7]
 	const = rawconst*units # to cubic Gpc and days to year
 	Eref=1e40 #erg per Hz
 	Emin=10**pset[0]
@@ -1394,7 +1432,7 @@ def ConvertToMeaningfulConstant(pset):
 	# also converts per Mpcs into per Gpc3
 	units=1e9*365.25
 	
-	const = (10**pset[-1])*units # to cubic Gpc and days to year
+	const = (10**pset[7])*units # to cubic Gpc and days to year
 	Eref=1e40 #erg per Hz
 	Emin=10**pset[0]
 	Emax=10**pset[1]
@@ -1440,8 +1478,8 @@ def CalculateIntegral(grid,survey):
 def GetFirstConstantEstimate(grids,surveys,pset):
 	''' simple 1D minimisation of the constant '''
 	# ensure the grids are uo-to-date
-	for g in grids:
-		update_grid(g,pset)
+	for i,g in enumerate(grids):
+		update_grid(g,pset,surveys[i])
 	
 	NPARAMS=8
 	# use my minimise in a single parameter
@@ -1488,7 +1526,7 @@ def minimise_const_only(pset,grids,surveys):
 	os=[] #observed
 	lls=np.zeros([ng])
 	for j,s in enumerate(surveys):
-		update_grid(grids[j],pset)
+		update_grid(grids[j],pset,s)
 		if s.nD==1:
 			func=calc_likelihoods_1D
 		else:

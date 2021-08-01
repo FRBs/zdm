@@ -299,7 +299,7 @@ def get_zgdm_priors(grid,survey,savename):
 	plt.savefig(savename)
 	plt.close()
 
-def make_dm_redshift(grid,savename,DMmax=1000,zmax=1,loc='upper left',Macquart=None):
+def make_dm_redshift(grid,savename="",DMmax=1000,zmax=1,loc='upper left',Macquart=None,H0=cos.DEF_H0):
 	''' generates full dm-redhsift (Macquart) relation '''
 	ndm=1000
 	cvs=[0.025,0.16,0.5,0.84,0.975]
@@ -402,6 +402,8 @@ def make_dm_redshift(grid,savename,DMmax=1000,zmax=1,loc='upper left',Macquart=N
 	
 	plt.legend(loc=loc)
 	plt.savefig(savename)
+	plt.title("H0 " + str(H0))
+	plt.show()
 	plt.close()
 
 
@@ -1533,7 +1535,7 @@ def initialise_grids(surveys,zDMgrid, zvals,dmvals,pset,wdist=False,source_evolu
 		surveys=[surveys]
 	
 	# get parameter values
-	lEmin,lEmax,alpha,gamma,sfr_n,logmean,logsigma,lC=pset
+	lEmin,lEmax,alpha,gamma,sfr_n,logmean,logsigma,lC,H0=pset
 	Emin=10**lEmin
 	Emax=10**lEmax
 	
@@ -1551,7 +1553,7 @@ def initialise_grids(surveys,zDMgrid, zvals,dmvals,pset,wdist=False,source_evolu
 			#efficiencies=survey.get_efficiency(dmvals)
 		
 		grid=zdm.grid(source_evolution=source_evolution,alpha_method=alpha_method)
-		grid.pass_grid(zDMgrid,zvals,dmvals)
+		grid.pass_grid(zDMgrid,zvals,dmvals,H0)
 		grid.smear_dm(mask,logmean,logsigma)
 		
 		grid.calc_thresholds(survey.meta['THRESH'],efficiencies,alpha=alpha,weights=weights)
@@ -1644,10 +1646,11 @@ def plot_1d(pvec,lset,xlabel,savename):
 	plt.plot(pvec,lset)
 	plt.tight_layout()
 	plt.savefig(savename)
+	plt.show()
 	plt.close()
 	
 # generates grid based on Monte Carlo model
-def get_zdm_grid(new=True,plot=False,method='analytic',
+def get_zdm_grid(H0=cos.DEF_H0,new=True,plot=False,method='analytic',
                  F=0.32,nz=500,zmax=5,ndm=1400,dmmax=7000.,
                  datdir='GridData',tag="", orig=False):
 	"""[summary]
@@ -1680,12 +1683,12 @@ def get_zdm_grid(new=True,plot=False,method='analytic',
 		zfile=datdir+'/'+tag+'zdm_MC_z_'+str(F)+'.npy'
 		dmfile=datdir+'/'+tag+'zdm_MC_dm_'+str(F)+'.npy'
 	elif method=='analytic':
-		savefile=datdir+'/'+tag+'zdm_A_grid_'+str(F)+'.npy'
-		datfile=datdir+'/'+tag+'zdm_A_data_'+str(F)+'.npy'
-		zfile=datdir+'/'+tag+'zdm_A_z_'+str(F)+'.npy'
-		dmfile=datdir+'/'+tag+'zdm_A_dm_'+str(F)+'.npy'
-		C0file=datdir+'/'+tag+'zdm_A_C0_'+str(F)+'.npy'
-	
+		savefile=datdir+'/'+tag+'zdm_A_grid_'+str(F)+'H0_'+str(H0)+'.npy'
+		datfile=datdir+'/'+tag+'zdm_A_data_'+str(F)+'H0_'+str(H0)+'.npy'
+		zfile=datdir+'/'+tag+'zdm_A_z_'+str(F)+'H0_'+str(H0)+'.npy'
+		dmfile=datdir+'/'+tag+'zdm_A_dm_'+str(F)+'H0_'+str(H0)+'.npy'
+		C0file=datdir+'/'+tag+'zdm_A_C0_'+str(F)+'H0_'+str(H0)+'.npy'
+	#labelled pickled files with H0
 	if new:
 		
 		#nz=500
@@ -1731,7 +1734,7 @@ def get_zdm_grid(new=True,plot=False,method='analytic',
 				sigma = F / np.sqrt(zvals)
 				C0s = f_C0_3(sigma)
 			# generate pDM grid using those COs
-			zDMgrid=pcosmic.get_pDM_grid(F,dmvals,zvals,C0s)
+			zDMgrid=pcosmic.get_pDM_grid(H0,F,dmvals,zvals,C0s)
 			t1=time.process_time()
 			dt=t1-t0
 			print("Done. Took ",dt," seconds")
@@ -1761,11 +1764,11 @@ def get_zdm_grid(new=True,plot=False,method='analytic',
 		plt.tight_layout()
 		plt.savefig('p_dm_slices.pdf')
 		plt.close()
-		
-		
-	return zDMgrid, zvals,dmvals
 
-def plot_zdm_basic_paper(zDMgrid,zvals,dmvals,zmax=1,DMmax=1000,norm=0,log=True,name='temp.pdf',ylabel=None,label='$\\log_{10}p(DM_{\\rm EG},z)$',project=False,conts=False,FRBZ=None,FRBDM=None):
+	#return zDMgrid, zvals,dmvals    
+	return zDMgrid, zvals,dmvals, H0
+
+def plot_zdm_basic_paper(zDMgrid,zvals,dmvals,zmax=1,DMmax=1000,norm=0,log=True,name='temp.pdf',ylabel=None,label='$\\log_{10}p(DM_{\\rm EG},z)$',project=False,conts=False,FRBZ=None,FRBDM=None,title='Plot',H0=cos.DEF_H0):
 	''' Plots basic distributions of z and dm for the paper '''
 	cmx = plt.get_cmap('cubehelix')
 	
@@ -1901,10 +1904,12 @@ def plot_zdm_basic_paper(zDMgrid,zvals,dmvals,zmax=1,DMmax=1000,norm=0,log=True,
 	plt.tight_layout()
 	
 	plt.savefig(name)
+	plt.title(title+str(H0))
+	plt.show()
 	plt.close()		
 
 
-def plot_grid_2(zDMgrid,zvals,dmvals,zmax=1,DMmax=1000,norm=0,log=True,name='temp.pdf',label='$\\log_{10}p(DM_{\\rm EG},z)$',project=False,conts=False,FRBZ=None,FRBDM=None,Aconts=False,Macquart=None):
+def plot_grid_2(zDMgrid,zvals,dmvals,zmax=1,DMmax=1000,norm=0,log=True,name='temp.pdf',label='$\\log_{10}p(DM_{\\rm EG},z)$',project=False,conts=False,FRBZ=None,FRBDM=None,Aconts=False,Macquart=None,title="Plot",H0=cos.DEF_H0):
 	''' Very complicated routine for plotting 2D zdm grids '''
 	cmx = plt.get_cmap('cubehelix')
 	
@@ -1946,6 +1951,7 @@ def plot_grid_2(zDMgrid,zvals,dmvals,zmax=1,DMmax=1000,norm=0,log=True,name='tem
 	
 	plt.xlabel('z')
 	plt.ylabel('${\\rm DM}_{\\rm EG}$')
+	plt.title(title+str(H0))
 	
 	nz,ndm=zDMgrid.shape
 	
@@ -2017,7 +2023,7 @@ def plot_grid_2(zDMgrid,zvals,dmvals,zmax=1,DMmax=1000,norm=0,log=True,name='tem
 	dz=zvals[1]-zvals[0]
 	if norm==1:
 		zDMgrid /= ddm
-		if Aconst:
+		if Aconts:
 			alevels /= ddm
 	if norm==2:
 		xnorm=np.sum(zDMgrid)
@@ -2155,6 +2161,7 @@ def plot_grid_2(zDMgrid,zvals,dmvals,zmax=1,DMmax=1000,norm=0,log=True,name='tem
 		plt.tight_layout()
 	
 	plt.savefig(name)
+	plt.show()
 	plt.close()
 
 def plot_grid(grid,zvals,dmvals):
@@ -2246,6 +2253,7 @@ def plot_efficiencies(survey,savename='Plots/efficiencies.pdf'):
 	plt.legend(loc='upper right',fontsize=min(14,200./survey.NFRB),ncol=ncol)
 	plt.tight_layout()
 	plt.savefig(savename)
+	plt.show()
 	plt.close()
 
 

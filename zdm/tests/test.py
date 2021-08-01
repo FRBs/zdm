@@ -67,7 +67,7 @@ def main():
 	
 	# get the grid of p(DM|z). See function for default values.
 	# set new to False once this is already initialised
-	zDMgrid, zvals,dmvals=misc_functions.get_zdm_grid(
+	zDMgrid, zvals,dmvals,H0=misc_functions.get_zdm_grid(
 		new=True,plot=False,method='analytic')
 	# NOTE: if this is new, we also need new surveys and grids!
 	
@@ -82,7 +82,7 @@ def main():
 	
 	
 	# sets the nature of scaling with the 'spectral index' alpha
-	#alpha_method=0 # spectral index interpretation: includes k-correction. Slower to update
+	alpha_method=0 # spectral index interpretation: includes k-correction. Slower to update
 	#lpha_method=1 # rate interpretation: extra factor of (1+z)^alpha in source evolution
 	
 	############## Initialise surveys ##############
@@ -167,7 +167,7 @@ def main():
 	lmean=2.16 # log10 mean of DM host contribution in pc cm^-3
 	lsigma=0.51 # log10 sigma of DM host contribution in pc cm^-3
 	C=4.19 # log10 constant in number per Gpc^-3 yr^-1 at z=0
-	pset=[lEmin,lEmax,alpha,gamma,sfr_n,lmean,lsigma,C]
+	pset=[lEmin,lEmax,alpha,gamma,sfr_n,lmean,lsigma,C,H0]
 	
 	# This routine takes a *long* time
 	# It estimates the difference between a full beam shape (~300 points) and various approximations to it

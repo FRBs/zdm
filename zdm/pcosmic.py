@@ -15,6 +15,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 #from frb import dlas
 from frb.dm import igm
+from zdm import cosmology as cos
 
 import scipy as sp
 #import astropy.units as u
@@ -82,15 +83,18 @@ def make_C0_grid(zeds,F):
 		C0s[i]=iterate_C0(z,F)
 	return C0s
 
-def get_mean_DM(zeds):
+def get_mean_DM(zeds,H0=cos.DEF_H0):
 	""" Gets mean average z to which can be applied deltas """
 	
 	zmax=zeds[-1]
 	nz=zeds.size
 	sys.path.insert(1, '/Users/cjames/CRAFT/FRB_library/FRB-master/')
-	DMbar, zeval = igm.average_DM(zmax, cumul=True, neval=nz+1)
+	DMbar, zeval = igm.average_DM(zmax, cumul=True, neval=nz) #neval=nz+1 was giving 
+                                                              #wrong dimension
 	
+	DMbar = DMbar*H0/(cos.DEF_H0)
 	DMbar=np.array(DMbar)
+	#added H0 dependency
 	#DMbar = DMbar.to(u.dimensionless_unscaled)
 	return DMbar
 	
@@ -133,7 +137,7 @@ def get_pDM(z,F,DMgrid,zgrid,Fgrid,C0grid):
 	return pDM
 
 
-def get_pDM_grid(F,DMgrid,zgrid,C0s):
+def get_pDM_grid(H0,F,DMgrid,zgrid,C0s):
 	""" Gets pDM when the zvals are the same as the zgrid
 	Fgrid: range of Fs for which C0s have been generated
 	C0grid: C0 values obtained by convergence
@@ -142,8 +146,8 @@ def get_pDM_grid(F,DMgrid,zgrid,C0s):
 	
 	
 	"""
-	
-	DMbars=get_mean_DM(zgrid)
+	#added H0 dependency
+	DMbars=get_mean_DM(zgrid,H0)
 	
 	pDMgrid=np.zeros([zgrid.size,DMgrid.size])
 	print("shapes and sizes are ",C0s.size,pDMgrid.shape,DMbars.shape)
@@ -190,6 +194,7 @@ def plot_mean(zvals,saveas):
 	plt.plot(zvals,mean,linewidth=2)
 	plt.tight_layout()
 	plt.savefig(saveas)
+	plt.show()
 	plt.close()
 
 def get_dm_mask(dmvals,params,zvals=None,plot=False):

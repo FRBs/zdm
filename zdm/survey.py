@@ -378,7 +378,7 @@ def calc_relative_sensitivity(DM_frb,DM,w,fbar,t_res,nu_res,model='Quadrature',d
 	return sensitivity
 	
 
-def make_widths(s,logmean,logsigma,nbins,scale=2,thresh=0.5):
+def make_widths(s,wlogmean,wlogsigma,nbins,scale=2,thresh=0.5):
 	""" Tries to get intelligent choices for width binning assuming some intrinsic distribution
 	Probably should make this a 'self' function.... oh well, for the future!
 	
@@ -401,9 +401,9 @@ def make_widths(s,logmean,logsigma,nbins,scale=2,thresh=0.5):
 	
 	weights=[]
 	widths=[]
-	args=(logmean,logsigma)
+	args=(wlogmean,wlogsigma)
 	wmax=wequality*thresh
-	wmin=wmax*np.exp(-3.*logsigma)
+	wmin=wmax*np.exp(-3.*wlogsigma)
 	wsum=0.
 	#print("Initialised wmin, wmax at ",wmin,wmax," from ",logmean,logsigma,wequality,thresh)
 	for i in np.arange(nbins):
