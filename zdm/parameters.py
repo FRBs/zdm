@@ -1,5 +1,7 @@
+from IPython.terminal.embed import embed
 import numpy as np
 from dataclasses import dataclass, field, fields
+from astropy.cosmology import Planck18
 
 # Add a few methods to be shared by them all
 @dataclass
@@ -9,54 +11,79 @@ class myDataClass:
     def chk_options(self, attribute_name):
         options = self.__dataclass_fields__[attribute_name].metadata['options']
 
+# Analysis parameters
+@dataclass
+class AnalysisParams(myDataClass):
+    NewGrids: bool = field(
+        default=True,
+        metadata={'help': 'Generate new z, DM grids?'})
+    sprefix: str = field(
+        default='Std',
+        metadata={'help': 'Full:  more detailed estimates. Takes more space and time \n'+\
+                 'Std: faster - fine for max likelihood calculations, not as pretty'})
+
 # Beam parameters
 @dataclass
 class BeamParams(myDataClass):
-    thresh: int = field(metadata={'help': '??'})
-    method: int
+    thresh: int = field(
+        default=0,
+        metadata={'help': '??'})
+    method: int = field(
+        default=2)
 
+# Cosmology parameters
+@dataclass
+class CosmoParams(myDataClass):
+    H0: float = field(
+        default=Planck18.H0.value,
+        metadata={'help': "Hubble's constant (km/s/Mpc)"})
+    Omega_k: float = field(
+        default=0.,
+        metadata={'help': 'photo density. Ignored here (we do not go back far enough)'})
+    Omega_lambda: float = field(
+        default=Planck18.Ode0,
+        metadata={'help': 'dark energy / cosmological constant (in current epoch)'})
+    Omega_m: float = field(
+        default=Planck18.Om0,
+        metadata={'help': 'matter density in current epoch'})
+    Omega_b: float = field(
+        default=Planck18.Ob0,
+        metadata={'help': 'baryon density'})
+    Omega_b_h2: float = field(
+        default=Planck18.Ob0 * (Planck18.H0.value/100.)**2,
+        metadata={'help': 'baryon density weight by h_100**2'})
+
+# Beam parameters
+@dataclass
+class FRBDemoParams(myDataClass):
+    source_evolution: int = field(
+        default=0,
+        metadata={'help': 'Integer flag specifying the function used.  '+\
+                 '0: SFR^n; 1: (1+z)^(2.7n)', 
+                 'options': [0,1]}) 
+    alpha_method: int = field(
+        default=2, 
+        metadata={'help': 'Integer flag specifying the nature of scaling. '+\
+                 '0: spectral index interpretation: includes k-correction. Slower to update ' +\
+                 '1: rate interpretation: extra factor of (1+z)^alpha in source evolution', 
+                 'options': [0,1]})
+
+# Galactic parameters
+@dataclass
+class MWParams(myDataClass):
+    DMhalo: float = field(
+        default=50.,
+        metadata={'help': 'DM for the Galactic halo in units of pc/cm^3'})
 
 # FRB intrinsic width parameters
 @dataclass
 class WidthParams(myDataClass):
-    logmean: float = field(metadata={'help': 'Intrinsic width log of mean'})
-    logsigma: float = field(metadata={'help': 'Intrinsic width log of sigma'})
-
-
-# Milky Way parameters
-MW_dmodel = {
-    'DMhalo': dict(dtype=(float),
-                help='DM of Milky Way halo in units of pc/cm^3'),
-}
-
-# FRB demongraphics
-frbdemo_dmodel = {
-    'source_evolution': 
-        dict(dtype=(int), 
-             options=[0,1], 
-             help='Integer flag specifying the function used.  '+\
-                 '0: SFR^n; 1: (1+z)^(2.7n)'), 
-    'alpha_method': 
-        dict(dtype=(int), 
-             options=[0,1], 
-             help='Integer flag specifying the nature of scaling. '+\
-                 '0: spectral index interpretation: includes k-correction. Slower to update ' +\
-                 '1: rate interpretation: extra factor of (1+z)^alpha in source evolution'),
-        }
-
-# Cosmology
-
-# Analysis
-analysis_dmodel = {
-    'sprefix': 
-        dict(dtype=(str), 
-             options=['Std', 'Full'],
-             help='?? '+\
-                 'Full:  more detailed estimates. Takes more space and time \n'+\
-                 'Std: faster - fine for max likelihood calculations, not as pretty'),
-    'NewGrids': dict(dtype=bool,
-                help='Generate new z, DM grids?'),
-}
+    logmean: float = field(
+        default = 1.70267, 
+        metadata={'help': 'Intrinsic width log of mean'})
+    logsigma: float = field(
+        default = 0.899148,
+        metadata={'help': 'Intrinsic width log of sigma'})
 
 
 def init_parameters():
@@ -64,35 +91,13 @@ def init_parameters():
     # Begin
     param_dict = {}
 
-    # FRB demographics
-    FRBdemo_dict = dict(source_evolution=0, 
-                        alpha_method=1)
-    vet_param(FRBdemo_dict, frbdemo_dmodel)
-
-    # Beam
-    beam_dict = dict(thresh=0,
-                     method=2)
-    vet_param(beam_dict, beam_dmodel)
-
-    # Width
-    width_dict = dict(logmean=1.70267, 
-                      logsigma=0.899148)
-    vet_param(width_dict, width_dmodel)
-
-    # Milky Way
-    MW_dict = dict(DMhalo=50.)
-    vet_param(MW_dict, MW_dmodel)
-
-    # Analysis
-    analysis_dict = dict(NewGrids=True, 
-                         sprefix='Std')
-    vet_param(analysis_dict, analysis_dmodel)
-    
     # Wrap em together
-    param_dict['width'] = width_dict
-    param_dict['MW'] = MW_dict
-    param_dict['analysis'] = analysis_dict
-    param_dict['beam'] = beam_dict
+    param_dict['width'] = WidthParams()
+    param_dict['MW'] = MWParams()
+    param_dict['analysis'] = AnalysisParams()
+    param_dict['beam'] = BeamParams()
+    param_dict['FRBdemo'] = FRBDemoParams()
+    param_dict['cosmo'] = CosmoParams()
 
     return param_dict
 
@@ -131,6 +136,3 @@ def vet_param(obj, dmodel:dict, verbose=True):
                 print("Bad key type: {}".format(key))
     # Return
     return chk, disallowed_keys, badtype_keys
-
-def vet_param():
-    pass

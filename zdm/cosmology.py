@@ -13,10 +13,10 @@
 import scipy.constants as constants
 import numpy as np
 import scipy.integrate as integrate
-from frb.dm import igm
 
 
 
+'''
 #### defines some default cosmological parameters ###
 #cosmological parameters to use here 
 # check are these Wmap
@@ -31,6 +31,7 @@ DEF_Omega_b=0.044
 DEF_Omega_b_h2=0.0224 #Planck says 0.0224, WMAP 0.02264
 # hubble constant in current epoch
 DEF_H0 = igm.Planck15.H0.value #km s^-1 Mpc^-1 #planck15 used in frb.igm
+'''
 
 
 # default value for calculation of cosmological distance measures
@@ -41,11 +42,14 @@ DZ=(DEF_ZMAX-DEF_ZMIN)/(DEF_NZ-1.)
 
 
 c_light_kms=constants.c/1e3
+
+'''
 Omega_m=DEF_Omega_m
 Omega_k=DEF_Omega_k
 Omega_lambda=DEF_Omega_lambda
 H0=DEF_H0
 DH=c_light_kms/H0
+'''
 
 # dummy variables so Python recognises them as being global
 dms=1
@@ -58,15 +62,22 @@ dvdtaus=1
 # tracks whether or not this module has been initialised
 INIT=False
 
+cosmo = None
 
-def print_cosmology():
+
+def print_cosmology(params):
     """ Print cosmological parameters
     
     The current values of cosmological parameters are printed.
     """
-    print("Hubble constant in current epoch, H0: ",H0," [km/s/Mpc]")
-    print("Hubble constant in current epoch, H0: ",H0," [km/s/Mpc]")
+    print("Hubble constant in current epoch, H0: ",params['cosmo'].H0," [km/s/Mpc]")
+    print("Hubble constant in current epoch, H0: ",params['cosmo'].H0," [km/s/Mpc]")
 
+def set_cosmology(params):
+    global cosmo
+    cosmo = params['cosmo']
+
+'''
 def set_cosmology(H0=DEF_H0,Omega_k=DEF_Omega_k,
     Omega_lambda=DEF_Omega_lambda, Omega_m=DEF_Omega_m):
     """ Sets cosmological constants
@@ -88,7 +99,7 @@ def stupid_trick(a,b,c,d):
     Omega_m=c
     H0=d
     DH=c_light_kms/H0
-
+'''
 
 
 # Routines to accurately evaluate cosmological
@@ -99,13 +110,13 @@ def stupid_trick(a,b,c,d):
 
 def H(z):
     """Hubble parameter (km/s/Mpc)"""
-    return E(z)*H0
+    return E(z)*cosmo.H0
 
 
 def E(z):
     """scale factor, assuming a simplified cosmology."""
     a=1.+z #inverse scale factor
-    return (Omega_m*a**3+Omega_k*a**2+Omega_lambda)**0.5
+    return (cosmo.Omega_m*a**3+cosmo.Omega_k*a**2+cosmo.Omega_lambda)**0.5
 
 
 def inv_E(z):
@@ -116,6 +127,7 @@ def inv_E(z):
 def DM(z):
     """comoving distance [Mpc]"""
     res,err=integrate.quad(inv_E,0,z)
+    DH=c_light_kms/cosmo.H0
     return DH*res
 
 def DA(z):
@@ -133,6 +145,7 @@ def DL(z):
 # is taken into account.
 def dV(z):
     """ cosmological volume element [Mpc^3 /redshift /sr]"""
+    DH=c_light_kms/cosmo.H0
     return DH*(1+z)**2*DA(z)**2/E(z)
 
 
@@ -141,6 +154,7 @@ def dVdtau(z):
     it is weighted by an extra (1+z) factor to reflect the rate
     in the rest frame vs the observer frame
     """
+    DH=c_light_kms/cosmo.H0
     return DH*(1+z)*DA(z)**2/E(z) #changed (1+z)**2 to (1+z)
 
 #################### SECTION 2 ###################
@@ -283,95 +297,95 @@ def dFnu_to_dEnu(z,alpha=0,bandwidth=1.e9):
 ######### possible source evolution functions go here ##########
 
 def choose_source_evolution_function(which=0):
-	"""
-	Selects which source evolution function to use
-	These are now generalised to take multiple parameters
-	Could implement arbitrarily many of these
-	
-	Arguments:
-		which (int). Selects which pre-defined model
-			to use for FRB source evolution.
-			Currently implemented values are:
-			0: star-formation rate from Madau
-				& Dickenson, to the power n
-			1: (1+z)^2.7n, i.e. 0 but without the
-				denominator
-			
-	"""
-	if which==0:
-		source_evolution=sfr_evolution
-	elif which==1:
-		source_evolution=opz_evolution
-	else:
-		raise ValueError("Undefined source evolution function ",which," choose 0 or 1")
-	return source_evolution
+    """
+    Selects which source evolution function to use
+    These are now generalised to take multiple parameters
+    Could implement arbitrarily many of these
+    
+    Arguments:
+        which (int). Selects which pre-defined model
+            to use for FRB source evolution.
+            Currently implemented values are:
+            0: star-formation rate from Madau
+                & Dickenson, to the power n
+            1: (1+z)^2.7n, i.e. 0 but without the
+                denominator
+            
+    """
+    if which==0:
+        source_evolution=sfr_evolution
+    elif which==1:
+        source_evolution=opz_evolution
+    else:
+        raise ValueError("Undefined source evolution function ",which," choose 0 or 1")
+    return source_evolution
 
 def sfr_evolution(z,*params):
-	"""
-	Madau & dickenson 2014
-	Arguments:
-		z (float): redshift
-		params: n (float) Scaling parameter.
-	"""
-	return (1.0025738*(1+z)**2.7 / (1 + ((1+z)/2.9)**5.6))**params[0]
-	
+    """
+    Madau & dickenson 2014
+    Arguments:
+        z (float): redshift
+        params: n (float) Scaling parameter.
+    """
+    return (1.0025738*(1+z)**2.7 / (1 + ((1+z)/2.9)**5.6))**params[0]
+    
 
 def opz_evolution(z,*params):
-	"""
-	Same as SFR, but without denominator, i.e. just (1+z)**2.7
-	Factor of 2.7 is kept so that resulting n-values are comparable
-	Arguments:
-		z:(float, numpy array) redshift 
-		params: n (float) Scaling parameter.
-	"""
-	return (1+z)**(2.7*params[0])
+    """
+    Same as SFR, but without denominator, i.e. just (1+z)**2.7
+    Factor of 2.7 is kept so that resulting n-values are comparable
+    Arguments:
+        z:(float, numpy array) redshift 
+        params: n (float) Scaling parameter.
+    """
+    return (1+z)**(2.7*params[0])
 
 
 ######### possible source evolution functions go here ##########
 
 def choose_source_evolution_function(which=0):
-	"""
-	Selects which source evolution function to use
-	These are now generalised to take multiple parameters
-	Could implement arbitrarily many of these
-	
-	Arguments:
-		which (int). Selects which pre-defined model
-			to use for FRB source evolution.
-			Currently implemented values are:
-			0: star-formation rate from Madau
-				& Dickenson, to the power n
-			1: (1+z)^2.7n, i.e. 0 but without the
-				denominator
-			
-	"""
-	if which==0:
-		source_evolution=sfr_evolution
-	elif which==1:
-		source_evolution=opz_evolution
-	else:
-		raise ValueError("Undefined source evolution function ",which," choose 0 or 1")
-	return source_evolution
+    """
+    Selects which source evolution function to use
+    These are now generalised to take multiple parameters
+    Could implement arbitrarily many of these
+    
+    Arguments:
+        which (int). Selects which pre-defined model
+            to use for FRB source evolution.
+            Currently implemented values are:
+            0: star-formation rate from Madau
+                & Dickenson, to the power n
+            1: (1+z)^2.7n, i.e. 0 but without the
+                denominator
+            
+    """
+    if which==0:
+        source_evolution=sfr_evolution
+    elif which==1:
+        source_evolution=opz_evolution
+    else:
+        raise ValueError("Undefined source evolution function ",which," choose 0 or 1")
+    return source_evolution
 
 def sfr_evolution(z,*params):
-	"""
-	Madau & dickenson 2014
-	Arguments:
-		z (float): redshift
-		params: n (float) Scaling parameter.
-	"""
-	return (1.0025738*(1+z)**2.7 / (1 + ((1+z)/2.9)**5.6))**params[0]
-	
+    """
+    Madau & dickenson 2014
+    Arguments:
+        z (float): redshift
+        params: n (float) Scaling parameter.
+    """
+    return (1.0025738*(1+z)**2.7 / (1 + ((1+z)/2.9)**5.6))**params[0]
+    
 
 def opz_evolution(z,*params):
-	"""
-	Same as SFR, but without denominator, i.e. just (1+z)**2.7
-	Factor of 2.7 is kept so that resulting n-values are comparable
-	Arguments:
-		z:(float, numpy array) redshift 
-		params: n (float) Scaling parameter.
-	"""
-	return (1+z)**(2.7*params[0])
+    """
+    Same as SFR, but without denominator, i.e. just (1+z)**2.7
+    Factor of 2.7 is kept so that resulting n-values are comparable
+    Arguments:
+        z:(float, numpy array) redshift 
+        params: n (float) Scaling parameter.
+    """
+    return (1+z)**(2.7*params[0])
 
 
 # outdated code

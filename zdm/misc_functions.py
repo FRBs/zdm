@@ -7,10 +7,7 @@ import pickle
 import scipy as sp
 
 import matplotlib.pyplot as plt
-import matplotlib.colors as colors
-import matplotlib.cm as cm
 import matplotlib
-from matplotlib.ticker import NullFormatter
 
 from frb import dlas
 from frb.dm import igm
@@ -299,7 +296,8 @@ def get_zgdm_priors(grid,survey,savename):
     plt.savefig(savename)
     plt.close()
 
-def make_dm_redshift(grid,savename="",DMmax=1000,zmax=1,loc='upper left',Macquart=None,H0=cos.DEF_H0):
+def make_dm_redshift(grid,savename="",DMmax=1000,zmax=1,loc='upper left',Macquart=None,
+                     H0=None):
     ''' generates full dm-redhsift (Macquart) relation '''
     ndm=1000
     cvs=[0.025,0.16,0.5,0.84,0.975]
@@ -402,7 +400,8 @@ def make_dm_redshift(grid,savename="",DMmax=1000,zmax=1,loc='upper left',Macquar
     
     plt.legend(loc=loc)
     plt.savefig(savename)
-    plt.title("H0 " + str(H0))
+    if H0 is not None:
+        plt.title("H0 " + str(H0))
     plt.show()
     plt.close()
 
@@ -1650,13 +1649,14 @@ def plot_1d(pvec,lset,xlabel,savename):
     plt.close()
     
 # generates grid based on Monte Carlo model
-def get_zdm_grid(H0=cos.DEF_H0,new=True,plot=False,method='analytic',
+def get_zdm_grid(H0, new=True,plot=False,method='analytic',
                  F=0.32,nz=500,zmax=5,ndm=1400,dmmax=7000.,
                  datdir='GridData',tag="", orig=False):
     """Generate a grid of z vs. DM for an assumed F value
     for a specified z range and DM range.
 
     Args:
+        H0 (float): Hubble parameter
         new (bool, optional): [description]. Defaults to True.
         plot (bool, optional): [description]. Defaults to False.
         method (str, optional): [description]. Defaults to 'analytic'.
@@ -1769,7 +1769,12 @@ def get_zdm_grid(H0=cos.DEF_H0,new=True,plot=False,method='analytic',
     #return zDMgrid, zvals,dmvals    
     return zDMgrid, zvals,dmvals, H0
 
-def plot_zdm_basic_paper(zDMgrid,zvals,dmvals,zmax=1,DMmax=1000,norm=0,log=True,name='temp.pdf',ylabel=None,label='$\\log_{10}p(DM_{\\rm EG},z)$',project=False,conts=False,FRBZ=None,FRBDM=None,title='Plot',H0=cos.DEF_H0):
+def plot_zdm_basic_paper(zDMgrid,zvals,dmvals,zmax=1,DMmax=1000,norm=0,log=True,
+                         name='temp.pdf',
+                         ylabel=None,label='$\\log_{10}p(DM_{\\rm EG},z)$',
+                         project=False,
+                         conts=False,FRBZ=None,FRBDM=None,title='Plot',
+                         H0=None):
     ''' Plots basic distributions of z and dm for the paper '''
     cmx = plt.get_cmap('cubehelix')
     
@@ -1905,12 +1910,16 @@ def plot_zdm_basic_paper(zDMgrid,zvals,dmvals,zmax=1,DMmax=1000,norm=0,log=True,
     plt.tight_layout()
     
     plt.savefig(name)
-    plt.title(title+str(H0))
+    if H0 is not None:
+        plt.title(title+str(H0))
     plt.show()
     plt.close()		
 
 
-def plot_grid_2(zDMgrid,zvals,dmvals,zmax=1,DMmax=1000,norm=0,log=True,name='temp.pdf',label='$\\log_{10}p(DM_{\\rm EG},z)$',project=False,conts=False,FRBZ=None,FRBDM=None,Aconts=False,Macquart=None,title="Plot",H0=cos.DEF_H0):
+def plot_grid_2(zDMgrid,zvals,dmvals,zmax=1,DMmax=1000,norm=0,
+                log=True,name='temp.pdf',label='$\\log_{10}p(DM_{\\rm EG},z)$',
+                project=False,conts=False,FRBZ=None,FRBDM=None,Aconts=False,
+                Macquart=None,title="Plot",H0=None):
     ''' Very complicated routine for plotting 2D zdm grids '''
     cmx = plt.get_cmap('cubehelix')
     
@@ -1952,7 +1961,8 @@ def plot_grid_2(zDMgrid,zvals,dmvals,zmax=1,DMmax=1000,norm=0,log=True,name='tem
     
     plt.xlabel('z')
     plt.ylabel('${\\rm DM}_{\\rm EG}$')
-    plt.title(title+str(H0))
+    if H0 is not None:
+        plt.title(title+str(H0))
     
     nz,ndm=zDMgrid.shape
     
