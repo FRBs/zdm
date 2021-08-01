@@ -299,7 +299,7 @@ def get_zgdm_priors(grid,survey,savename):
 	plt.savefig(savename)
 	plt.close()
 
-def make_dm_redshift(grid,savename="",DMmax=1000,zmax=1,loc='upper left',Macquart=None,H0=cos.DEF_H0):
+def make_dm_redshift(grid,savename="",DMmax=1000,zmax=1,loc='upper left',Macquart=None,H0=cos.DEF_H0,showplot=False):
 	''' generates full dm-redhsift (Macquart) relation '''
 	ndm=1000
 	cvs=[0.025,0.16,0.5,0.84,0.975]
@@ -403,7 +403,8 @@ def make_dm_redshift(grid,savename="",DMmax=1000,zmax=1,loc='upper left',Macquar
 	plt.legend(loc=loc)
 	plt.savefig(savename)
 	plt.title("H0 " + str(H0))
-	plt.show()
+	if showplot:
+		plt.show()
 	plt.close()
 
 
@@ -1639,14 +1640,15 @@ def generate_example_plots():
 	plot_1d(lEmaxs,likes,'$E_{\\rm max}$','Plots/test_lik_fn_emax.pdf')
 		
 
-def plot_1d(pvec,lset,xlabel,savename):
+def plot_1d(pvec,lset,xlabel,savename,showplot=False):
 	plt.figure()
 	plt.xlabel(xlabel)
 	plt.ylabel('$\\ell($'+xlabel+'$)$')
 	plt.plot(pvec,lset)
 	plt.tight_layout()
 	plt.savefig(savename)
-	plt.show()
+	if showplot:
+		plt.show()
 	plt.close()
 	
 # generates grid based on Monte Carlo model
@@ -1768,7 +1770,7 @@ def get_zdm_grid(H0=cos.DEF_H0,new=True,plot=False,method='analytic',
 	#return zDMgrid, zvals,dmvals    
 	return zDMgrid, zvals,dmvals, H0
 
-def plot_zdm_basic_paper(zDMgrid,zvals,dmvals,zmax=1,DMmax=1000,norm=0,log=True,name='temp.pdf',ylabel=None,label='$\\log_{10}p(DM_{\\rm EG},z)$',project=False,conts=False,FRBZ=None,FRBDM=None,title='Plot',H0=cos.DEF_H0):
+def plot_zdm_basic_paper(zDMgrid,zvals,dmvals,zmax=1,DMmax=1000,norm=0,log=True,name='temp.pdf',ylabel=None,label='$\\log_{10}p(DM_{\\rm EG},z)$',project=False,conts=False,FRBZ=None,FRBDM=None,title='Plot',H0=cos.DEF_H0,showplot=False):
 	''' Plots basic distributions of z and dm for the paper '''
 	cmx = plt.get_cmap('cubehelix')
 	
@@ -1905,11 +1907,12 @@ def plot_zdm_basic_paper(zDMgrid,zvals,dmvals,zmax=1,DMmax=1000,norm=0,log=True,
 	
 	plt.savefig(name)
 	plt.title(title+str(H0))
-	plt.show()
+	if showplot:
+		plt.show()
 	plt.close()		
 
 
-def plot_grid_2(zDMgrid,zvals,dmvals,zmax=1,DMmax=1000,norm=0,log=True,name='temp.pdf',label='$\\log_{10}p(DM_{\\rm EG},z)$',project=False,conts=False,FRBZ=None,FRBDM=None,Aconts=False,Macquart=None,title="Plot",H0=cos.DEF_H0):
+def plot_grid_2(zDMgrid,zvals,dmvals,zmax=1,DMmax=1000,norm=0,log=True,name='temp.pdf',label='$\\log_{10}p(DM_{\\rm EG},z)$',project=False,conts=False,FRBZ=None,FRBDM=None,Aconts=False,Macquart=None,title="Plot",H0=cos.DEF_H0,showplot=False):
 	''' Very complicated routine for plotting 2D zdm grids '''
 	cmx = plt.get_cmap('cubehelix')
 	
@@ -2161,10 +2164,11 @@ def plot_grid_2(zDMgrid,zvals,dmvals,zmax=1,DMmax=1000,norm=0,log=True,name='tem
 		plt.tight_layout()
 	
 	plt.savefig(name)
-	plt.show()
+	if showplot:
+		plt.show()
 	plt.close()
 
-def plot_grid(grid,zvals,dmvals):
+def plot_grid(grid,zvals,dmvals,showplot=False):
 	''' Plots a simple 2D grid '''
 	cmx = plt.get_cmap('cubehelix')
 	
@@ -2177,7 +2181,8 @@ def plot_grid(grid,zvals,dmvals):
 	plt.imshow(grid,extent=(zvals[0],zvals[-1],dmvals[0],dmvals[-1]),origin='lower',cmap=cmx)
 	cbar=plt.colorbar()
 	cbar.set_label('$p(DM_{\\rm EG}|z)')
-	plt.show()
+	if showplot:
+		plt.show()
 
 def plot_efficiencies_paper(survey,savename,label):
 	''' Plots a final version of efficiencies for the purpose of the paper '''
@@ -2229,7 +2234,7 @@ def plot_efficiencies_paper(survey,savename,label):
 	plt.savefig(savename)
 	plt.close()
 
-def plot_efficiencies(survey,savename='Plots/efficiencies.pdf'):
+def plot_efficiencies(survey,savename='Plots/efficiencies.pdf',showplot=False):
 	""" Plots efficiency as function of DM """
 	plt.figure()
 	
@@ -2253,7 +2258,8 @@ def plot_efficiencies(survey,savename='Plots/efficiencies.pdf'):
 	plt.legend(loc='upper right',fontsize=min(14,200./survey.NFRB),ncol=ncol)
 	plt.tight_layout()
 	plt.savefig(savename)
-	plt.show()
+	if showplot:
+		plt.show()
 	plt.close()
 
 
