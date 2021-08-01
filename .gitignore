@@ -131,6 +131,7 @@ dmypy.json
 untitled.
 Pickle/
 zdm/tests/GridData/
+zdm/tests/Plots/
 GridData/
 zdm/tests/Pickle/
 zdm/untitled0.py

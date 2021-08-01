@@ -30,7 +30,7 @@ DEF_Omega_m=0.315 #Plank says 0.315
 DEF_Omega_b=0.044
 DEF_Omega_b_h2=0.0224 #Planck says 0.0224, WMAP 0.02264
 # hubble constant in current epoch
-DEF_H0 = igm.cosmo.H0.value #km s^-1 Mpc^-1 #planck15 used in frb.igm
+DEF_H0 = igm.Planck15.H0.value #km s^-1 Mpc^-1 #planck15 used in frb.igm
 
 
 # default value for calculation of cosmological distance measures
