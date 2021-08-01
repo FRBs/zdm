@@ -200,13 +200,13 @@ def do_single_errors(grids,surveys,pset,outdir):
     if not os.path.exists(opdir):
         os.mkdir(opdir)
     savename=opdir+'correlation_'+it.get_lnames(1)+'.pdf'
-    do_correlation_plots(Emaxes,lls,psets,[0,1],savename) # tells it that parameters 0 and 1 are not to be plotted
+    do_correlation_plots(Emaxes,lls1,psets1,[0,1],savename) # tells it that parameters 0 and 1 are not to be plotted
     
     plt.plot(rels,lls1,label=it.get_lnames(1))
     
     
     plt.tight_layout()
-    plt.savefig(oudir+'varying_likelihoods.pdf')
+    plt.savefig(outdir+'varying_likelihoods.pdf')
     plt.close()
     
 
@@ -396,7 +396,7 @@ def make_dm_redshift(grid,savename="",DMmax=1000,zmax=1,loc='upper left',Macquar
         #l=plt.legend(loc='lower right',fontsize=12)
         #l=plt.legend(bbox_to_anchor=(0.2, 0.8),fontsize=8)
         #for text in l.get_texts():
-            #    text.set_color("white")
+            #	text.set_color("white")
     
     #plt.plot([30,40],[0.5,10],linewidth=10)
     
@@ -1525,46 +1525,46 @@ def test_beam_rates(survey,zDMgrid, zvals,dmvals,pset,binset,method=2,outdir='Pl
     acc.close()
 
 def initialise_grids(surveys,zDMgrid, zvals,dmvals,pset,wdist=False,source_evolution=0,alpha_method=1):
-	""" For a list of surveys, construct a zDMgrid object
-	wdist indicates a distribution of widths in the survey,
-	i.e. do not use the mean efficiency
-	Assumes that survey efficiencies ARE initialised
-	"""
-	# now it's a list! ;-)
-	if not isinstance(surveys,list):
-		surveys=[surveys]
-	
-	# get parameter values
-	lEmin,lEmax,alpha,gamma,sfr_n,logmean,logsigma,lC,H0=pset
-	Emin=10**lEmin
-	Emax=10**lEmax
-	
-	# generates a DM mask
-	# creates a mask of values in DM space to convolve with the DM grid
-	mask=pcosmic.get_dm_mask(dmvals,(logmean,logsigma),zvals,plot=True)
-	grids=[]
-	for survey in surveys:
-		if wdist:
-			efficiencies=survey.efficiencies # two dimensions
-			weights=survey.wplist
-		else:
-			efficiencies=survey.mean_efficiencies
-			weights=None
-			#efficiencies=survey.get_efficiency(dmvals)
-		
-		grid=zdm.grid(source_evolution=source_evolution,alpha_method=alpha_method)
-		grid.pass_grid(zDMgrid,zvals,dmvals,H0)
-		grid.smear_dm(mask,logmean,logsigma)
-		
-		grid.calc_thresholds(survey.meta['THRESH'],efficiencies,alpha=alpha,weights=weights)
-		grid.calc_dV()
-		grid.calc_pdv(Emin,Emax,gamma,survey.beam_b,survey.beam_o) # calculates volumetric-weighted probabilities
-		grid.set_evolution(sfr_n) # sets star-formation rate scaling with z - here, no evoltion...
-		grid.calc_rates() # calculates rates by multiplying above with pdm plot
-		grids.append(grid)
-	
-	return grids
-	
+    """ For a list of surveys, construct a zDMgrid object
+    wdist indicates a distribution of widths in the survey,
+    i.e. do not use the mean efficiency
+    Assumes that survey efficiencies ARE initialised
+    """
+    # now it's a list! ;-)
+    if not isinstance(surveys,list):
+        surveys=[surveys]
+    
+    # get parameter values
+    lEmin,lEmax,alpha,gamma,sfr_n,logmean,logsigma,lC,H0=pset
+    Emin=10**lEmin
+    Emax=10**lEmax
+    
+    # generates a DM mask
+    # creates a mask of values in DM space to convolve with the DM grid
+    mask=pcosmic.get_dm_mask(dmvals,(logmean,logsigma),zvals,plot=True)
+    grids=[]
+    for survey in surveys:
+        if wdist:
+            efficiencies=survey.efficiencies # two dimensions
+            weights=survey.wplist
+        else:
+            efficiencies=survey.mean_efficiencies
+            weights=None
+            #efficiencies=survey.get_efficiency(dmvals)
+        
+        grid=zdm.grid(source_evolution=source_evolution,alpha_method=alpha_method)
+        grid.pass_grid(zDMgrid,zvals,dmvals,H0)
+        grid.smear_dm(mask,logmean,logsigma)
+        
+        grid.calc_thresholds(survey.meta['THRESH'],efficiencies,alpha=alpha,weights=weights)
+        grid.calc_dV()
+        grid.calc_pdv(Emin,Emax,gamma,survey.beam_b,survey.beam_o) # calculates volumetric-weighted probabilities
+        grid.set_evolution(sfr_n) # sets star-formation rate scaling with z - here, no evoltion...
+        grid.calc_rates() # calculates rates by multiplying above with pdm plot
+        grids.append(grid)
+    
+    return grids
+    
 def generate_example_plots():
     """ Loads the lat50survey and generates some example plots """
     
@@ -1654,7 +1654,7 @@ def get_zdm_grid(H0=cos.DEF_H0,new=True,plot=False,method='analytic',
                  F=0.32,nz=500,zmax=5,ndm=1400,dmmax=7000.,
                  datdir='GridData',tag="", orig=False):
     """Generate a grid of z vs. DM for an assumed F value
-	for a specified z range and DM range.
+    for a specified z range and DM range.
 
     Args:
         new (bool, optional): [description]. Defaults to True.
@@ -1669,102 +1669,102 @@ def get_zdm_grid(H0=cos.DEF_H0,new=True,plot=False,method='analytic',
         tag (str, optional): [description]. Defaults to "".
         orig (bool, optional): Use original calculations for things like C0. Defaults to False.
 
-	Returns:
-		tuple: zDMgrid, zvals, dmvals
-	"""
-	
-	# no action in fail case - it will already exist
-	try:
-		os.mkdir(datdir)
-	except:
-		pass
-	if method=='MC':
-		savefile=datdir+'/'+tag+'zdm_MC_grid_'+str(F)+'.npy'
-		datfile=datdir+'/'+tag+'zdm_MC_data_'+str(F)+'.npy'
-		zfile=datdir+'/'+tag+'zdm_MC_z_'+str(F)+'.npy'
-		dmfile=datdir+'/'+tag+'zdm_MC_dm_'+str(F)+'.npy'
-	elif method=='analytic':
-		savefile=datdir+'/'+tag+'zdm_A_grid_'+str(F)+'H0_'+str(H0)+'.npy'
-		datfile=datdir+'/'+tag+'zdm_A_data_'+str(F)+'H0_'+str(H0)+'.npy'
-		zfile=datdir+'/'+tag+'zdm_A_z_'+str(F)+'H0_'+str(H0)+'.npy'
-		dmfile=datdir+'/'+tag+'zdm_A_dm_'+str(F)+'H0_'+str(H0)+'.npy'
-		C0file=datdir+'/'+tag+'zdm_A_C0_'+str(F)+'H0_'+str(H0)+'.npy'
-	#labelled pickled files with H0
-	if new:
-		
-		#nz=500
-		#zmax=5
-		dz=zmax/nz
-		
-		#ndm=1400
-		#dmmax=7000.
-		ddm=dmmax/ndm
-		
-		zvals=(np.arange(nz)+1)*dz
-		dmvals=(np.arange(ndm)+1)*ddm
-		
-		dmmeans=dmvals[1:] - (dmvals[1]-dmvals[0])/2.
-		zdmgrid=np.zeros([nz,ndm])
-		
-		if method=='MC':
-			# generate DM grid from the models
-			print("Generating the zdm Monte Carlo grid")
-			nfrb=10000
-			t0=time.process_time()
-			DMs = dlas.monte_DM(np.array(zvals)*3000, nrand=nfrb)
-			#DMs *= 200000 #seems to be a good fit...
-			t1=time.process_time()
-			dt=t1-t0
-			print("Done. Took ",dt," seconds")
-			hists=[]
-			for i,z in enumerate(zvals):
-				print("first 10 DM list for z=",z," is ",DMs[0:10,i])
-				hist,bins=np.histogram(DMs[:,i],bins=dmvals)
-				hists.append(hist)
-			all_hists=np.array(hists)
-			#all_hists /= float(nfrb)
-			print(all_hists.shape)
-		elif method=='analytic':
-			print("Generating the zdm analytic grid")
-			t0=time.process_time()
-			# calculate constants for p_DM distribution
-			if orig:
-				C0s=pcosmic.make_C0_grid(zvals,F)
-			else:
-				f_C0_3 = cosmic.grab_C0_spline()
-				sigma = F / np.sqrt(zvals)
-				C0s = f_C0_3(sigma)
-			# generate pDM grid using those COs
-			zDMgrid=pcosmic.get_pDM_grid(H0,F,dmvals,zvals,C0s)
-			t1=time.process_time()
-			dt=t1-t0
-			print("Done. Took ",dt," seconds")
-		
-		np.save(savefile,zDMgrid)
-		metadata=np.array([nz,ndm,F])
-		np.save(datfile,metadata)
-		np.save(zfile,zvals)
-		np.save(dmfile,dmvals)
-	else:
-		zDMgrid=np.load(savefile)
-		zvals=np.load(zfile)
-		dmvals=np.load(dmfile)
-		metadata=np.load(datfile)
-		nz,ndm,F=metadata
-	
-	if plot:
-		plt.figure()
-		plt.xlabel('DM_{\\rm EG} [pc cm$^{-3}$]')
-		plt.ylabel('p(DM_{\\rm EG})')
-		
-		nplot=int(zvals.size/10)
-		for i,z in enumerate(zvals):
-			if i%nplot==0:
-				plt.plot(dmvals,zDMgrid[i,:],label='z='+str(z)[0:4])
-		plt.legend()
-		plt.tight_layout()
-		plt.savefig('p_dm_slices.pdf')
-		plt.close()
+    Returns:
+        tuple: zDMgrid, zvals, dmvals
+    """
+    
+    # no action in fail case - it will already exist
+    try:
+        os.mkdir(datdir)
+    except:
+        pass
+    if method=='MC':
+        savefile=datdir+'/'+tag+'zdm_MC_grid_'+str(F)+'.npy'
+        datfile=datdir+'/'+tag+'zdm_MC_data_'+str(F)+'.npy'
+        zfile=datdir+'/'+tag+'zdm_MC_z_'+str(F)+'.npy'
+        dmfile=datdir+'/'+tag+'zdm_MC_dm_'+str(F)+'.npy'
+    elif method=='analytic':
+        savefile=datdir+'/'+tag+'zdm_A_grid_'+str(F)+'H0_'+str(H0)+'.npy'
+        datfile=datdir+'/'+tag+'zdm_A_data_'+str(F)+'H0_'+str(H0)+'.npy'
+        zfile=datdir+'/'+tag+'zdm_A_z_'+str(F)+'H0_'+str(H0)+'.npy'
+        dmfile=datdir+'/'+tag+'zdm_A_dm_'+str(F)+'H0_'+str(H0)+'.npy'
+        C0file=datdir+'/'+tag+'zdm_A_C0_'+str(F)+'H0_'+str(H0)+'.npy'
+    #labelled pickled files with H0
+    if new:
+        
+        #nz=500
+        #zmax=5
+        dz=zmax/nz
+        
+        #ndm=1400
+        #dmmax=7000.
+        ddm=dmmax/ndm
+        
+        zvals=(np.arange(nz)+1)*dz
+        dmvals=(np.arange(ndm)+1)*ddm
+        
+        dmmeans=dmvals[1:] - (dmvals[1]-dmvals[0])/2.
+        zdmgrid=np.zeros([nz,ndm])
+        
+        if method=='MC':
+            # generate DM grid from the models
+            print("Generating the zdm Monte Carlo grid")
+            nfrb=10000
+            t0=time.process_time()
+            DMs = dlas.monte_DM(np.array(zvals)*3000, nrand=nfrb)
+            #DMs *= 200000 #seems to be a good fit...
+            t1=time.process_time()
+            dt=t1-t0
+            print("Done. Took ",dt," seconds")
+            hists=[]
+            for i,z in enumerate(zvals):
+                print("first 10 DM list for z=",z," is ",DMs[0:10,i])
+                hist,bins=np.histogram(DMs[:,i],bins=dmvals)
+                hists.append(hist)
+            all_hists=np.array(hists)
+            #all_hists /= float(nfrb)
+            print(all_hists.shape)
+        elif method=='analytic':
+            print("Generating the zdm analytic grid")
+            t0=time.process_time()
+            # calculate constants for p_DM distribution
+            if orig:
+                C0s=pcosmic.make_C0_grid(zvals,F)
+            else:
+                f_C0_3 = cosmic.grab_C0_spline()
+                sigma = F / np.sqrt(zvals)
+                C0s = f_C0_3(sigma)
+            # generate pDM grid using those COs
+            zDMgrid=pcosmic.get_pDM_grid(H0,F,dmvals,zvals,C0s)
+            t1=time.process_time()
+            dt=t1-t0
+            print("Done. Took ",dt," seconds")
+        
+        np.save(savefile,zDMgrid)
+        metadata=np.array([nz,ndm,F])
+        np.save(datfile,metadata)
+        np.save(zfile,zvals)
+        np.save(dmfile,dmvals)
+    else:
+        zDMgrid=np.load(savefile)
+        zvals=np.load(zfile)
+        dmvals=np.load(dmfile)
+        metadata=np.load(datfile)
+        nz,ndm,F=metadata
+    
+    if plot:
+        plt.figure()
+        plt.xlabel('DM_{\\rm EG} [pc cm$^{-3}$]')
+        plt.ylabel('p(DM_{\\rm EG})')
+        
+        nplot=int(zvals.size/10)
+        for i,z in enumerate(zvals):
+            if i%nplot==0:
+                plt.plot(dmvals,zDMgrid[i,:],label='z='+str(z)[0:4])
+        plt.legend()
+        plt.tight_layout()
+        plt.savefig('p_dm_slices.pdf')
+        plt.close()
 
     #return zDMgrid, zvals,dmvals    
     return zDMgrid, zvals,dmvals, H0
@@ -1907,7 +1907,7 @@ def plot_zdm_basic_paper(zDMgrid,zvals,dmvals,zmax=1,DMmax=1000,norm=0,log=True,
     plt.savefig(name)
     plt.title(title+str(H0))
     plt.show()
-    plt.close()        
+    plt.close()		
 
 
 def plot_grid_2(zDMgrid,zvals,dmvals,zmax=1,DMmax=1000,norm=0,log=True,name='temp.pdf',label='$\\log_{10}p(DM_{\\rm EG},z)$',project=False,conts=False,FRBZ=None,FRBDM=None,Aconts=False,Macquart=None,title="Plot",H0=cos.DEF_H0):

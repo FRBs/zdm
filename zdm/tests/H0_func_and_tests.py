@@ -160,10 +160,7 @@ def scan_H0(H0_start,H0_stop,n_iterations,survey,surveyname,plots=True):
     
     t0=time.process_time()
     H0values=np.linspace(H0_start,H0_stop,n_iterations)
-<<<<<<< HEAD:zdm/tests/H0_func_and_tests.py
-=======
     #H0values=[50,58,66,67.74,82,114]
->>>>>>> origin/branchH0:zdm/H0_func_and_tests.py
     H0likes=[]
     for i in H0values:
         setH0=i
