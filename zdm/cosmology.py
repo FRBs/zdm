@@ -247,13 +247,15 @@ def E_to_F(E,z,alpha=0, bandwidth=1e9):
 
 
 # inverse of above
-def F_to_E(F,z,alpha=0, bandwidth=1e9):
+def F_to_E(F,z,alpha=0, bandwidth=1e9, Fobs=1.3e9, Fref=1.3e9):
 	""" Converts a fluence to an energy
 	Formula from Macquart & Ekers 2018
 	Bandwidth in Hz
-	Spectrum: F(\nu)~\nu^\alpha
+	Spectrum: F(\nu)~\nu^-\alpha (internally; the paper uses ^alpha, not ^-alpha)
 	Fluence assumed to be in Jy ms
 	Energy assumed to be in erg
+	Reference frequency Fref taken to be 1.3 GHz (lat50, Parkes)
+	Fobs is the observation frequency
 	"""
 	E=F*4*np.pi*(dl(z))**2/(1.+z)**(2.-alpha)
 	# now convert from dl in MPc and F in Jy ms
@@ -263,6 +265,14 @@ def F_to_E(F,z,alpha=0, bandwidth=1e9):
 	# 1e7 from J to erg
 	# total factor is 9.523396e22
 	E *= 9.523396e22*bandwidth
+	
+	# now corrects for reference frequency
+	# according to value of alpha
+	# effectively: if fluence was X at F0, it was X*(F0/Fref)**alpha at Fref
+	# i.e. if alpha is positive (stronger at low frequencies), we reduce E
+	# This acts to reduce the telescope threshold at higher frequencies
+	E *= (Fobs/Fref)**alpha
+	
 	return E
 
 

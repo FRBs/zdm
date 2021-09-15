@@ -83,7 +83,7 @@ def main():
 	
 	# sets the nature of scaling with the 'spectral index' alpha
 	alpha_method=0 # spectral index interpretation: includes k-correction. Slower to update
-	#lpha_method=1 # rate interpretation: extra factor of (1+z)^alpha in source evolution
+	#alpha_method=1 # rate interpretation: extra factor of (1+z)^alpha in source evolution
 	
 	############## Initialise surveys ##############
 	
@@ -100,11 +100,11 @@ def main():
 	if sprefix=='Full':
 		Wbins=10
 		Wscale=2
-		Nbeams=[20,20,20]
+		Nbeams=[20,20,20,20]
 	elif sprefix=='Std':
 		Wbins=5
 		Wscale=3.5
-		Nbeams=[5,5,10]
+		Nbeams=[5,5,5,10]
 	
 	# location for survey data
 	sdir = os.path.join(resource_filename('zdm', 'data'), 'Surveys/')
@@ -117,7 +117,7 @@ def main():
 		lat50.init_DMEG(DMhalo)
 		lat50.init_beam(nbins=Nbeams[0],method=2,plot=False,thresh=thresh) # tells the survey to use the beam file
 		pwidths,pprobs=survey.make_widths(lat50,Wlogmean,Wlogsigma,Wbins,scale=Wscale)
-		efficiencies=lat50.get_efficiency_from_wlist(dmvals,pwidths,pprobs)
+		efficiencieslat50=lat50.get_efficiency_from_wlist(dmvals,pwidths,pprobs)
 		
 		
 		# load ICS data
@@ -126,7 +126,15 @@ def main():
 		ICS.init_DMEG(DMhalo)
 		ICS.init_beam(nbins=Nbeams[1],method=2,plot=False,thresh=thresh) # tells the survey to use the beam file
 		pwidths,pprobs=survey.make_widths(ICS,Wlogmean,Wlogsigma,Wbins,scale=Wscale)
-		efficiencies=ICS.get_efficiency_from_wlist(dmvals,pwidths,pprobs)
+		efficienciesICS=ICS.get_efficiency_from_wlist(dmvals,pwidths,pprobs)
+		
+		# load ICS 892 MHz data
+		ICS892=survey.survey()
+		ICS892.process_survey_file(sdir+'CRAFT_ICS_892.dat')
+		ICS892.init_DMEG(DMhalo)
+		ICS892.init_beam(nbins=Nbeams[1],method=2,plot=False,thresh=thresh) # tells the survey to use the beam file
+		pwidths,pprobs=survey.make_widths(ICS892,Wlogmean,Wlogsigma,Wbins,scale=Wscale)
+		efficiencies892=ICS892.get_efficiency_from_wlist(dmvals,pwidths,pprobs)
 		
 		# load Parkes data
 		pks=survey.survey()
@@ -134,24 +142,26 @@ def main():
 		pks.init_DMEG(DMhalo)
 		pks.init_beam(nbins=Nbeams[2],method=2,plot=False,thresh=thresh) # need more bins for Parkes!
 		pwidths,pprobs=survey.make_widths(pks,Wlogmean,Wlogsigma,Wbins,scale=Wscale)
-		efficiencies=pks.get_efficiency_from_wlist(dmvals,pwidths,pprobs)
+		efficienciesPks=pks.get_efficiency_from_wlist(dmvals,pwidths,pprobs)
 		
 		
 		names=['ASKAP/FE','ASKAP/ICS','Parkes/Mb']
 		
-		surveys=[lat50,ICS,pks]
+		surveys=[lat50,ICS,ICS892,pks]
 		if not os.path.isdir('Pickle'):
 			os.mkdir('Pickle')
 		with open('Pickle/'+sprefix+'surveys.pkl', 'wb') as output:
 			pickle.dump(surveys, output, pickle.HIGHEST_PROTOCOL)
 			pickle.dump(names, output, pickle.HIGHEST_PROTOCOL)
+		
 	else:
 		with open('Pickle/'+sprefix+'surveys.pkl', 'rb') as infile:
 			surveys=pickle.load(infile)
 			names=pickle.load(infile)
 			lat50=surveys[0]
 			ICS=surveys[1]
-			pks=surveys[2]
+			ICS892=surveys[2]
+			pks=surveys[3]
 	print("Initialised surveys ",names)
 	
 	dirnames=['ASKAP_FE','ASKAP_ICS','Parkes_Mb']
@@ -212,7 +222,8 @@ def main():
 			grids=pickle.load(infile)
 	glat50=grids[0]
 	gICS=grids[1]
-	gpks=grids[2]
+	gICS892=grids[2]
+	gpks=grids[3]
 	print("Initialised grids")
 	
 	
@@ -232,6 +243,10 @@ def main():
 		misc_functions.plot_grid_2(gICS.rates,gICS.zvals,gICS.dmvals,zmax=1,DMmax=2000,
                              name=os.path.join(Location,prefix+'nop_ICS_optimised_grid.pdf'),
                              norm=2,log=True,label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$',project=False,FRBDM=ICS.DMEGs,FRBZ=ICS.frbs["Z"],Aconts=[0.01,0.1,0.5],Macquart=Macquart)
+		misc_functions.plot_grid_2(gICS892.rates,gICS892.zvals,gICS892.dmvals,zmax=1,DMmax=2000,
+                             name=os.path.join(Location,prefix+'nop_ICS892_optimised_grid.pdf'),
+                             norm=2,log=True,label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$',project=False,FRBDM=ICS892.DMEGs,FRBZ=ICS892.frbs["Z"],Aconts=[0.01,0.1,0.5],Macquart=Macquart)
+		
 		misc_functions.plot_grid_2(glat50.rates,glat50.zvals,glat50.dmvals,zmax=0.6,DMmax=1500,
                              name=os.path.join(Location,prefix+'nop_lat50_optimised_grid.pdf'),
                              norm=2,log=True,label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$',project=False,FRBDM=lat50.DMEGs,FRBZ=None,Aconts=[0.01,0.1,0.5],Macquart=Macquart)
@@ -243,6 +258,9 @@ def main():
 		misc_functions.plot_grid_2(gICS.rates,gICS.zvals,gICS.dmvals,zmax=1,DMmax=2000,
                              name=os.path.join(Location,prefix+'ICS_optimised_grid.pdf'),
                              norm=2,log=True,label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$',project=True,FRBDM=ICS.DMEGs,FRBZ=ICS.frbs["Z"],Aconts=[0.01,0.1,0.5],Macquart=Macquart)
+		misc_functions.plot_grid_2(gICS892.rates,gICS892.zvals,gICS892.dmvals,zmax=1,DMmax=2000,
+                             name=os.path.join(Location,prefix+'ICS892_optimised_grid.pdf'),
+                             norm=2,log=True,label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$',project=True,FRBDM=ICS892.DMEGs,FRBZ=ICS892.frbs["Z"],Aconts=[0.01,0.1,0.5],Macquart=Macquart)
 		misc_functions.plot_grid_2(glat50.rates,glat50.zvals,glat50.dmvals,zmax=0.5,DMmax=1000,
                              name=os.path.join(Location,prefix+'lat50_optimised_grid.pdf'),
                              norm=2,log=True,label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$',project=True,FRBDM=lat50.DMEGs,FRBZ=None,Aconts=[0.01,0.1,0.5],Macquart=Macquart)
