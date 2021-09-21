@@ -1,5 +1,5 @@
 TOBS 1274.6 #days - does NOT include efficiency since nobody else does! Shannon et al: 1326. I estimate raw 1427. 1274.6 is recorded data time.
-FBAR  1196 #MHz
+FBAR  1296 #MHz
 BW    336 #MHz
 FRES  1 #MHz
 TRES  1.265 #ms

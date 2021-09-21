@@ -62,177 +62,192 @@ matplotlib.rc('font', **font)
 
 def main():
 
-    ############## Initialise cosmology ##############
-    cos.init_dist_measures()
-    
-    # get the grid of p(DM|z). See function for default values.
-    # set new to False once this is already initialised
-    zDMgrid, zvals,dmvals,H0=misc_functions.get_zdm_grid(
-        new=True,plot=False,method='analytic')
-    # NOTE: if this is new, we also need new surveys and grids!
-    
-    # constants of beam method
-    thresh=0
-    method=2
-    
-    
-    # sets which kind of source evolution function is being used
-    source_evolution=0 # SFR^n scaling
-    #source_evolution=1 # (1+z)^(2.7n) scaling
-    
-    
-    # sets the nature of scaling with the 'spectral index' alpha
-    alpha_method=0 # spectral index interpretation: includes k-correction. Slower to update
-    #alpha_method=1 # rate interpretation: extra factor of (1+z)^alpha in source evolution
-    
-    ############## Initialise surveys ##############
-    
-    # constants of intrinsic width distribution
-    Wlogmean=1.70267
-    Wlogsigma=0.899148
-    DMhalo=50
-    
-    #These surveys combine time-normalised and time-unnormalised samples 
-    NewSurveys=True
-    #sprefix='Full' # more detailed estimates. Takes more space and time
-    sprefix='Std' # faster - fine for max likelihood calculations, not as pretty
-    
-    if sprefix=='Full':
-        Wbins=10
-        Wscale=2
-        Nbeams=[20,20,20]
-    elif sprefix=='Std':
-        Wbins=5
-        Wscale=3.5
-        Nbeams=[5,5,10]
-    
-    # location for survey data
-    sdir = os.path.join(resource_filename('zdm', 'data'), 'Surveys/')
-    if NewSurveys:
-        
-        print("Generating new surveys, set NewSurveys=False to save time later")
-        #load the lat50 survey data
-        lat50=survey.survey()
-        lat50.process_survey_file(sdir+'CRAFT_class_I_and_II.dat')
-        lat50.init_DMEG(DMhalo)
-        lat50.init_beam(nbins=Nbeams[0],method=2,plot=False,thresh=thresh) # tells the survey to use the beam file
-        pwidths,pprobs=survey.make_widths(lat50,Wlogmean,Wlogsigma,Wbins,scale=Wscale)
-        efficiencies=lat50.get_efficiency_from_wlist(dmvals,pwidths,pprobs)
-        
-        
-        # load ICS data
-        ICS=survey.survey()
-        ICS.process_survey_file(sdir+'CRAFT_ICS.dat')
-        ICS.init_DMEG(DMhalo)
-        ICS.init_beam(nbins=Nbeams[1],method=2,plot=False,thresh=thresh) # tells the survey to use the beam file
-        pwidths,pprobs=survey.make_widths(ICS,Wlogmean,Wlogsigma,Wbins,scale=Wscale)
-        efficiencies=ICS.get_efficiency_from_wlist(dmvals,pwidths,pprobs)
-        
-        # load Parkes data
-        pks=survey.survey()
-        pks.process_survey_file(sdir+'parkes_mb_class_I_and_II.dat')
-        pks.init_DMEG(DMhalo)
-        pks.init_beam(nbins=Nbeams[2],method=2,plot=False,thresh=thresh) # need more bins for Parkes!
-        pwidths,pprobs=survey.make_widths(pks,Wlogmean,Wlogsigma,Wbins,scale=Wscale)
-        efficiencies=pks.get_efficiency_from_wlist(dmvals,pwidths,pprobs)
-        
-        
-        names=['ASKAP/FE','ASKAP/ICS','Parkes/Mb']
-        
-        surveys=[lat50,ICS,pks]
-        if not os.path.isdir('Pickle'):
-            os.mkdir('Pickle')
-        with open('Pickle/'+sprefix+'surveys.pkl', 'wb') as output:
-            pickle.dump(surveys, output, pickle.HIGHEST_PROTOCOL)
-            pickle.dump(names, output, pickle.HIGHEST_PROTOCOL)
-    else:
-        with open('Pickle/'+sprefix+'surveys.pkl', 'rb') as infile:
-            surveys=pickle.load(infile)
-            names=pickle.load(infile)
-            lat50=surveys[0]
-            ICS=surveys[1]
-            pks=surveys[2]
-    print("Initialised surveys ",names)
-    
-    dirnames=['ASKAP_FE','ASKAP_ICS','Parkes_Mb']
-    
-    #### these are hard-coded best-fit parameters ####
-    # initial parameter values. SHOULD BE LOGSIGMA 0.75! (WAS 0.25!?!?!?)
-    # Best-fit parameter values (result from cube iteration)
-    lEmin=30. # log10 in erg
-    lEmax=41.84 # log10 in erg
-    alpha=1.54 # spectral index. WARNING: here F(nu)~nu^-alpha in the code, opposite to the paper!
-    gamma=-1.16 # slope of luminosity distribution function
-    sfr_n=1.77 #scaling with star-formation rate
-    lmean=2.16 # log10 mean of DM host contribution in pc cm^-3
-    lsigma=0.51 # log10 sigma of DM host contribution in pc cm^-3
-    C=4.19 # log10 constant in number per Gpc^-3 yr^-1 at z=0
-    pset=[lEmin,lEmax,alpha,gamma,sfr_n,lmean,lsigma,C,H0]
-    
-    # This routine takes a *long* time
-    # It estimates the difference between a full beam shape (~300 points) and various approximations to it
-    # Use 'LOAD=True' if you have already run it
-    plot_fbr=False
-    if plot_fbr:
-        print("Plotting final beam rates")
-        #tempnames=['ASKAP/FE','ASKAP/ICS','Parkes/MB']
-        #final_plot_beam_values(surveys,zDMgrid,zvals,dmvals,pset,[5,5,10],names,Wlogsigma,Wlogmean,'FinalFitPlots')
-        misc_functions.final_plot_beam_rates(surveys,zDMgrid,zvals,dmvals,pset,[5,5,10],names,Wlogsigma,Wlogmean,'Plots',LOAD=False)
-    
-    
-    # This routine is similar to the above
-    # It tests different numerical approximations of each beam
-    # and estimates various parmeters based on that
-    # used only in initial investigations to determine how many points to use
-    TestBeams=False
-    if TestBeams:
-        method=2
-        zmaxs=[1,2,4]
-        DMmaxs=[1000,2000,4000]
-        for i,s in enumerate(surveys):
-            #test_beam_rates(s,zDMgrid, zvals,dmvals,pset,[0,1,2,5,10,50,100,'all'],method=1)
-            outdir=outdir='Plots/'+dirnames[i]+'_BeamTest_'+str(method)+'_'+str(thresh)+'/'
-            misc_functions.test_beam_rates(s,zDMgrid, zvals,dmvals,pset,[0,1,2,5,10,50,100,'all'],method=method,outdir=outdir,thresh=thresh,zmax=zmaxs[i],DMmax=DMmaxs[i])
-    
-    # generates zdm grids for the specified parameter set
-    NewGrids=True
-    if sprefix=='Full':
-        gprefix='best'
-    elif sprefix=='Std':
-        gprefix='Std_best'
-    
-    if NewGrids:
-        print("Generating new grids, set NewGrids=False to save time later")
-        grids=misc_functions.initialise_grids(surveys,zDMgrid, zvals,dmvals,pset,wdist=True,source_evolution=source_evolution,alpha_method=alpha_method)
-        with open('Pickle/'+gprefix+'grids.pkl', 'wb') as output:
-            pickle.dump(grids, output, pickle.HIGHEST_PROTOCOL)
-    else:
-        print("Loading grid ",'Pickle/'+gprefix+'grids.pkl')
-        with open('Pickle/'+gprefix+'grids.pkl', 'rb') as infile:
-            grids=pickle.load(infile)
-    glat50=grids[0]
-    gICS=grids[1]
-    gpks=grids[2]
-    print("Initialised grids")
-    
-    
-    Location='Plots'
-    if not os.path.isdir(Location):
-        os.mkdir(Location)
-    prefix='bestfit_'
-    
-    do2DPlots=True
-    if do2DPlots:
-        muDM=10**pset[5]
-        Macquart=muDM
-        # plots zdm distribution
-        misc_functions.plot_grid_2(gpks.rates,gpks.zvals,gpks.dmvals,zmax=3,DMmax=3000,
+	############## Initialise cosmology ##############
+	cos.init_dist_measures()
+	
+	# get the grid of p(DM|z). See function for default values.
+	# set new to False once this is already initialised
+	zDMgrid, zvals,dmvals,H0=misc_functions.get_zdm_grid(
+		new=True,plot=False,method='analytic')
+	# NOTE: if this is new, we also need new surveys and grids!
+	
+	# constants of beam method
+	thresh=0
+	method=2
+	
+	
+	# sets which kind of source evolution function is being used
+	source_evolution=0 # SFR^n scaling
+	#source_evolution=1 # (1+z)^(2.7n) scaling
+	
+	
+	# sets the nature of scaling with the 'spectral index' alpha
+	alpha_method=0 # spectral index interpretation: includes k-correction. Slower to update
+	#alpha_method=1 # rate interpretation: extra factor of (1+z)^alpha in source evolution
+	
+	############## Initialise surveys ##############
+	
+	# constants of intrinsic width distribution
+	Wlogmean=1.70267
+	Wlogsigma=0.899148
+	DMhalo=50
+	
+	#These surveys combine time-normalised and time-unnormalised samples 
+	NewSurveys=True
+	#sprefix='Full' # more detailed estimates. Takes more space and time
+	sprefix='Std' # faster - fine for max likelihood calculations, not as pretty
+	
+	if sprefix=='Full':
+		Wbins=10
+		Wscale=2
+		Nbeams=[20,20,20,20]
+	elif sprefix=='Std':
+		Wbins=5
+		Wscale=3.5
+		Nbeams=[5,5,5,10]
+	
+	# location for survey data
+	sdir = os.path.join(resource_filename('zdm', 'data'), 'Surveys/')
+	if NewSurveys:
+		
+		print("Generating new surveys, set NewSurveys=False to save time later")
+		#load the lat50 survey data
+		lat50=survey.survey()
+		lat50.process_survey_file(sdir+'CRAFT_class_I_and_II.dat')
+		lat50.init_DMEG(DMhalo)
+		lat50.init_beam(nbins=Nbeams[0],method=2,plot=False,thresh=thresh) # tells the survey to use the beam file
+		pwidths,pprobs=survey.make_widths(lat50,Wlogmean,Wlogsigma,Wbins,scale=Wscale)
+		efficiencieslat50=lat50.get_efficiency_from_wlist(dmvals,pwidths,pprobs)
+		
+		
+		# load ICS data
+		ICS=survey.survey()
+		ICS.process_survey_file(sdir+'CRAFT_ICS.dat')
+		ICS.init_DMEG(DMhalo)
+		ICS.init_beam(nbins=Nbeams[1],method=2,plot=False,thresh=thresh) # tells the survey to use the beam file
+		pwidths,pprobs=survey.make_widths(ICS,Wlogmean,Wlogsigma,Wbins,scale=Wscale)
+		efficienciesICS=ICS.get_efficiency_from_wlist(dmvals,pwidths,pprobs)
+		
+		# load ICS 892 MHz data
+		ICS892=survey.survey()
+		ICS892.process_survey_file(sdir+'CRAFT_ICS_892.dat')
+		ICS892.init_DMEG(DMhalo)
+		ICS892.init_beam(nbins=Nbeams[1],method=2,plot=False,thresh=thresh) # tells the survey to use the beam file
+		pwidths,pprobs=survey.make_widths(ICS892,Wlogmean,Wlogsigma,Wbins,scale=Wscale)
+		efficiencies892=ICS892.get_efficiency_from_wlist(dmvals,pwidths,pprobs)
+		
+		# load Parkes data
+		pks=survey.survey()
+		pks.process_survey_file(sdir+'parkes_mb_class_I_and_II.dat')
+		pks.init_DMEG(DMhalo)
+		pks.init_beam(nbins=Nbeams[2],method=2,plot=False,thresh=thresh) # need more bins for Parkes!
+		pwidths,pprobs=survey.make_widths(pks,Wlogmean,Wlogsigma,Wbins,scale=Wscale)
+		efficienciesPks=pks.get_efficiency_from_wlist(dmvals,pwidths,pprobs)
+		
+		
+		names=['ASKAP/FE','ASKAP/ICS','Parkes/Mb']
+		
+		surveys=[lat50,ICS,ICS892,pks]
+		if not os.path.isdir('Pickle'):
+			os.mkdir('Pickle')
+		with open('Pickle/'+sprefix+'surveys.pkl', 'wb') as output:
+			pickle.dump(surveys, output, pickle.HIGHEST_PROTOCOL)
+			pickle.dump(names, output, pickle.HIGHEST_PROTOCOL)
+		
+	else:
+		with open('Pickle/'+sprefix+'surveys.pkl', 'rb') as infile:
+			surveys=pickle.load(infile)
+			names=pickle.load(infile)
+			lat50=surveys[0]
+			ICS=surveys[1]
+			ICS892=surveys[2]
+			pks=surveys[3]
+	print("Initialised surveys ",names)
+	
+	dirnames=['ASKAP_FE','ASKAP_ICS','Parkes_Mb']
+	
+	#### these are hard-coded best-fit parameters ####
+	# initial parameter values. SHOULD BE LOGSIGMA 0.75! (WAS 0.25!?!?!?)
+	# Best-fit parameter values (result from cube iteration)
+	lEmin=30. # log10 in erg
+	lEmax=41.84 # log10 in erg
+	alpha=1.54 # spectral index. WARNING: here F(nu)~nu^-alpha in the code, opposite to the paper!
+	gamma=-1.16 # slope of luminosity distribution function
+	sfr_n=1.77 #scaling with star-formation rate
+	lmean=2.16 # log10 mean of DM host contribution in pc cm^-3
+	lsigma=0.51 # log10 sigma of DM host contribution in pc cm^-3
+	C=4.19 # log10 constant in number per Gpc^-3 yr^-1 at z=0
+	pset=[lEmin,lEmax,alpha,gamma,sfr_n,lmean,lsigma,C,H0]
+	
+	# This routine takes a *long* time
+	# It estimates the difference between a full beam shape (~300 points) and various approximations to it
+	# Use 'LOAD=True' if you have already run it
+	plot_fbr=False
+	if plot_fbr:
+		print("Plotting final beam rates")
+		#tempnames=['ASKAP/FE','ASKAP/ICS','Parkes/MB']
+		#final_plot_beam_values(surveys,zDMgrid,zvals,dmvals,pset,[5,5,10],names,Wlogsigma,Wlogmean,'FinalFitPlots')
+		misc_functions.final_plot_beam_rates(surveys,zDMgrid,zvals,dmvals,pset,[5,5,10],names,Wlogsigma,Wlogmean,'Plots',LOAD=False)
+	
+	
+	# This routine is similar to the above
+	# It tests different numerical approximations of each beam
+	# and estimates various parmeters based on that
+	# used only in initial investigations to determine how many points to use
+	TestBeams=False
+	if TestBeams==True:
+		method=2
+		zmaxs=[1,2,4]
+		DMmaxs=[1000,2000,4000]
+		for i,s in enumerate(surveys):
+			#test_beam_rates(s,zDMgrid, zvals,dmvals,pset,[0,1,2,5,10,50,100,'all'],method=1)
+			outdir=outdir='Plots/'+dirnames[i]+'_BeamTest_'+str(method)+'_'+str(thresh)+'/'
+			misc_functions.test_beam_rates(s,zDMgrid, zvals,dmvals,pset,[0,1,2,5,10,50,100,'all'],method=method,outdir=outdir,thresh=thresh,zmax=zmaxs[i],DMmax=DMmaxs[i])
+	
+	# generates zdm grids for the specified parameter set
+	NewGrids=True
+	if sprefix=='Full':
+		gprefix='best'
+	elif sprefix=='Std':
+		gprefix='Std_best'
+	
+	if NewGrids:
+		print("Generating new grids, set NewGrids=False to save time later")
+		grids=misc_functions.initialise_grids(surveys,zDMgrid, zvals,dmvals,pset,wdist=True,source_evolution=source_evolution,alpha_method=alpha_method)
+		with open('Pickle/'+gprefix+'grids.pkl', 'wb') as output:
+			pickle.dump(grids, output, pickle.HIGHEST_PROTOCOL)
+	else:
+		print("Loading grid ",'Pickle/'+gprefix+'grids.pkl')
+		with open('Pickle/'+gprefix+'grids.pkl', 'rb') as infile:
+			grids=pickle.load(infile)
+	glat50=grids[0]
+	gICS=grids[1]
+	gICS892=grids[2]
+	gpks=grids[3]
+	print("Initialised grids")
+	
+	
+	Location='Plots'
+	if not os.path.isdir(Location):
+		os.mkdir(Location)
+	prefix='bestfit_'
+	
+	do2DPlots=True
+	if do2DPlots:
+		muDM=10**pset[5]
+		Macquart=muDM
+		# plots zdm distribution
+		misc_functions.plot_grid_2(gpks.rates,gpks.zvals,gpks.dmvals,zmax=3,DMmax=3000,
                              name=os.path.join(Location,prefix+'nop_pks_optimised_grid.pdf'),
                              norm=2,log=True,label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$',project=False,FRBDM=pks.DMEGs,FRBZ=None,Aconts=[0.01,0.1,0.5],Macquart=Macquart)
         misc_functions.plot_grid_2(gICS.rates,gICS.zvals,gICS.dmvals,zmax=1,DMmax=2000,
                              name=os.path.join(Location,prefix+'nop_ICS_optimised_grid.pdf'),
                              norm=2,log=True,label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$',project=False,FRBDM=ICS.DMEGs,FRBZ=ICS.frbs["Z"],Aconts=[0.01,0.1,0.5],Macquart=Macquart)
-        misc_functions.plot_grid_2(glat50.rates,glat50.zvals,glat50.dmvals,zmax=0.6,DMmax=1500,
+		misc_functions.plot_grid_2(gICS892.rates,gICS892.zvals,gICS892.dmvals,zmax=1,DMmax=2000,
+                             name=os.path.join(Location,prefix+'nop_ICS892_optimised_grid.pdf'),
+                             norm=2,log=True,label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$',project=False,FRBDM=ICS892.DMEGs,FRBZ=ICS892.frbs["Z"],Aconts=[0.01,0.1,0.5],Macquart=Macquart)
+		
+		misc_functions.plot_grid_2(glat50.rates,glat50.zvals,glat50.dmvals,zmax=0.6,DMmax=1500,
                              name=os.path.join(Location,prefix+'nop_lat50_optimised_grid.pdf'),
                              norm=2,log=True,label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$',project=False,FRBDM=lat50.DMEGs,FRBZ=None,Aconts=[0.01,0.1,0.5],Macquart=Macquart)
         
@@ -243,7 +258,10 @@ def main():
         misc_functions.plot_grid_2(gICS.rates,gICS.zvals,gICS.dmvals,zmax=1,DMmax=2000,
                              name=os.path.join(Location,prefix+'ICS_optimised_grid.pdf'),
                              norm=2,log=True,label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$',project=True,FRBDM=ICS.DMEGs,FRBZ=ICS.frbs["Z"],Aconts=[0.01,0.1,0.5],Macquart=Macquart)
-        misc_functions.plot_grid_2(glat50.rates,glat50.zvals,glat50.dmvals,zmax=0.5,DMmax=1000,
+		misc_functions.plot_grid_2(gICS892.rates,gICS892.zvals,gICS892.dmvals,zmax=1,DMmax=2000,
+                             name=os.path.join(Location,prefix+'ICS892_optimised_grid.pdf'),
+                             norm=2,log=True,label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$',project=True,FRBDM=ICS892.DMEGs,FRBZ=ICS892.frbs["Z"],Aconts=[0.01,0.1,0.5],Macquart=Macquart)
+		misc_functions.plot_grid_2(glat50.rates,glat50.zvals,glat50.dmvals,zmax=0.5,DMmax=1000,
                              name=os.path.join(Location,prefix+'lat50_optimised_grid.pdf'),
                              norm=2,log=True,label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$',project=True,FRBDM=lat50.DMEGs,FRBZ=None,Aconts=[0.01,0.1,0.5],Macquart=Macquart)
     

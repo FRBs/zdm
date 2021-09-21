@@ -108,9 +108,10 @@ class grid:
 	
 	def EF(self,alpha=0,bandwidth=1e9):
 		"""Calculates the fluence--energy conversion factors as a function of redshift
+		This does NOT account for the central frequency
 		"""
 		if self.alpha_method==0:
-			self.FtoE=cos.F_to_E(1,self.zvals,alpha=alpha,bandwidth=bandwidth)
+			self.FtoE=cos.F_to_E(1,self.zvals,alpha=alpha,bandwidth=bandwidth,Fobs=self.nuObs,Fref=self.nuRef)
 		elif self.alpha_method==1:
 			self.FtoE=cos.F_to_E(1,self.zvals,alpha=0.,bandwidth=bandwidth)
 		else:
@@ -125,6 +126,8 @@ class grid:
 		self.sfr=self.source_evolution(self.zvals,n)
 		if self.alpha_method==1:
 			self.sfr *= (1.+self.zvals)**(-self.alpha) #reduces rate with alpha
+			# changes absolute normalisation at z=0 according to central frequency
+			self.sfr *= (self.nuObs/self.nuRef)**-self.alpha #alpha positive, nuObs<nuref, expected rate increases
 			
 	# not used
 	#def set_efficiencies(self, eff_func):
@@ -224,21 +227,25 @@ class grid:
 			#self.sfr_smear_grid=np.multiply(self.smear_grid.T,self.sfr).T
 			#self.pdv_sfr=np.multiply(self.pdv.T,self.sfr)
 		
-	def calc_thresholds(self, F0, eff_table, alpha=0, bandwidth=1e9,weights=None):
+	def calc_thresholds(self, F0, eff_table, alpha=0, bandwidth=1e9, nuObs=1.3e9, nuRef=1.3e9, weights=None):
 		""" Sets the effective survey threshold on the zdm grid
 		F0: base survey threshold
-		eff: table of efficiencies corresponding to DM-values
+		eff_table: table of efficiencies corresponding to DM-values
+		nu0: survey frequency (affects sensitivity via alpha - only for alpha method)
+		nuref: reference frequency we are calculating thresholds at
 		"""
 		# keep the inputs for later use
 		self.F0=F0
+		self.nuObs=nuObs
+		self.nuRef=nuRef
 		
 		self.alpha=alpha
 		self.bandwidth=bandwidth
-		if eff_table.ndim==1:
+		if eff_table.ndim==1: # only a single FRB width: dimensions of NDM
 			self.nthresh=1
 			self.eff_weights=np.array([1])
 			self.eff_table=np.array([eff_table]) # make it an extra dimension
-		else:
+		else: # multiple FRB widths: dimensions nW x NDM
 			self.nthresh=eff_table.shape[0]
 			if weights is not None:
 				if weights.size != self.nthresh:
@@ -253,6 +260,11 @@ class grid:
 		self.EF(alpha,bandwidth) #sets FtoE values - could have been done *WAY* earlier
 		
 		self.thresholds=np.zeros([self.nthresh,self.zvals.size,self.dmvals.size])
+		# Performs an outer multiplication of conversion from fluence to energy.
+		# The FtoE array has one value for each redshift.
+		# The effective threshold array has one value for each combination of
+		# FRB width (nthresh) and DM.
+		# We loop over nthesh and generate a NDM x Nz array for each
 		for i in np.arange(self.nthresh):
 			self.thresholds[i,:,:]=np.outer(self.FtoE,Eff_thresh[i,:])
 		
@@ -498,6 +510,8 @@ class grid:
 		self.smear_sigma=grid.smear_sigma
 		self.smear=grid.smear
 		self.smear_grid=grid.smear_grid
+		self.nu0=grid.nuObs
+		self.nuref=grid.nuRef
 		
 
 ############## this section defines different luminosity functions ##########
