@@ -33,18 +33,22 @@ def gauss_beam(thresh=1e-3,nbins=10,freq=1.4e9,D=64,sigma=None):
 	omega_b=np.full([nbins],2*np.pi*dlnb*sigma**2) #omega_b per dlnb - makes sense
 	return b,omega_b
 
-def load_beam(suffix,basedir=beams_path):
+def load_beam(prefix,basedir=beams_path):
 	"""
-	Retrieves beam data.
+	Loads beams data, returns it with beam values b in log space
+	
+	prefix: looks for files named [prefix]_bins.npy and [prefix]_hist.npy
+	basedir: directory the histogram files are expected to be found in
+	
 	The '_bins' file should contain the (nbins+1) bin edges
 	The '_hist' file should contain solid angles within each bin
 	Summing the _hist should return the total solid angle over
 		which the calculation has been performed.
 	
 	"""
-	logb=np.load(os.path.join(basedir,suffix+'_bins.npy'))
+	logb=np.load(os.path.join(basedir,prefix+'_bins.npy'))
 	# standard, gets best beam estimates: no truncation
-	omega_b=np.load(os.path.join(basedir,suffix+'_hist.npy'))
+	omega_b=np.load(os.path.join(basedir,prefix+'_hist.npy'))
 	
 	# checks if the log-bins are 10^logb or just actual b values
 	#in a linear scale the first few may be zero...

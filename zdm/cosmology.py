@@ -248,14 +248,28 @@ def E_to_F(E,z,alpha=0, bandwidth=1e9):
 
 # inverse of above
 def F_to_E(F,z,alpha=0, bandwidth=1e9, Fobs=1.3e9, Fref=1.3e9):
-	""" Converts a fluence to an energy
+	""" Converts a fluence in Jy ms to an energy in erg
 	Formula from Macquart & Ekers 2018
-	Bandwidth in Hz
-	Spectrum: F(\nu)~\nu^-\alpha (internally; the paper uses ^alpha, not ^-alpha)
-	Fluence assumed to be in Jy ms
-	Energy assumed to be in erg
-	Reference frequency Fref taken to be 1.3 GHz (lat50, Parkes)
-	Fobs is the observation frequency
+	Works with an array of z.
+	
+	Arguments are:
+		Fluence: of an FRB [Jy ms]
+		
+		Redshift: assumed redshift of an FRB producing the fluence F.
+			Standard cosmological definition [unitless]
+		
+		alpha: F(\nu)~\nu^-\alpha. Note that this is an internal definition.
+			The paper uses ^alpha, not ^-alpha. [unitless]
+	
+		Bandwidth: over which to integrate fluence [Hz] 
+		
+		Fobs: the observation frequency [Hz]
+		
+		Fref: reference frequency at which FRB energies E are normalised.
+			It defaults to 1.3 GHz (ASKAP lat50, Parkes).
+	
+	Return value: energy [erg]
+	
 	"""
 	E=F*4*np.pi*(dl(z))**2/(1.+z)**(2.-alpha)
 	# now convert from dl in MPc and F in Jy ms
