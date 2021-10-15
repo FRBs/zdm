@@ -27,17 +27,28 @@ def gauss_beam(thresh=1e-3,nbins=10,freq=1.4e9,D=64,sigma=None):
 		# uses 1.2 lambda on D
 		# check with Parkes: 1.38 GHz at 64m is 14 arcmin
 		HPBW=1.22*(constants.c/(freq*1e6))/D
-		sigma=(HPBW/2.)*(2*np.log(2))**0.5
+		sigma=(HPBW/2.)*(2*np.log(2))**-0.5
 	# this gives FWHP=0.23 deg = 13.8 arcmin i.e. agrees with Parkes
 	#print("basic deg2 over range 1e-3 is ",2*np.pi*sigma**2*(180/np.pi)**2*6.9)
 	omega_b=np.full([nbins],2*np.pi*dlnb*sigma**2) #omega_b per dlnb - makes sense
 	return b,omega_b
 
-def load_beam(suffix,basedir=beams_path):
+def load_beam(prefix,basedir=beams_path):
+	"""
+	Loads beams data, returns it with beam values b in log space
 	
-	logb=np.load(os.path.join(basedir,suffix+'_bins.npy'))
+	prefix: looks for files named [prefix]_bins.npy and [prefix]_hist.npy
+	basedir: directory the histogram files are expected to be found in
+	
+	The '_bins' file should contain the (nbins+1) bin edges
+	The '_hist' file should contain solid angles within each bin
+	Summing the _hist should return the total solid angle over
+		which the calculation has been performed.
+	
+	"""
+	logb=np.load(os.path.join(basedir,prefix+'_bins.npy'))
 	# standard, gets best beam estimates: no truncation
-	omega_b=np.load(os.path.join(basedir,suffix+'_hist.npy'))
+	omega_b=np.load(os.path.join(basedir,prefix+'_hist.npy'))
 	
 	# checks if the log-bins are 10^logb or just actual b values
 	#in a linear scale the first few may be zero...
@@ -48,15 +59,8 @@ def load_beam(suffix,basedir=beams_path):
 	if logb.size == omega_b.size+1:
 		# adjust for the bin centre
 		db=logb[1]-logb[0]
-		logb=logb[:-1]+db
+		logb=logb[:-1]+db/2.
 	
-	# I should check if the inputs are 'per log10 bin' or have an absolute normalisation
-	# it seems there my be a log10 vs log difference
-	# from memory there should be no correction factors, i.e. the bin sums should come to
-	# the actual total solid angle
-	# original file:
-	# /Users/cjames/CRAFT/Paper/Shivani/Beam/BeamHist/AnalysisData/4568_log_psumze.npy
-	# /Users/cjames/CRAFT/Paper/Shivani/Beam/BeamHist/AnalysisData/lhistcs.npy
 	return logb,omega_b
 
 

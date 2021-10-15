@@ -247,13 +247,29 @@ def E_to_F(E,z,alpha=0, bandwidth=1e9):
 
 
 # inverse of above
-def F_to_E(F,z,alpha=0, bandwidth=1e9):
-	""" Converts a fluence to an energy
+def F_to_E(F,z,alpha=0, bandwidth=1e9, Fobs=1.3e9, Fref=1.3e9):
+	""" Converts a fluence in Jy ms to an energy in erg
 	Formula from Macquart & Ekers 2018
-	Bandwidth in Hz
-	Spectrum: F(\nu)~\nu^\alpha
-	Fluence assumed to be in Jy ms
-	Energy assumed to be in erg
+	Works with an array of z.
+	
+	Arguments are:
+		Fluence: of an FRB [Jy ms]
+		
+		Redshift: assumed redshift of an FRB producing the fluence F.
+			Standard cosmological definition [unitless]
+		
+		alpha: F(\nu)~\nu^-\alpha. Note that this is an internal definition.
+			The paper uses ^alpha, not ^-alpha. [unitless]
+	
+		Bandwidth: over which to integrate fluence [Hz] 
+		
+		Fobs: the observation frequency [Hz]
+		
+		Fref: reference frequency at which FRB energies E are normalised.
+			It defaults to 1.3 GHz (ASKAP lat50, Parkes).
+	
+	Return value: energy [erg]
+	
 	"""
 	E=F*4*np.pi*(dl(z))**2/(1.+z)**(2.-alpha)
 	# now convert from dl in MPc and F in Jy ms
@@ -263,6 +279,14 @@ def F_to_E(F,z,alpha=0, bandwidth=1e9):
 	# 1e7 from J to erg
 	# total factor is 9.523396e22
 	E *= 9.523396e22*bandwidth
+	
+	# now corrects for reference frequency
+	# according to value of alpha
+	# effectively: if fluence was X at F0, it was X*(F0/Fref)**alpha at Fref
+	# i.e. if alpha is positive (stronger at low frequencies), we reduce E
+	# This acts to reduce the telescope threshold at higher frequencies
+	E *= (Fobs/Fref)**alpha
+	
 	return E
 
 

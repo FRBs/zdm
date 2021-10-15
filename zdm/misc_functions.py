@@ -1557,7 +1557,8 @@ def initialise_grids(surveys,zDMgrid, zvals,dmvals,pset,wdist=False,source_evolu
 		grid.pass_grid(zDMgrid,zvals,dmvals,H0)
 		grid.smear_dm(mask,logmean,logsigma)
 		
-		grid.calc_thresholds(survey.meta['THRESH'],efficiencies,alpha=alpha,weights=weights)
+		# note - survey frequencies in MHz
+		grid.calc_thresholds(survey.meta['THRESH'],efficiencies,alpha=alpha,weights=weights,nuObs=survey.meta['FBAR']*1e6)
 		grid.calc_dV()
 		grid.calc_pdv(Emin,Emax,gamma,survey.beam_b,survey.beam_o) # calculates volumetric-weighted probabilities
 		grid.set_evolution(sfr_n) # sets star-formation rate scaling with z - here, no evoltion...
