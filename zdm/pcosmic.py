@@ -144,6 +144,7 @@ def get_pDM(z,F,DMgrid,zgrid,Fgrid,C0grid):
 
 def get_pDM_grid(H0,F,DMgrid,zgrid,C0s):
     """ Gets pDM when the zvals are the same as the zgrid
+    H0 (float): Current H0 value
     Fgrid: range of Fs for which C0s have been generated
     C0grid: C0 values obtained by convergence
     DMgrid: range of DMs for which we are generating a histogram
@@ -152,7 +153,7 @@ def get_pDM_grid(H0,F,DMgrid,zgrid,C0s):
     
     """
     #added H0 dependency
-    DMbars=get_mean_DM(zgrid,H0)
+    DMbars=get_mean_DM(zgrid,H0, cos.cosmo.H0)
     
     pDMgrid=np.zeros([zgrid.size,DMgrid.size])
     print("shapes and sizes are ",C0s.size,pDMgrid.shape,DMbars.shape)

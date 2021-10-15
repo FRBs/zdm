@@ -17,10 +17,8 @@ def test_make_grids():
     cos.set_cosmology(params)
     cos.init_dist_measures()
 
-    pytest.set_trace()
-
     # get the grid of p(DM|z). See function for default values.
     # set new to False once this is already initialised
-    zDMgrid, zvals,dmvals,H0 = misc_functions.get_zdm_grid(
-        new=True, plot=False, method='analytic')
+    zDMgrid, zvals,dmvals, _ = misc_functions.get_zdm_grid(
+        70., new=True, plot=False, method='analytic')
 
