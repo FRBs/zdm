@@ -20,6 +20,7 @@ from zdm import cosmology as cos
 from zdm import survey
 from zdm import zdm
 from zdm import pcosmic
+from zdm import parameters
 
 
 def marginalise(pset,grids,surveys,which,vals,disable=None,psnr=True,PenTypes=None,PenParams=None,Verbose=False,steps=None):
@@ -1525,18 +1526,30 @@ def test_beam_rates(survey,zDMgrid, zvals,dmvals,pset,binset,method=2,outdir='Pl
     
     acc.close()
 
-def initialise_grids(surveys,zDMgrid, zvals,dmvals,pset,wdist=False,source_evolution=0,alpha_method=1):
+def initialise_grids(surveys: list, zDMgrid: np.ndarray, zvals: np.ndarray, 
+                     dmvals: np.ndarray, params: dict, wdist=False): 
     """ For a list of surveys, construct a zDMgrid object
     wdist indicates a distribution of widths in the survey,
     i.e. do not use the mean efficiency
     Assumes that survey efficiencies ARE initialised
+
+    Args:
+        surveys (list): [description]
+        zDMgrid (np.ndarray): [description]
+        zvals (np.ndarray): [description]
+        dmvals (np.ndarray): [description]
+        pset (dict): [description]
+        wdist (bool, optional): [description]. Defaults to False.
+
+    Returns:
+        [type]: [description]
     """
-    # now it's a list! ;-)
     if not isinstance(surveys,list):
         surveys=[surveys]
     
     # get parameter values
-    lEmin,lEmax,alpha,gamma,sfr_n,logmean,logsigma,lC,H0=pset
+    #lEmin,lEmax,alpha,gamma,sfr_n,logmean,logsigma,lC,H0=pset
+    lEmin,lEmax,alpha,gamma,sfr_n,logmean,logsigma,lC,H0=parameters.unpack_pset(params)
     Emin=10**lEmin
     Emax=10**lEmax
     
@@ -1553,12 +1566,14 @@ def initialise_grids(surveys,zDMgrid, zvals,dmvals,pset,wdist=False,source_evolu
             weights=None
             #efficiencies=survey.get_efficiency(dmvals)
         
-        grid=zdm.grid(source_evolution=source_evolution,alpha_method=alpha_method)
+        grid=zdm.grid(source_evolution=params['FRBdemo'].source_evolution,
+                      alpha_method=params['FRBdemo'].alpha_method)
         grid.pass_grid(zDMgrid,zvals,dmvals,H0)
         grid.smear_dm(mask,logmean,logsigma)
         
         # note - survey frequencies in MHz
-        grid.calc_thresholds(survey.meta['THRESH'],efficiencies,alpha=alpha,weights=weights,nuObs=survey.meta['FBAR']*1e6)
+        grid.calc_thresholds(survey.meta['THRESH'],efficiencies,
+                             alpha=alpha,weights=weights,nuObs=survey.meta['FBAR']*1e6)
         grid.calc_dV()
         grid.calc_pdv(Emin,Emax,gamma,survey.beam_b,survey.beam_o) # calculates volumetric-weighted probabilities
         grid.set_evolution(sfr_n) # sets star-formation rate scaling with z - here, no evoltion...
