@@ -79,4 +79,52 @@ def test_make_grids():
     gpks=grids[3]
     print("Initialised grids")
     
+
+    Location='Plots'
+    if not os.path.isdir(Location):
+        os.mkdir(Location)
+    prefix='bestfit_'
     
+    do2DPlots=True
+    if do2DPlots:
+        # Unpack for convenience
+        lat50,ICS,ICS892,pks = surveys
+        muDM=10**params['host'].lmean
+        Macquart=muDM
+        # plots zdm distribution
+        misc_functions.plot_grid_2(gpks.rates,gpks.zvals,gpks.dmvals,zmax=3,DMmax=3000,
+                             name=os.path.join(Location,prefix+'nop_pks_optimised_grid.pdf'),
+                             norm=2,log=True,label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$',
+                             project=False,FRBDM=pks.DMEGs,FRBZ=None,Aconts=[0.01,0.1,0.5],Macquart=Macquart)
+        misc_functions.plot_grid_2(gICS.rates,gICS.zvals,gICS.dmvals,zmax=1,DMmax=2000,
+                             name=os.path.join(Location,prefix+'nop_ICS_optimised_grid.pdf'),
+                             norm=2,log=True,label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$',
+                             project=False,FRBDM=ICS.DMEGs,FRBZ=ICS.frbs["Z"],Aconts=[0.01,0.1,0.5],Macquart=Macquart)
+        misc_functions.plot_grid_2(gICS892.rates,gICS892.zvals,gICS892.dmvals,zmax=1,DMmax=2000,
+                             name=os.path.join(Location,prefix+'nop_ICS892_optimised_grid.pdf'),
+                             norm=2,log=True,label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$',
+                             project=False,FRBDM=ICS892.DMEGs,FRBZ=ICS892.frbs["Z"],Aconts=[0.01,0.1,0.5],Macquart=Macquart)
+        
+        misc_functions.plot_grid_2(glat50.rates,glat50.zvals,glat50.dmvals,zmax=0.6,DMmax=1500,
+                             name=os.path.join(Location,prefix+'nop_lat50_optimised_grid.pdf'),
+                             norm=2,log=True,label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$',
+                             project=False,FRBDM=lat50.DMEGs,FRBZ=None,Aconts=[0.01,0.1,0.5],Macquart=Macquart)
+        
+        # plots zdm distribution, including projections onto z and DM axes
+        misc_functions.plot_grid_2(gpks.rates,gpks.zvals,gpks.dmvals,zmax=3,DMmax=3000,
+                             name=os.path.join(Location,prefix+'pks_optimised_grid.pdf'),
+                             norm=2,log=True,label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$',
+                             project=True,FRBDM=pks.DMEGs,FRBZ=None,Aconts=[0.01,0.1,0.5],Macquart=Macquart)
+        misc_functions.plot_grid_2(gICS.rates,gICS.zvals,gICS.dmvals,zmax=1,DMmax=2000,
+                             name=os.path.join(Location,prefix+'ICS_optimised_grid.pdf'),
+                             norm=2,log=True,label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$',
+                             project=True,FRBDM=ICS.DMEGs,FRBZ=ICS.frbs["Z"],Aconts=[0.01,0.1,0.5],Macquart=Macquart)
+        misc_functions.plot_grid_2(gICS892.rates,gICS892.zvals,gICS892.dmvals,zmax=1,DMmax=2000,
+                             name=os.path.join(Location,prefix+'ICS892_optimised_grid.pdf'),
+                             norm=2,log=True,label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$',
+                             project=True,FRBDM=ICS892.DMEGs,FRBZ=ICS892.frbs["Z"],Aconts=[0.01,0.1,0.5],Macquart=Macquart)
+        misc_functions.plot_grid_2(glat50.rates,glat50.zvals,glat50.dmvals,zmax=0.5,DMmax=1000,
+                             name=os.path.join(Location,prefix+'lat50_optimised_grid.pdf'),
+                             norm=2,log=True,label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$',
+                             project=True,FRBDM=lat50.DMEGs,FRBZ=None,Aconts=[0.01,0.1,0.5],Macquart=Macquart)
+        
