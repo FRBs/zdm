@@ -18,6 +18,19 @@ def test_make_grids():
     params = parameters.init_parameters()
     params['cosmo'].current_H0 = 70.
 
+    # Compare to main branch
+    DEF_Omega_k=0.
+    # dark energy / cosmological constant (in current epoch)
+    DEF_Omega_lambda=0.685
+    # matter density in current epoch
+    DEF_Omega_m=0.315 #Plank says 0.315
+    # baryon density
+    DEF_Omega_b=0.044
+    DEF_Omega_b_h2=0.0224 #Planck says 0.0224, WMAP 0.02264
+    # hubble constant in current epoch
+    DEF_H0 = igm.Planck15.H0.value #km s^-1 Mpc^-1 #planck15 used in frb.igm
+
+
 
     ############## Initialise cosmology ##############
     cos.set_cosmology(params)
