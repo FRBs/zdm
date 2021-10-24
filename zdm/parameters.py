@@ -49,9 +49,6 @@ class BeamParams(myDataClass):
 # Cosmology parameters
 @dataclass
 class CosmoParams(myDataClass):
-    current_H0: float = field(
-        default=Planck18.H0.value,
-        metadata={'help': "Current H0 in the analysis"})
     H0: float = field(
         default=Planck18.H0.value,
         metadata={'help': "Hubble's constant (km/s/Mpc)"})
@@ -70,6 +67,9 @@ class CosmoParams(myDataClass):
     Omega_b_h2: float = field(
         default=Planck18.Ob0 * (Planck18.H0.value/100.)**2,
         metadata={'help': 'baryon density weight by h_100**2'})
+    fix_Omega_b_h2: bool = field(
+        default=False,
+        metadata={'help': 'Fix Omega_b_h2 by the Placnk18 value?'})
 
 # FRB Demographics
 @dataclass
@@ -101,6 +101,13 @@ class MWParams(myDataClass):
     DMhalo: float = field(
         default=50.,
         metadata={'help': 'DM for the Galactic halo in units of pc/cm^3'})
+
+# IGM parameters
+@dataclass
+class IGMParams(myDataClass):
+    F: float = field(
+        default=0.32,
+        metadata={'help': 'F parameter in DM PDF for the Cosmic web'})
 
 # Host parameters
 @dataclass
@@ -148,6 +155,7 @@ def init_parameters():
     param_dict['FRBdemo'] = FRBDemoParams()
     param_dict['cosmo'] = CosmoParams()
     param_dict['host'] = HostParams()
+    param_dict['IGM'] = IGMParams()
     param_dict['energy'] = EnergeticsParams()
 
     return param_dict

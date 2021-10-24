@@ -44,8 +44,7 @@ def make_grids():
 
     # get the grid of p(DM|z). See function for default values.
     # set new to False once this is already initialised
-    zDMgrid, zvals,dmvals, _ = misc_functions.get_zdm_grid(
-        params['cosmo'].current_H0,
+    zDMgrid, zvals,dmvals = misc_functions.get_zdm_grid(params,
         new=True, plot=False, method='analytic')
 
 

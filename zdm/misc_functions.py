@@ -1668,46 +1668,45 @@ def plot_1d(pvec,lset,xlabel,savename,showplot=False):
     plt.close()
     
 # generates grid based on Monte Carlo model
-def get_zdm_grid(H0, new=True,plot=False,method='analytic',
-                 F=0.32,nz=500,zmax=5,ndm=1400,dmmax=7000.,
+def get_zdm_grid(params:dict, new=True,plot=False,method='analytic',
+                 nz=500,zmax=5,ndm=1400,dmmax=7000.,
                  datdir='GridData',tag="", orig=False):
     """Generate a grid of z vs. DM for an assumed F value
     for a specified z range and DM range.
 
     Args:
-        H0 (float): Hubble parameter
+        params (float): Dict holding all the key parameters for the analysis
         new (bool, optional): [description]. Defaults to True.
         plot (bool, optional): [description]. Defaults to False.
         method (str, optional): [description]. Defaults to 'analytic'.
-        F (float, optional): Feedback parameter. Defaults to 0.32.
         nz (int, optional): Size of grid in redshift. Defaults to 500.
         zmax (int, optional): [description]. Defaults to 5.
         ndm (int, optional): Size of grid in DM.  Defaults to 1400.
         dmmax ([type], optional): Maximum DM of grid. Defaults to 7000..
         datdir (str, optional): [description]. Defaults to 'GridData'.
         tag (str, optional): [description]. Defaults to "".
-        orig (bool, optional): Use original calculations for things like C0. Defaults to False.
+        orig (bool, optional): Use original calculations for 
+            things like C0. Defaults to False.
 
     Returns:
         tuple: zDMgrid, zvals, dmvals
     """
-    
     # no action in fail case - it will already exist
     try:
         os.mkdir(datdir)
     except:
         pass
     if method=='MC':
-        savefile=datdir+'/'+tag+'zdm_MC_grid_'+str(F)+'.npy'
-        datfile=datdir+'/'+tag+'zdm_MC_data_'+str(F)+'.npy'
-        zfile=datdir+'/'+tag+'zdm_MC_z_'+str(F)+'.npy'
-        dmfile=datdir+'/'+tag+'zdm_MC_dm_'+str(F)+'.npy'
+        savefile=datdir+'/'+tag+'zdm_MC_grid_'+str(params['IGM'].F)+'.npy'
+        datfile=datdir+'/'+tag+'zdm_MC_data_'+str(params['IGM'].F)+'.npy'
+        zfile=datdir+'/'+tag+'zdm_MC_z_'+str(params['IGM'].F)+'.npy'
+        dmfile=datdir+'/'+tag+'zdm_MC_dm_'+str(params['IGM'].F)+'.npy'
     elif method=='analytic':
-        savefile=datdir+'/'+tag+'zdm_A_grid_'+str(F)+'H0_'+str(H0)+'.npy'
-        datfile=datdir+'/'+tag+'zdm_A_data_'+str(F)+'H0_'+str(H0)+'.npy'
-        zfile=datdir+'/'+tag+'zdm_A_z_'+str(F)+'H0_'+str(H0)+'.npy'
-        dmfile=datdir+'/'+tag+'zdm_A_dm_'+str(F)+'H0_'+str(H0)+'.npy'
-        C0file=datdir+'/'+tag+'zdm_A_C0_'+str(F)+'H0_'+str(H0)+'.npy'
+        savefile=datdir+'/'+tag+'zdm_A_grid_'+str(params['IGM'].F)+'H0_'+str(params['cosmo'].H0)+'.npy'
+        datfile=datdir+'/'+tag+'zdm_A_data_'+str(params['IGM'].F)+'H0_'+str(params['cosmo'].H0)+'.npy'
+        zfile=datdir+'/'+tag+'zdm_A_z_'+str(params['IGM'].F)+'H0_'+str(params['cosmo'].H0)+'.npy'
+        dmfile=datdir+'/'+tag+'zdm_A_dm_'+str(params['IGM'].F)+'H0_'+str(params['cosmo'].H0)+'.npy'
+        C0file=datdir+'/'+tag+'zdm_A_C0_'+str(params['IGM'].F)+'H0_'+str(params['cosmo'].H0)+'.npy'
     #labelled pickled files with H0
     if new:
         
@@ -1748,19 +1747,20 @@ def get_zdm_grid(H0, new=True,plot=False,method='analytic',
             t0=time.process_time()
             # calculate constants for p_DM distribution
             if orig:
-                C0s=pcosmic.make_C0_grid(zvals,F)
+                C0s=pcosmic.make_C0_grid(zvals,params['IGM'].F)
             else:
                 f_C0_3 = cosmic.grab_C0_spline()
-                sigma = F / np.sqrt(zvals)
+                sigma = params['IGM'].F / np.sqrt(zvals)
                 C0s = f_C0_3(sigma)
             # generate pDM grid using those COs
-            zDMgrid=pcosmic.get_pDM_grid(H0,F,dmvals,zvals,C0s)
+            #zDMgrid=pcosmic.get_pDM_grid(H0,F,dmvals,zvals,C0s)
+            zDMgrid=pcosmic.get_pDM_grid(params,dmvals,zvals,C0s)
             t1=time.process_time()
             dt=t1-t0
             print("Done. Took ",dt," seconds")
         
         np.save(savefile,zDMgrid)
-        metadata=np.array([nz,ndm,F])
+        metadata=np.array([nz,ndm,params['IGM'].F])
         np.save(datfile,metadata)
         np.save(zfile,zvals)
         np.save(dmfile,dmvals)
@@ -1785,7 +1785,7 @@ def get_zdm_grid(H0, new=True,plot=False,method='analytic',
         plt.savefig('p_dm_slices.pdf')
         plt.close()
 
-    return zDMgrid, zvals,dmvals, H0
+    return zDMgrid, zvals,dmvals
 
 def plot_zdm_basic_paper(zDMgrid,zvals,dmvals,zmax=1,DMmax=1000,
                          norm=0,log=True,name='temp.pdf',ylabel=None,
