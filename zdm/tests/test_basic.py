@@ -12,24 +12,30 @@ from zdm import survey
 
 from IPython import embed
 
-def test_make_grids():
+def make_grids():
 
     ############## Initialise parameters ##############
     params = parameters.init_parameters()
-    params['cosmo'].current_H0 = 70.
+
+    # Test against main
+    params['cosmo'].current_H0 = 67.74
+    params['cosmo'].H0 = 67.74
+    params['cosmo'].Omega_lambda = 0.685
+    params['cosmo'].Omega_m = 0.315
+    params['cosmo'].Omega_b = 0.044
+    params['cosmo'].Omega_b_h2 = 0.0224
 
     # Compare to main branch
-    DEF_Omega_k=0.
+    #DEF_Omega_k=0.
     # dark energy / cosmological constant (in current epoch)
-    DEF_Omega_lambda=0.685
+    #DEF_Omega_lambda=0.685
     # matter density in current epoch
-    DEF_Omega_m=0.315 #Plank says 0.315
+    #DEF_Omega_m=0.315 #Plank says 0.315
     # baryon density
-    DEF_Omega_b=0.044
-    DEF_Omega_b_h2=0.0224 #Planck says 0.0224, WMAP 0.02264
+    #DEF_Omega_b=0.044
+    #DEF_Omega_b_h2=0.0224 #Planck says 0.0224, WMAP 0.02264
     # hubble constant in current epoch
-    DEF_H0 = igm.Planck15.H0.value #km s^-1 Mpc^-1 #planck15 used in frb.igm
-
+    #DEF_H0 = igm.Planck15.H0.value #km s^-1 Mpc^-1 #planck15 used in frb.igm
 
 
     ############## Initialise cosmology ##############
@@ -92,7 +98,6 @@ def test_make_grids():
     gpks=grids[3]
     print("Initialised grids")
     
-
     Location='Plots'
     if not os.path.isdir(Location):
         os.mkdir(Location)
@@ -140,4 +145,5 @@ def test_make_grids():
                              name=os.path.join(Location,prefix+'lat50_optimised_grid.pdf'),
                              norm=2,log=True,label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$',
                              project=True,FRBDM=lat50.DMEGs,FRBZ=None,Aconts=[0.01,0.1,0.5],Macquart=Macquart)
-        
+
+make_grids()        

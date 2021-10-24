@@ -86,7 +86,7 @@ class FRBDemoParams(myDataClass):
                  '1: rate interpretation: extra factor of (1+z)^alpha in source evolution', 
                  'options': [0,1]})
     gamma: float = field(
-        default = 1.16,
+        default = -1.16,
         metadata={'help': 'slope of luminosity distribution function'})
     sfr_n: float = field(
         default = 1.77,
@@ -132,7 +132,7 @@ class EnergeticsParams(myDataClass):
         default = 41.84,
         metadata={'help': 'Maximum energy.  log10 in erg'})
     alpha: float = field(
-        default = 41.84,
+        default = 1.54,
         metadata={'help': 'spectral index. WARNING: here F(nu)~nu^-alpha in the code, opposite to the paper!'})
 
 def init_parameters():
@@ -155,13 +155,14 @@ def init_parameters():
 
 def unpack_pset(params:dict, mode:str='H0_std'):
     if mode == 'H0_std':
-        return [params['energy'].lEmin,
+        return [
+            params['energy'].lEmin,
             params['energy'].lEmax,
             params['energy'].alpha,
             params['FRBdemo'].gamma,
             params['FRBdemo'].sfr_n,
-            params['width'].logmean,
-            params['width'].logsigma,
+            params['host'].lmean,
+            params['host'].lsigma,
             params['FRBdemo'].lC,
             params['cosmo'].current_H0,
         ]
