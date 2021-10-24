@@ -66,9 +66,12 @@ class CosmoParams(myDataClass):
         metadata={'help': 'baryon density'})
     Omega_b_h2: float = field(
         default=Planck18.Ob0 * (Planck18.H0.value/100.)**2,
-        metadata={'help': 'baryon density weight by h_100**2'})
+        metadata={'help': 'Baryon density weighted by h_100**2.  This should always be the CMB value!'})
+    fixed_H0: float = field(
+        default=Planck18.H0.value,
+        metadata={'help': "Hubble's constant (km/s/Mpc) for the fixed Omega_h2 value"})
     fix_Omega_b_h2: bool = field(
-        default=False,
+        default=True,
         metadata={'help': 'Fix Omega_b_h2 by the Placnk18 value?'})
 
 # FRB Demographics
@@ -172,7 +175,7 @@ def unpack_pset(params:dict, mode:str='H0_std'):
             params['host'].lmean,
             params['host'].lsigma,
             params['FRBdemo'].lC,
-            params['cosmo'].current_H0,
+            params['cosmo'].H0,
         ]
     else:
         raise IOError('Bad mode')

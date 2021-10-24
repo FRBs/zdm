@@ -5,6 +5,8 @@ from pkg_resources import resource_filename
 import os
 import pickle
 
+from astropy.cosmology import Planck18
+
 from zdm import cosmology as cos
 from zdm import misc_functions
 from zdm import parameters
@@ -18,12 +20,16 @@ def make_grids():
     params = parameters.init_parameters()
 
     # Test against main
-    params['cosmo'].current_H0 = 67.74
     params['cosmo'].H0 = 67.74
     params['cosmo'].Omega_lambda = 0.685
     params['cosmo'].Omega_m = 0.315
     params['cosmo'].Omega_b = 0.044
-    params['cosmo'].Omega_b_h2 = 0.0224
+
+    # Fix Omega_b?
+    if params['cosmo'].fix_Omega_b_h2:
+        params['cosmo'].Omega_b = params['cosmo'].Omega_b_h2/(
+            params['cosmo'].H0/100.)**2
+        print(f"Omega_b adjusted to {params['cosmo'].Omega_b}")
 
     # Compare to main branch
     #DEF_Omega_k=0.
