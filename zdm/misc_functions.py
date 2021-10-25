@@ -384,6 +384,7 @@ def make_dm_redshift(grid,savename="",DMmax=1000,zmax=1,loc='upper left',Macquar
 		plt.xlim(0,xtvals.size)
 		zmax=zvals[-1]
 		DMbar, zeval = igm.average_DM(zmax, cumul=True, neval=nz+1)
+		DMbar = DMbar*H0/(cos.DEF_H0)
 		DMbar=np.array(DMbar)
 		DMbar += Macquart #should be interpreted as muDM
 		
@@ -2098,6 +2099,7 @@ def plot_grid_2(zDMgrid,zvals,dmvals,zmax=1,DMmax=1000,norm=0,log=True,name='tem
 		zmax=zvals[-1]
 		nz=zvals.size
 		DMbar, zeval = igm.average_DM(zmax, cumul=True, neval=nz+1)
+		DMbar = DMbar*H0/(cos.DEF_H0)
 		DMbar=np.array(DMbar)
 		DMbar += Macquart #should be interpreted as muDM
 		mu_DM=zDMgrid
