@@ -232,7 +232,7 @@ def main(N=100,plots=False):
 		name = i
 		name = str(name)
 	
-		savefile='mc_sample'+name+'alpha_0.npy'
+		savefile='mc_sample'+name+'alpha_'+str(alpha_method)+'.npy'
 	
 		try:
 			sample=np.load(savefile)
