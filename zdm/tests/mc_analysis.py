@@ -27,7 +27,7 @@ from zdm import beams
 from zdm import misc_functions
 from zdm.tests import mc_statistics as mc
 from scipy.interpolate import bisplrep, bisplev
-import pickle
+import seaborn as sns
 import copy
 
 def scan_H0_MC(N,mcsample, survey, H0iter, plots=False):
@@ -52,23 +52,32 @@ def scan_H0_MC(N,mcsample, survey, H0iter, plots=False):
         zDMgrid, zvals, dmvals, H0 = misc_functions.get_zdm_grid(
             H0=setH0, new=True, plot=False, method='analytic')
 
-        mean=10**2.16
-        sigma=10**0.51
-        logmean=np.log10(mean)
-        logsigma=np.log10(sigma)
-        alpha=1.54
-        gamma=-1.16
-        Emin=10**(30)
-        sfr_n=1.77
-        C=4.19
+        #updated best-fit values
+        alpha_method=0
+        lmean=2.11
+        lsigma=0.53
+        alpha=1.55
+        gamma=-1.09
+        lEmax=41.7
+        lEmin=30
+        sfr_n=1.67
+        C=3.188
+    
+    	#alpha_method=1
+    	#lEmin=30
+    	#lEmax =41.40
+    	#alpha =-0.66
+    	#gamma = -1.01
+    	#sfr_n= 0.73
+    	#lmean=2.18
+    	#lsigma=0.48
+    	#C=2.36 ##it.GetFirstConstantEstimate(grids,surveys,pset)
         
         #if i<67.74:
             #Emax=10**(42.44)
-        #else:
-        Emax=10**(41.84)
     
         
-        pset=[np.log10(float(Emin)),np.log10(float(Emax)),alpha,gamma,sfr_n,logmean,logsigma,C,setH0]
+        pset=[lEmin,lEmax,alpha,gamma,sfr_n,lmean,lsigma,C,setH0]
         #it.print_pset(pset)
         
         grids=misc_functions.initialise_grids(survey,zDMgrid, zvals,dmvals,pset,wdist=True,
@@ -349,5 +358,6 @@ def MC_H0(N, H0start, H0stop, niter, plot=False):
     plt.show()
     plt.close()
 
-MC_H0(50,55,90,5)
+#MC_H0(50,55,90,5)
+
 

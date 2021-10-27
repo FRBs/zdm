@@ -178,7 +178,7 @@ def main(N=100,plots=False):
 	dirnames=['ASKAP_FE','ASKAP_ICS','Parkes_Mb']
 	
 	#updated best-fit values
-	alpha_method=1
+	alpha_method=0
 	lmean=2.11
 	lsigma=0.53
 	alpha=1.55

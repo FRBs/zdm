@@ -88,7 +88,7 @@ efficiencies892=ICS892.get_efficiency_from_wlist(dmvals,pwidths,pprobs)
 surveys=[lat50,ics,ICS892,pks]
 
 #updated best-fit values
-alpha_method=1
+alpha_method=0
 logmean=2.11
 logsigma=0.53
 alpha=1.55
@@ -111,38 +111,35 @@ C=3.188
 pset=[np.log10(float(Emin)),np.log10(float(Emax)),alpha,gamma,sfr_n,logmean,logsigma,C,setH0]
 it.print_pset(pset)
 
-grids=misc_functions.initialise_grids(surveys,zDMgrid, zvals,dmvals,pset,wdist=True,source_evolution=0,alpha_method=1)
+grids=misc_functions.initialise_grids(surveys,zDMgrid, zvals,dmvals,pset,wdist=True,source_evolution=0,alpha_method=0)
 
 plots=False
 zmax=[0.6,1,1,3]
 DMmax=[1500,2000,2000,3000]
+zmax2=[0.75,1,1,3]
+DMmax2=[1000,2000,2000,4000]
 if plots:
     for i in range (len(surveys)):
             grid=grids[i]
             sv=surveys[i]
-            pcosmic.plot_mean(zvals,'Plots/mean_DM.pdf')
+            pcosmic.plot_mean(zvals,'mean_DM.pdf')
             #misc_functions.plot_efficiencies(lat50)
-            misc_functions.plot_grid_2(grid.grid,grid.zvals,grid.dmvals,zmax=zmax[i],DMmax=DMmax[i],
+            misc_functions.plot_zdm_basic_paper(grid.grid,grid.zvals,grid.dmvals,zmax=3,DMmax=3000,
                                        name='Plots/p_dm_z_grid_image.pdf',norm=1,log=True,
                                        label='$\\log_{10}p(DM_{\\rm EG}|z)$',
                                        conts=[0.16,0.5,0.88],title='Grid at H0 '+str(i),
                                        H0=setH0,showplot=True)
-            misc_functions.plot_zdm_basic_paper(grid.smear_grid,grid.zvals,grid.dmvals,zmax=zmax[i],
-                                                DMmax=DMmax[i],norm=1,log=True,
+            misc_functions.plot_zdm_basic_paper(grid.smear_grid,grid.zvals,grid.dmvals,zmax=3,
+                                                DMmax=3000,norm=1,log=True,
                                                 ylabel='${\\rm DM_{\\rm EG}}$',
                                                 label='$\\log_{10} p({\\rm DM_{cosmic}+DM_{host}}|z)$',
                                                 conts=[0.023, 0.159,0.5,0.841,0.977],
                                                 title='Smear grid at H0 '+str(i),H0=setH0,
                                                 showplot=True)    
             misc_functions.plot_grid_2(grid.pdv,grid.zvals,grid.dmvals,zmax=zmax[i],DMmax=DMmax[i],
-                                       name='Plots/pdv.pdf',norm=True,log=True
+                                       name='Plots/pdv.pdf',norm=2,log=True
                                        ,label='$p(DM_{\\rm EG},z)dV$ [Mpc$^3$]',
                                        title="Pdv at H0" + str(i),showplot=True)
-            misc_functions.plot_grid_2(grid.rates,grid.zvals,grid.dmvals,zmax=zmax[i],DMmax=DMmax[i],
-                                       name='Plots/project_rate_dm_z_grid_image.pdf',norm=2,
-                                       log=True,label='$f(DM_{\\rm EG},z)p(DM_{\\rm EG},z)dV$ [Mpc$^3$]',
-                                       project=False, title='Rates at H0 '+str(i),H0=setH0,
-                                       showplot=True) 
             
             muDM=10**pset[5]
             Macquart=muDM
@@ -151,7 +148,7 @@ if plots:
                                 project=False,FRBDM=sv.DMEGs,FRBZ=None,Aconts=[0.01,0.1,0.5],
                                 Macquart=Macquart,title="H0 value "+str(i),H0= setH0,showplot=True)
             misc_functions.make_dm_redshift(grid,
-                                DMmax=DMmax[i],zmax=zmax[i],loc='upper right',Macquart=Macquart,
+                                DMmax=DMmax2[i],zmax=zmax2[i],loc='upper right',Macquart=Macquart,
                                 H0=setH0,showplot=True) 
 
       
@@ -176,7 +173,7 @@ if scanoverH0:
         #for H0
         t0=time.process_time()
         
-        H0iter=np.linspace(50,130,4)
+        H0iter=np.linspace(50,100,4)
         lscanH0,lllistH0,expectedH0=it.scan_likelihoods_1D(grid,pset,sv,8,H0iter,norm=True)
         misc_functions.plot_1d(H0iter,lscanH0,'$H_{\\rm 0}$','Plots/test_lik_fn_emax.pdf')
         t1=time.process_time()
@@ -212,12 +209,12 @@ def scan_H0(H0_start,H0_stop,n_iterations,surveys,plots=False):
         pset=[np.log10(float(Emin)),np.log10(float(Emax)),alpha,gamma,sfr_n,logmean,logsigma,C,setH0]
         it.print_pset(pset)
         
-        grids=misc_functions.initialise_grids(surveys,zDMgrid, zvals,dmvals,pset,wdist=True,source_evolution=0,alpha_method=1)
+        grids=misc_functions.initialise_grids(surveys,zDMgrid, zvals,dmvals,pset,wdist=True,source_evolution=0,alpha_method=0)
         
         grid=grids[0]
         if plots:
             
-            pcosmic.plot_mean(zvals,'Plots/mean_DM.pdf', title="Mean DM at" + str(i))
+            pcosmic.plot_mean(zvals,'mean_DM.pdf', title="Mean DM at" + str(i))
             
             misc_functions.plot_zdm_basic_paper(grid.grid,grid.zvals,grid.dmvals,zmax=3,DMmax=3000,
                                                name='Plots/p_dm_z_grid_image.pdf',norm=1,log=True,
@@ -238,13 +235,13 @@ def scan_H0(H0_start,H0_stop,n_iterations,surveys,plots=False):
             
             if plots:
                 misc_functions.plot_grid_2(grid.pdv,grid.zvals,grid.dmvals,zmax=zmax[j],DMmax=DMmax[j],
-                                           name='Plots/pdv.pdf',norm=True,log=True,
+                                           name='Plots/pdv.pdf',norm=2,log=True,
                                            label='$p(DM_{\\rm EG},z)dV$ [Mpc$^3$]',showplot=True,
-                                           title='Pdv of '+ str(sv.name)+ 'at $H_{0}$ ')
+                                           title='Pdv of '+ str(j)+ 'at $H_{0}$ ')
                 misc_functions.plot_grid_2(grid.rates,grid.zvals,grid.dmvals,zmax=zmax[j],DMmax=DMmax[j],
                                            name='Plots/project_rate_dm_z_grid_image.pdf',norm=2,
                                            log=True,label='$f(DM_{\\rm EG},z)p(DM_{\\rm EG},z)dV$ [Mpc$^3$]',
-                                           project=False, title='Rates of ' + str(sv.name) + ' at $H_{0}$ ',
+                                           project=False, title='Rates of ' + str(j) + ' at $H_{0}$ ',
                                            H0=setH0,showplot=True)   
                 #from test.py
                 muDM=10**pset[5]
@@ -252,9 +249,9 @@ def scan_H0(H0_start,H0_stop,n_iterations,surveys,plots=False):
                 misc_functions.plot_grid_2(grid.rates,grid.zvals,grid.dmvals,zmax=zmax[j],DMmax=DMmax[j],
                                      norm=2,log=True,label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$',
                                      project=False,FRBDM=sv.DMEGs,FRBZ=None,Aconts=[0.01,0.1,0.5],
-                                     Macquart=Macquart,title='p(z,DM) of '+ str(sv.name) + ' at $H_{0}$',H0= setH0, showplot=True)
+                                     Macquart=Macquart,title='p(z,DM) of '+ str(j) + ' at $H_{0}$',H0= setH0, showplot=True)
                 misc_functions.make_dm_redshift(grid,
-                                      DMmax=DMmax[j],zmax=zmax[j],loc='upper right',Macquart=Macquart,
+                                      DMmax=DMmax2[j],zmax=zmax2[j],loc='upper right',Macquart=Macquart,
                                       H0=setH0, showplot=True)
             if sv.nD==1:
                 llsum= it.calc_likelihoods_1D(grid, sv, pset, psnr=True)
@@ -276,7 +273,6 @@ def scan_H0(H0_start,H0_stop,n_iterations,surveys,plots=False):
     H0likes=np.array(H0likes)
     print (H0likes)
     H0likes=np.transpose(H0likes)
-    H0likes=-H0likes
     for a in range(len(surveys)):
         sv=surveys[a]
         H0likesa=H0likes[a]
@@ -290,16 +286,16 @@ def scan_H0(H0_start,H0_stop,n_iterations,surveys,plots=False):
     H0likessum=np.sum(H0likes,axis=0)
     plt.plot(H0values,H0likessum)
     tckj = interpolate.splrep(H0values,H0likessum, s=0)
-    H0new=np.arange(30,120,0.01)
+    H0new=np.arange(50,100,0.01)
     ynewj = interpolate.splev(H0new, tckj)
     plt.plot(H0new,ynewj)
     #plt.title("Likelihood scan while varying H0 for " + str(sv.name))
     plt.xlabel("Value of ${\\rm H_{\\rm 0}}$ in km s${^{-1}}$ Mpc{$^-1$}")
-    plt.ylabel("log Likelihood")
+    plt.ylabel("Log Likelihood")
     plt.show()
     
     H0best=H0new[np.argmin(ynewj)]
-    print ('Best fit for alpha method=' +str(grid.alpha_method) +'$H_{0}$ is', H0best)
+    print ('Best fit for alpha method= ' +str(grid.alpha_method) +'$H_{0}$ is', H0best)
     
 plt.close()
 
