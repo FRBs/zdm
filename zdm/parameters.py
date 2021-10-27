@@ -1,6 +1,7 @@
 from IPython.terminal.embed import embed
 import numpy as np
-from dataclasses import dataclass, field, fields
+from dataclasses import dataclass, field
+from typing import IO, List
 from astropy.cosmology import Planck18
 
 # Add a few methods to be shared by them all
@@ -28,8 +29,22 @@ class BeamParams(myDataClass):
     thresh: int = field(
         default=0,
         metadata={'help': '??'})
-    method: int = field(
-        default=2)
+    method: str = field(
+        default='Std',
+        metadata={'help': 'Method for calculation. Full=more detailed and more time. Std=fast'})
+    Nbeams: List[int] = field(  # can use in list in 3.9
+        default_factory=list,
+        #default_factory=[5,5,5,10],
+        metadata={'help': '???'})
+    Wbins: int = field(
+        default=5,
+        metadata={'help': '???'})
+    Wscale: int = field(
+        default=3.5,
+        metadata={'help': '???'})
+
+    def __post_init__(self):
+        self.Nbeams = [5,5,5,10]
 
 # Cosmology parameters
 @dataclass
@@ -51,9 +66,15 @@ class CosmoParams(myDataClass):
         metadata={'help': 'baryon density'})
     Omega_b_h2: float = field(
         default=Planck18.Ob0 * (Planck18.H0.value/100.)**2,
-        metadata={'help': 'baryon density weight by h_100**2'})
+        metadata={'help': 'Baryon density weighted by h_100**2.  This should always be the CMB value!'})
+    fixed_H0: float = field(
+        default=Planck18.H0.value,
+        metadata={'help': "Hubble's constant (km/s/Mpc) for the fixed Omega_h2 value"})
+    fix_Omega_b_h2: bool = field(
+        default=True,
+        metadata={'help': 'Fix Omega_b_h2 by the Placnk18 value?'})
 
-# Beam parameters
+# FRB Demographics
 @dataclass
 class FRBDemoParams(myDataClass):
     source_evolution: int = field(
@@ -62,11 +83,20 @@ class FRBDemoParams(myDataClass):
                  '0: SFR^n; 1: (1+z)^(2.7n)', 
                  'options': [0,1]}) 
     alpha_method: int = field(
-        default=2, 
+        default=0, 
         metadata={'help': 'Integer flag specifying the nature of scaling. '+\
                  '0: spectral index interpretation: includes k-correction. Slower to update ' +\
                  '1: rate interpretation: extra factor of (1+z)^alpha in source evolution', 
                  'options': [0,1]})
+    gamma: float = field(
+        default = -1.16,
+        metadata={'help': 'slope of luminosity distribution function'})
+    sfr_n: float = field(
+        default = 1.77,
+        metadata={'help': 'scaling with star-formation rate'})
+    lC: float = field(
+        default = 4.19,
+        metadata={'help': 'log10 constant in number per Gpc^-3 yr^-1 at z=0'})
 
 # Galactic parameters
 @dataclass
@@ -74,6 +104,23 @@ class MWParams(myDataClass):
     DMhalo: float = field(
         default=50.,
         metadata={'help': 'DM for the Galactic halo in units of pc/cm^3'})
+
+# IGM parameters
+@dataclass
+class IGMParams(myDataClass):
+    F: float = field(
+        default=0.32,
+        metadata={'help': 'F parameter in DM PDF for the Cosmic web'})
+
+# Host parameters
+@dataclass
+class HostParams(myDataClass):
+    lmean: float = field(
+        default=2.16,
+        metadata={'help': 'log10 mean of DM host contribution in pc cm^-3'})
+    lsigma: float = field(
+        default=0.51,
+        metadata={'help': 'log10 sigma of DM host contribution in pc cm^-3'})
 
 # FRB intrinsic width parameters
 @dataclass
@@ -85,6 +132,18 @@ class WidthParams(myDataClass):
         default = 0.899148,
         metadata={'help': 'Intrinsic width log of sigma'})
 
+# FRB Energetics
+@dataclass
+class EnergeticsParams(myDataClass):
+    lEmin: float = field(
+        default = 30.,
+        metadata={'help': 'Minimum energy.  log10 in erg'})
+    lEmax: float = field(
+        default = 41.84,
+        metadata={'help': 'Maximum energy.  log10 in erg'})
+    alpha: float = field(
+        default = 1.54,
+        metadata={'help': 'spectral index. WARNING: here F(nu)~nu^-alpha in the code, opposite to the paper!'})
 
 def init_parameters():
 
@@ -98,9 +157,28 @@ def init_parameters():
     param_dict['beam'] = BeamParams()
     param_dict['FRBdemo'] = FRBDemoParams()
     param_dict['cosmo'] = CosmoParams()
+    param_dict['host'] = HostParams()
+    param_dict['IGM'] = IGMParams()
+    param_dict['energy'] = EnergeticsParams()
 
     return param_dict
 
+
+def unpack_pset(params:dict, mode:str='H0_std'):
+    if mode == 'H0_std':
+        return [
+            params['energy'].lEmin,
+            params['energy'].lEmax,
+            params['energy'].alpha,
+            params['FRBdemo'].gamma,
+            params['FRBdemo'].sfr_n,
+            params['host'].lmean,
+            params['host'].lsigma,
+            params['FRBdemo'].lC,
+            params['cosmo'].H0,
+        ]
+    else:
+        raise IOError('Bad mode')
 
 def vet_param(obj, dmodel:dict, verbose=True):
     """ Vet the input object against its data model

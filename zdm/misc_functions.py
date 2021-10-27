@@ -20,6 +20,7 @@ from zdm import cosmology as cos
 from zdm import survey
 from zdm import zdm
 from zdm import pcosmic
+from zdm import parameters
 
 
 def marginalise(pset,grids,surveys,which,vals,disable=None,psnr=True,PenTypes=None,PenParams=None,Verbose=False,steps=None):
@@ -300,6 +301,8 @@ def make_dm_redshift(grid,savename="",DMmax=1000,
                      zmax=1,loc='upper left',Macquart=None,
                      H0=None,showplot=False):
     ''' generates full dm-redhsift (Macquart) relation '''
+    if H0 is None:
+        H0 = cos.cosmo.H0
     ndm=1000
     cvs=[0.025,0.16,0.5,0.84,0.975]
     nc=len(cvs)
@@ -1525,18 +1528,30 @@ def test_beam_rates(survey,zDMgrid, zvals,dmvals,pset,binset,method=2,outdir='Pl
     
     acc.close()
 
-def initialise_grids(surveys,zDMgrid, zvals,dmvals,pset,wdist=False,source_evolution=0,alpha_method=1):
+def initialise_grids(surveys: list, zDMgrid: np.ndarray, zvals: np.ndarray, 
+                     dmvals: np.ndarray, params: dict, wdist=False): 
     """ For a list of surveys, construct a zDMgrid object
     wdist indicates a distribution of widths in the survey,
     i.e. do not use the mean efficiency
     Assumes that survey efficiencies ARE initialised
+
+    Args:
+        surveys (list): [description]
+        zDMgrid (np.ndarray): [description]
+        zvals (np.ndarray): [description]
+        dmvals (np.ndarray): [description]
+        pset (dict): [description]
+        wdist (bool, optional): [description]. Defaults to False.
+
+    Returns:
+        [type]: [description]
     """
-    # now it's a list! ;-)
     if not isinstance(surveys,list):
         surveys=[surveys]
     
     # get parameter values
-    lEmin,lEmax,alpha,gamma,sfr_n,logmean,logsigma,lC,H0=pset
+    #lEmin,lEmax,alpha,gamma,sfr_n,logmean,logsigma,lC,H0=pset
+    lEmin,lEmax,alpha,gamma,sfr_n,logmean,logsigma,lC,H0=parameters.unpack_pset(params)
     Emin=10**lEmin
     Emax=10**lEmax
     
@@ -1553,12 +1568,14 @@ def initialise_grids(surveys,zDMgrid, zvals,dmvals,pset,wdist=False,source_evolu
             weights=None
             #efficiencies=survey.get_efficiency(dmvals)
         
-        grid=zdm.grid(source_evolution=source_evolution,alpha_method=alpha_method)
+        grid=zdm.grid(source_evolution=params['FRBdemo'].source_evolution,
+                      alpha_method=params['FRBdemo'].alpha_method)
         grid.pass_grid(zDMgrid,zvals,dmvals,H0)
         grid.smear_dm(mask,logmean,logsigma)
         
         # note - survey frequencies in MHz
-        grid.calc_thresholds(survey.meta['THRESH'],efficiencies,alpha=alpha,weights=weights,nuObs=survey.meta['FBAR']*1e6)
+        grid.calc_thresholds(survey.meta['THRESH'],efficiencies,
+                             alpha=alpha,weights=weights,nuObs=survey.meta['FBAR']*1e6)
         grid.calc_dV()
         grid.calc_pdv(Emin,Emax,gamma,survey.beam_b,survey.beam_o) # calculates volumetric-weighted probabilities
         grid.set_evolution(sfr_n) # sets star-formation rate scaling with z - here, no evoltion...
@@ -1653,46 +1670,45 @@ def plot_1d(pvec,lset,xlabel,savename,showplot=False):
     plt.close()
     
 # generates grid based on Monte Carlo model
-def get_zdm_grid(H0, new=True,plot=False,method='analytic',
-                 F=0.32,nz=500,zmax=5,ndm=1400,dmmax=7000.,
+def get_zdm_grid(params:dict, new=True,plot=False,method='analytic',
+                 nz=500,zmax=5,ndm=1400,dmmax=7000.,
                  datdir='GridData',tag="", orig=False):
     """Generate a grid of z vs. DM for an assumed F value
     for a specified z range and DM range.
 
     Args:
-        H0 (float): Hubble parameter
+        params (float): Dict holding all the key parameters for the analysis
         new (bool, optional): [description]. Defaults to True.
         plot (bool, optional): [description]. Defaults to False.
         method (str, optional): [description]. Defaults to 'analytic'.
-        F (float, optional): Feedback parameter. Defaults to 0.32.
         nz (int, optional): Size of grid in redshift. Defaults to 500.
         zmax (int, optional): [description]. Defaults to 5.
         ndm (int, optional): Size of grid in DM.  Defaults to 1400.
         dmmax ([type], optional): Maximum DM of grid. Defaults to 7000..
         datdir (str, optional): [description]. Defaults to 'GridData'.
         tag (str, optional): [description]. Defaults to "".
-        orig (bool, optional): Use original calculations for things like C0. Defaults to False.
+        orig (bool, optional): Use original calculations for 
+            things like C0. Defaults to False.
 
     Returns:
         tuple: zDMgrid, zvals, dmvals
     """
-    
     # no action in fail case - it will already exist
     try:
         os.mkdir(datdir)
     except:
         pass
     if method=='MC':
-        savefile=datdir+'/'+tag+'zdm_MC_grid_'+str(F)+'.npy'
-        datfile=datdir+'/'+tag+'zdm_MC_data_'+str(F)+'.npy'
-        zfile=datdir+'/'+tag+'zdm_MC_z_'+str(F)+'.npy'
-        dmfile=datdir+'/'+tag+'zdm_MC_dm_'+str(F)+'.npy'
+        savefile=datdir+'/'+tag+'zdm_MC_grid_'+str(params['IGM'].F)+'.npy'
+        datfile=datdir+'/'+tag+'zdm_MC_data_'+str(params['IGM'].F)+'.npy'
+        zfile=datdir+'/'+tag+'zdm_MC_z_'+str(params['IGM'].F)+'.npy'
+        dmfile=datdir+'/'+tag+'zdm_MC_dm_'+str(params['IGM'].F)+'.npy'
     elif method=='analytic':
-        savefile=datdir+'/'+tag+'zdm_A_grid_'+str(F)+'H0_'+str(H0)+'.npy'
-        datfile=datdir+'/'+tag+'zdm_A_data_'+str(F)+'H0_'+str(H0)+'.npy'
-        zfile=datdir+'/'+tag+'zdm_A_z_'+str(F)+'H0_'+str(H0)+'.npy'
-        dmfile=datdir+'/'+tag+'zdm_A_dm_'+str(F)+'H0_'+str(H0)+'.npy'
-        C0file=datdir+'/'+tag+'zdm_A_C0_'+str(F)+'H0_'+str(H0)+'.npy'
+        savefile=datdir+'/'+tag+'zdm_A_grid_'+str(params['IGM'].F)+'H0_'+str(params['cosmo'].H0)+'.npy'
+        datfile=datdir+'/'+tag+'zdm_A_data_'+str(params['IGM'].F)+'H0_'+str(params['cosmo'].H0)+'.npy'
+        zfile=datdir+'/'+tag+'zdm_A_z_'+str(params['IGM'].F)+'H0_'+str(params['cosmo'].H0)+'.npy'
+        dmfile=datdir+'/'+tag+'zdm_A_dm_'+str(params['IGM'].F)+'H0_'+str(params['cosmo'].H0)+'.npy'
+        C0file=datdir+'/'+tag+'zdm_A_C0_'+str(params['IGM'].F)+'H0_'+str(params['cosmo'].H0)+'.npy'
     #labelled pickled files with H0
     if new:
         
@@ -1733,20 +1749,20 @@ def get_zdm_grid(H0, new=True,plot=False,method='analytic',
             t0=time.process_time()
             # calculate constants for p_DM distribution
             if orig:
-                C0s=pcosmic.make_C0_grid(zvals,F)
+                C0s=pcosmic.make_C0_grid(zvals,params['IGM'].F)
             else:
                 f_C0_3 = cosmic.grab_C0_spline()
-                sigma = F / np.sqrt(zvals)
+                sigma = params['IGM'].F / np.sqrt(zvals)
                 C0s = f_C0_3(sigma)
             # generate pDM grid using those COs
-            zDMgrid=pcosmic.get_pDM_grid(
-                H0,F,dmvals,zvals,C0s)
+            #zDMgrid=pcosmic.get_pDM_grid(H0,F,dmvals,zvals,C0s)
+            zDMgrid=pcosmic.get_pDM_grid(params,dmvals,zvals,C0s)
             t1=time.process_time()
             dt=t1-t0
             print("Done. Took ",dt," seconds")
         
         np.save(savefile,zDMgrid)
-        metadata=np.array([nz,ndm,F])
+        metadata=np.array([nz,ndm,params['IGM'].F])
         np.save(datfile,metadata)
         np.save(zfile,zvals)
         np.save(dmfile,dmvals)
@@ -1771,14 +1787,15 @@ def get_zdm_grid(H0, new=True,plot=False,method='analytic',
         plt.savefig('p_dm_slices.pdf')
         plt.close()
 
-    #return zDMgrid, zvals,dmvals    
-    return zDMgrid, zvals,dmvals, H0
+    return zDMgrid, zvals,dmvals
 
-def plot_zdm_basic_paper(zDMgrid,zvals,dmvals,zmax=1,DMmax=1000,norm=0,log=True,
-                         name='temp.pdf',ylabel=None,label='$\\log_{10}p(DM_{\\rm EG},z)$',
-                         project=False,conts=False,FRBZ=None,FRBDM=None,title='Plot',
-                         H0=None,showplot=False):
+def plot_zdm_basic_paper(zDMgrid,zvals,dmvals,zmax=1,DMmax=1000,
+                         norm=0,log=True,name='temp.pdf',ylabel=None,
+                         label='$\\log_{10}p(DM_{\\rm EG},z)$',project=False,conts=False,FRBZ=None,
+                         FRBDM=None,title='Plot',H0=None,showplot=False):
     ''' Plots basic distributions of z and dm for the paper '''
+    if H0 is None:
+        H0 = cos.cosmo.H0
     cmx = plt.get_cmap('cubehelix')
     
     ##### imshow of grid #######
@@ -1913,20 +1930,17 @@ def plot_zdm_basic_paper(zDMgrid,zvals,dmvals,zmax=1,DMmax=1000,norm=0,log=True,
     plt.tight_layout()
     
     plt.savefig(name)
-    if H0 is not None:
-        plt.title(title+str(H0))
+    plt.title(title+str(H0))
     if showplot:
         plt.show()
     plt.close()		
 
 
-def plot_grid_2(zDMgrid,zvals,dmvals,zmax=1,
-                DMmax=1000,norm=0,log=True,
-                name='temp.pdf',
-                label='$\\log_{10}p(DM_{\\rm EG},z)$',
-                project=False,conts=False,FRBZ=None,FRBDM=None,Aconts=False,Macquart=None,title="Plot",
+def plot_grid_2(zDMgrid,zvals,dmvals,zmax=1,DMmax=1000,norm=0,log=True,name='temp.pdf',label='$\\log_{10}p(DM_{\\rm EG},z)$',project=False,conts=False,FRBZ=None,FRBDM=None,Aconts=False,Macquart=None,title="Plot",
                 H0=None,showplot=False):
     ''' Very complicated routine for plotting 2D zdm grids '''
+    if H0 is None:
+        H0 = cos.cosmo.H0
     cmx = plt.get_cmap('cubehelix')
     
     ##### imshow of grid #######
@@ -1967,8 +1981,7 @@ def plot_grid_2(zDMgrid,zvals,dmvals,zmax=1,
     
     plt.xlabel('z')
     plt.ylabel('${\\rm DM}_{\\rm EG}$')
-    if H0 is not None:
-        plt.title(title+str(H0))
+    plt.title(title+str(H0))
     
     nz,ndm=zDMgrid.shape
     
