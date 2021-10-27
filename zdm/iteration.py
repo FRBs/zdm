@@ -835,7 +835,9 @@ def missing_cube_likelihoods(grids,surveys,todo,outfile,norm=True,psnr=True,star
     f.close()
 
 
-def cube_likelihoods(grids,surveys,psetmins,psetmaxes,npoints,run,howmany,outfile,norm=True,psnr=True,starti=0,clone=None):
+def cube_likelihoods(grids,surveys,psetmins,psetmaxes,npoints,
+                     run,howmany,outfile,norm=True,
+                     psnr=True,starti=0,clone=None):
     """
     grids: list of grids
     surveys: list of surveys corresponding to the grids

@@ -351,52 +351,6 @@ def opz_evolution(z,*params):
     return (1+z)**(2.7*params[0])
 
 
-######### possible source evolution functions go here ##########
-
-def choose_source_evolution_function(which=0):
-    """
-    Selects which source evolution function to use
-    These are now generalised to take multiple parameters
-    Could implement arbitrarily many of these
-    
-    Arguments:
-        which (int). Selects which pre-defined model
-            to use for FRB source evolution.
-            Currently implemented values are:
-            0: star-formation rate from Madau
-                & Dickenson, to the power n
-            1: (1+z)^2.7n, i.e. 0 but without the
-                denominator
-            
-    """
-    if which==0:
-        source_evolution=sfr_evolution
-    elif which==1:
-        source_evolution=opz_evolution
-    else:
-        raise ValueError("Undefined source evolution function ",which," choose 0 or 1")
-    return source_evolution
-
-def sfr_evolution(z,*params):
-    """
-    Madau & dickenson 2014
-    Arguments:
-        z (float): redshift
-        params: n (float) Scaling parameter.
-    """
-    return (1.0025738*(1+z)**2.7 / (1 + ((1+z)/2.9)**5.6))**params[0]
-    
-
-def opz_evolution(z,*params):
-    """
-    Same as SFR, but without denominator, i.e. just (1+z)**2.7
-    Factor of 2.7 is kept so that resulting n-values are comparable
-    Arguments:
-        z:(float, numpy array) redshift 
-        params: n (float) Scaling parameter.
-    """
-    return (1+z)**(2.7*params[0])
-
 
 # outdated code
 # returns a population density proportional to the star-formation rate to the power n
