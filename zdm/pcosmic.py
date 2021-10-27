@@ -83,7 +83,8 @@ def make_C0_grid(zeds,F):
         C0s[i]=iterate_C0(z,F)
     return C0s
 
-def get_mean_DM(zeds, current_H0: float, cosmo_H0: float):
+def get_mean_DM(zeds, current_H0: float, 
+                cosmo_H0: float):
     """ Gets mean average z to which can be applied deltas 
 
     Args:
@@ -144,6 +145,7 @@ def get_pDM(z,F,DMgrid,zgrid,Fgrid,C0grid):
 
 def get_pDM_grid(H0,F,DMgrid,zgrid,C0s):
     """ Gets pDM when the zvals are the same as the zgrid
+    H0 (float): Hubble constant
     Fgrid: range of Fs for which C0s have been generated
     C0grid: C0 values obtained by convergence
     DMgrid: range of DMs for which we are generating a histogram

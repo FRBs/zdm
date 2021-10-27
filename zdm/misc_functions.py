@@ -296,113 +296,116 @@ def get_zgdm_priors(grid,survey,savename):
     plt.savefig(savename)
     plt.close()
 
-def make_dm_redshift(grid,savename="",DMmax=1000,zmax=1,loc='upper left',Macquart=None,H0=cos.DEF_H0,showplot=False):
-	''' generates full dm-redhsift (Macquart) relation '''
-	ndm=1000
-	cvs=[0.025,0.16,0.5,0.84,0.975]
-	nc=len(cvs)
-	names=['$2\\sigma$','$1\\sigma$','Median','','']
-	styles=[':','--','-','--',':']
-	colours=["white","white","black","white","white"]
-	DMs=np.linspace(DMmax/ndm,DMmax,ndm,endpoint=True)
-	priors=grid.get_p_zgdm(DMs)
-	zvals=grid.zvals
-	means=np.mean(priors,axis=1)
-	csums=np.cumsum(priors,axis=1)
-	
-	crits=np.zeros([nc,ndm])
-	
-	for i in np.arange(ndm):
-		for j,c in enumerate(cvs):
-			ic=np.where(csums[i]>c)[0][0]
-			if ic>0:
-				kc=(csums[i,ic]-c)/(csums[i,ic]-csums[i,ic-1])
-				crits[j,i]=zvals[ic]*(1-kc)+zvals[ic-1]*kc
-			else:
-				crits[j,i]=zvals[ic]
-	
-	# now we convert this between real values and integer units
-	dz=zvals[1]-zvals[0]
-	crits /= dz
-	
-	### concatenate for plotting ###
-	delete=np.where(zvals > zmax)[0][0]
-	plotpriors=priors[:,0:delete]
-	plotz=zvals[0:delete]
-	
-	plt.figure()
-	
-	############# sets the x and y tics ################3
-	ytvals=np.arange(plotz.size)
-	every=int(plotz.size/5)
-	ytickpos=np.insert(ytvals[every-1::every],[0],[0])
-	yticks=np.insert(plotz[every-1::every],[0],[0])
-	
-	#plt.yticks(ytvals[every-1::every],plotz[every-1::every])
-	plt.yticks(ytickpos,yticks)
-	xtvals=np.arange(ndm)
-	everx=int(ndm/5)
-	xtickpos=np.insert(xtvals[everx-1::everx],[0],[0])
-	xticks=np.insert(DMs[everx-1::everx],[0],[0])
-	plt.xticks(xtickpos,xticks)
-	#plt.xticks(xtvals[everx-1::everx],DMs[everx-1::everx])
-	
-	ax=plt.gca()
-	labels = [item.get_text() for item in ax.get_xticklabels()]
-	for i in np.arange(len(labels)):
-		thisl=len(labels[i])
-		labels[i]=labels[i][0:thisl-1]
-	ax.set_xticklabels(labels)
-	
-	#### rescales priors to max value for visibility's sake ####
-	dm_max=np.max(plotpriors,axis=1)
-	for i in np.arange(ndm):
-		plotpriors[i,:] /= np.max(plotpriors[i,:])
-	
-	
-	
-	cmx = plt.get_cmap('cubehelix')
-	plt.xlabel('${\\rm DM}_{\\rm EG}$')
-	plt.ylabel('z')
-	
-	aspect=float(ndm)/plotz.size
-	plt.imshow(plotpriors.T,origin='lower',cmap=cmx,aspect=aspect)
-	cbar=plt.colorbar()
-	cbar.set_label('$p(z|{\\rm DM})/p_{\\rm max}(z|{\\rm DM})$')
-	###### now we plot the specific thingamies #######
-	for i,c in enumerate(cvs):
-		plt.plot(np.arange(ndm),crits[i,:],linestyle=styles[i],label=names[i],color=colours[i])
-	
-	#Macquart=None
-	if Macquart is not None:
-		plt.ylim(0,ytvals.size)
-		nz=zvals.size
-		
-		plt.xlim(0,xtvals.size)
-		zmax=zvals[-1]
-		DMbar, zeval = igm.average_DM(zmax, cumul=True, neval=nz+1)
-		DMbar=np.array(DMbar)
-		DMbar += Macquart #should be interpreted as muDM
-		
-		
-		#idea is that 1 point is 1, hence...
-		zeval /= (zvals[1]-zvals[0])
-		DMbar /= (DMs[1]-DMs[0])
-		
-		plt.plot(DMbar,zeval,linewidth=2,label='Macquart',color='blue')
-		#l=plt.legend(loc='lower right',fontsize=12)
-		#l=plt.legend(bbox_to_anchor=(0.2, 0.8),fontsize=8)
-		#for text in l.get_texts():
-    		#	text.set_color("white")
-	
-	#plt.plot([30,40],[0.5,10],linewidth=10)
-	
-	plt.legend(loc=loc)
-	plt.savefig(savename)
-	plt.title("H0 " + str(H0))
-	if showplot:
-		plt.show()
-	plt.close()
+def make_dm_redshift(grid,savename="",DMmax=1000,
+                     zmax=1,loc='upper left',Macquart=None,
+                     H0=None,showplot=False):
+    ''' generates full dm-redhsift (Macquart) relation '''
+    ndm=1000
+    cvs=[0.025,0.16,0.5,0.84,0.975]
+    nc=len(cvs)
+    names=['$2\\sigma$','$1\\sigma$','Median','','']
+    styles=[':','--','-','--',':']
+    colours=["white","white","black","white","white"]
+    DMs=np.linspace(DMmax/ndm,DMmax,ndm,endpoint=True)
+    priors=grid.get_p_zgdm(DMs)
+    zvals=grid.zvals
+    means=np.mean(priors,axis=1)
+    csums=np.cumsum(priors,axis=1)
+    
+    crits=np.zeros([nc,ndm])
+    
+    for i in np.arange(ndm):
+        for j,c in enumerate(cvs):
+            ic=np.where(csums[i]>c)[0][0]
+            if ic>0:
+                kc=(csums[i,ic]-c)/(csums[i,ic]-csums[i,ic-1])
+                crits[j,i]=zvals[ic]*(1-kc)+zvals[ic-1]*kc
+            else:
+                crits[j,i]=zvals[ic]
+    
+    # now we convert this between real values and integer units
+    dz=zvals[1]-zvals[0]
+    crits /= dz
+    
+    ### concatenate for plotting ###
+    delete=np.where(zvals > zmax)[0][0]
+    plotpriors=priors[:,0:delete]
+    plotz=zvals[0:delete]
+    
+    plt.figure()
+    
+    ############# sets the x and y tics ################3
+    ytvals=np.arange(plotz.size)
+    every=int(plotz.size/5)
+    ytickpos=np.insert(ytvals[every-1::every],[0],[0])
+    yticks=np.insert(plotz[every-1::every],[0],[0])
+    
+    #plt.yticks(ytvals[every-1::every],plotz[every-1::every])
+    plt.yticks(ytickpos,yticks)
+    xtvals=np.arange(ndm)
+    everx=int(ndm/5)
+    xtickpos=np.insert(xtvals[everx-1::everx],[0],[0])
+    xticks=np.insert(DMs[everx-1::everx],[0],[0])
+    plt.xticks(xtickpos,xticks)
+    #plt.xticks(xtvals[everx-1::everx],DMs[everx-1::everx])
+    
+    ax=plt.gca()
+    labels = [item.get_text() for item in ax.get_xticklabels()]
+    for i in np.arange(len(labels)):
+        thisl=len(labels[i])
+        labels[i]=labels[i][0:thisl-1]
+    ax.set_xticklabels(labels)
+    
+    #### rescales priors to max value for visibility's sake ####
+    dm_max=np.max(plotpriors,axis=1)
+    for i in np.arange(ndm):
+        plotpriors[i,:] /= np.max(plotpriors[i,:])
+    
+    
+    
+    cmx = plt.get_cmap('cubehelix')
+    plt.xlabel('${\\rm DM}_{\\rm EG}$')
+    plt.ylabel('z')
+    
+    aspect=float(ndm)/plotz.size
+    plt.imshow(plotpriors.T,origin='lower',cmap=cmx,aspect=aspect)
+    cbar=plt.colorbar()
+    cbar.set_label('$p(z|{\\rm DM})/p_{\\rm max}(z|{\\rm DM})$')
+    ###### now we plot the specific thingamies #######
+    for i,c in enumerate(cvs):
+        plt.plot(np.arange(ndm),crits[i,:],linestyle=styles[i],label=names[i],color=colours[i])
+    
+    #Macquart=None
+    if Macquart is not None:
+        plt.ylim(0,ytvals.size)
+        nz=zvals.size
+        
+        plt.xlim(0,xtvals.size)
+        zmax=zvals[-1]
+        DMbar, zeval = igm.average_DM(zmax, cumul=True, neval=nz+1)
+        DMbar=np.array(DMbar)
+        DMbar += Macquart #should be interpreted as muDM
+        
+        
+        #idea is that 1 point is 1, hence...
+        zeval /= (zvals[1]-zvals[0])
+        DMbar /= (DMs[1]-DMs[0])
+        
+        plt.plot(DMbar,zeval,linewidth=2,label='Macquart',color='blue')
+        #l=plt.legend(loc='lower right',fontsize=12)
+        #l=plt.legend(bbox_to_anchor=(0.2, 0.8),fontsize=8)
+        #for text in l.get_texts():
+            #	text.set_color("white")
+    
+    #plt.plot([30,40],[0.5,10],linewidth=10)
+    
+    plt.legend(loc=loc)
+    plt.savefig(savename)
+    if H0 is not None:
+        plt.title("H0 " + str(H0))
+    if showplot:
+        plt.show()
+    plt.close()
 
 
 
@@ -1523,47 +1526,47 @@ def test_beam_rates(survey,zDMgrid, zvals,dmvals,pset,binset,method=2,outdir='Pl
     acc.close()
 
 def initialise_grids(surveys,zDMgrid, zvals,dmvals,pset,wdist=False,source_evolution=0,alpha_method=1):
-	""" For a list of surveys, construct a zDMgrid object
-	wdist indicates a distribution of widths in the survey,
-	i.e. do not use the mean efficiency
-	Assumes that survey efficiencies ARE initialised
-	"""
-	# now it's a list! ;-)
-	if not isinstance(surveys,list):
-		surveys=[surveys]
-	
-	# get parameter values
-	lEmin,lEmax,alpha,gamma,sfr_n,logmean,logsigma,lC,H0=pset
-	Emin=10**lEmin
-	Emax=10**lEmax
-	
-	# generates a DM mask
-	# creates a mask of values in DM space to convolve with the DM grid
-	mask=pcosmic.get_dm_mask(dmvals,(logmean,logsigma),zvals,plot=True)
-	grids=[]
-	for survey in surveys:
-		if wdist:
-			efficiencies=survey.efficiencies # two dimensions
-			weights=survey.wplist
-		else:
-			efficiencies=survey.mean_efficiencies
-			weights=None
-			#efficiencies=survey.get_efficiency(dmvals)
-		
-		grid=zdm.grid(source_evolution=source_evolution,alpha_method=alpha_method)
-		grid.pass_grid(zDMgrid,zvals,dmvals,H0)
-		grid.smear_dm(mask,logmean,logsigma)
-		
-		# note - survey frequencies in MHz
-		grid.calc_thresholds(survey.meta['THRESH'],efficiencies,alpha=alpha,weights=weights,nuObs=survey.meta['FBAR']*1e6)
-		grid.calc_dV()
-		grid.calc_pdv(Emin,Emax,gamma,survey.beam_b,survey.beam_o) # calculates volumetric-weighted probabilities
-		grid.set_evolution(sfr_n) # sets star-formation rate scaling with z - here, no evoltion...
-		grid.calc_rates() # calculates rates by multiplying above with pdm plot
-		grids.append(grid)
-	
-	return grids
-	
+    """ For a list of surveys, construct a zDMgrid object
+    wdist indicates a distribution of widths in the survey,
+    i.e. do not use the mean efficiency
+    Assumes that survey efficiencies ARE initialised
+    """
+    # now it's a list! ;-)
+    if not isinstance(surveys,list):
+        surveys=[surveys]
+    
+    # get parameter values
+    lEmin,lEmax,alpha,gamma,sfr_n,logmean,logsigma,lC,H0=pset
+    Emin=10**lEmin
+    Emax=10**lEmax
+    
+    # generates a DM mask
+    # creates a mask of values in DM space to convolve with the DM grid
+    mask=pcosmic.get_dm_mask(dmvals,(logmean,logsigma),zvals,plot=True)
+    grids=[]
+    for survey in surveys:
+        if wdist:
+            efficiencies=survey.efficiencies # two dimensions
+            weights=survey.wplist
+        else:
+            efficiencies=survey.mean_efficiencies
+            weights=None
+            #efficiencies=survey.get_efficiency(dmvals)
+        
+        grid=zdm.grid(source_evolution=source_evolution,alpha_method=alpha_method)
+        grid.pass_grid(zDMgrid,zvals,dmvals,H0)
+        grid.smear_dm(mask,logmean,logsigma)
+        
+        # note - survey frequencies in MHz
+        grid.calc_thresholds(survey.meta['THRESH'],efficiencies,alpha=alpha,weights=weights,nuObs=survey.meta['FBAR']*1e6)
+        grid.calc_dV()
+        grid.calc_pdv(Emin,Emax,gamma,survey.beam_b,survey.beam_o) # calculates volumetric-weighted probabilities
+        grid.set_evolution(sfr_n) # sets star-formation rate scaling with z - here, no evoltion...
+        grid.calc_rates() # calculates rates by multiplying above with pdm plot
+        grids.append(grid)
+    
+    return grids
+    
 def generate_example_plots():
     """ Loads the lat50survey and generates some example plots """
     
@@ -1639,16 +1642,16 @@ def generate_example_plots():
         
 
 def plot_1d(pvec,lset,xlabel,savename,showplot=False):
-	plt.figure()
-	plt.xlabel(xlabel)
-	plt.ylabel('$\\ell($'+xlabel+'$)$')
-	plt.plot(pvec,lset)
-	plt.tight_layout()
-	plt.savefig(savename)
-	if showplot:
-		plt.show()
-	plt.close()
-	
+    plt.figure()
+    plt.xlabel(xlabel)
+    plt.ylabel('$\\ell($'+xlabel+'$)$')
+    plt.plot(pvec,lset)
+    plt.tight_layout()
+    plt.savefig(savename)
+    if showplot:
+        plt.show()
+    plt.close()
+    
 # generates grid based on Monte Carlo model
 def get_zdm_grid(H0, new=True,plot=False,method='analytic',
                  F=0.32,nz=500,zmax=5,ndm=1400,dmmax=7000.,
@@ -1736,7 +1739,8 @@ def get_zdm_grid(H0, new=True,plot=False,method='analytic',
                 sigma = F / np.sqrt(zvals)
                 C0s = f_C0_3(sigma)
             # generate pDM grid using those COs
-            zDMgrid=pcosmic.get_pDM_grid(H0,F,dmvals,zvals,C0s)
+            zDMgrid=pcosmic.get_pDM_grid(
+                H0,F,dmvals,zvals,C0s)
             t1=time.process_time()
             dt=t1-t0
             print("Done. Took ",dt," seconds")
@@ -1770,419 +1774,429 @@ def get_zdm_grid(H0, new=True,plot=False,method='analytic',
     #return zDMgrid, zvals,dmvals    
     return zDMgrid, zvals,dmvals, H0
 
-def plot_zdm_basic_paper(zDMgrid,zvals,dmvals,zmax=1,DMmax=1000,norm=0,log=True,name='temp.pdf',ylabel=None,label='$\\log_{10}p(DM_{\\rm EG},z)$',project=False,conts=False,FRBZ=None,FRBDM=None,title='Plot',H0=cos.DEF_H0,showplot=False):
-	''' Plots basic distributions of z and dm for the paper '''
-	cmx = plt.get_cmap('cubehelix')
-	
-	##### imshow of grid #######
-	
-	# we protect these variables
-	zDMgrid=np.copy(zDMgrid)
-	zvals=np.copy(zvals)
-	dmvals=np.copy(dmvals)
-	
-	plt.figure()
-	#rect_2D=[0,0,1,1]
-	ax1=plt.axes()
-	
-	plt.sca(ax1)
-	
-	plt.xlabel('z')
-	if ylabel is not None:
-		plt.ylabel(ylabel)
-	else:
-		plt.ylabel('${\\rm DM}_{\\rm EG}$')
-	
-	nz,ndm=zDMgrid.shape
-	
-	
-	ixmax=np.where(zvals > zmax)[0]
-	if len(ixmax) >0:
-		zvals=zvals[:ixmax[0]]
-		nz=zvals.size
-		zDMgrid=zDMgrid[:ixmax[0],:]
-	
-	### generates contours *before* cutting array in DM ###
-	### might need to normalise contours by integer lengths, oh well! ###
-	if conts:
-		nc = len(conts)
-		carray=np.zeros([nc,nz])
-		for i in np.arange(nz):
-			cdf=np.cumsum(zDMgrid[i,:])
-			cdf /= cdf[-1]
-			
-			for j,c in enumerate(conts):
-				less=np.where(cdf < c)[0]
-				
-				if len(less)==0:
-					carray[j,i]=0.
-					dmc=0.
-					il1=0
-					il2=0
-				else:
-					il1=less[-1]
-					
-					if il1 == ndm-1:
-						il1=ndm-2
-					
-					il2=il1+1
-					k1=(cdf[il2]-c)/(cdf[il2]-cdf[il1])
-					dmc=k1*dmvals[il1]+(1.-k1)*dmvals[il2]
-					carray[j,i]=dmc
-				
-		ddm=dmvals[1]-dmvals[0]
-		carray /= ddm # turns this into integer units for plotting
-		
-	iymax=np.where(dmvals > DMmax)[0]
-	if len(iymax)>0:
-		dmvals=dmvals[:iymax[0]]
-		zDMgrid=zDMgrid[:,:iymax[0]]
-		ndm=dmvals.size
-	
-	# currently this is "per cell" - now to change to "per DM"
-	# normalises the grid by the bin width, i.e. probability per bin, not probability density
-	ddm=dmvals[1]-dmvals[0]
-	dz=zvals[1]-zvals[0]
-	
-	zDMgrid /= ddm # norm=1
-	
-	# checks against zeros for a log-plot
-	orig=np.copy(zDMgrid)
-	zDMgrid=zDMgrid.reshape(zDMgrid.size)
-	setzero=np.where(zDMgrid==0.)
-	zDMgrid=np.log10(zDMgrid)
-	zDMgrid[setzero]=-100
-	zDMgrid=zDMgrid.reshape(nz,ndm)
-	
-	# gets a square plot
-	aspect=nz/float(ndm)
-	
-	# sets the x and y tics	
-	xtvals=np.arange(zvals.size)
-	everx=int(zvals.size/5)
-	plt.xticks(xtvals[everx-1::everx],zvals[everx-1::everx])
+def plot_zdm_basic_paper(zDMgrid,zvals,dmvals,zmax=1,DMmax=1000,norm=0,log=True,
+                         name='temp.pdf',ylabel=None,label='$\\log_{10}p(DM_{\\rm EG},z)$',
+                         project=False,conts=False,FRBZ=None,FRBDM=None,title='Plot',
+                         H0=None,showplot=False):
+    ''' Plots basic distributions of z and dm for the paper '''
+    cmx = plt.get_cmap('cubehelix')
+    
+    ##### imshow of grid #######
+    
+    # we protect these variables
+    zDMgrid=np.copy(zDMgrid)
+    zvals=np.copy(zvals)
+    dmvals=np.copy(dmvals)
+    
+    plt.figure()
+    #rect_2D=[0,0,1,1]
+    ax1=plt.axes()
+    
+    plt.sca(ax1)
+    
+    plt.xlabel('z')
+    if ylabel is not None:
+        plt.ylabel(ylabel)
+    else:
+        plt.ylabel('${\\rm DM}_{\\rm EG}$')
+    
+    nz,ndm=zDMgrid.shape
+    
+    
+    ixmax=np.where(zvals > zmax)[0]
+    if len(ixmax) >0:
+        zvals=zvals[:ixmax[0]]
+        nz=zvals.size
+        zDMgrid=zDMgrid[:ixmax[0],:]
+    
+    ### generates contours *before* cutting array in DM ###
+    ### might need to normalise contours by integer lengths, oh well! ###
+    if conts:
+        nc = len(conts)
+        carray=np.zeros([nc,nz])
+        for i in np.arange(nz):
+            cdf=np.cumsum(zDMgrid[i,:])
+            cdf /= cdf[-1]
+            
+            for j,c in enumerate(conts):
+                less=np.where(cdf < c)[0]
+                
+                if len(less)==0:
+                    carray[j,i]=0.
+                    dmc=0.
+                    il1=0
+                    il2=0
+                else:
+                    il1=less[-1]
+                    
+                    if il1 == ndm-1:
+                        il1=ndm-2
+                    
+                    il2=il1+1
+                    k1=(cdf[il2]-c)/(cdf[il2]-cdf[il1])
+                    dmc=k1*dmvals[il1]+(1.-k1)*dmvals[il2]
+                    carray[j,i]=dmc
+                
+        ddm=dmvals[1]-dmvals[0]
+        carray /= ddm # turns this into integer units for plotting
+        
+    iymax=np.where(dmvals > DMmax)[0]
+    if len(iymax)>0:
+        dmvals=dmvals[:iymax[0]]
+        zDMgrid=zDMgrid[:,:iymax[0]]
+        ndm=dmvals.size
+    
+    # currently this is "per cell" - now to change to "per DM"
+    # normalises the grid by the bin width, i.e. probability per bin, not probability density
+    ddm=dmvals[1]-dmvals[0]
+    dz=zvals[1]-zvals[0]
+    
+    zDMgrid /= ddm # norm=1
+    
+    # checks against zeros for a log-plot
+    orig=np.copy(zDMgrid)
+    zDMgrid=zDMgrid.reshape(zDMgrid.size)
+    setzero=np.where(zDMgrid==0.)
+    zDMgrid=np.log10(zDMgrid)
+    zDMgrid[setzero]=-100
+    zDMgrid=zDMgrid.reshape(nz,ndm)
+    
+    # gets a square plot
+    aspect=nz/float(ndm)
+    
+    # sets the x and y tics	
+    xtvals=np.arange(zvals.size)
+    everx=int(zvals.size/5)
+    plt.xticks(xtvals[everx-1::everx],zvals[everx-1::everx])
 
-	ytvals=np.arange(dmvals.size)
-	every=int(dmvals.size/5)
-	plt.yticks(ytvals[every-1::every],dmvals[every-1::every])
-	
-	im=plt.imshow(zDMgrid.T,cmap=cmx,origin='lower', interpolation='None',aspect=aspect)
-	
-	###### gets decent axis labels, down to 1 decimal place #######
-	ax=plt.gca()
-	labels = [item.get_text() for item in ax.get_xticklabels()]
-	for i in np.arange(len(labels)):
-		labels[i]=labels[i][0:4]
-	ax.set_xticklabels(labels)
-	labels = [item.get_text() for item in ax.get_yticklabels()]
-	for i in np.arange(len(labels)):
-		if '.' in labels[i]:
-			labels[i]=labels[i].split('.')[0]
-	ax.set_yticklabels(labels)
-	ax.yaxis.labelpad = 0
-	
-	# plots contours i there
-	cls=[":","--","-","--",":"]
-	if conts:
-		plt.ylim(0,ndm-1)
-		for i in np.arange(nc):
-			j=int(nc-i-1)
-			plt.plot(np.arange(nz),carray[j,:],label=str(conts[j]),color='white',linestyle=cls[i])
-		l=plt.legend(loc='lower right',fontsize=12)
-		#l=plt.legend(bbox_to_anchor=(0.2, 0.8),fontsize=8)
-		for text in l.get_texts():
-    			text.set_color("white")
-	
-	
-	# limit to a reasonable range if logscale
-	themax=zDMgrid.max()
-	themin=int(themax-4)
-	themax=int(themax)
-	plt.clim(themin,themax)
-	
-	cbar=plt.colorbar(im,fraction=0.046, shrink=1.2,aspect=15,pad=0.05)
-	cbar.set_label(label)
-	plt.clim(-4,0)
-	plt.tight_layout()
-	
-	plt.savefig(name)
-	plt.title(title+str(H0))
-	if showplot:
-		plt.show()
-	plt.close()		
+    ytvals=np.arange(dmvals.size)
+    every=int(dmvals.size/5)
+    plt.yticks(ytvals[every-1::every],dmvals[every-1::every])
+    
+    im=plt.imshow(zDMgrid.T,cmap=cmx,origin='lower', interpolation='None',aspect=aspect)
+    
+    ###### gets decent axis labels, down to 1 decimal place #######
+    ax=plt.gca()
+    labels = [item.get_text() for item in ax.get_xticklabels()]
+    for i in np.arange(len(labels)):
+        labels[i]=labels[i][0:4]
+    ax.set_xticklabels(labels)
+    labels = [item.get_text() for item in ax.get_yticklabels()]
+    for i in np.arange(len(labels)):
+        if '.' in labels[i]:
+            labels[i]=labels[i].split('.')[0]
+    ax.set_yticklabels(labels)
+    ax.yaxis.labelpad = 0
+    
+    # plots contours i there
+    cls=[":","--","-","--",":"]
+    if conts:
+        plt.ylim(0,ndm-1)
+        for i in np.arange(nc):
+            j=int(nc-i-1)
+            plt.plot(np.arange(nz),carray[j,:],label=str(conts[j]),color='white',linestyle=cls[i])
+        l=plt.legend(loc='lower right',fontsize=12)
+        #l=plt.legend(bbox_to_anchor=(0.2, 0.8),fontsize=8)
+        for text in l.get_texts():
+                text.set_color("white")
+    
+    
+    # limit to a reasonable range if logscale
+    themax=zDMgrid.max()
+    themin=int(themax-4)
+    themax=int(themax)
+    plt.clim(themin,themax)
+    
+    cbar=plt.colorbar(im,fraction=0.046, shrink=1.2,aspect=15,pad=0.05)
+    cbar.set_label(label)
+    plt.clim(-4,0)
+    plt.tight_layout()
+    
+    plt.savefig(name)
+    if H0 is not None:
+        plt.title(title+str(H0))
+    if showplot:
+        plt.show()
+    plt.close()		
 
 
-def plot_grid_2(zDMgrid,zvals,dmvals,zmax=1,DMmax=1000,norm=0,log=True,name='temp.pdf',label='$\\log_{10}p(DM_{\\rm EG},z)$',project=False,conts=False,FRBZ=None,FRBDM=None,Aconts=False,Macquart=None,title="Plot",H0=cos.DEF_H0,showplot=False):
-	''' Very complicated routine for plotting 2D zdm grids '''
-	cmx = plt.get_cmap('cubehelix')
-	
-	##### imshow of grid #######
-	
-	# we protect these variables
-	zDMgrid=np.copy(zDMgrid)
-	zvals=np.copy(zvals)
-	dmvals=np.copy(dmvals)
-	
-	if (project):
-		plt.figure(1, figsize=(8, 8))
-		left, width = 0.1, 0.65
-		bottom, height = 0.1, 0.65
-		gap=0.02
-		woff=width+gap+left
-		hoff=height+gap+bottom
-		dw=1.-woff-gap
-		dh=1.-hoff-gap
-		
-		delta=1-height-bottom-0.05
-		gap=0.11
-		rect_2D = [left, bottom, width, height]
-		rect_1Dx = [left, hoff, width, dh]
-		rect_1Dy = [woff, bottom, dw, height]
-		rect_cb = [woff,hoff,dw*0.5,dh]
-		ax1=plt.axes(rect_2D)
-		axx=plt.axes(rect_1Dx)
-		axy=plt.axes(rect_1Dy)
-		acb=plt.axes(rect_cb)
-		#axx.xaxis.set_major_formatter(NullFormatter())
-		#axy.yaxis.set_major_formatter(NullFormatter())
-	else:
-		plt.figure()
-		#rect_2D=[0,0,1,1]
-		ax1=plt.axes()
-	
-	plt.sca(ax1)
-	
-	plt.xlabel('z')
-	plt.ylabel('${\\rm DM}_{\\rm EG}$')
-	plt.title(title+str(H0))
-	
-	nz,ndm=zDMgrid.shape
-	
-	
-	ixmax=np.where(zvals > zmax)[0]
-	if len(ixmax) >0:
-		zvals=zvals[:ixmax[0]]
-		nz=zvals.size
-		zDMgrid=zDMgrid[:ixmax[0],:]
-	
-	# sets contours according to norm
-	if Aconts:
-		slist=np.sort(zDMgrid.flatten())
-		cslist=np.cumsum(slist)
-		cslist /= cslist[-1]
-		nAc=len(Aconts)
-		alevels=np.zeros([nAc])
-		for i,ac in enumerate(Aconts):
-			# cslist is the cumulative probability distribution
-			# Where cslist > ac determines the integer locations
-			#    of all cells exceeding the threshold
-			# The first in this list is the first place exceeding
-			#    the threshold
-			# The value of slist at that point is the
-			#    level of the countour to draw
-			iwhich=np.where(cslist > ac)[0][0]
-			alevels[i]=slist[iwhich]
-		
-	### generates contours *before* cutting array in DM ###
-	### might need to normalise contours by integer lengths, oh well! ###
-	if conts:
-		nc = len(conts)
-		carray=np.zeros([nc,nz])
-		for i in np.arange(nz):
-			cdf=np.cumsum(zDMgrid[i,:])
-			cdf /= cdf[-1]
-			
-			for j,c in enumerate(conts):
-				less=np.where(cdf < c)[0]
-				
-				if len(less)==0:
-					carray[j,i]=0.
-					dmc=0.
-					il1=0
-					il2=0
-				else:
-					il1=less[-1]
-					
-					if il1 == ndm-1:
-						il1=ndm-2
-					
-					il2=il1+1
-					k1=(cdf[il2]-c)/(cdf[il2]-cdf[il1])
-					dmc=k1*dmvals[il1]+(1.-k1)*dmvals[il2]
-					carray[j,i]=dmc
-				
-		ddm=dmvals[1]-dmvals[0]
-		carray /= ddm # turns this into integer units for plotting
-		
-	iymax=np.where(dmvals > DMmax)[0]
-	if len(iymax)>0:
-		dmvals=dmvals[:iymax[0]]
-		zDMgrid=zDMgrid[:,:iymax[0]]
-		ndm=dmvals.size
-	
-	# currently this is "per cell" - now to change to "per DM"
-	# normalises the grid by the bin width, i.e. probability per bin, not probability density
-	ddm=dmvals[1]-dmvals[0]
-	dz=zvals[1]-zvals[0]
-	if norm==1:
-		zDMgrid /= ddm
-		if Aconts:
-			alevels /= ddm
-	if norm==2:
-		xnorm=np.sum(zDMgrid)
-		zDMgrid /= xnorm
-		if Aconts:
-			alevels /= xnorm
-	
-	if log:
-		# checks against zeros for a log-plot
-		orig=np.copy(zDMgrid)
-		zDMgrid=zDMgrid.reshape(zDMgrid.size)
-		setzero=np.where(zDMgrid==0.)
-		zDMgrid=np.log10(zDMgrid)
-		zDMgrid[setzero]=-100
-		zDMgrid=zDMgrid.reshape(nz,ndm)
-		if Aconts:
-			alevels=np.log10(alevels)
-	else:
-		orig=zDMgrid
-	
-	# gets a square plot
-	aspect=nz/float(ndm)
-	
-	# sets the x and y tics	
-	xtvals=np.arange(zvals.size)
-	everx=int(zvals.size/5)
-	plt.xticks(xtvals[everx-1::everx],zvals[everx-1::everx])
+def plot_grid_2(zDMgrid,zvals,dmvals,zmax=1,
+                DMmax=1000,norm=0,log=True,
+                name='temp.pdf',
+                label='$\\log_{10}p(DM_{\\rm EG},z)$',
+                project=False,conts=False,FRBZ=None,FRBDM=None,Aconts=False,Macquart=None,title="Plot",
+                H0=None,showplot=False):
+    ''' Very complicated routine for plotting 2D zdm grids '''
+    cmx = plt.get_cmap('cubehelix')
+    
+    ##### imshow of grid #######
+    
+    # we protect these variables
+    zDMgrid=np.copy(zDMgrid)
+    zvals=np.copy(zvals)
+    dmvals=np.copy(dmvals)
+    
+    if (project):
+        plt.figure(1, figsize=(8, 8))
+        left, width = 0.1, 0.65
+        bottom, height = 0.1, 0.65
+        gap=0.02
+        woff=width+gap+left
+        hoff=height+gap+bottom
+        dw=1.-woff-gap
+        dh=1.-hoff-gap
+        
+        delta=1-height-bottom-0.05
+        gap=0.11
+        rect_2D = [left, bottom, width, height]
+        rect_1Dx = [left, hoff, width, dh]
+        rect_1Dy = [woff, bottom, dw, height]
+        rect_cb = [woff,hoff,dw*0.5,dh]
+        ax1=plt.axes(rect_2D)
+        axx=plt.axes(rect_1Dx)
+        axy=plt.axes(rect_1Dy)
+        acb=plt.axes(rect_cb)
+        #axx.xaxis.set_major_formatter(NullFormatter())
+        #axy.yaxis.set_major_formatter(NullFormatter())
+    else:
+        plt.figure()
+        #rect_2D=[0,0,1,1]
+        ax1=plt.axes()
+    
+    plt.sca(ax1)
+    
+    plt.xlabel('z')
+    plt.ylabel('${\\rm DM}_{\\rm EG}$')
+    if H0 is not None:
+        plt.title(title+str(H0))
+    
+    nz,ndm=zDMgrid.shape
+    
+    
+    ixmax=np.where(zvals > zmax)[0]
+    if len(ixmax) >0:
+        zvals=zvals[:ixmax[0]]
+        nz=zvals.size
+        zDMgrid=zDMgrid[:ixmax[0],:]
+    
+    # sets contours according to norm
+    if Aconts:
+        slist=np.sort(zDMgrid.flatten())
+        cslist=np.cumsum(slist)
+        cslist /= cslist[-1]
+        nAc=len(Aconts)
+        alevels=np.zeros([nAc])
+        for i,ac in enumerate(Aconts):
+            # cslist is the cumulative probability distribution
+            # Where cslist > ac determines the integer locations
+            #    of all cells exceeding the threshold
+            # The first in this list is the first place exceeding
+            #    the threshold
+            # The value of slist at that point is the
+            #    level of the countour to draw
+            iwhich=np.where(cslist > ac)[0][0]
+            alevels[i]=slist[iwhich]
+        
+    ### generates contours *before* cutting array in DM ###
+    ### might need to normalise contours by integer lengths, oh well! ###
+    if conts:
+        nc = len(conts)
+        carray=np.zeros([nc,nz])
+        for i in np.arange(nz):
+            cdf=np.cumsum(zDMgrid[i,:])
+            cdf /= cdf[-1]
+            
+            for j,c in enumerate(conts):
+                less=np.where(cdf < c)[0]
+                
+                if len(less)==0:
+                    carray[j,i]=0.
+                    dmc=0.
+                    il1=0
+                    il2=0
+                else:
+                    il1=less[-1]
+                    
+                    if il1 == ndm-1:
+                        il1=ndm-2
+                    
+                    il2=il1+1
+                    k1=(cdf[il2]-c)/(cdf[il2]-cdf[il1])
+                    dmc=k1*dmvals[il1]+(1.-k1)*dmvals[il2]
+                    carray[j,i]=dmc
+                
+        ddm=dmvals[1]-dmvals[0]
+        carray /= ddm # turns this into integer units for plotting
+        
+    iymax=np.where(dmvals > DMmax)[0]
+    if len(iymax)>0:
+        dmvals=dmvals[:iymax[0]]
+        zDMgrid=zDMgrid[:,:iymax[0]]
+        ndm=dmvals.size
+    
+    # currently this is "per cell" - now to change to "per DM"
+    # normalises the grid by the bin width, i.e. probability per bin, not probability density
+    ddm=dmvals[1]-dmvals[0]
+    dz=zvals[1]-zvals[0]
+    if norm==1:
+        zDMgrid /= ddm
+        if Aconts:
+            alevels /= ddm
+    if norm==2:
+        xnorm=np.sum(zDMgrid)
+        zDMgrid /= xnorm
+        if Aconts:
+            alevels /= xnorm
+    
+    if log:
+        # checks against zeros for a log-plot
+        orig=np.copy(zDMgrid)
+        zDMgrid=zDMgrid.reshape(zDMgrid.size)
+        setzero=np.where(zDMgrid==0.)
+        zDMgrid=np.log10(zDMgrid)
+        zDMgrid[setzero]=-100
+        zDMgrid=zDMgrid.reshape(nz,ndm)
+        if Aconts:
+            alevels=np.log10(alevels)
+    else:
+        orig=zDMgrid
+    
+    # gets a square plot
+    aspect=nz/float(ndm)
+    
+    # sets the x and y tics	
+    xtvals=np.arange(zvals.size)
+    everx=int(zvals.size/5)
+    plt.xticks(xtvals[everx-1::everx],zvals[everx-1::everx])
 
-	ytvals=np.arange(dmvals.size)
-	every=int(dmvals.size/5)
-	plt.yticks(ytvals[every-1::every],dmvals[every-1::every])
-	
-	im=plt.imshow(zDMgrid.T,cmap=cmx,origin='lower', interpolation='None',aspect=aspect)
-	
-	if Aconts:
-		styles=['--','-.',':']
-		ax=plt.gca()
-		cs=ax.contour(zDMgrid.T,levels=alevels,origin='lower',colors="white",linestyles=styles)
-		#plt.clim(0,2e-5)
-		#ax.clabel(cs, cs.levels, inline=True, fontsize=10,fmt=['0.5','0.1','0.01'])
-	###### gets decent axis labels, down to 1 decimal place #######
-	ax=plt.gca()
-	labels = [item.get_text() for item in ax.get_xticklabels()]
-	for i in np.arange(len(labels)):
-		labels[i]=labels[i][0:4]
-	ax.set_xticklabels(labels)
-	labels = [item.get_text() for item in ax.get_yticklabels()]
-	for i in np.arange(len(labels)):
-		if '.' in labels[i]:
-			labels[i]=labels[i].split('.')[0]
-	ax.set_yticklabels(labels)
-	ax.yaxis.labelpad = 0
-	
-	# plots contours i there
-	if conts:
-		plt.ylim(0,ndm-1)
-		for i in np.arange(nc):
-			j=int(nc-i-1)
-			plt.plot(np.arange(nz),carray[j,:],label=str(conts[j]),color='white')
-		l=plt.legend(loc='upper left',fontsize=8)
-		#l=plt.legend(bbox_to_anchor=(0.2, 0.8),fontsize=8)
-		for text in l.get_texts():
-    			text.set_color("white")
-	#Macquart=None
-	if Macquart is not None:
-		plt.ylim(0,ndm-1)
-		plt.xlim(0,nz-1)
-		zmax=zvals[-1]
-		nz=zvals.size
-		DMbar, zeval = igm.average_DM(zmax, cumul=True, neval=nz+1)
-		DMbar=np.array(DMbar)
-		DMbar += Macquart #should be interpreted as muDM
-		mu_DM=zDMgrid
-		
-		#idea is that 1 point is 1, hence...
-		zeval /= (zvals[1]-zvals[0])
-		DMbar /= (dmvals[1]-dmvals[0])
-		
-		plt.plot(zeval,DMbar,color='blue',linewidth=2,label='Macquart relation')
-		l=plt.legend(loc='lower right',fontsize=12)
-		#l=plt.legend(bbox_to_anchor=(0.2, 0.8),fontsize=8)
-		#for text in l.get_texts():
-    		#	text.set_color("white")
-	
-	# limit to a reasonable range if logscale
-	if log:
-		themax=zDMgrid.max()
-		themin=int(themax-4)
-		themax=int(themax)
-		plt.clim(themin,themax)
-	
-	##### add FRB host galaxies at some DM/redshift #####
-	if FRBZ is not None:
-		iDMs=FRBDM/ddm
-		iZ=FRBZ/dz
-		plt.plot(iZ,iDMs,'ro',linestyle="")
-		
-	# do 1-D projected plots
-	if project:
-		plt.sca(acb)
-		cbar=plt.colorbar(im,fraction=0.046, shrink=1.2,aspect=20,pad=0.00,cax = acb)
-		cbar.ax.tick_params(labelsize=6)
-		cbar.set_label(label,fontsize=8)
-		
-		axy.set_yticklabels([])
-		#axy.set_xticklabels([])
-		#axx.set_yticklabels([])
-		axx.set_xticklabels([])
-		yonly=np.sum(orig,axis=0)
-		xonly=np.sum(orig,axis=1)
-		
-		axy.plot(yonly,dmvals) # DM is the vertical axis now
-		axx.plot(zvals,xonly)
-		
-		# if plotting DM only, put this on the axy axis showing DM distribution
-		if FRBDM is not None:
-			hvals=np.zeros(FRBDM.size)
-			for i,DM in enumerate(FRBDM):
-				hvals[i]=yonly[np.where(dmvals > DM)[0][0]]
-			
-			axy.plot(hvals,FRBDM,'ro',linestyle="")
-			for tick in axy.yaxis.get_major_ticks():
-                		tick.label.set_fontsize(6)
-			
-		if FRBZ is not None:
-			hvals=np.zeros(FRBZ.size)
-			for i,Z in enumerate(FRBZ):
-				hvals[i]=xonly[np.where(zvals > Z)[0][0]]
-			axx.plot(FRBZ,hvals,'ro',linestyle="")
-			for tick in axx.xaxis.get_major_ticks():
-                		tick.label.set_fontsize(6)
-	else:
-		cbar=plt.colorbar(im,fraction=0.046, shrink=1.2,aspect=15,pad=0.05)
-		cbar.set_label(label)
-		plt.tight_layout()
-	
-	plt.savefig(name)
-	if showplot:
-		plt.show()
-	plt.close()
+    ytvals=np.arange(dmvals.size)
+    every=int(dmvals.size/5)
+    plt.yticks(ytvals[every-1::every],dmvals[every-1::every])
+    
+    im=plt.imshow(zDMgrid.T,cmap=cmx,origin='lower', interpolation='None',aspect=aspect)
+    
+    if Aconts:
+        styles=['--','-.',':']
+        ax=plt.gca()
+        cs=ax.contour(zDMgrid.T,levels=alevels,origin='lower',colors="white",linestyles=styles)
+        #plt.clim(0,2e-5)
+        #ax.clabel(cs, cs.levels, inline=True, fontsize=10,fmt=['0.5','0.1','0.01'])
+    ###### gets decent axis labels, down to 1 decimal place #######
+    ax=plt.gca()
+    labels = [item.get_text() for item in ax.get_xticklabels()]
+    for i in np.arange(len(labels)):
+        labels[i]=labels[i][0:4]
+    ax.set_xticklabels(labels)
+    labels = [item.get_text() for item in ax.get_yticklabels()]
+    for i in np.arange(len(labels)):
+        if '.' in labels[i]:
+            labels[i]=labels[i].split('.')[0]
+    ax.set_yticklabels(labels)
+    ax.yaxis.labelpad = 0
+    
+    # plots contours i there
+    if conts:
+        plt.ylim(0,ndm-1)
+        for i in np.arange(nc):
+            j=int(nc-i-1)
+            plt.plot(np.arange(nz),carray[j,:],label=str(conts[j]),color='white')
+        l=plt.legend(loc='upper left',fontsize=8)
+        #l=plt.legend(bbox_to_anchor=(0.2, 0.8),fontsize=8)
+        for text in l.get_texts():
+                text.set_color("white")
+    #Macquart=None
+    if Macquart is not None:
+        plt.ylim(0,ndm-1)
+        plt.xlim(0,nz-1)
+        zmax=zvals[-1]
+        nz=zvals.size
+        DMbar, zeval = igm.average_DM(zmax, cumul=True, neval=nz+1)
+        DMbar=np.array(DMbar)
+        DMbar += Macquart #should be interpreted as muDM
+        mu_DM=zDMgrid
+        
+        #idea is that 1 point is 1, hence...
+        zeval /= (zvals[1]-zvals[0])
+        DMbar /= (dmvals[1]-dmvals[0])
+        
+        plt.plot(zeval,DMbar,color='blue',linewidth=2,label='Macquart relation')
+        l=plt.legend(loc='lower right',fontsize=12)
+        #l=plt.legend(bbox_to_anchor=(0.2, 0.8),fontsize=8)
+        #for text in l.get_texts():
+            #	text.set_color("white")
+    
+    # limit to a reasonable range if logscale
+    if log:
+        themax=zDMgrid.max()
+        themin=int(themax-4)
+        themax=int(themax)
+        plt.clim(themin,themax)
+    
+    ##### add FRB host galaxies at some DM/redshift #####
+    if FRBZ is not None:
+        iDMs=FRBDM/ddm
+        iZ=FRBZ/dz
+        plt.plot(iZ,iDMs,'ro',linestyle="")
+        
+    # do 1-D projected plots
+    if project:
+        plt.sca(acb)
+        cbar=plt.colorbar(im,fraction=0.046, shrink=1.2,aspect=20,pad=0.00,cax = acb)
+        cbar.ax.tick_params(labelsize=6)
+        cbar.set_label(label,fontsize=8)
+        
+        axy.set_yticklabels([])
+        #axy.set_xticklabels([])
+        #axx.set_yticklabels([])
+        axx.set_xticklabels([])
+        yonly=np.sum(orig,axis=0)
+        xonly=np.sum(orig,axis=1)
+        
+        axy.plot(yonly,dmvals) # DM is the vertical axis now
+        axx.plot(zvals,xonly)
+        
+        # if plotting DM only, put this on the axy axis showing DM distribution
+        if FRBDM is not None:
+            hvals=np.zeros(FRBDM.size)
+            for i,DM in enumerate(FRBDM):
+                hvals[i]=yonly[np.where(dmvals > DM)[0][0]]
+            
+            axy.plot(hvals,FRBDM,'ro',linestyle="")
+            for tick in axy.yaxis.get_major_ticks():
+                        tick.label.set_fontsize(6)
+            
+        if FRBZ is not None:
+            hvals=np.zeros(FRBZ.size)
+            for i,Z in enumerate(FRBZ):
+                hvals[i]=xonly[np.where(zvals > Z)[0][0]]
+            axx.plot(FRBZ,hvals,'ro',linestyle="")
+            for tick in axx.xaxis.get_major_ticks():
+                        tick.label.set_fontsize(6)
+    else:
+        cbar=plt.colorbar(im,fraction=0.046, shrink=1.2,aspect=15,pad=0.05)
+        cbar.set_label(label)
+        plt.tight_layout()
+    
+    plt.savefig(name)
+    if showplot:
+        plt.show()
+    plt.close()
 
 def plot_grid(grid,zvals,dmvals,showplot=False):
-	''' Plots a simple 2D grid '''
-	cmx = plt.get_cmap('cubehelix')
-	
-	plt.figure()
-	plt.zlabel('z')
-	plt.ylabel('DM_{\\rm EG}')
-	
-	plt.xtics(np.arange(zvals.size)[::10],zvals[::10])
-	plt.ytics(np.arange(dmvals.size)[::10],dmvals[::10])
-	plt.imshow(grid,extent=(zvals[0],zvals[-1],dmvals[0],dmvals[-1]),origin='lower',cmap=cmx)
-	cbar=plt.colorbar()
-	cbar.set_label('$p(DM_{\\rm EG}|z)')
-	if showplot:
-		plt.show()
+    ''' Plots a simple 2D grid '''
+    cmx = plt.get_cmap('cubehelix')
+    
+    plt.figure()
+    plt.zlabel('z')
+    plt.ylabel('DM_{\\rm EG}')
+    
+    plt.xtics(np.arange(zvals.size)[::10],zvals[::10])
+    plt.ytics(np.arange(dmvals.size)[::10],dmvals[::10])
+    plt.imshow(grid,extent=(zvals[0],zvals[-1],dmvals[0],dmvals[-1]),origin='lower',cmap=cmx)
+    cbar=plt.colorbar()
+    cbar.set_label('$p(DM_{\\rm EG}|z)')
+    if showplot:
+        plt.show()
 
 def plot_efficiencies_paper(survey,savename,label):
     ''' Plots a final version of efficiencies for the purpose of the paper '''
@@ -2235,32 +2249,32 @@ def plot_efficiencies_paper(survey,savename,label):
     plt.close()
 
 def plot_efficiencies(survey,savename='Plots/efficiencies.pdf',showplot=False):
-	""" Plots efficiency as function of DM """
-	plt.figure()
-	
-	eff=survey.efficiencies
-	dm=survey.DMlist
-	if "ID" in survey.frbs:
-		labels=survey.frbs["ID"]
-	else:
-		labels=np.arange(survey.NFRB)
-	
-	plt.xlabel('DM [pc cm$^{-3}$]')
-	plt.ylabel('Efficiency $\\epsilon$')
-	
-	ls=['-',':','--','-.']
-	
-	for i in np.arange(survey.NFRB):
-		ils=int(i/10)
-		plt.plot(dm,eff[i],label=labels[i],linestyle=ls[ils])
-	plt.plot(dm,survey.mean_efficiencies,linewidth=2,color='black',ls='-')
-	ncol=int((survey.NFRB+9)/10)
-	plt.legend(loc='upper right',fontsize=min(14,200./survey.NFRB),ncol=ncol)
-	plt.tight_layout()
-	plt.savefig(savename)
-	if showplot:
-		plt.show()
-	plt.close()
+    """ Plots efficiency as function of DM """
+    plt.figure()
+    
+    eff=survey.efficiencies
+    dm=survey.DMlist
+    if "ID" in survey.frbs:
+        labels=survey.frbs["ID"]
+    else:
+        labels=np.arange(survey.NFRB)
+    
+    plt.xlabel('DM [pc cm$^{-3}$]')
+    plt.ylabel('Efficiency $\\epsilon$')
+    
+    ls=['-',':','--','-.']
+    
+    for i in np.arange(survey.NFRB):
+        ils=int(i/10)
+        plt.plot(dm,eff[i],label=labels[i],linestyle=ls[ils])
+    plt.plot(dm,survey.mean_efficiencies,linewidth=2,color='black',ls='-')
+    ncol=int((survey.NFRB+9)/10)
+    plt.legend(loc='upper right',fontsize=min(14,200./survey.NFRB),ncol=ncol)
+    plt.tight_layout()
+    plt.savefig(savename)
+    if showplot:
+        plt.show()
+    plt.close()
 
 
 def plot_beams(prefix):
