@@ -19,6 +19,7 @@ from astropy.cosmology import FlatLambdaCDM
 #from frb import dlas
 from frb.dm import igm
 from zdm import cosmology as cos
+from zdm import parameters
 
 import scipy as sp
 #import astropy.units as u
@@ -86,24 +87,25 @@ def make_C0_grid(zeds,F):
         C0s[i]=iterate_C0(z,F)
     return C0s
 
-def get_mean_DM(zeds, params:dict):
+def get_mean_DM(zeds, state:parameters.State):
     """ Gets mean average z to which can be applied deltas 
 
     Args:
         zeds ([type]): [description]
-        params (dict): 
+        state (parameters.State): 
 
     Returns:
         np.ndarray: [description]
     """
     # Generate the cosmology
-    cosmo = FlatLambdaCDM(H0=params['cosmo'].H0, 
-                          Ob0=params['cosmo'].Omega_b, 
-                          Om0=params['cosmo'].Omega_m)
+    cosmo = FlatLambdaCDM(H0=state.cosmo.H0, 
+                          Ob0=state.cosmo.Omega_b, 
+                          Om0=state.cosmo.Omega_m)
     #
     zmax=zeds[-1]
     nz=zeds.size
-    DMbar, zeval = igm.average_DM(zmax, cosmo=cosmo, cumul=True, neval=nz) #neval=nz+1 was giving 
+    DMbar, zeval = igm.average_DM(
+        zmax, cosmo=cosmo, cumul=True, neval=nz) #neval=nz+1 was giving 
                                                               #wrong dimension
     #added H0 dependency
     #DMbar = DMbar*current_H0/(cosmo_H0)
@@ -146,8 +148,9 @@ def get_pDM(z,F,DMgrid,zgrid,Fgrid,C0grid):
     return pDM
 
 
-def get_pDM_grid(params, DMgrid,zgrid,C0s):
+def get_pDM_grid(state:parameters.State, DMgrid,zgrid,C0s):
     """ Gets pDM when the zvals are the same as the zgrid
+    state
     C0grid: C0 values obtained by convergence
     DMgrid: range of DMs for which we are generating a histogram
     zgrid: redshifts
@@ -155,7 +158,7 @@ def get_pDM_grid(params, DMgrid,zgrid,C0s):
     
     """
     #added H0 dependency
-    DMbars=get_mean_DM(zgrid, params)
+    DMbars=get_mean_DM(zgrid, state)
     
     pDMgrid=np.zeros([zgrid.size,DMgrid.size])
     print("shapes and sizes are ",C0s.size,pDMgrid.shape,DMbars.shape)
@@ -163,7 +166,7 @@ def get_pDM_grid(params, DMgrid,zgrid,C0s):
     for i,z in enumerate(zgrid):
         deltas=DMgrid/DMbars[i] # since pDM is defined such that the mean is 1
         #print("l147",i,z,F,COs[i],deltas)
-        pDMgrid[i,:]=pcosmic(deltas,z,params['IGM'].F,C0s[i])
+        pDMgrid[i,:]=pcosmic(deltas,z,state.IGM.F,C0s[i])
         pDMgrid[i,:] /= np.sum(pDMgrid[i,:]) #normalisation
     return pDMgrid
 

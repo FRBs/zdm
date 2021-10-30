@@ -19,6 +19,7 @@ from zdm import beams
 from zdm import cosmology as cos
 from zdm import survey
 from zdm import zdm
+from zdm import grid
 from zdm import pcosmic
 from zdm import parameters
 
@@ -892,7 +893,7 @@ def test_pks_beam(surveys,zDMgrid, zvals,dmvals,pset,outdir='Plots/BeamTest/',zm
         print(s.beam_b)
         if New==True:
         
-            grid=zdm.grid()
+            grid=grid.Grid()
             grid.pass_grid(zDMgrid,zvals,dmvals)
             grid.smear_dm(mask,logmean,logsigma)
             efficiencies=s.get_efficiency(dmvals)
@@ -1097,7 +1098,7 @@ def final_plot_beam_rates(surveys,zDMgrid, zvals,dmvals,pset,binset,names,logsig
         else:
             t0=t0=time.process_time()
             # set up grid, which should be common for this survey
-            grid=zdm.grid()
+            grid=grid.Grid()
             grid.pass_grid(zDMgrid,zvals,dmvals)
             grid.smear_dm(mask,logmean,logsigma)
             grid.calc_thresholds(s.meta['THRESH'],efficiencies,alpha=alpha,weights=weights)
@@ -1385,7 +1386,7 @@ def test_beam_rates(survey,zDMgrid, zvals,dmvals,pset,binset,method=2,outdir='Pl
     numbins=np.zeros([len(binset)])
     
     for k,nbins in enumerate(binset):
-        grid=zdm.grid()
+        grid=grid.Grid()
         grid.pass_grid(zDMgrid,zvals,dmvals)
         grid.smear_dm(mask,logmean,logsigma)
         grid.calc_thresholds(survey.meta['THRESH'],survey.mean_efficiencies,alpha=alpha)
@@ -1568,7 +1569,7 @@ def initialise_grids(surveys: list, zDMgrid: np.ndarray, zvals: np.ndarray,
             weights=None
             #efficiencies=survey.get_efficiency(dmvals)
         
-        grid=zdm.grid(source_evolution=params['FRBdemo'].source_evolution,
+        grid=grid.Grid(source_evolution=params['FRBdemo'].source_evolution,
                       alpha_method=params['FRBdemo'].alpha_method)
         grid.pass_grid(zDMgrid,zvals,dmvals,H0)
         grid.smear_dm(mask,logmean,logsigma)
@@ -1607,7 +1608,7 @@ def generate_example_plots():
     #Fth=lat50.meta('THRESH')
     
     # create a grid object
-    grid=zdm.grid()
+    grid=grid.Grid()
     grid.pass_grid(zDMgrid,zvals,dmvals)
     
     # plots the grid of intrinsic p(DM|z)
@@ -1670,14 +1671,14 @@ def plot_1d(pvec,lset,xlabel,savename,showplot=False):
     plt.close()
     
 # generates grid based on Monte Carlo model
-def get_zdm_grid(params:dict, new=True,plot=False,method='analytic',
+def get_zdm_grid(state:parameters.State, new=True,plot=False,method='analytic',
                  nz=500,zmax=5,ndm=1400,dmmax=7000.,
                  datdir='GridData',tag="", orig=False):
     """Generate a grid of z vs. DM for an assumed F value
     for a specified z range and DM range.
 
     Args:
-        params (float): Dict holding all the key parameters for the analysis
+        state (parameters.State): Object holding all the key parameters for the analysis
         new (bool, optional): [description]. Defaults to True.
         plot (bool, optional): [description]. Defaults to False.
         method (str, optional): [description]. Defaults to 'analytic'.
@@ -1699,16 +1700,16 @@ def get_zdm_grid(params:dict, new=True,plot=False,method='analytic',
     except:
         pass
     if method=='MC':
-        savefile=datdir+'/'+tag+'zdm_MC_grid_'+str(params['IGM'].F)+'.npy'
-        datfile=datdir+'/'+tag+'zdm_MC_data_'+str(params['IGM'].F)+'.npy'
-        zfile=datdir+'/'+tag+'zdm_MC_z_'+str(params['IGM'].F)+'.npy'
-        dmfile=datdir+'/'+tag+'zdm_MC_dm_'+str(params['IGM'].F)+'.npy'
+        savefile=datdir+'/'+tag+'zdm_MC_grid_'+str(state.IGM.F)+'.npy'
+        datfile=datdir+'/'+tag+'zdm_MC_data_'+str(state.IGM.F)+'.npy'
+        zfile=datdir+'/'+tag+'zdm_MC_z_'+str(state.IGM.F)+'.npy'
+        dmfile=datdir+'/'+tag+'zdm_MC_dm_'+str(state.IGM.F)+'.npy'
     elif method=='analytic':
-        savefile=datdir+'/'+tag+'zdm_A_grid_'+str(params['IGM'].F)+'H0_'+str(params['cosmo'].H0)+'.npy'
-        datfile=datdir+'/'+tag+'zdm_A_data_'+str(params['IGM'].F)+'H0_'+str(params['cosmo'].H0)+'.npy'
-        zfile=datdir+'/'+tag+'zdm_A_z_'+str(params['IGM'].F)+'H0_'+str(params['cosmo'].H0)+'.npy'
-        dmfile=datdir+'/'+tag+'zdm_A_dm_'+str(params['IGM'].F)+'H0_'+str(params['cosmo'].H0)+'.npy'
-        C0file=datdir+'/'+tag+'zdm_A_C0_'+str(params['IGM'].F)+'H0_'+str(params['cosmo'].H0)+'.npy'
+        savefile=datdir+'/'+tag+'zdm_A_grid_'+str(state.IGM.F)+'H0_'+str(state.cosmo.H0)+'.npy'
+        datfile=datdir+'/'+tag+'zdm_A_data_'+str(state.IGM.F)+'H0_'+str(state.cosmo.H0)+'.npy'
+        zfile=datdir+'/'+tag+'zdm_A_z_'+str(state.IGM.F)+'H0_'+str(state.cosmo.H0)+'.npy'
+        dmfile=datdir+'/'+tag+'zdm_A_dm_'+str(state.IGM.F)+'H0_'+str(state.cosmo.H0)+'.npy'
+        C0file=datdir+'/'+tag+'zdm_A_C0_'+str(state.IGM.F)+'H0_'+str(state.cosmo.H0)+'.npy'
     #labelled pickled files with H0
     if new:
         
@@ -1749,20 +1750,20 @@ def get_zdm_grid(params:dict, new=True,plot=False,method='analytic',
             t0=time.process_time()
             # calculate constants for p_DM distribution
             if orig:
-                C0s=pcosmic.make_C0_grid(zvals,params['IGM'].F)
+                C0s=pcosmic.make_C0_grid(zvals,state.IGM.F)
             else:
                 f_C0_3 = cosmic.grab_C0_spline()
-                sigma = params['IGM'].F / np.sqrt(zvals)
+                sigma = state.IGM.F / np.sqrt(zvals)
                 C0s = f_C0_3(sigma)
             # generate pDM grid using those COs
             #zDMgrid=pcosmic.get_pDM_grid(H0,F,dmvals,zvals,C0s)
-            zDMgrid=pcosmic.get_pDM_grid(params,dmvals,zvals,C0s)
+            zDMgrid=pcosmic.get_pDM_grid(state,dmvals,zvals,C0s)
             t1=time.process_time()
             dt=t1-t0
             print("Done. Took ",dt," seconds")
         
         np.save(savefile,zDMgrid)
-        metadata=np.array([nz,ndm,params['IGM'].F])
+        metadata=np.array([nz,ndm,state.IGM.F])
         np.save(datfile,metadata)
         np.save(zfile,zvals)
         np.save(dmfile,dmvals)

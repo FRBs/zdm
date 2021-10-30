@@ -36,9 +36,9 @@ def make_grids():
 
     # get the grid of p(DM|z). See function for default values.
     # set new to False once this is already initialised
-    embed(header='45 of test')
-    zDMgrid, zvals,dmvals = misc_functions.get_zdm_grid(params,
-        new=True, plot=False, method='analytic')
+    zDMgrid, zvals,dmvals = misc_functions.get_zdm_grid(
+        state, new=True, plot=False, method='analytic')
+    embed(header='41 of test')
 
 
     sdir = os.path.join(resource_filename('zdm', 'data'), 'Surveys')
