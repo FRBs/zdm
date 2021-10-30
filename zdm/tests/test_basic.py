@@ -88,7 +88,6 @@ def make_grids():
     gICS892=grids[2]
     gpks=grids[3]
     print("Initialised grids")
-    embed(header='91 of test')
     
     Location='Plots'
     if not os.path.isdir(Location):
@@ -99,7 +98,7 @@ def make_grids():
     if do2DPlots:
         # Unpack for convenience
         lat50,ICS,ICS892,pks = surveys
-        muDM=10**params['host'].lmean
+        muDM=10**state.host.lmean
         Macquart=muDM
         # plots zdm distribution
         misc_functions.plot_grid_2(gpks.rates,gpks.zvals,gpks.dmvals,zmax=3,DMmax=3000,
