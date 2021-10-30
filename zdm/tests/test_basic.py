@@ -38,7 +38,6 @@ def make_grids():
     # set new to False once this is already initialised
     zDMgrid, zvals,dmvals = misc_functions.get_zdm_grid(
         state, new=True, plot=False, method='analytic')
-    embed(header='41 of test')
 
 
     sdir = os.path.join(resource_filename('zdm', 'data'), 'Surveys')
@@ -52,15 +51,15 @@ def make_grids():
 
         srvy=survey.survey()
         srvy.process_survey_file(os.path.join(sdir, dfile))
-        srvy.init_DMEG(params['MW'].DMhalo)
-        srvy.init_beam(nbins=params['beam'].Nbeams[ss],
+        srvy.init_DMEG(state.MW.DMhalo)
+        srvy.init_beam(nbins=state.beam.Nbeams[ss],
                     method=2, plot=False,
-                    thresh=params['beam'].thresh) # tells the survey to use the beam file
+                    thresh=state.beam.thresh) # tells the survey to use the beam file
         pwidths,pprobs=survey.make_widths(srvy, 
-                                      params['width'].logmean,
-                                      params['width'].logsigma,
-                                      params['beam'].Wbins,
-                                      scale=params['beam'].Wscale)
+                                      state.width.logmean,
+                                      state.width.logsigma,
+                                      state.beam.Wbins,
+                                      scale=state.beam.Wscale)
         _ = srvy.get_efficiency_from_wlist(dmvals,pwidths,pprobs)
 
         # Append
@@ -68,15 +67,15 @@ def make_grids():
 
     
     # generates zdm grids for the specified parameter set
-    if params['beam'].method =='Full':
+    if state.beam.method =='Full':
         gprefix='best'
-    elif params['beam'].method =='Std':
+    elif state.beam.method =='Std':
         gprefix='Std_best'
     
-    if params['analysis'].NewGrids:
+    if state.analysis.NewGrids:
         print("Generating new grids, set NewGrids=False to save time later")
         grids=misc_functions.initialise_grids(
-            surveys,zDMgrid, zvals, dmvals, params,
+            surveys,zDMgrid, zvals, dmvals, state,
             wdist=True)#, source_evolution=source_evolution, alpha_method=alpha_method)
         with open('Pickle/'+gprefix+'grids.pkl', 'wb') as output:
             pickle.dump(grids, output, pickle.HIGHEST_PROTOCOL)
@@ -89,6 +88,7 @@ def make_grids():
     gICS892=grids[2]
     gpks=grids[3]
     print("Initialised grids")
+    embed(header='91 of test')
     
     Location='Plots'
     if not os.path.isdir(Location):

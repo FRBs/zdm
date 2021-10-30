@@ -112,7 +112,7 @@ class IGMParams(myDataClass):
         default=0.32,
         metadata={'help': 'F parameter in DM PDF for the Cosmic web'})
 
-# Host parameters
+# Host parameters -- host
 @dataclass
 class HostParams(myDataClass):
     lmean: float = field(
@@ -132,7 +132,7 @@ class WidthParams(myDataClass):
         default = 0.899148,
         metadata={'help': 'Intrinsic width log of sigma'})
 
-# FRB Energetics
+# FRB Energetics -- energy
 @dataclass
 class EnergeticsParams(myDataClass):
     lEmin: float = field(
@@ -152,7 +152,7 @@ class State:
     Returns:
         dict: [description]
     """
-    def __init__(self,source_evolution=0,alpha_method=0,luminosity_function=0):
+    def __init__(self):
 
         self.width = WidthParams()
         self.MW = MWParams()
@@ -187,7 +187,7 @@ class State:
                     if self.cosmo.fix_Omega_b_h2:
                         self.cosmo.Omega_b = self.cosmo.Omega_b_h2/(
                             self.cosmo.H0/100.)**2
-
+    '''
     def unpack_pset(self, mode:str='H0_std'):
         if mode == 'H0_std':
             return [
@@ -203,6 +203,7 @@ class State:
             ]
         else:
             raise IOError('Bad mode')
+    '''
 
     def vet(self, obj, dmodel:dict, verbose=True):
         """ Vet the input object against its data model

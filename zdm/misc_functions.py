@@ -18,8 +18,7 @@ from zdm import iteration as it
 from zdm import beams
 from zdm import cosmology as cos
 from zdm import survey
-from zdm import zdm
-from zdm import grid
+from zdm import grid as zdm_grid
 from zdm import pcosmic
 from zdm import parameters
 
@@ -893,7 +892,7 @@ def test_pks_beam(surveys,zDMgrid, zvals,dmvals,pset,outdir='Plots/BeamTest/',zm
         print(s.beam_b)
         if New==True:
         
-            grid=grid.Grid()
+            grid=zdm_grid.Grid()
             grid.pass_grid(zDMgrid,zvals,dmvals)
             grid.smear_dm(mask,logmean,logsigma)
             efficiencies=s.get_efficiency(dmvals)
@@ -1098,7 +1097,7 @@ def final_plot_beam_rates(surveys,zDMgrid, zvals,dmvals,pset,binset,names,logsig
         else:
             t0=t0=time.process_time()
             # set up grid, which should be common for this survey
-            grid=grid.Grid()
+            grid=zdm_grid.Grid()
             grid.pass_grid(zDMgrid,zvals,dmvals)
             grid.smear_dm(mask,logmean,logsigma)
             grid.calc_thresholds(s.meta['THRESH'],efficiencies,alpha=alpha,weights=weights)
@@ -1386,7 +1385,7 @@ def test_beam_rates(survey,zDMgrid, zvals,dmvals,pset,binset,method=2,outdir='Pl
     numbins=np.zeros([len(binset)])
     
     for k,nbins in enumerate(binset):
-        grid=grid.Grid()
+        grid=zdm_grid.Grid()
         grid.pass_grid(zDMgrid,zvals,dmvals)
         grid.smear_dm(mask,logmean,logsigma)
         grid.calc_thresholds(survey.meta['THRESH'],survey.mean_efficiencies,alpha=alpha)
@@ -1529,8 +1528,10 @@ def test_beam_rates(survey,zDMgrid, zvals,dmvals,pset,binset,method=2,outdir='Pl
     
     acc.close()
 
-def initialise_grids(surveys: list, zDMgrid: np.ndarray, zvals: np.ndarray, 
-                     dmvals: np.ndarray, params: dict, wdist=False): 
+def initialise_grids(surveys: list, zDMgrid: np.ndarray, 
+                     zvals: np.ndarray, 
+                     dmvals: np.ndarray, state:parameters.State, 
+                     wdist=False): 
     """ For a list of surveys, construct a zDMgrid object
     wdist indicates a distribution of widths in the survey,
     i.e. do not use the mean efficiency
@@ -1541,24 +1542,26 @@ def initialise_grids(surveys: list, zDMgrid: np.ndarray, zvals: np.ndarray,
         zDMgrid (np.ndarray): [description]
         zvals (np.ndarray): [description]
         dmvals (np.ndarray): [description]
-        pset (dict): [description]
+        state (parameters.State): parameters guiding the analysis
         wdist (bool, optional): [description]. Defaults to False.
 
     Returns:
-        [type]: [description]
+        list: list of Grid objects
     """
     if not isinstance(surveys,list):
         surveys=[surveys]
     
     # get parameter values
     #lEmin,lEmax,alpha,gamma,sfr_n,logmean,logsigma,lC,H0=pset
-    lEmin,lEmax,alpha,gamma,sfr_n,logmean,logsigma,lC,H0=parameters.unpack_pset(params)
-    Emin=10**lEmin
-    Emax=10**lEmax
+    #lEmin,lEmax,alpha,gamma,sfr_n,logmean,logsigma,lC,H0=parameters.unpack_pset(params)
+    #Emin=10**lEmin
+    #Emax=10**lEmax
     
     # generates a DM mask
     # creates a mask of values in DM space to convolve with the DM grid
-    mask=pcosmic.get_dm_mask(dmvals,(logmean,logsigma),zvals,plot=True)
+    mask=pcosmic.get_dm_mask(
+        dmvals,(state.host.lmean,state.host.lsigma),
+        zvals,plot=True)
     grids=[]
     for survey in surveys:
         if wdist:
@@ -1569,17 +1572,20 @@ def initialise_grids(surveys: list, zDMgrid: np.ndarray, zvals: np.ndarray,
             weights=None
             #efficiencies=survey.get_efficiency(dmvals)
         
-        grid=grid.Grid(source_evolution=params['FRBdemo'].source_evolution,
-                      alpha_method=params['FRBdemo'].alpha_method)
-        grid.pass_grid(zDMgrid,zvals,dmvals,H0)
-        grid.smear_dm(mask,logmean,logsigma)
+        grid=zdm_grid.Grid(state)
+        grid.pass_grid(zDMgrid,zvals,dmvals)
+        grid.smear_dm(mask)#,logmean,logsigma)
         
         # note - survey frequencies in MHz
-        grid.calc_thresholds(survey.meta['THRESH'],efficiencies,
-                             alpha=alpha,weights=weights,nuObs=survey.meta['FBAR']*1e6)
+        grid.calc_thresholds(survey.meta['THRESH'],
+                             efficiencies,
+                             weights=weights,
+                             nuObs=survey.meta['FBAR']*1e6)
         grid.calc_dV()
-        grid.calc_pdv(Emin,Emax,gamma,survey.beam_b,survey.beam_o) # calculates volumetric-weighted probabilities
-        grid.set_evolution(sfr_n) # sets star-formation rate scaling with z - here, no evoltion...
+        #grid.calc_pdv(Emin,Emax,gamma,survey.beam_b,
+        grid.calc_pdv(survey.beam_b,
+                      survey.beam_o) # calculates volumetric-weighted probabilities
+        grid.set_evolution() # sets star-formation rate scaling with z - here, no evoltion...
         grid.calc_rates() # calculates rates by multiplying above with pdm plot
         grids.append(grid)
     
@@ -1608,7 +1614,7 @@ def generate_example_plots():
     #Fth=lat50.meta('THRESH')
     
     # create a grid object
-    grid=grid.Grid()
+    grid=zdm_grid.Grid()
     grid.pass_grid(zDMgrid,zvals,dmvals)
     
     # plots the grid of intrinsic p(DM|z)
