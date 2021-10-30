@@ -145,72 +145,96 @@ class EnergeticsParams(myDataClass):
         default = 1.54,
         metadata={'help': 'spectral index. WARNING: here F(nu)~nu^-alpha in the code, opposite to the paper!'})
 
-def init_parameters():
-
-    # Begin
-    param_dict = {}
-
-    # Wrap em together
-    param_dict['width'] = WidthParams()
-    param_dict['MW'] = MWParams()
-    param_dict['analysis'] = AnalysisParams()
-    param_dict['beam'] = BeamParams()
-    param_dict['FRBdemo'] = FRBDemoParams()
-    param_dict['cosmo'] = CosmoParams()
-    param_dict['host'] = HostParams()
-    param_dict['IGM'] = IGMParams()
-    param_dict['energy'] = EnergeticsParams()
-
-    return param_dict
-
-
-def unpack_pset(params:dict, mode:str='H0_std'):
-    if mode == 'H0_std':
-        return [
-            params['energy'].lEmin,
-            params['energy'].lEmax,
-            params['energy'].alpha,
-            params['FRBdemo'].gamma,
-            params['FRBdemo'].sfr_n,
-            params['host'].lmean,
-            params['host'].lsigma,
-            params['FRBdemo'].lC,
-            params['cosmo'].H0,
-        ]
-    else:
-        raise IOError('Bad mode')
-
-def vet_param(obj, dmodel:dict, verbose=True):
-    """ Vet the input object against its data model
-
-    Args:
-        obj (dict or pandas.DataFrame):  Instance of the data model
-        dmodel (dict): Data model
-        verbose (bool): Print when something doesn't check
+class State:
+    """ Initialize the full state for the analysis 
+    with the default parameters
 
     Returns:
-        tuple: chk (bool), disallowed_keys (list), badtype_keys (list)
+        dict: [description]
     """
+    def __init__(self,source_evolution=0,alpha_method=0,luminosity_function=0):
 
-    chk = True
-    # Loop on the keys
-    disallowed_keys = []
-    badtype_keys = []
-    for key in obj.keys():
-        # In data model?
-        if not key in dmodel.keys():
-            disallowed_keys.append(key)
-            chk = False
-            if verbose:
-                print("Disallowed key: {}".format(key))
+        self.width = WidthParams()
+        self.MW = MWParams()
+        self.analysis = AnalysisParams()
+        self.beam = BeamParams()
+        self.FRBdemo = FRBDemoParams()
+        self.cosmo = CosmoParams()
+        self.host = HostParams()
+        self.IGM = IGMParams()
+        self.energy = EnergeticsParams()
 
-        # Check data type
-        iobj = obj[key].values if isinstance(obj, pandas.DataFrame) else obj[key]
-        if not isinstance(iobj,
-                          dmodel[key]['dtype']):
-            badtype_keys.append(key)
-            chk = False        
-            if verbose:
-                print("Bad key type: {}".format(key))
-    # Return
-    return chk, disallowed_keys, badtype_keys
+    def __getitem__(self, attrib:str):
+        """Enables dict like access to the state
+
+        Args:
+            attrib (str): [description]
+
+        Returns:
+            [type]: [description]
+        """
+        return getattr(self, attrib)
+
+    def update(self, params:dict):
+        for key in params.keys():
+            idict = params[key]
+            for ikey in idict.keys():
+                # Set
+                setattr(self[key], ikey, idict[ikey])
+
+                # Special treatment
+                if key == 'cosmo' and ikey == 'H0':
+                    if self.cosmo.fix_Omega_b_h2:
+                        self.cosmo.Omega_b = self.cosmo.Omega_b_h2/(
+                            self.cosmo.H0/100.)**2
+
+    def unpack_pset(self, mode:str='H0_std'):
+        if mode == 'H0_std':
+            return [
+                params['energy'].lEmin,
+                params['energy'].lEmax,
+                params['energy'].alpha,
+                params['FRBdemo'].gamma,
+                params['FRBdemo'].sfr_n,
+                params['host'].lmean,
+                params['host'].lsigma,
+                params['FRBdemo'].lC,
+                params['cosmo'].H0,
+            ]
+        else:
+            raise IOError('Bad mode')
+
+    def vet(self, obj, dmodel:dict, verbose=True):
+        """ Vet the input object against its data model
+
+        Args:
+            obj (dict or pandas.DataFrame):  Instance of the data model
+            dmodel (dict): Data model
+            verbose (bool): Print when something doesn't check
+
+        Returns:
+            tuple: chk (bool), disallowed_keys (list), badtype_keys (list)
+        """
+
+        chk = True
+        # Loop on the keys
+        disallowed_keys = []
+        badtype_keys = []
+        for key in obj.keys():
+            # In data model?
+            if not key in dmodel.keys():
+                disallowed_keys.append(key)
+                chk = False
+                if verbose:
+                    print("Disallowed key: {}".format(key))
+
+            # Check data type
+            iobj = obj[key].values if isinstance(obj, pandas.DataFrame) else obj[key]
+            if not isinstance(iobj,
+                            dmodel[key]['dtype']):
+                badtype_keys.append(key)
+                chk = False        
+                if verbose:
+                    print("Bad key type: {}".format(key))
+        # Return
+        return chk, disallowed_keys, badtype_keys

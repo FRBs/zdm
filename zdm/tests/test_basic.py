@@ -17,39 +17,26 @@ from IPython import embed
 def make_grids():
 
     ############## Initialise parameters ##############
-    params = parameters.init_parameters()
+    state = parameters.State()
 
-    # Test against main
-    params['cosmo'].H0 = 67.74
-    params['cosmo'].Omega_lambda = 0.685
-    params['cosmo'].Omega_m = 0.315
-    params['cosmo'].Omega_b = 0.044
+    # Variable parameters
+    vparams = {}
+    vparams['cosmo'] = {}
+    vparams['cosmo']['H0'] = 67.74
+    vparams['cosmo']['Omega_lambda'] = 0.685
+    vparams['cosmo']['Omega_m'] = 0.315
+    vparams['cosmo']['Omega_b'] = 0.044
 
-    # Fix Omega_b?
-    if params['cosmo'].fix_Omega_b_h2:
-        params['cosmo'].Omega_b = params['cosmo'].Omega_b_h2/(
-            params['cosmo'].H0/100.)**2
-        print(f"Omega_b adjusted to {params['cosmo'].Omega_b}")
-
-    # Compare to main branch
-    #DEF_Omega_k=0.
-    # dark energy / cosmological constant (in current epoch)
-    #DEF_Omega_lambda=0.685
-    # matter density in current epoch
-    #DEF_Omega_m=0.315 #Plank says 0.315
-    # baryon density
-    #DEF_Omega_b=0.044
-    #DEF_Omega_b_h2=0.0224 #Planck says 0.0224, WMAP 0.02264
-    # hubble constant in current epoch
-    #DEF_H0 = igm.Planck15.H0.value #km s^-1 Mpc^-1 #planck15 used in frb.igm
-
+    # Update state
+    state.update(vparams)
 
     ############## Initialise cosmology ##############
-    cos.set_cosmology(params)
+    cos.set_cosmology(state)
     cos.init_dist_measures()
 
     # get the grid of p(DM|z). See function for default values.
     # set new to False once this is already initialised
+    embed(header='45 of test')
     zDMgrid, zvals,dmvals = misc_functions.get_zdm_grid(params,
         new=True, plot=False, method='analytic')
 
