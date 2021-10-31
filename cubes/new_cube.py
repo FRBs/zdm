@@ -1,5 +1,13 @@
 """ JXP VERSION """
 
+'''
+Questions for Clancy:
+
+1. lC vs. C
+2. Order of update_grid
+3. Order of grid parameters
+'''
+
 ######
 # first run this to generate surveys and parameter sets, by 
 # setting NewSurveys=True NewGrids=True
@@ -84,6 +92,7 @@ def main(Cube):
     
     surveys = []
     names = ['CRAFT/FE', 'CRAFT/ICS', 'CRAFT/ICS892', 'PKS/Mb']
+    #names = ['CRAFT/FE'] # For debugging
     for survey_name in names:
         surveys.append(survey.load_survey(survey_name, state, dmvals))
     '''

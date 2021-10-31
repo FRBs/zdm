@@ -890,6 +890,7 @@ def cube_likelihoods(grids,surveys, #psetmins,psetmaxes,npoints,
         exit()
     
     NPARAMS = len(vparam_dict)
+    PARAMS = list(vparam_dict.keys())
     nsets = len(grids)
     lls = np.zeros([nsets])
     
@@ -900,12 +901,15 @@ def cube_likelihoods(grids,surveys, #psetmins,psetmaxes,npoints,
 
     active=np.zeros([NPARAMS], dtype=int)
     disable=[]
+    lC_active = False
     for ip, tmp in enumerate(vparam_dict.items()):
         key, item = tmp
         if item['n'] == -1: #code to maximise it at each point
             active[ip] = 1
             item['n'] = 1
             npoints[ip] = 1
+            if key == 'lC':
+                lC_active = True
         else:
             disable.append(ip)
         # 
@@ -929,7 +933,7 @@ def cube_likelihoods(grids,surveys, #psetmins,psetmaxes,npoints,
         minimise=False
     
     # check to see if we can minimise the constant only
-    if active[-1]==1 and np.sum(active)==1:
+    if lC_active and np.sum(active)==1:
         minimise=False
         const_only=True
     else:
@@ -1010,37 +1014,47 @@ def cube_likelihoods(grids,surveys, #psetmins,psetmaxes,npoints,
             ### minimise if appropriate ### 
             if minimise:
                 #C_ll,C_p=my_minimise(pset,grids,surveys,
-                C_ll,C_p=my_minimise(vparams,grids,surveys,
+                C_ll = my_minimise(vparams,grids,surveys,
                                      disable=disable,psnr=True,
-                                     PenParams=None,Verbose=False)
+                                     PenParams=None,Verbose=True)
+                # The following was unnecessary
+                #  Only the active ones can be modified in my_minimise
+                #  And, pset was being modified in place (as a list)
+                '''
                 toset=np.where(active==1)
                 for s in toset:
                     pset[s]=C_p[s]
+                '''
             
             if const_only:
-                C,llC,lltot=minimise_const_only(pset,grids,surveys)
-                pset[7]=C
-            
-            
+                C,llC,lltot=minimise_const_only(
+                    vparams,grids,surveys)
+                #pset[7]=C
+                vparams['lC']=C
+
             
             # for the minimised parameters, set the values
             for j,n in enumerate(current):
-                string +=' {:8.2f}'.format(pset[j])
+                #string +=' {:8.2f}'.format(pset[j])
+                string +=' {:8.2f}'.format(vparams[PARAMS[j]])
             
             
             # in theory we could save the following step if we have already minimised by oh well. Too annoying!
             ll=0.
-            
             for j,s in enumerate(surveys):
                 if clone is not None and clone[j] > 0:
+                    embed(header='1047 of it -- this wont work')
                     grids[j].copy(grids[clone[j]])
                 else:
-                    update_grid(grids[j],pset,s)
+                    #update_grid(grids[j],pset,s)
+                    grids[j].update(vparams)
                 if s.nD==1:
                     func=calc_likelihoods_1D
                 else:
                     func=calc_likelihoods_2D
-                lls[j],alist,expected=func(grids[j],s,pset,norm=norm,psnr=psnr,dolist=1)
+                lls[j],alist,expected=func(
+                    grids[j],s, vparams['lC'],
+                    norm=norm,psnr=psnr,dolist=1)
                 # these are slow operations but negligible in the grand scheme of things
                 
                 string += ' {:8.2f}'.format(lls[j]) # for now, we are recording the individual log likelihoods, but not the components
@@ -1077,9 +1091,28 @@ def cube_likelihoods(grids,surveys, #psetmins,psetmaxes,npoints,
 def my_minimise(vparams:dict,grids,surveys,steps=None,
                 disable=None,Verbose=False,MaxIter=200,psnr=False,
                 PenTypes=None,PenParams=None):
+    """Minimise on the not disabled parameters
+
+    Args:
+        vparams (dict): [description]
+        grids ([type]): [description]
+        surveys ([type]): [description]
+        steps ([type], optional): [description]. Defaults to None.
+            Steps, if given, must be a length NPARAMS array, giving initial step size
+        disable ([type], optional): [description]. Defaults to None.
+        Verbose (bool, optional): [description]. Defaults to False.
+        MaxIter (int, optional): [description]. Defaults to 200.
+        psnr (bool, optional): [description]. Defaults to False.
+        PenTypes ([type], optional): [description]. Defaults to None.
+        PenParams ([type], optional): [description]. Defaults to None.
+
+    Raises:
+        ValueError: [description]
+
+    Returns:
+        float: log-likelihood value
     """
-    Steps, if given, must be a length NPARAMS array, giving initial step size
-    """
+
     #NPARAMS=8
     NPARAMS= len(vparams)
     
@@ -1121,7 +1154,7 @@ def my_minimise(vparams:dict,grids,surveys,steps=None,
         print(vparams)
     while True:
         niter += 1
-        ll2,pset2,steps,active,lastsign,careful=step_log_likelihoodX(
+        ll2,steps,active,lastsign,careful=step_log_likelihoodX(
             vparams,grids,surveys,steps,active,lastsign,minstep,
             delta=1e-2,dstep=3.,careful=careful,psnr=psnr,PenTypes=PenTypes,
             PenParams=PenParams,Verbose=Verbose)
@@ -1132,12 +1165,12 @@ def my_minimise(vparams:dict,grids,surveys,steps=None,
         
         # update parameters
         ll=ll2
-        pset=pset2
+        #pset=pset2
         
         if Verbose:
             string="Iteration "+str(niter)
             string += ' {:8.3}'.format(ll)
-            for p in pset:
+            for p in list(vparams.values()):
                 string += ' {:8.3}'.format(p)
             for a in active:
                 string += ' {:2d}'.format(int(a))
@@ -1150,7 +1183,7 @@ def my_minimise(vparams:dict,grids,surveys,steps=None,
         if np.all(active==False):
             break
     
-    return ll,pset
+    return ll #,pset
     
 def step_log_likelihood(pset,grids,surveys,step,active,
                         lastsign,minstep,delta=1e-2,dstep=2.,
@@ -1538,20 +1571,28 @@ def step_log_likelihoodX(vparams:dict,grids,surveys,step,active,lastsign,minstep
             print(tlls[:,j,1]-tll[j])
             
     # Handles the penalties on parameters
-    embed(header='1538 of it')
-    loglik += HandlePenalties(pset,PenTypes,PenParams)
+    loglik += HandlePenalties(list(vparams.values()),
+                              PenTypes,PenParams)
     for i in np.arange(NPARAMS):
         if not active[i]: # tests for inactive dimension
             continue
-        temp=pset[i]
-        pset[i] -= step[i]
-        derivs[i,0] += HandlePenalties(pset,PenTypes,PenParams)
+        #temp=pset[i]
+        #pset[i] -= step[i]
+        temp=vparams[PARAMS[i]]
+        vparams[PARAMS[i]] -= step[i]
+        derivs[i,0] += HandlePenalties(list(vparams.values()),
+                                       PenTypes,PenParams)
         
-        pset[i] += 2.*step[i]
-        derivs[i,1] += HandlePenalties(pset,PenTypes,PenParams)
-        pset[i]=temp
+        #pset[i] += 2.*step[i]
+        vparams[PARAMS[i]] += 2*step[i]
+        derivs[i,1] += HandlePenalties(list(vparams.values()),
+                                       PenTypes,PenParams)
+        #pset[i]=temp
+        vparams[PARAMS[i]] = temp
+
     
     # looks for the best option
+    #  Specified by dim
     llmax1=np.max(derivs[:,0])
     llmax2=np.max(derivs[:,1])
     if llmax1 > llmax2:
@@ -1574,7 +1615,8 @@ def step_log_likelihoodX(vparams:dict,grids,surveys,step,active,lastsign,minstep
     else: # keep running while the running's good
         count=0
         while(1):
-            pset[dim] += step[dim]*sign
+            #pset[dim] += step[dim]*sign
+            vparams[PARAMS[dim]] += step[dim]*sign
             if Verbose:
                 print("Incrementing dim ",dim," by ",step[dim]*sign)
             #print("Running! ",loglik,pset)
@@ -1582,20 +1624,24 @@ def step_log_likelihoodX(vparams:dict,grids,surveys,step,active,lastsign,minstep
             for j,grid in enumerate(grids):
                 # calculates derivatives in all the variables
                 s=surveys[j]
-                update_grid(grid,pset,s)
+                #update_grid(grid,pset,s)
+                grid.update(vparams)
                 
                 # determine correct function: 1 or  D
                 if s.nD==1:
                     func=calc_likelihoods_1D
                 else:
                     func=calc_likelihoods_2D
-                ll+=func(grid,s,pset,norm=norm,psnr=psnr)
+                ll+=func(grid,s, grid.state.FRBdemo.lC,
+                         norm=norm,psnr=psnr)
                 if np.isnan(ll) or np.isinf(ll):
-                    pset[dim] -= step[dim]*sign
+                    #pset[dim] -= step[dim]*sign
+                    vparams[PARAMS[dim]] -= step[dim]*sign
                     step[dim] /= dstep
                     break
             if ll < loglik:
-                pset[dim] -= step[dim]*sign
+                #pset[dim] -= step[dim]*sign
+                vparams[PARAMS[dim]] -= step[dim]*sign
                 step[dim] /= dstep
                 break
             elif ll-loglik < 0.001:
@@ -1611,11 +1657,12 @@ def step_log_likelihoodX(vparams:dict,grids,surveys,step,active,lastsign,minstep
             active[i]=False
     
     # return current array values
-    return loglik,pset,step,active,lastsign,careful
+    return loglik,step,active,lastsign,careful
 
-def HandlePenalties(pset,Ptypes,Pparams):
+def HandlePenalties(pset:list, Ptypes,Pparams):
     logpenalty=0
-    if not (Ptypes is not None): # checks to see if we are using penalties
+    #if not (Ptypes is not None): # checks to see if we are using penalties
+    if Ptypes is None: # checks to see if we are using penalties
         return 0
     for i,param in enumerate(pset):
         if Ptypes[i]==0: #no restriction
@@ -1724,7 +1771,7 @@ def minus_poisson_ps(log10C,data):
     return -lp
     
 
-def minimise_const_only(pset,grids,surveys):
+def minimise_const_only(vparams,grids,surveys):
     '''
     Only minimises for the constant, but returns the full likelihood
     It treats the rest as constants
@@ -1749,17 +1796,19 @@ def minimise_const_only(pset,grids,surveys):
     os=[] #observed
     lls=np.zeros([ng])
     for j,s in enumerate(surveys):
-        update_grid(grids[j],pset,s)
+        #update_grid(grids[j],pset,s)
+        grids[j].update(vparams)
         if s.nD==1:
             func=calc_likelihoods_1D
         else:
             func=calc_likelihoods_2D
-        lls[j]=func(grids[j],s,pset,norm=True,psnr=True,Pn=False) #excludes Pn term
+        lls[j]=func(grids[j],s, vparams['lC'], 
+                    norm=True,psnr=True,Pn=False) #excludes Pn term
         
         ### Assesses total number of FRBs ###
         if s.TOBS is not None:
             r=np.sum(grids[j].rates)*s.TOBS
-            r*=10**pset[7]
+            r*=10**vparams['lC']
             o=s.NORM_FRB
             rs.append(r)
             os.append(o)
@@ -1770,10 +1819,12 @@ def minimise_const_only(pset,grids,surveys):
     startlog10C=(bounds[0]+bounds[1])/2.
     bounds=[bounds]
     t0=time.process_time()
-    result=minimize(minus_poisson_ps,startlog10C,args=data,bounds=bounds)
+    result=minimize(minus_poisson_ps,startlog10C,
+                    args=data,bounds=bounds)
     t1=time.process_time()
     dC=result.x
-    newC=pset[7]+dC
+    #newC=pset[7]+dC
+    newC=vparams['lC']+float(dC)
     llC=-minus_poisson_ps(dC,data)
     lltot=llC+np.sum(lls)
     return newC,llC,lltot
