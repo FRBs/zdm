@@ -5,7 +5,9 @@ Questions for Clancy:
 
 1. lC vs. C
 2. Order of update_grid
-3. Order of grid parameters
+3. Survey is unique to a grid, right?
+4. Order of grid parameters
+5. Why 90s per iteration?
 '''
 
 ######
