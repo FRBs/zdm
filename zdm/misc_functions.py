@@ -3,6 +3,8 @@ import sys
 import numpy as np
 import argparse
 import pickle
+import json
+import copy
 
 import scipy as sp
 
@@ -1543,6 +1545,7 @@ def initialise_grids(surveys: list, zDMgrid: np.ndarray,
         zvals (np.ndarray): [description]
         dmvals (np.ndarray): [description]
         state (parameters.State): parameters guiding the analysis
+            Each grid gets its *own* copy
         wdist (bool, optional): [description]. Defaults to False.
 
     Returns:
@@ -1572,10 +1575,11 @@ def initialise_grids(surveys: list, zDMgrid: np.ndarray,
             weights=None
             #efficiencies=survey.get_efficiency(dmvals)
         
-        grid=zdm_grid.Grid(state)
+        grid=zdm_grid.Grid(survey, copy.deepcopy(state))
         grid.pass_grid(zDMgrid,zvals,dmvals)
         grid.smear_dm(mask)#,logmean,logsigma)
         
+        # TODO -- avoid code duplication with grid.update_grid()
         # note - survey frequencies in MHz
         grid.calc_thresholds(survey.meta['THRESH'],
                              efficiencies,
@@ -2414,3 +2418,8 @@ def process_pfile(pfile):
             Nits[count]=int(vals[2])
             count += 1
     return mins,maxs,Nits
+
+def process_jfile(jfile:str):
+    with open(jfile, 'rt') as fh:
+        obj = json.load(fh)
+    return obj

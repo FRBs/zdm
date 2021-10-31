@@ -1,5 +1,6 @@
 ### this file includes various routines to iterate /maximise / minimise
 # values on a zdm grid
+from IPython.terminal.embed import embed
 import matplotlib.pyplot as plt
 import numpy as np
 from zdm import pcosmic
@@ -835,7 +836,8 @@ def missing_cube_likelihoods(grids,surveys,todo,outfile,norm=True,psnr=True,star
     f.close()
 
 
-def cube_likelihoods(grids,surveys,psetmins,psetmaxes,npoints,
+def cube_likelihoods(grids,surveys, #psetmins,psetmaxes,npoints,
+                     vparam_dict:dict,
                      run,howmany,outfile,norm=True,
                      psnr=True,starti=0,clone=None):
     """
@@ -869,23 +871,39 @@ def cube_likelihoods(grids,surveys,psetmins,psetmaxes,npoints,
     # expected number for best-fit constant
     
     """
+    npoints = np.array([item['n'] for key, item in vparam_dict.items()])
+    vp_keys = list(vparam_dict.keys())
+    state = grids[0].state # Any grid will do
     
     # check feasible range of job number
     if (howmany <= 0) or (run <= 0) or np.prod(np.abs(npoints)) < (run-1)*howmany+1:
-        print("Invalid range of run=",run," and howmany=",howmany," for ",np.prod(npoints)," points")
+        print("Invalid range of run=",run," and howmany=",howmany," for ",np.prod(
+            np.abs(npoints))," points")
         exit()
     
-    NPARAMS=8
-    nsets=len(grids)
-    lls=np.zeros([nsets])
+    NPARAMS = len(vparam_dict)
+    nsets = len(grids)
+    lls = np.zeros([nsets])
     
     f=open(outfile,'a+')
     
     ### calculates actual values at each point ###
-    psetvals=[]
-    
-    active=np.zeros([NPARAMS])
+    #psetvals=[]
+
+    active=np.zeros([NPARAMS], dtype=int)
     disable=[]
+    for ip, tmp in enumerate(vparam_dict.items()):
+        key, item = tmp
+        if item['n'] == -1: #code to maximise it at each point
+            active[ip] = 1
+            item['n'] = 1
+            npoints[ip] = 1
+        else:
+            disable.append(ip)
+        # 
+        item['vals']=np.linspace(item['min'], item['max'], np.abs(item['n']))
+
+    '''
     for ip,n in enumerate(npoints):
         if n==-1: #code to maximise it at each point
             active[ip]=1
@@ -896,6 +914,7 @@ def cube_likelihoods(grids,surveys,psetmins,psetmaxes,npoints,
         
         vals=np.linspace(psetmins[ip],psetmaxes[ip],n)
         psetvals.append(vals)
+    '''
     if np.sum(active)>0:
         minimise=True
     else:
@@ -908,8 +927,8 @@ def cube_likelihoods(grids,surveys,psetmins,psetmaxes,npoints,
     else:
         const_only=False
     
-    ntotal=np.prod(npoints)
     start=(run-1)*howmany
+
     
     ####### counters for each dimensions ######
     
@@ -917,7 +936,8 @@ def cube_likelihoods(grids,surveys,psetmins,psetmaxes,npoints,
     # order[0] first, then order [1], etc
     # the order can depend on the methods being used
     # note: takes this from the first grid, it should be identical for all grids
-    if grids[0].alpha_method==0:
+    if grids[0].state.FRBdemo.alpha_method==0:
+        print("FIX THIS!!!!!")
         order=[7,4,5,6,0,1,2,3]
     elif grids[0].alpha_method==0:
         order=[7,4,2,5,6,0,1,3]
@@ -952,7 +972,17 @@ def cube_likelihoods(grids,surveys,psetmins,psetmaxes,npoints,
     t0=time.process_time()
     print("Starting at time ",t0)
     # iterates
+
     pset=np.zeros([ndims]) #current parameter set
+
+    # Init
+    vparams = {}
+    for key in vparam_dict.keys():
+        if vparam_dict[key]['DC'] not in vparams.keys():
+            vparams[vparam_dict[key]['DC']] = {}
+        vparams[vparam_dict[key]['DC']][key] = None
+
+
     for i in np.arange(howmany):
         
         print("Testing ",i," of ",howmany," begin at ",starti)
@@ -965,11 +995,19 @@ def cube_likelihoods(grids,surveys,psetmins,psetmaxes,npoints,
             # provided that current is updated properly this does not care about re-ordering
             for j,n in enumerate(current):
                 if active[j]==0 or i==0: #only update if we are not minimising or it's the first time
-                    pset[j]=psetvals[j][n]
-            
+                    DC = vparam_dict[vp_keys[j]]['DC']
+                    vparams[DC][vp_keys[j]] = vparam_dict[vp_keys[j]]['vals'][n]
+                    #pset[j]=psetvals[j][n]
+
+            # Update the state
+            state.update(vparams)
+
             ### minimise if appropriate ### 
             if minimise:
-                C_ll,C_p=my_minimise(pset,grids,surveys,disable=disable,psnr=True,PenParams=None,Verbose=False)
+                #C_ll,C_p=my_minimise(pset,grids,surveys,
+                C_ll,C_p=my_minimise(vparams,grids,surveys,
+                                     disable=disable,psnr=True,
+                                     PenParams=None,Verbose=False)
                 toset=np.where(active==1)
                 for s in toset:
                     pset[s]=C_p[s]
@@ -1031,17 +1069,22 @@ def cube_likelihoods(grids,surveys,psetmins,psetmaxes,npoints,
         
     f.close()
     
-def my_minimise(pset,grids,surveys,steps=None,disable=None,Verbose=False,MaxIter=200,psnr=False,PenTypes=None,PenParams=None):
+def my_minimise(vparams:dict,grids,surveys,steps=None,
+                disable=None,Verbose=False,MaxIter=200,psnr=False,
+                PenTypes=None,PenParams=None):
     """
     Steps, if given, must be a length NPARAMS array, giving initial step size
     """
-    NPARAMS=8
+    #NPARAMS=8
+    NPARAMS=0
+    for key in vparams.keys():
+        NPARAMS += len(vparams[key])
     
     ### set up initial step size ###
     steps0=np.full([NPARAMS],0.1) #initial step size in parameters (0.5 is HUGE!)
     
-    if len(pset) != NPARAMS:
-        raise ValueError("my minimise needs ",NPARAMS," parameters, not ",params)
+    #if len(pset) != NPARAMS:
+    #    raise ValueError("my minimise needs ",NPARAMS," parameters, not ",params)
     
     if steps is not None:
         if len(steps) != NPARAMS:
@@ -1072,10 +1115,13 @@ def my_minimise(pset,grids,surveys,steps=None,disable=None,Verbose=False,MaxIter
     careful=False
     if Verbose:
         print("### Begginning iteration ####")
-        print(pset)
+        print(vparams)
     while True:
         niter += 1
-        ll2,pset2,steps,active,lastsign,careful=step_log_likelihood2(pset,grids,surveys,steps,active,lastsign,minstep,delta=1e-2,dstep=3.,careful=careful,psnr=psnr,PenTypes=PenTypes,PenParams=PenParams,Verbose=Verbose)
+        ll2,pset2,steps,active,lastsign,careful=step_log_likelihoodX(
+            vparams,grids,surveys,steps,active,lastsign,minstep,
+            delta=1e-2,dstep=3.,careful=careful,psnr=psnr,PenTypes=PenTypes,
+            PenParams=PenParams,Verbose=Verbose)
         
         if np.isnan(ll):
             print("Got nan on likelihood with parameters ",pset2)
@@ -1103,7 +1149,9 @@ def my_minimise(pset,grids,surveys,steps=None,disable=None,Verbose=False,MaxIter
     
     return ll,pset
     
-def step_log_likelihood(pset,grids,surveys,step,active,lastsign,minstep,delta=1e-2,dstep=2.,psnr=True,norm=True,careful=False):
+def step_log_likelihood(pset,grids,surveys,step,active,
+                        lastsign,minstep,delta=1e-2,dstep=2.,
+                        psnr=True,norm=True,careful=False):
     """
     #### currently only set of a signle survey...#####
     pset is the current parameter ste
@@ -1140,6 +1188,7 @@ def step_log_likelihood(pset,grids,surveys,step,active,lastsign,minstep,delta=1e
     
     check_careful=False
     NC=np.zeros([NPARAMS])
+
     
     for j,grid in enumerate(grids):
         # calculates derivatives in all the variables
@@ -1240,7 +1289,9 @@ def step_log_likelihood(pset,grids,surveys,step,active,lastsign,minstep,delta=1e
     # return current array values
     return loglik,pset,step,active,lastsign,careful
     
-def step_log_likelihood2(pset,grids,surveys,step,active,lastsign,minstep,delta=1e-2,dstep=2.,psnr=True,norm=True,careful=False,PenTypes=None,PenParams=None,Verbose=False):
+def step_log_likelihood2(pset,grids,surveys,step,active,lastsign,minstep,
+                         delta=1e-2,dstep=2.,psnr=True,norm=True,careful=False,
+                         PenTypes=None,PenParams=None,Verbose=False):
     """
     #### currently only set of a signle survey...#####
     pset is the current parameter ste
@@ -1277,6 +1328,164 @@ def step_log_likelihood2(pset,grids,surveys,step,active,lastsign,minstep,delta=1
         # calculates derivatives in all the variables
         s=surveys[j]
         update_grid(grid,pset,s)
+        
+        # determine correct function: 1 or  D
+        if s.nD==1:
+            func=calc_likelihoods_1D
+        else:
+            func=calc_likelihoods_2D
+        tll[j]=func(grid,s,pset,norm=norm,psnr=psnr)
+        loglik+=tll[j]
+        if Verbose:
+            print("Likelihood ",j,tll[j])
+        for i in np.arange(NPARAMS):
+            if not active[i]: # tests for inactive dimension
+                derivs[i,0]=-1e99
+                derivs[i,1]=-1e99
+                tlls[i,j,0]=-1e99
+                tlls[i,j,1]=-1e99
+                continue
+            temp=pset[i]
+            pset[i] -= step[i]
+            update_grid(grid,pset,s)
+            #derivs[i,0] += func(grid,s,pset,norm=norm,psnr=psnr)
+            tlls[i,j,0] = func(grid,s,pset,norm=norm,psnr=psnr)
+            derivs[i,0] += tlls[i,j,0] 
+            if np.isnan(derivs[i,0]) or np.isinf(derivs[i,0]):
+                derivs[i,0]=-1e99
+            
+            pset[i] += 2.*step[i]
+            update_grid(grid,pset,s)
+            #derivs[i,1] += func(grid,s,pset,norm=norm,psnr=psnr)
+            tlls[i,j,1] = func(grid,s,pset,norm=norm,psnr=psnr)
+            derivs[i,1] += tlls[i,j,1]
+            if np.isnan(derivs[i,1]) or np.isinf(derivs[i,1]):
+                derivs[i,1]=-1e99
+            pset[i]=temp
+        if np.isnan(loglik) or np.isinf(loglik):
+                loglik=-1e99
+        if Verbose:
+            print(tlls[:,j,0]-tll[j])
+            print(tlls[:,j,1]-tll[j])
+            
+    # Handles the penalties on parameters
+    loglik += HandlePenalties(pset,PenTypes,PenParams)
+    for i in np.arange(NPARAMS):
+        if not active[i]: # tests for inactive dimension
+            continue
+        temp=pset[i]
+        pset[i] -= step[i]
+        derivs[i,0] += HandlePenalties(pset,PenTypes,PenParams)
+        
+        pset[i] += 2.*step[i]
+        derivs[i,1] += HandlePenalties(pset,PenTypes,PenParams)
+        pset[i]=temp
+    
+    # looks for the best option
+    llmax1=np.max(derivs[:,0])
+    llmax2=np.max(derivs[:,1])
+    if llmax1 > llmax2:
+        sign=-1
+        dim=np.argmax(derivs[:,0])
+        llmax=llmax1
+    else:
+        sign=1
+        dim=np.argmax(derivs[:,1])
+        llmax=llmax2
+    loc=np.where(derivs==llmax)[0]
+    
+    # if this is the case, we need to reduce the step size
+    if llmax <= loglik:
+        for i in np.arange(NPARAMS):
+            if active[i]:
+                step[i] /= dstep
+        if Verbose:
+            print("Reducing all step sizes")
+    else: # keep running while the running's good
+        count=0
+        while(1):
+            pset[dim] += step[dim]*sign
+            if Verbose:
+                print("Incrementing dim ",dim," by ",step[dim]*sign)
+            #print("Running! ",loglik,pset)
+            ll=0
+            for j,grid in enumerate(grids):
+                # calculates derivatives in all the variables
+                s=surveys[j]
+                update_grid(grid,pset,s)
+                
+                # determine correct function: 1 or  D
+                if s.nD==1:
+                    func=calc_likelihoods_1D
+                else:
+                    func=calc_likelihoods_2D
+                ll+=func(grid,s,pset,norm=norm,psnr=psnr)
+                if np.isnan(ll) or np.isinf(ll):
+                    pset[dim] -= step[dim]*sign
+                    step[dim] /= dstep
+                    break
+            if ll < loglik:
+                pset[dim] -= step[dim]*sign
+                step[dim] /= dstep
+                break
+            elif ll-loglik < 0.001:
+                step[dim] /= dstep
+                break
+            if Verbose:
+                print("Old ll was ",loglik," new is ",ll)
+            loglik=ll
+            
+    # deactivates regions where the step size is now too small
+    for i in np.arange(NPARAMS):
+        if step[i] < minstep[i]:
+            active[i]=False
+    
+    # return current array values
+    return loglik,pset,step,active,lastsign,careful
+
+
+def step_log_likelihoodX(vparams:dict,grids,surveys,step,active,lastsign,minstep,
+                         delta=1e-2,dstep=2.,psnr=True,norm=True,careful=False,
+                         PenTypes=None,PenParams=None,Verbose=False):
+    """
+    #### currently only set of a signle survey...#####
+    pset is the current parameter ste
+    grid is the standard grid
+    survey is the survey of interest
+    
+    func is the minimisation function (1 or 2 D)
+    
+    step the current step size
+    
+    delta is the size over which to measure derivatives
+        this is sufficient accuracy for anything we wish to do...
+    dstep is the factor by which the step size is reduced in
+        each iteration
+        
+    This version only ever takes a step is the largest direction
+    
+    PenTypes lists the penalties, PenParams are the parameters to the function
+    """
+    NPARAMS=0
+    for key in vparams.keys():
+        NPARAMS += len(vparams[key])
+    
+    
+    # calculate initial likelihood
+    loglik=0
+    derivs=np.zeros([NPARAMS,2])
+    ngrids=len(grids)
+    tlls=np.zeros([NPARAMS,ngrids,2])
+    tll=np.zeros([ngrids])
+    if Verbose:
+        print("Calculating initial likelihoods...")
+
+    # search initial steps
+    embed(header='1484 of it')
+    for j,grid in enumerate(grids):
+        # calculates derivatives in all the variables
+        s=surveys[j]
+        #update_grid(grid,pset,s)
         
         # determine correct function: 1 or  D
         if s.nD==1:

@@ -1,6 +1,7 @@
 import numpy as np
 from zdm import cosmology as cos
 from zdm import parameters
+from zdm import misc_functions
 from zdm import zdm
 import time
 
@@ -13,14 +14,19 @@ class Grid:
     It also assumes a linear uniform grid.
     """
     
-    def __init__(self,state:parameters.State=None):
+    def __init__(self, survey, state:parameters.State=None):
         """
         Class constructor.
-        Source evolution is the function that determines z-dependence.
-        0: SFR^n
-        1: (1+z)^2.7 n
+
+        Args: 
+            survey
+            state (parameters.State, optional): 
+                Defines the parameters of the analysis
+                Note, each grid holds the *same* copy so modifying
+                it in one place affects them all.
         """
         self.grid=None
+        self.survey = survey
         # we need to set these to trivial values to ensure correct future behaviour
         self.beam_b=np.array([1])
         self.beam_o=np.array([1])
@@ -50,7 +56,6 @@ class Grid:
         self.grid=zDMgrid
         self.zvals=zvals
         self.dmvals=dmvals
-        #self.H0=H0
         #
         self.check_grid()
         self.calc_dV()
@@ -102,7 +107,6 @@ class Grid:
         maxoff=np.max(diff**2)
         if maxoff > 1e-6*self.ddm:
             raise ValueError("Maximum non-linearity in dm-grid of ",maxoff**0.5,"detected, aborting")
-        
         
         
     def calc_dV(self):
@@ -477,6 +481,33 @@ class Grid:
         FRBparams=[MCz,MCDM,MCb,j,MCs]
         return FRBparams,pwb
         
+
+    def update_grid(self, vparams:dict):
+        # 
+        if 'cosmo' in vparams.keys():
+            if 'H0' in vparams['cosmo'] and vparams['cosmo']['H0'] != self.state.cosmo.H0:
+                self.state.cosmo.H0 = vparams['cosmo']['H0']
+                cos.set_cosmology(self.state)
+                zDMgrid, zvals,dmvals=misc_functions.get_zdm_grid(
+                    self.state, new=True,plot=False,method='analytic')
+                # TODO -- Check zvals and dmvals haven't changed!
+                self.pass_grid(zDMgrid,zvals,dmvals)
+                #self.smear_mean=oldsmean
+                #self.smear_sigma=oldssigma
+                #self.smear_dm(self.smear)#,oldsmean,oldssigma)
+                self.calc_dV()
+                calc_smear = True
+                # TODO -- do we need to do this step??  Only if dmvals change
+                #self.calc_thresholds(self.survey.meta['THRESH'],
+                #                     self.survey.efficiencies,
+                #                     weights=self.survey.wplist)
+                calc_thresh = True
+                calc_pdv = True
+                set_evol = True
+                calc_rates = True
+                #self.calc_pdv(Emin,Emax,gamma,self.survey.beam_b,self.survey.beam_o)
+                #self.set_evolution(oldsfrn) 
+                #self.calc_rates()
     
     '''
     def copy(self,grid):

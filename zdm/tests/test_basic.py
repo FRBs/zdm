@@ -3,6 +3,7 @@ import pytest
 
 from pkg_resources import resource_filename
 import os
+import copy
 import pickle
 
 from astropy.cosmology import Planck18
@@ -39,33 +40,11 @@ def make_grids():
     zDMgrid, zvals,dmvals = misc_functions.get_zdm_grid(
         state, new=True, plot=False, method='analytic')
 
-
-    sdir = os.path.join(resource_filename('zdm', 'data'), 'Surveys')
-
     surveys = []
-    for ss, dfile in zip(range(4),
-                         ['CRAFT_class_I_and_II.dat',
-                         'CRAFT_ICS.dat',
-                         'CRAFT_ICS_892.dat', 
-                         'parkes_mb_class_I_and_II.dat']): 
+    names = ['CRAFT/FE', 'CRAFT/ICS', 'CRAFT/ICS892', 'PKS/Mb']
+    for survey_name in names:
+        surveys.append(survey.load_survey(survey_name, state, dmvals))
 
-        srvy=survey.survey()
-        srvy.process_survey_file(os.path.join(sdir, dfile))
-        srvy.init_DMEG(state.MW.DMhalo)
-        srvy.init_beam(nbins=state.beam.Nbeams[ss],
-                    method=2, plot=False,
-                    thresh=state.beam.thresh) # tells the survey to use the beam file
-        pwidths,pprobs=survey.make_widths(srvy, 
-                                      state.width.logmean,
-                                      state.width.logsigma,
-                                      state.beam.Wbins,
-                                      scale=state.beam.Wscale)
-        _ = srvy.get_efficiency_from_wlist(dmvals,pwidths,pprobs)
-
-        # Append
-        surveys.append(srvy)
-
-    
     # generates zdm grids for the specified parameter set
     if state.beam.method =='Full':
         gprefix='best'
@@ -75,8 +54,7 @@ def make_grids():
     if state.analysis.NewGrids:
         print("Generating new grids, set NewGrids=False to save time later")
         grids=misc_functions.initialise_grids(
-            surveys,zDMgrid, zvals, dmvals, state,
-            wdist=True)#, source_evolution=source_evolution, alpha_method=alpha_method)
+            surveys,zDMgrid, zvals, dmvals, state, wdist=True)#, source_evolution=source_evolution, alpha_method=alpha_method)
         with open('Pickle/'+gprefix+'grids.pkl', 'wb') as output:
             pickle.dump(grids, output, pickle.HIGHEST_PROTOCOL)
     else:
@@ -88,7 +66,7 @@ def make_grids():
     gICS892=grids[2]
     gpks=grids[3]
     print("Initialised grids")
-    
+
     Location='Plots'
     if not os.path.isdir(Location):
         os.mkdir(Location)

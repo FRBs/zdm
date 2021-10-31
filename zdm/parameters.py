@@ -32,10 +32,10 @@ class BeamParams(myDataClass):
     method: str = field(
         default='Std',
         metadata={'help': 'Method for calculation. Full=more detailed and more time. Std=fast'})
-    Nbeams: List[int] = field(  # can use in list in 3.9
-        default_factory=list,
-        #default_factory=[5,5,5,10],
-        metadata={'help': '???'})
+    #Nbeams: List[int] = field(  # can use in list in 3.9
+    #    default_factory=list,
+    #    #default_factory=[5,5,5,10],
+    #    metadata={'help': '???'})
     Wbins: int = field(
         default=5,
         metadata={'help': '???'})
@@ -43,8 +43,8 @@ class BeamParams(myDataClass):
         default=3.5,
         metadata={'help': '???'})
 
-    def __post_init__(self):
-        self.Nbeams = [5,5,5,10]
+    #def __post_init__(self):
+    #    self.Nbeams = [5,5,5,10]
 
 # Cosmology parameters
 @dataclass
@@ -74,7 +74,7 @@ class CosmoParams(myDataClass):
         default=True,
         metadata={'help': 'Fix Omega_b_h2 by the Placnk18 value?'})
 
-# FRB Demographics
+# FRB Demographics -- FRBdemo
 @dataclass
 class FRBDemoParams(myDataClass):
     source_evolution: int = field(

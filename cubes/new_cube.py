@@ -1,4 +1,4 @@
-
+""" JXP VERSION """
 
 ######
 # first run this to generate surveys and parameter sets, by 
@@ -12,12 +12,16 @@
 import argparse
 import numpy as np
 import os
+import matplotlib
 
 from zdm import survey
 from zdm import parameters
 from zdm import cosmology as cos
+from zdm import misc_functions
+from zdm import pcosmic
+from zdm import iteration as it
 
-import iteration as it
+from IPython import embed
 
 import pickle
 
@@ -29,7 +33,6 @@ font = {'family' : 'normal',
         'weight' : 'normal',
         'size'   : defaultsize}
 matplotlib.rc('font', **font)
-import pcosmic
 
 #import igm
 defaultsize=14
@@ -44,17 +47,32 @@ def main(Cube):
     ############## Initialise cosmology ##############
     # Location for maximisation output
     outdir='Cube/'
+
+    ############## Initialise parameters ##############
+    state = parameters.State()
+
+    # Variable parameters
+    vparams = {}
+    vparams['cosmo'] = {}
+    vparams['cosmo']['H0'] = 67.74
+    vparams['cosmo']['Omega_lambda'] = 0.685
+    vparams['cosmo']['Omega_m'] = 0.315
+    vparams['cosmo']['Omega_b'] = 0.044
     
     #cos.set_cosmology(Omega_m=1.2) setup for cosmology
+    cos.set_cosmology(state)
     cos.init_dist_measures()
     
     #parser.add_argument(", help
     # get the grid of p(DM|z)
-    zDMgrid, zvals,dmvals=get_zdm_grid(new=False,plot=False,method='analytic')
+    zDMgrid, zvals,dmvals = misc_functions.get_zdm_grid(
+        state, new=True, plot=False, method='analytic',
+        datdir='../zdm/GridData')
     # NOTE: if this is new, we also need new surveys and grids!
     
     ############## Initialise surveys ##############
     
+    '''
     # constants of beam method
     thresh=0
     method=2
@@ -66,11 +84,17 @@ def main(Cube):
     
     NewSurveys=False
     
-    prefix='Cube'
     Wbins=5
     Wscale=3.5
     Nbeams=[5,5,10]
+    '''
+    prefix='Cube'
     
+    surveys = []
+    names = ['CRAFT/FE', 'CRAFT/ICS', 'CRAFT/ICS892', 'PKS/Mb']
+    for survey_name in names:
+        surveys.append(survey.load_survey(survey_name, state, dmvals))
+    '''
     # Five surveys: we need to distinguish between those with and without a time normalisation
     if NewSurveys:
         # contains both normalised and unnormalised Tobs FRBs
@@ -109,9 +133,11 @@ def main(Cube):
             surveys=pickle.load(infile)
             names=pickle.load(infile)
             FE1,ICS,p1=surveys
+    '''
     print("Initialised surveys ",names)
     
     
+    '''
     # initial parameter values. SHOULD BE LOGSIGMA 0.75! (WAS 0.25!?!?!?)
     # these are meaningless btw - but the program is set up to require
     # a parameter set when first initialising grids
@@ -124,20 +150,24 @@ def main(Cube):
     lsigma=0.5
     C=0.
     pset=[lEmin,lEmax,alpha,gamma,sfr_n,lmean,lsigma,C]
+    '''
     
     # generates zdm grids for initial parameter set
     # when submitting a job, make sure this is all pre-generated once
-    NewGrids=False
-    if NewGrids:
-        grids=initialise_grids(surveys,zDMgrid, zvals,dmvals,pset,wdist=True)
+    #if state.analysis.NewGrids:
+    if True:
+        grids = misc_functions.initialise_grids(
+            surveys,zDMgrid, zvals, dmvals, state, wdist=True)
+        # Write to disk
+        if not os.path.isdir('Pickle'):
+            os.mkdir('Pickle')
         with open('Pickle/'+prefix+'grids.pkl', 'wb') as output:
             pickle.dump(grids, output, pickle.HIGHEST_PROTOCOL)
     else:
         with open('Pickle/'+prefix+'grids.pkl', 'rb') as infile:
             grids=pickle.load(infile)
-        gFE1,gFE2,gICS,gp1,gp2=grids
+        #gFE1,gFE2,gICS,gp1,gp2=grids
     print("Initialised grids")
-    
     
     if Cube is not None:
         # hard-coded cloning ability. This is now out-dated.
@@ -152,7 +182,8 @@ def main(Cube):
         if not os.path.exists(outdir):
             os.mkdir(outdir)
         
-        psetmins,psetmaxes,nvals=process_pfile(args.pfile)
+        #psetmins,psetmaxes,nvals=misc_functions.process_pfile(Cube[2])
+        vparam_dict=misc_functions.process_jfile(Cube[2])
         run=Cube[0]
         howmany=Cube[1]
         opfile=Cube[3]
@@ -164,27 +195,34 @@ def main(Cube):
             print("Done everything!")
             pass
         # this takes a while...
-        it.cube_likelihoods(grids,surveys,psetmins,psetmaxes,
-                      nvals,run,howmany,opfile,
-                      starti=starti,clone=clone)
+        #it.cube_likelihoods(grids,surveys,psetmins,psetmaxes,
+        #              nvals,run,howmany,opfile,
+        #              starti=starti,clone=clone)
+        it.cube_likelihoods(grids,surveys, vparam_dict,
+                      run,howmany,opfile, starti=starti,clone=clone)
         
 
 
 # test for command-line arguments here
-from misc_functions import *
-import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument('-n','--number',type=int,required=False,help="nth iteration, beginning at 0")
 parser.add_argument('-m','--howmany',type=int,required=False,help="number m to iterate at once")
 parser.add_argument('-p','--pfile',type=str,required=False,help="File defining parameter ranges")
 parser.add_argument('-o','--opfile',type=str,required=False,help="Output file for the data")
+parser.add_argument('--clobber', default=False, action='store_true',
+                    help="Clobber output file?")
 args = parser.parse_args()
+
+
 if args.number is not None and args.howmany is not None and args.pfile is not None and args.opfile is not None:
     if args.number is None or args.howmany is None or args.pfile is None or args.opfile is None:
         print("We require some or all values of the arguments!")
         exit()
     Cube=[args.number,args.howmany,args.pfile,args.opfile]
-    mins,maxs,Ns=process_pfile(args.pfile)
+    #mins,maxs,Ns=misc_functions.process_pfile(args.pfile)
+    # Clobber?
+    if args.clobber and os.path.isfile(args.opfile):
+        os.remove(args.opfile)
 else:
     Cube=None
 
