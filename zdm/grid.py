@@ -483,31 +483,102 @@ class Grid:
         
 
     def update_grid(self, vparams:dict):
-        # 
-        if 'cosmo' in vparams.keys():
-            if 'H0' in vparams['cosmo'] and vparams['cosmo']['H0'] != self.state.cosmo.H0:
-                self.state.cosmo.H0 = vparams['cosmo']['H0']
-                cos.set_cosmology(self.state)
-                zDMgrid, zvals,dmvals=misc_functions.get_zdm_grid(
-                    self.state, new=True,plot=False,method='analytic')
-                # TODO -- Check zvals and dmvals haven't changed!
-                self.pass_grid(zDMgrid,zvals,dmvals)
-                #self.smear_mean=oldsmean
-                #self.smear_sigma=oldssigma
-                #self.smear_dm(self.smear)#,oldsmean,oldssigma)
-                self.calc_dV()
-                calc_smear = True
-                # TODO -- do we need to do this step??  Only if dmvals change
-                #self.calc_thresholds(self.survey.meta['THRESH'],
-                #                     self.survey.efficiencies,
-                #                     weights=self.survey.wplist)
+        # Init
+        smear_dm, calc_pdv, set_evol, calc_rates = False, False, False, False
+        new_pdv_smear, calc_thresh = False, False
+
+        # Cosmology -- Only H0 so far
+        if self.chk_upd_param('H0', vparams, update=True):
+            cos.set_cosmology(self.state)
+            zDMgrid, zvals,dmvals=misc_functions.get_zdm_grid(
+                self.state, new=True,plot=False,method='analytic')
+            # TODO -- Check zvals and dmvals haven't changed!
+            self.pass_grid(zDMgrid,zvals,dmvals)
+            #self.smear_mean=oldsmean
+            #self.smear_sigma=oldssigma
+            #self.smear_dm(self.smear)#,oldsmean,oldssigma)
+            # pass_grid calls calc_dV()
+            #self.calc_dV()
+            smear_dm = True
+            # TODO -- do we need to do this step??  Only if dmvals change
+            #self.calc_thresholds(self.survey.meta['THRESH'],
+            #                     self.survey.efficiencies,
+            #                     weights=self.survey.wplist)
+            calc_thresh = True
+            calc_pdv = True
+            set_evol = True
+            calc_rates = True
+            #self.calc_pdv(Emin,Emax,gamma,self.survey.beam_b,self.survey.beam_o)
+            #self.set_evolution(oldsfrn) 
+            #self.calc_rates()
+
+        # Mask?
+        if self.chk_upd_param('lmean', vparams, update=True) or (
+            self.chk_upd_param('lsigma', vparams, update=True) or (
+            ):
+            self.smear=pcosmic.get_dm_mask(
+                self.dmvals,(state.host.lmean,state.host.lsigma),
+                self.zvals)
+            smear_dm = True
+
+        # Smear?
+        if smear_dm:
+            self.smear_dm(self.smear)
+
+        # SFR?
+        if self.chk_upd_param('sfr_n', vparams, update=True):
+            set_evol = True
+            new_sfr_smear=True  # True for either alpha_method
+        if self.chk_upd_param('alpha', vparams, update=True):
+            set_evol = True
+            calc_pdv = True
+            new_pdv_smear=True
+            if self.state.FRBDemo.alpha_method == 0:
                 calc_thresh = True
-                calc_pdv = True
-                set_evol = True
-                calc_rates = True
-                #self.calc_pdv(Emin,Emax,gamma,self.survey.beam_b,self.survey.beam_o)
-                #self.set_evolution(oldsfrn) 
-                #self.calc_rates()
+            elif self.state.FRBDemo.alpha_method == 1:
+                new_sfr_smear=True
+        if set_evol:
+            self.set_evolution() # sets star-formation rate scaling with z - here, no evoltion...
+
+        # TODO -- Thresholds and pdv come *before* in initialize_grids
+        #  SHOULD WE DO THE SAME HERE??
+
+        ##### examines the 'pdv tree' affecting sensitivity #####
+        # begin with alpha
+        # alpha does not change thresholds under rate scaling, only spec index
+        if calc_thresh:
+            self.calc_thresholds(
+                self.F0,self.eff_table, bandwidth=self.bandwidth,
+                weights=self.eff_weights)
+
+        if self.chk_upd_param('lEmin', vparams, update=True) or (
+            self.chk_upd_param('lEmax', vparams, update=True) or (
+            self.chk_upd_param('gamma', vparams, update=True):
+            calc_pdv = True
+            new_pdv_smear=True
+        
+        if calc_pdv:
+            self.calc_pdv()
+
+        if new_sfr_smear:
+            grid.calc_rates() #includes sfr smearing factors and pdv mult
+        elif new_pdv_smear:
+            grid.rates=grid.pdv*grid.sfr_smear #does pdv mult only, 'by hand'
+
+    def chk_upd_param(self, param:str, vparams:dict, update=False):
+        updated = False
+        DC = self.state.params[param]
+        # In dict?
+        if DC in vparams.keys() and param in vparams[DC].keys():
+            # Changed?
+            if vparams[DC][param] != getattr(self.state[DC], param):
+                updated = True
+                if update:
+                    self.state.update_param(param, 
+                                            vparams[DC][param])
+        #
+        return updated
+
     
     '''
     def copy(self,grid):

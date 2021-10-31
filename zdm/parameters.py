@@ -164,6 +164,14 @@ class State:
         self.IGM = IGMParams()
         self.energy = EnergeticsParams()
 
+        # Look-up table or convenience
+        self.params = {}
+        for dc_key in self.__dict__.keys():
+            if dc_key == 'params':
+                continue
+            for param in self[key].__dict__.keys():
+                self.params[param] = dc_key
+
     def __getitem__(self, attrib:str):
         """Enables dict like access to the state
 
@@ -175,18 +183,22 @@ class State:
         """
         return getattr(self, attrib)
 
-    def update(self, params:dict):
+    def update_params(self, params:dict):
         for key in params.keys():
             idict = params[key]
             for ikey in idict.keys():
                 # Set
-                setattr(self[key], ikey, idict[ikey])
 
-                # Special treatment
-                if key == 'cosmo' and ikey == 'H0':
-                    if self.cosmo.fix_Omega_b_h2:
-                        self.cosmo.Omega_b = self.cosmo.Omega_b_h2/(
-                            self.cosmo.H0/100.)**2
+
+    def update_param(self, param:str, value):
+        DC = self.params[param]
+        setattr(self[DC], param, value)
+        # Special treatment
+        if DC == 'cosmo' and param == 'H0':
+            if self.cosmo.fix_Omega_b_h2:
+                self.cosmo.Omega_b = self.cosmo.Omega_b_h2/(
+                    self.cosmo.H0/100.)**2
+
     '''
     def unpack_pset(self, mode:str='H0_std'):
         if mode == 'H0_std':

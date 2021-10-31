@@ -274,6 +274,7 @@ def update_grid(grid,pset,survey):
     # begin with alpha
     # alpha does not change thresholds under rate scaling, only spec index
     if grid.alpha_method==0 and alpha != oldalpha:
+        # TODO -- The weights look like a bug!!  Not going to the right variable
         grid.calc_thresholds(grid.F0,grid.eff_table,alpha,grid.bandwidth,grid.eff_weights)
         changed_alpha=True
         oldalpha=alpha
