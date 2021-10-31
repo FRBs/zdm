@@ -51,15 +51,7 @@ def main(Cube):
     ############## Initialise parameters ##############
     state = parameters.State()
 
-    # Variable parameters
-    vparams = {}
-    vparams['cosmo'] = {}
-    vparams['cosmo']['H0'] = 67.74
-    vparams['cosmo']['Omega_lambda'] = 0.685
-    vparams['cosmo']['Omega_m'] = 0.315
-    vparams['cosmo']['Omega_b'] = 0.044
-    
-    #cos.set_cosmology(Omega_m=1.2) setup for cosmology
+    # Cosmology
     cos.set_cosmology(state)
     cos.init_dist_measures()
     
@@ -155,7 +147,7 @@ def main(Cube):
     # generates zdm grids for initial parameter set
     # when submitting a job, make sure this is all pre-generated once
     #if state.analysis.NewGrids:
-    if True:
+    if False:
         grids = misc_functions.initialise_grids(
             surveys,zDMgrid, zvals, dmvals, state, wdist=True)
         # Write to disk

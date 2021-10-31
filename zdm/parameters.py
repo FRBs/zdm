@@ -3,6 +3,7 @@ import numpy as np
 from dataclasses import dataclass, field
 from typing import IO, List
 from astropy.cosmology import Planck18
+import pandas
 
 # Add a few methods to be shared by them all
 @dataclass
@@ -169,7 +170,7 @@ class State:
         for dc_key in self.__dict__.keys():
             if dc_key == 'params':
                 continue
-            for param in self[key].__dict__.keys():
+            for param in self[dc_key].__dict__.keys():
                 self.params[param] = dc_key
 
     def __getitem__(self, attrib:str):
@@ -183,12 +184,16 @@ class State:
         """
         return getattr(self, attrib)
 
-    def update_params(self, params:dict):
+    def update_param_dict(self, params:dict):
         for key in params.keys():
             idict = params[key]
             for ikey in idict.keys():
                 # Set
+                self.update_param(ikey, params[key][ikey])
 
+    def update_params(self, params:dict):
+        for key in params.keys():
+            self.update_param(key, params[key])
 
     def update_param(self, param:str, value):
         DC = self.params[param]

@@ -459,6 +459,7 @@ def load_survey(survey_name:str, state:parameters.State, dmvals:np.ndarray,
         raise IOError("Bad survey name!!")
     # Do it
     srvy=Survey()
+    srvy.name = survey_name
     srvy.process_survey_file(os.path.join(sdir, dfile))
     srvy.init_DMEG(state.MW.DMhalo)
     srvy.init_beam(nbins=Nbeams, method=2, plot=False,

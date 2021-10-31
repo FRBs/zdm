@@ -3,6 +3,7 @@ from zdm import cosmology as cos
 from zdm import parameters
 from zdm import misc_functions
 from zdm import zdm
+from zdm import pcosmic
 import time
 
 class Grid:
@@ -482,10 +483,10 @@ class Grid:
         return FRBparams,pwb
         
 
-    def update_grid(self, vparams:dict):
+    def update(self, vparams:dict):
         # Init
         smear_dm, calc_pdv, set_evol, calc_rates = False, False, False, False
-        new_pdv_smear, calc_thresh = False, False
+        new_sfr_smear, new_pdv_smear, calc_thresh = False, False, False
 
         # Cosmology -- Only H0 so far
         if self.chk_upd_param('H0', vparams, update=True):
@@ -514,10 +515,10 @@ class Grid:
 
         # Mask?
         if self.chk_upd_param('lmean', vparams, update=True) or (
-            self.chk_upd_param('lsigma', vparams, update=True) or (
-            ):
+            self.chk_upd_param('lsigma', vparams, update=True)):
             self.smear=pcosmic.get_dm_mask(
-                self.dmvals,(state.host.lmean,state.host.lsigma),
+                self.dmvals,(self.state.host.lmean,
+                             self.state.host.lsigma),
                 self.zvals)
             smear_dm = True
 
@@ -533,9 +534,9 @@ class Grid:
             set_evol = True
             calc_pdv = True
             new_pdv_smear=True
-            if self.state.FRBDemo.alpha_method == 0:
+            if self.state.FRBdemo.alpha_method == 0:
                 calc_thresh = True
-            elif self.state.FRBDemo.alpha_method == 1:
+            elif self.state.FRBdemo.alpha_method == 1:
                 new_sfr_smear=True
         if set_evol:
             self.set_evolution() # sets star-formation rate scaling with z - here, no evoltion...
@@ -552,8 +553,8 @@ class Grid:
                 weights=self.eff_weights)
 
         if self.chk_upd_param('lEmin', vparams, update=True) or (
-            self.chk_upd_param('lEmax', vparams, update=True) or (
-            self.chk_upd_param('gamma', vparams, update=True):
+            self.chk_upd_param('lEmax', vparams, update=True)) or (
+            self.chk_upd_param('gamma', vparams, update=True)):
             calc_pdv = True
             new_pdv_smear=True
         
@@ -561,21 +562,23 @@ class Grid:
             self.calc_pdv()
 
         if new_sfr_smear:
-            grid.calc_rates() #includes sfr smearing factors and pdv mult
+            self.calc_rates() #includes sfr smearing factors and pdv mult
         elif new_pdv_smear:
-            grid.rates=grid.pdv*grid.sfr_smear #does pdv mult only, 'by hand'
+            self.rates=self.pdv*self.sfr_smear #does pdv mult only, 'by hand'
+
+        # Catch all the changes just in case, e.g. lC
+        self.state.update_params(vparams)
 
     def chk_upd_param(self, param:str, vparams:dict, update=False):
         updated = False
         DC = self.state.params[param]
         # In dict?
-        if DC in vparams.keys() and param in vparams[DC].keys():
+        if param in vparams.keys():
             # Changed?
-            if vparams[DC][param] != getattr(self.state[DC], param):
+            if vparams[param] != getattr(self.state[DC], param):
                 updated = True
                 if update:
-                    self.state.update_param(param, 
-                                            vparams[DC][param])
+                    self.state.update_param(param, vparams[param])
         #
         return updated
 
