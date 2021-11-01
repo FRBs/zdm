@@ -994,8 +994,6 @@ def cube_likelihoods(grids,surveys, #psetmins,psetmaxes,npoints,
     for key in vparam_dict.keys():
         vparams[key] = None
 
-
-    embed(header='998 of it')
     for i in np.arange(howmany):
         
         print("Testing ",i," of ",howmany," begin at ",starti)
@@ -1776,7 +1774,8 @@ def minus_poisson_ps(log10C,data):
     return -lp
     
 
-def minimise_const_only(vparams,grids,surveys):
+def minimise_const_only(vparams,grids,surveys,
+                        Verbose=True):
     '''
     Only minimises for the constant, but returns the full likelihood
     It treats the rest as constants
@@ -1809,6 +1808,8 @@ def minimise_const_only(vparams,grids,surveys):
             func=calc_likelihoods_2D
         lls[j]=func(grids[j],s, vparams['lC'], 
                     norm=True,psnr=True,Pn=False) #excludes Pn term
+        if Verbose:
+            print(f"survey={grids[j].survey.name}, lls={lls[j]}")
         
         ### Assesses total number of FRBs ###
         if s.TOBS is not None:
