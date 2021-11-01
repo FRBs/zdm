@@ -93,7 +93,8 @@ def main(Cube):
     prefix='Cube'
     
     surveys = []
-    names = ['CRAFT/FE', 'CRAFT/ICS', 'CRAFT/ICS892', 'PKS/Mb']
+    #names = ['CRAFT/FE', 'CRAFT/ICS', 'CRAFT/ICS892', 'PKS/Mb']
+    names = ['CRAFT/FE', 'CRAFT/ICS', 'PKS/Mb'] # Match x_cube.py
     #names = ['CRAFT/FE'] # For debugging
     for survey_name in names:
         surveys.append(survey.load_survey(survey_name, state, dmvals))

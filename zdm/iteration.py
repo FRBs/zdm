@@ -941,6 +941,8 @@ def cube_likelihoods(grids,surveys, #psetmins,psetmaxes,npoints,
     
     start=(run-1)*howmany
 
+
+    # pset[4]
     
     ####### counters for each dimensions ######
     
@@ -993,6 +995,7 @@ def cube_likelihoods(grids,surveys, #psetmins,psetmaxes,npoints,
         vparams[key] = None
 
 
+    embed(header='998 of it')
     for i in np.arange(howmany):
         
         print("Testing ",i," of ",howmany," begin at ",starti)
@@ -1010,6 +1013,8 @@ def cube_likelihoods(grids,surveys, #psetmins,psetmaxes,npoints,
 
             # Update the state
             state.update_params(vparams)
+
+            print(f"vparams: {vparams}")
 
             ### minimise if appropriate ### 
             if minimise:
