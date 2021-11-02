@@ -848,21 +848,23 @@ def missing_cube_likelihoods(grids,surveys,todo,outfile,norm=True,psnr=True,star
     f.close()
 
 
-def cube_likelihoods(grids,surveys, #psetmins,psetmaxes,npoints,
+def cube_likelihoods(grids:list,surveys:list, 
                      vparam_dict:dict,
                      run,howmany,outfile,norm=True,
                      psnr=True,starti=0,clone=None):
     """
-    grids: list of grids
-    surveys: list of surveys corresponding to the grids
-    psetmins, maxes: bounds of the pset array
-    npoints: number of points in the cube
-    run, howmany: calculate from (run-1)*howmany+1 to run*howmany
-    outfile: where to place the output
-    
-    norm is to ensure the probability for each FRB is set to 1
-    psnr means adding in the probability of the measured SNR
-    
+
+    Args:
+        grids: list of grids
+        surveys: list of surveys corresponding to the grids
+        psetmins, maxes: bounds of the pset array
+        npoints: number of points in the cube
+        run, howmany: calculate from (run-1)*howmany+1 to run*howmany
+        outfile: where to place the output
+        
+        norm is to ensure the probability for each FRB is set to 1
+        psnr means adding in the probability of the measured SNR
+        
     Because of the way the grids are calculated, the longest step is the "update" step.
     By far the longest part of that is iteration over each 
     
@@ -939,7 +941,8 @@ def cube_likelihoods(grids,surveys, #psetmins,psetmaxes,npoints,
     # note: takes this from the first grid, it should be identical for all grids
     if grids[0].state.FRBdemo.alpha_method==0:
         print("FIX THIS!!!!!")
-        order=[7,4,5,6,0,1,2,3]
+        order=[8,7,4,5,6,0,1,2,3]
+        #order=[7,4,5,6,0,1,2,3]
     elif grids[0].alpha_method==0:
         order=[7,4,2,5,6,0,1,3]
     else:
@@ -972,15 +975,13 @@ def cube_likelihoods(grids,surveys, #psetmins,psetmaxes,npoints,
     
     t0=time.process_time()
     print("Starting at time ",t0)
-    # iterates
-
-    pset=np.zeros([ndims]) #current parameter set
 
     # Init
     vparams = {}
     for key in vparam_dict.keys():
         vparams[key] = None
 
+    # Run!
     for i in np.arange(howmany):
         
         print("Testing ",i," of ",howmany," begin at ",starti)
@@ -1026,6 +1027,7 @@ def cube_likelihoods(grids,surveys, #psetmins,psetmaxes,npoints,
                 string +=' {:8.2f}'.format(vparams[PARAMS[j]])
             
             
+            # TODO -- Should we do this?
             # in theory we could save the following step if we have already minimised by oh well. Too annoying!
             ll=0.
             for j,s in enumerate(surveys):
@@ -1055,6 +1057,7 @@ def cube_likelihoods(grids,surveys, #psetmins,psetmaxes,npoints,
             string += '\n'
             t2=time.process_time()
             print("Iteration ",nth," took ",t2-t1," seconds")
+
             # write output: parameters, likelihoods (and components)
             f.write(string)
             
