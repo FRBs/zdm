@@ -440,6 +440,21 @@ def make_widths(s:Survey,wlogmean,wlogsigma,nbins,scale=2,thresh=0.5):
 
 def load_survey(survey_name:str, state:parameters.State, dmvals:np.ndarray,
                 sdir:str=None):
+    """Load a survey
+
+    Args:
+        survey_name (str): Name of the survey
+            e.g. CRAFT/FE
+        state (parameters.State): Parameters for the state
+        dmvals (np.ndarray): DM values
+        sdir (str, optional): Path to survey files. Defaults to None.
+
+    Raises:
+        IOError: [description]
+
+    Returns:
+        Survey: instance of the class
+    """
     print(f"Loading survey: {survey_name}")
     if sdir is None:
         sdir = os.path.join(resource_filename('zdm', 'data'), 'Surveys')

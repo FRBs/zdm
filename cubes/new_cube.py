@@ -240,6 +240,7 @@ else:
 main(Cube)
 
 '''
+python new_cube.py -n 1 -m 3 -p all_params.json -o tmp.npy --clobber
 starti is  0
 cosmology: CosmoParams(H0=67.66, Omega_k=0.0, Omega_lambda=0.6888463055445441, Omega_m=0.30966, Omega_b=0.04897, Omega_b_h2=0.0224178568132, fixed_H0=67.66, fix_Omega_b_h2=True)
 FIX THIS!!!!!

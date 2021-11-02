@@ -227,8 +227,6 @@ def get_dm_mask(dmvals, params, zvals=None, plot=False):
         exit()
     #expect the params to be log10 of actual values for simplicity
     # this converts to natural log
-    np.savez('dm_file.npz', dmvals=dmvals, zvals=zvals, params=params)
-    embed(header='230 of pcosmic')
     logmean=params[0]/0.4342944619
     logsigma=params[1]/0.4342944619
     

@@ -21,7 +21,7 @@ class Grid:
         Class constructor.
 
         Args: 
-            survey
+            survey (survey.Survey):
             state (parameters.State, optional): 
                 Defines the parameters of the analysis
                 Note, each grid holds the *same* copy so modifying
@@ -485,13 +485,48 @@ class Grid:
         
 
     def update(self, vparams:dict):
+        """[summary]
+        
+        Hierarchy:
+        Each indent corresponds to one 'level'.
+        This is used in the program control below
+        to dictate how far each tree should proceed
+        in calculation.
+        Direct variable inputs are always listed first
+        We see that sfr evolution and dm smearing
+        lie just before the pdv step
+        Hence, we deal with these first, and
+        calc rates as a final step regardless
+        of what else has changed.
+        
+        calc_rates:
+            calc_pdv
+                Emin
+                Emax
+                gamma
+                calc_thresholds
+                    F0
+                    alpha
+                    bandwidth
+            set_evolution
+                sfr_n
+            
+            smear_grid:
+                grid
+                mask
+                    dmx_params
+        
+        Note that the grid is independent of the constant C (trivial dependence)
+
+        Args:
+            vparams (dict): [description]
+        """
         # Init
-        smear_dm, calc_pdv, set_evol, calc_rates = False, False, False, False
+        smear_dm, calc_pdv, set_evol = False, False, False
         new_sfr_smear, new_pdv_smear, calc_thresh = False, False, False
 
         # Cosmology -- Only H0 so far
         if self.chk_upd_param('H0', vparams, update=True):
-            print("Updating cosmology [H0] for the grid")
             cos.set_cosmology(self.state)
             zDMgrid, zvals,dmvals=misc_functions.get_zdm_grid(
                 self.state, new=True,plot=False,method='analytic')
@@ -527,7 +562,6 @@ class Grid:
 
         # Smear?
         if smear_dm:
-            print("grid.py: Smearing dm")
             self.smear_dm(self.smear)
 
         # SFR?
@@ -574,6 +608,19 @@ class Grid:
         self.state.update_params(vparams)
 
     def chk_upd_param(self, param:str, vparams:dict, update=False):
+        """ Check to see whether a parameter is
+        differs from that in self.state
+
+        Args:
+            param (str): Paramter in question
+            vparams (dict): Dict holding the value
+            update (bool, optional): If True,
+                update the value in self.state. 
+                Defaults to False.
+
+        Returns:
+            bool: True if the parameter is different
+        """
         updated = False
         DC = self.state.params[param]
         # In dict?
