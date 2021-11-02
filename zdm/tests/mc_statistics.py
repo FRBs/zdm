@@ -104,7 +104,7 @@ def main(N=100,plots=False):
 	DMhalo=50
 	
 	#These surveys combine time-normalised and time-unnormalised samples 
-	NewSurveys=True
+	NewSurveys=False
 	#sprefix='Full' # more detailed estimates. Takes more space and time
 	sprefix='Std' # faster - fine for max likelihood calculations, not as pretty
 	
@@ -202,7 +202,7 @@ def main(N=100,plots=False):
 	
 	
 	# generates zdm grids for the specified parameter set
-	NewGrids=True
+	NewGrids=False
 	if sprefix=='Full':
 		gprefix='best'
 	elif sprefix=='Std':
@@ -232,7 +232,7 @@ def main(N=100,plots=False):
 		name = i
 		name = str(name)
 	
-		savefile='mc_sample'+name+'alpha_'+str(alpha_method)+'.npy'
+		savefile='mc_sample_'+name+'_alpha_'+str(alpha_method)+str(N)+'.npy'
 	
 		try:
 			sample=np.load(savefile)
