@@ -1,3 +1,4 @@
+from IPython.terminal.embed import embed
 import numpy as np
 from zdm import cosmology as cos
 from zdm import parameters
@@ -490,6 +491,7 @@ class Grid:
 
         # Cosmology -- Only H0 so far
         if self.chk_upd_param('H0', vparams, update=True):
+            print("Updating cosmology [H0] for the grid")
             cos.set_cosmology(self.state)
             zDMgrid, zvals,dmvals=misc_functions.get_zdm_grid(
                 self.state, new=True,plot=False,method='analytic')
@@ -514,8 +516,9 @@ class Grid:
             #self.calc_rates()
 
         # Mask?
-        if self.chk_upd_param('lmean', vparams, update=True) or (
-            self.chk_upd_param('lsigma', vparams, update=True)):
+        # IT IS IMPORTANT TO USE np.any so that each item is executed!!
+        if np.any([self.chk_upd_param('lmean', vparams, update=True), 
+            self.chk_upd_param('lsigma', vparams, update=True)]):
             self.smear=pcosmic.get_dm_mask(
                 self.dmvals,(self.state.host.lmean,
                              self.state.host.lsigma),
@@ -524,6 +527,7 @@ class Grid:
 
         # Smear?
         if smear_dm:
+            print("grid.py: Smearing dm")
             self.smear_dm(self.smear)
 
         # SFR?
@@ -552,9 +556,9 @@ class Grid:
                 self.F0,self.eff_table, bandwidth=self.bandwidth,
                 weights=self.eff_weights)
 
-        if self.chk_upd_param('lEmin', vparams, update=True) or (
-            self.chk_upd_param('lEmax', vparams, update=True)) or (
-            self.chk_upd_param('gamma', vparams, update=True)):
+        if np.any([self.chk_upd_param('lEmin', vparams, update=True),
+            self.chk_upd_param('lEmax', vparams, update=True),
+            self.chk_upd_param('gamma', vparams, update=True)]):
             calc_pdv = True
             new_pdv_smear=True
         

@@ -446,6 +446,8 @@ def calc_likelihoods_1D(grid,survey,lC,doplot=False,norm=True,psnr=False,Pn=True
             snrll = np.sum(np.log10(psnr))
         lllist.append(snrll)
         llsum += snrll
+
+        #embed(header='450 of it')
         
         if doplot:
             fig1=plt.figure()
@@ -645,6 +647,7 @@ def calc_likelihoods_2D(grid,survey, lC,
     # - we want to make FRB width analogous to beam, THEN
     # - we need an analogous 'beam' (i.e. width) distribution to integrate over,
     #     which gives the normalisation
+    #embed(header='650 of it')
     if psnr:
         # NOTE: to break this into a p(SNR|b) p(b) term, we first take
         # the relative likelihood of the threshold b value compare
@@ -1010,8 +1013,7 @@ def cube_likelihoods(grids,surveys, #psetmins,psetmaxes,npoints,
                     #pset[j]=psetvals[j][n]
 
             # Update the state
-            state.update_params(vparams)
-
+            #state.update_params(vparams)
             print(f"vparams: {vparams}")
 
             ### minimise if appropriate ### 
@@ -1801,11 +1803,13 @@ def minimise_const_only(vparams,grids,surveys,
     lls=np.zeros([ng])
     for j,s in enumerate(surveys):
         #update_grid(grids[j],pset,s)
+        #embed(header='1805 of it')
         grids[j].update(vparams)
         if s.nD==1:
             func=calc_likelihoods_1D
         else:
             func=calc_likelihoods_2D
+        #embed(header='1811 of it')
         lls[j]=func(grids[j],s, vparams['lC'], 
                     norm=True,psnr=True,Pn=False) #excludes Pn term
         if Verbose:
@@ -1833,5 +1837,6 @@ def minimise_const_only(vparams,grids,surveys,
     newC=vparams['lC']+float(dC)
     llC=-minus_poisson_ps(dC,data)
     lltot=llC+np.sum(lls)
+    embed(header='1840 of it')
     return newC,llC,lltot
     

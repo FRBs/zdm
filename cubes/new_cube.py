@@ -4,10 +4,12 @@
 Questions for Clancy:
 
 1. lC vs. C
-2. Order of update_grid
+2. Order of update_grid()
 3. Survey is unique to a grid, right?
 4. Order of grid parameters
 5. Why 90s per iteration?
+6. Is it ok to get a NAN??   And why is it ignored??
+7. https://docs.scipy.org/doc/scipy/reference/tutorial/integrate.html#faster-integration-using-low-level-callback-functions
 '''
 
 ######
@@ -172,6 +174,7 @@ def main(Cube):
             grids=pickle.load(infile)
         #gFE1,gFE2,gICS,gp1,gp2=grids
     print("Initialised grids")
+    #embed(header='175 of new_cube')
     
     if Cube is not None:
         # hard-coded cloning ability. This is now out-dated.

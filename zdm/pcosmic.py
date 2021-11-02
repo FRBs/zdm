@@ -24,6 +24,8 @@ from zdm import parameters
 import scipy as sp
 #import astropy.units as u
 
+from IPython import embed
+
 # these are fitted values, which are shown to best-match data
 alpha=3
 beta=3
@@ -225,6 +227,8 @@ def get_dm_mask(dmvals, params, zvals=None, plot=False):
         exit()
     #expect the params to be log10 of actual values for simplicity
     # this converts to natural log
+    #embed(header='230 of pcosmic')
+    #np.savez('dm_file.npz', dmvals=dmvals, zvals=zvals, params=params)
     logmean=params[0]/0.4342944619
     logsigma=params[1]/0.4342944619
     
