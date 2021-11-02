@@ -522,7 +522,7 @@ class Grid:
             vparams (dict): [description]
         """
         # Init
-        smear_dm, calc_pdv, set_evol = False, False, False
+        smear_mask, smear_dm, calc_pdv, set_evol = False, False, False, False
         new_sfr_smear, new_pdv_smear, calc_thresh = False, False, False
 
         # Cosmology -- Only H0 so far
@@ -537,6 +537,7 @@ class Grid:
             #self.smear_dm(self.smear)#,oldsmean,oldssigma)
             # pass_grid calls calc_dV()
             #self.calc_dV()
+            smear_mask = True
             smear_dm = True
             # TODO -- do we need to do this step??  Only if dmvals change
             #self.calc_thresholds(self.survey.meta['THRESH'],
@@ -545,7 +546,7 @@ class Grid:
             calc_thresh = True
             calc_pdv = True
             set_evol = True
-            calc_rates = True
+            new_sfr_smear = True
             #self.calc_pdv(Emin,Emax,gamma,self.survey.beam_b,self.survey.beam_o)
             #self.set_evolution(oldsfrn) 
             #self.calc_rates()
@@ -553,7 +554,8 @@ class Grid:
         # Mask?
         # IT IS IMPORTANT TO USE np.any so that each item is executed!!
         if np.any([self.chk_upd_param('lmean', vparams, update=True), 
-            self.chk_upd_param('lsigma', vparams, update=True)]):
+            self.chk_upd_param('lsigma', vparams, update=True),
+            smear_mask]):
             self.smear=pcosmic.get_dm_mask(
                 self.dmvals,(self.state.host.lmean,
                              self.state.host.lsigma),
