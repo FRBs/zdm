@@ -418,7 +418,8 @@ def make_widths(s:Survey,wlogmean,wlogsigma,nbins,scale=2,thresh=0.5):
     
     weights=[]
     widths=[]
-    args=(wlogmean,wlogsigma)
+    norm=(2.*np.pi)**-0.5/wlogsigma
+    args=(wlogmean,wlogsigma,norm)
     wmax=wequality*thresh
     wmin=wmax*np.exp(-3.*wlogsigma)
     wsum=0.
