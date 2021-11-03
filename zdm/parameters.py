@@ -89,9 +89,6 @@ class FRBDemoParams(myDataClass):
                  '0: spectral index interpretation: includes k-correction. Slower to update ' +\
                  '1: rate interpretation: extra factor of (1+z)^alpha in source evolution', 
                  'options': [0,1]})
-    gamma: float = field(
-        default = -1.16,
-        metadata={'help': 'slope of luminosity distribution function'})
     sfr_n: float = field(
         default = 1.77,
         metadata={'help': 'scaling with star-formation rate'})
@@ -145,6 +142,9 @@ class EnergeticsParams(myDataClass):
     alpha: float = field(
         default = 1.54,
         metadata={'help': 'spectral index. WARNING: here F(nu)~nu^-alpha in the code, opposite to the paper!'})
+    gamma: float = field(
+        default = -1.16,
+        metadata={'help': 'slope of luminosity distribution function'})
 
 class State:
     """ Initialize the full state for the analysis 

@@ -532,24 +532,13 @@ class Grid:
                 self.state, new=True,plot=False,method='analytic')
             # TODO -- Check zvals and dmvals haven't changed!
             self.pass_grid(zDMgrid,zvals,dmvals)
-            #self.smear_mean=oldsmean
-            #self.smear_sigma=oldssigma
-            #self.smear_dm(self.smear)#,oldsmean,oldssigma)
-            # pass_grid calls calc_dV()
-            #self.calc_dV()
+            # The rest
             smear_mask = True
             smear_dm = True
-            # TODO -- do we need to do this step??  Only if dmvals change
-            #self.calc_thresholds(self.survey.meta['THRESH'],
-            #                     self.survey.efficiencies,
-            #                     weights=self.survey.wplist)
             calc_thresh = True
             calc_pdv = True
             set_evol = True
             new_sfr_smear = True
-            #self.calc_pdv(Emin,Emax,gamma,self.survey.beam_b,self.survey.beam_o)
-            #self.set_evolution(oldsfrn) 
-            #self.calc_rates()
 
         # Mask?
         # IT IS IMPORTANT TO USE np.any so that each item is executed!!
