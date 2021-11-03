@@ -83,6 +83,7 @@ def get_names(which=None):
         names=names[which]
     return names
 
+'''
 def set_defaults(grid):
     # we should make sure each grid does this, do not use "old"!
 #    global oldlEmin
@@ -104,6 +105,7 @@ def set_defaults(grid):
     pset=[oldlEmin,oldlEmax,oldalpha,oldgamma,oldsfrn,old_smean,old_ssigma,C,H0value]
     return pset
     #added H0 as a param
+'''
 
 def print_pset(pset):
     """ pset defined as:
@@ -168,6 +170,7 @@ def maximise_likelihood(grid,survey):
     return results
 
 
+# TODO -- Remove this method
 def update_grid(grid,pset,survey):
     #added routine to update H0 values within grid
     """Updates the grid  
@@ -385,7 +388,7 @@ def calc_likelihoods_1D(grid,survey,lC,doplot=False,norm=True,psnr=False,Pn=True
         #gamma=grid.gamma
         Emax=10**grid.state.energy.lEmax
         Emin=10**grid.state.energy.lEmin
-        gamma=grid.state.FRBdemo.gamma
+        gamma=grid.state.energy.gamma
         psnr=np.zeros([survey.Ss.size])
         
         # get vector of thresholds as function of z and threshold/weight list
@@ -663,7 +666,7 @@ def calc_likelihoods_2D(grid,survey, lC,
         #gamma=grid.gamma
         Emax=10**grid.state.energy.lEmax
         Emin=10**grid.state.energy.lEmin
-        gamma=grid.state.FRBdemo.gamma
+        gamma=grid.state.energy.gamma
         #Eths has dimensions of width likelihoods and nobs
         # i.e. later, the loop over j,w uses the first index
         Eths = grid.thresholds[:,izs1,idms1]*(1.-dkdms)*(1-dkzs)
@@ -938,7 +941,7 @@ def cube_likelihoods(grids,surveys, #psetmins,psetmaxes,npoints,
     # the order can depend on the methods being used
     # note: takes this from the first grid, it should be identical for all grids
     if grids[0].state.FRBdemo.alpha_method==0:
-        print("FIX THIS!!!!!")
+        # TODO -- I am going to fix this in the next PR
         order=[7,4,5,6,0,1,2,3]
     elif grids[0].alpha_method==0:
         order=[7,4,2,5,6,0,1,3]

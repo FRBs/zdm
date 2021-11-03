@@ -167,9 +167,6 @@ class Grid:
                 x=beam_b.shape
             except:
                 raise ValueError("Beam values must be numby arrays! Currently ",beam_o,beam_b)
-        #self.Emin=Emin
-        #self.Emax=Emax
-        #self.gamma=gamma
         # linear weighted sum of probabilities: pdVdOmega now. Could also be used to include time factor
 
         # For convenience and speed up
@@ -187,11 +184,11 @@ class Grid:
                 if j==0:
                     self.b_fractions[:,:,i] = self.beam_o[i]*w*self.array_cum_lf(
                         self.thresholds[j,:,:]/b,Emin,Emax,
-                        self.state.FRBdemo.gamma)
+                        self.state.energy.gamma)
                 else:
                     self.b_fractions[:,:,i] += self.beam_o[i]*w*self.array_cum_lf(
                         self.thresholds[j,:,:]/b,Emin,Emax,
-                        self.state.FRBdemo.gamma)
+                        self.state.energy.gamma)
                 
         # here, b-fractions are unweighted according to the value of b.
         self.fractions=np.sum(self.b_fractions,axis=2) # sums over b-axis [ we could ignore this step?]

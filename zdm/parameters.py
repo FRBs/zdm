@@ -211,7 +211,7 @@ class State:
                 params['energy'].lEmin,
                 params['energy'].lEmax,
                 params['energy'].alpha,
-                params['FRBdemo'].gamma,
+                params['energy'].gamma,
                 params['FRBdemo'].sfr_n,
                 params['host'].lmean,
                 params['host'].lsigma,
