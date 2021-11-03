@@ -889,13 +889,13 @@ def cube_likelihoods(grids:list,surveys:list,
     
     """
     npoints = np.array([item['n'] for key, item in vparam_dict.items()])
+    ntotal = np.prod(np.abs(npoints))
+    print(f"The total grid has {ntotal} npoints")
     vp_keys = list(vparam_dict.keys())
-    state = grids[0].state # Any grid will do
     
     # check feasible range of job number
-    if (howmany <= 0) or (run <= 0) or np.prod(np.abs(npoints)) < (run-1)*howmany+1:
-        print("Invalid range of run=",run," and howmany=",howmany," for ",np.prod(
-            np.abs(npoints))," points")
+    if (howmany <= 0) or (run <= 0) or ntotal < (run-1)*howmany+1:
+        print("Invalid range of run=",run," and howmany=",howmany," for ", ntotal, "points")
         exit()
     
     NPARAMS = len(vparam_dict)
@@ -937,18 +937,30 @@ def cube_likelihoods(grids:list,surveys:list,
     start=(run-1)*howmany
 
     ####### counters for each dimensions ######
-    pamaeter_order = ['lC', '']
-    
+    parameter_order = ['lC', 'sfr_n', 'lEmin', 'alpha', 'lEmax', 'gamma', 'lmean', 'lsigma', 'H0']
+    if grids[0].state.FRBdemo.alpha_method==0:
+        # Convert params to an order
+        order = []
+        for param in parameter_order:
+            if param in PARAMS:
+                order.append(PARAMS.index(param))
+        # Test
+        if len(order) != len(PARAMS):
+            raise ValueError("One or more of your PARAMS are not in the parameter_order list!")
+
+    else:
+        raise ValueError("Unknown value of alpha method!",grids[0].state.FRBdemo.alpha_method)
+
     # this is the order of fastest to slowest, i.e. we update index
     # order[0] first, then order [1], etc
     # the order can depend on the methods being used
     # note: takes this from the first grid, it should be identical for all grids
-    if grids[0].state.FRBdemo.alpha_method==0:
-        order=[8,7,4,5,6,0,1,2,3]
-    elif grids[0].alpha_method==0:
-        order=[7,4,2,5,6,0,1,3]
-    else:
-        raise ValueError("Unknown value of alpha method!",grids[0].alpha_method)
+    #if grids[0].state.FRBdemo.alpha_method==0:
+    #    order=[8,7,4,5,6,0,1,2,3]
+    #elif grids[0].alpha_method==0:
+    #    order=[7,4,2,5,6,0,1,3]
+    #else:
+    #    raise ValueError("Unknown value of alpha method!",grids[0].alpha_method)
             
     r_npoints=npoints[order]
     ndims=npoints.size

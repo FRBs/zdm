@@ -40,8 +40,7 @@ class Grid:
 
         self.source_function=cos.choose_source_evolution_function(
             state.FRBdemo.source_evolution)
-        #self.alpha_method=alpha_method
-        #
+
         self.luminosity_function=0
         self.init_luminosity_functions()
     
