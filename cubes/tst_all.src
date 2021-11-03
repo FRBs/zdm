@@ -1,0 +1,2 @@
+python new_cube.py -n 1 -m 8100 -p H0_params.json -o H0_1.out --clobber &
+python new_cube.py -n 2 -m 8200 -p H0_params.json -o H0_2.out --clobber &

@@ -63,6 +63,9 @@ def main(Cube):
     ############## Initialise parameters ##############
     state = parameters.State()
 
+    # alpha-method
+    state.FRBdemo.alpha_method = 1
+
     # Cosmology
     cos.set_cosmology(state)
     cos.init_dist_measures()

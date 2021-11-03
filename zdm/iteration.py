@@ -937,31 +937,23 @@ def cube_likelihoods(grids:list,surveys:list,
     start=(run-1)*howmany
 
     ####### counters for each dimensions ######
-    parameter_order = ['lC', 'sfr_n', 'lEmin', 'alpha', 'lEmax', 'gamma', 'lmean', 'lsigma', 'H0']
     if grids[0].state.FRBdemo.alpha_method==0:
-        # Convert params to an order
-        order = []
-        for param in parameter_order:
-            if param in PARAMS:
-                order.append(PARAMS.index(param))
-        # Test
-        if len(order) != len(PARAMS):
-            raise ValueError("One or more of your PARAMS are not in the parameter_order list!")
-
+        parameter_order = ['lC', 'sfr_n', 'lEmin', 'alpha', 'lEmax', 'gamma', 'lmean', 'lsigma', 'H0']
+    elif grids[0].state.FRBdemo.alpha_method==1:
+        parameter_order = ['lC', 'sfr_n', 'lEmin', 'alpha', 'lEmax', 'gamma', 'lmean', 'lsigma', 'H0']
     else:
         raise ValueError("Unknown value of alpha method!",grids[0].state.FRBdemo.alpha_method)
 
-    # this is the order of fastest to slowest, i.e. we update index
-    # order[0] first, then order [1], etc
-    # the order can depend on the methods being used
-    # note: takes this from the first grid, it should be identical for all grids
-    #if grids[0].state.FRBdemo.alpha_method==0:
-    #    order=[8,7,4,5,6,0,1,2,3]
-    #elif grids[0].alpha_method==0:
-    #    order=[7,4,2,5,6,0,1,3]
-    #else:
-    #    raise ValueError("Unknown value of alpha method!",grids[0].alpha_method)
-            
+    # Convert params to an order
+    order = []
+    for param in parameter_order:
+        if param in PARAMS:
+            order.append(PARAMS.index(param))
+    # Test
+    if len(order) != len(PARAMS):
+        raise ValueError("One or more of your PARAMS are not in the parameter_order list!")
+
+    # Translate
     r_npoints=npoints[order]
     ndims=npoints.size
     iorder=np.zeros([ndims],dtype='int')
