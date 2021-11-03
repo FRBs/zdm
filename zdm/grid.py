@@ -167,9 +167,6 @@ class Grid:
                 x=beam_b.shape
             except:
                 raise ValueError("Beam values must be numby arrays! Currently ",beam_o,beam_b)
-        #self.Emin=Emin
-        #self.Emax=Emax
-        #self.gamma=gamma
         # linear weighted sum of probabilities: pdVdOmega now. Could also be used to include time factor
 
         # For convenience and speed up
@@ -187,11 +184,11 @@ class Grid:
                 if j==0:
                     self.b_fractions[:,:,i] = self.beam_o[i]*w*self.array_cum_lf(
                         self.thresholds[j,:,:]/b,Emin,Emax,
-                        self.state.FRBdemo.gamma)
+                        self.state.energy.gamma)
                 else:
                     self.b_fractions[:,:,i] += self.beam_o[i]*w*self.array_cum_lf(
                         self.thresholds[j,:,:]/b,Emin,Emax,
-                        self.state.FRBdemo.gamma)
+                        self.state.energy.gamma)
                 
         # here, b-fractions are unweighted according to the value of b.
         self.fractions=np.sum(self.b_fractions,axis=2) # sums over b-axis [ we could ignore this step?]
@@ -532,24 +529,13 @@ class Grid:
                 self.state, new=True,plot=False,method='analytic')
             # TODO -- Check zvals and dmvals haven't changed!
             self.pass_grid(zDMgrid,zvals,dmvals)
-            #self.smear_mean=oldsmean
-            #self.smear_sigma=oldssigma
-            #self.smear_dm(self.smear)#,oldsmean,oldssigma)
-            # pass_grid calls calc_dV()
-            #self.calc_dV()
+            # The rest
             smear_mask = True
             smear_dm = True
-            # TODO -- do we need to do this step??  Only if dmvals change
-            #self.calc_thresholds(self.survey.meta['THRESH'],
-            #                     self.survey.efficiencies,
-            #                     weights=self.survey.wplist)
             calc_thresh = True
             calc_pdv = True
             set_evol = True
             new_sfr_smear = True
-            #self.calc_pdv(Emin,Emax,gamma,self.survey.beam_b,self.survey.beam_o)
-            #self.set_evolution(oldsfrn) 
-            #self.calc_rates()
 
         # Mask?
         # IT IS IMPORTANT TO USE np.any so that each item is executed!!
