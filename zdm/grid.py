@@ -127,7 +127,7 @@ class Grid:
         """
         if self.state.FRBdemo.alpha_method==0:
             self.FtoE=cos.F_to_E(1,self.zvals,alpha=alpha,bandwidth=bandwidth,Fobs=self.nuObs,Fref=self.nuRef)
-        elif self.state.FRBdemo.alpha_method==0:
+        elif self.state.FRBdemo.alpha_method==1:
             self.FtoE=cos.F_to_E(1,self.zvals,alpha=0.,bandwidth=bandwidth)
         else:
             raise ValueError("alpha method must be 0 or 1, not ",self.alpha_method)
