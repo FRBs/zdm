@@ -481,7 +481,7 @@ class Grid:
         return FRBparams,pwb
         
 
-    def update(self, vparams:dict):
+    def update(self, vparams:dict, ALL=False):
         """[summary]
         
         Hierarchy:
@@ -495,6 +495,9 @@ class Grid:
         Hence, we deal with these first, and
         calc rates as a final step regardless
         of what else has changed.
+
+        Args:
+            ALL (bool, optional):  If True, update the full grid
         
         calc_rates:
             calc_pdv
@@ -569,35 +572,38 @@ class Grid:
             calc_pdv = True
             new_pdv_smear=True
 
-        if get_zdm:
+        # ###########################
+        # NOW DO THE REAL WORK!!
+
+        if get_zdm or ALL:
             zDMgrid, zvals,dmvals=misc_functions.get_zdm_grid(
                 self.state, new=True,plot=False,method='analytic')
             # TODO -- Check zvals and dmvals haven't changed!
             self.pass_grid(zDMgrid,zvals,dmvals)
 
-        if calc_dV:
+        if calc_dV or ALL:
             self.calc_dV(reINIT=True)
 
         # Smear?
-        if smear_mask:
+        if smear_mask or ALL:
             self.smear=pcosmic.get_dm_mask(
                 self.dmvals,(self.state.host.lmean,
                              self.state.host.lsigma), self.zvals)
-        if smear_dm:
+        if smear_dm or ALL:
             self.smear_dm(self.smear)
             
-        if calc_thresh:
+        if calc_thresh or ALL:
             self.calc_thresholds(
                 self.F0,self.eff_table, bandwidth=self.bandwidth,
                 weights=self.eff_weights)
         
-        if calc_pdv:
+        if calc_pdv or ALL:
             self.calc_pdv()
 
-        if set_evol:
+        if set_evol or ALL:
             self.set_evolution() # sets star-formation rate scaling with z - here, no evoltion...
 
-        if new_sfr_smear:
+        if new_sfr_smear or ALL:
             self.calc_rates() #includes sfr smearing factors and pdv mult
         elif new_pdv_smear:
             self.rates=self.pdv*self.sfr_smear #does pdv mult only, 'by hand'
@@ -630,53 +636,3 @@ class Grid:
                     self.state.update_param(param, vparams[param])
         #
         return updated
-
-    
-    '''
-    def copy(self,grid):
-        """ copies all values from grid to here
-        is OK if this is a shallow copy
-        explicit function to open the possibility of making it faster
-        This is likely now deprecated, and was made before the difference
-        in NFRB and NORM_FRB was implemented to allow two grids with
-        identical properties, but only one of which had a normalise time,
-        to be rapidly evaluated.
-        """
-        self.grid=grid.grid
-        self.beam_b=grid.beam_b
-        self.b_fractions=grid.b_fractions
-        self.zvals=grid.zvals
-        self.dmvals=grid.dmvals
-        self.nz=grid.nz
-        self.ndm=grid.ndm
-        self.dz=grid.dz
-        self.ddm=grid.ddm
-        self.dV=grid.dV
-        self.FtoE=grid.FtoE
-        self.sfr_n=grid.sfr_n
-        self.sfr=grid.sfr
-        self.beam_b=grid.beam_b
-        self.beam_o=grid.beam_o
-        self.Emin=grid.Emin
-        self.Emax=grid.Emax
-        self.gamma=grid.gamma
-        self.b_fractions=grid.b_fractions
-        self.fractions=grid.fractions
-        self.pdv=grid.pdv
-        self.smear_grid=grid.smear_grid
-        self.sfr_smear=grid.sfr_smear
-        self.rates=grid.rates
-        self.F0=grid.F0
-        self.alpha=grid.alpha
-        self.bandwidth=grid.bandwidth
-        self.nthresh=grid.nthresh
-        self.eff_weights=grid.eff_weights
-        self.eff_table=grid.eff_table
-        self.thresholds=grid.thresholds
-        self.smear_mean=grid.smear_mean
-        self.smear_sigma=grid.smear_sigma
-        self.smear=grid.smear
-        self.smear_grid=grid.smear_grid
-        self.nu0=grid.nuObs
-        self.nuref=grid.nuRef
-    '''
