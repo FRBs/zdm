@@ -1586,7 +1586,6 @@ def initialise_grids(surveys: list, zDMgrid: np.ndarray,
                              weights=weights,
                              nuObs=survey.meta['FBAR']*1e6)
         grid.calc_dV()
-        #grid.calc_pdv(Emin,Emax,gamma,survey.beam_b,
         grid.calc_pdv(survey.beam_b,
                       survey.beam_o) # calculates volumetric-weighted probabilities
         grid.set_evolution() # sets star-formation rate scaling with z - here, no evoltion...

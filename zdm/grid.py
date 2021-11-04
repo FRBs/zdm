@@ -508,10 +508,12 @@ class Grid:
             set_evolution
                 sfr_n
             
-            smear_grid:
+            smear_grid
                 grid
                 mask
-                    dmx_params
+                    dmx_params (lmean, lsigma)
+            zdm_grid
+                H0
         
         Note that the grid is independent of the constant C (trivial dependence)
 
@@ -519,17 +521,15 @@ class Grid:
             vparams (dict): [description]
         """
         # Init
+        get_zdm = False
         smear_mask, smear_dm, calc_pdv, set_evol = False, False, False, False
         new_sfr_smear, new_pdv_smear, calc_thresh = False, False, False
 
         # Cosmology -- Only H0 so far
         if self.chk_upd_param('H0', vparams, update=True):
             cos.set_cosmology(self.state)
-            zDMgrid, zvals,dmvals=misc_functions.get_zdm_grid(
-                self.state, new=True,plot=False,method='analytic')
-            # TODO -- Check zvals and dmvals haven't changed!
-            self.pass_grid(zDMgrid,zvals,dmvals)
             # The rest
+            get_zdm = True
             smear_mask = True
             smear_dm = True
             calc_thresh = True
@@ -540,17 +540,10 @@ class Grid:
         # Mask?
         # IT IS IMPORTANT TO USE np.any so that each item is executed!!
         if np.any([self.chk_upd_param('lmean', vparams, update=True), 
-            self.chk_upd_param('lsigma', vparams, update=True),
-            smear_mask]):
-            self.smear=pcosmic.get_dm_mask(
-                self.dmvals,(self.state.host.lmean,
-                             self.state.host.lsigma),
-                self.zvals)
+            self.chk_upd_param('lsigma', vparams, update=True)]):
+            smear_mask = True
             smear_dm = True
 
-        # Smear?
-        if smear_dm:
-            self.smear_dm(self.smear)
 
         # SFR?
         if self.chk_upd_param('sfr_n', vparams, update=True):
@@ -564,28 +557,40 @@ class Grid:
                 calc_thresh = True
             elif self.state.FRBdemo.alpha_method == 1:
                 new_sfr_smear=True
-        if set_evol:
-            self.set_evolution() # sets star-formation rate scaling with z - here, no evoltion...
-
-        # TODO -- Thresholds and pdv come *before* in initialize_grids
-        #  SHOULD WE DO THE SAME HERE??
 
         ##### examines the 'pdv tree' affecting sensitivity #####
         # begin with alpha
         # alpha does not change thresholds under rate scaling, only spec index
-        if calc_thresh:
-            self.calc_thresholds(
-                self.F0,self.eff_table, bandwidth=self.bandwidth,
-                weights=self.eff_weights)
-
         if np.any([self.chk_upd_param('lEmin', vparams, update=True),
             self.chk_upd_param('lEmax', vparams, update=True),
             self.chk_upd_param('gamma', vparams, update=True)]):
             calc_pdv = True
             new_pdv_smear=True
+
+        if get_zdm:
+            zDMgrid, zvals,dmvals=misc_functions.get_zdm_grid(
+                self.state, new=True,plot=False,method='analytic')
+            # TODO -- Check zvals and dmvals haven't changed!
+            self.pass_grid(zDMgrid,zvals,dmvals)
+
+        # Smear?
+        if smear_mask:
+            self.smear=pcosmic.get_dm_mask(
+                self.dmvals,(self.state.host.lmean,
+                             self.state.host.lsigma), self.zvals)
+        if smear_dm:
+            self.smear_dm(self.smear)
+            
+        if calc_thresh:
+            self.calc_thresholds(
+                self.F0,self.eff_table, bandwidth=self.bandwidth,
+                weights=self.eff_weights)
         
         if calc_pdv:
             self.calc_pdv()
+
+        if set_evol:
+            self.set_evolution() # sets star-formation rate scaling with z - here, no evoltion...
 
         if new_sfr_smear:
             self.calc_rates() #includes sfr smearing factors and pdv mult
