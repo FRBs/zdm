@@ -111,13 +111,13 @@ class Grid:
             raise ValueError("Maximum non-linearity in dm-grid of ",maxoff**0.5,"detected, aborting")
         
         
-    def calc_dV(self):
+    def calc_dV(self, reINIT=False):
         """ Calculates volume per steradian probed by a survey.
         
         Does this only in the z-dimension (for obvious reasons!)
         """
-        if cos.INIT==False:
-            print('WARNING: cosmology not yet initiated, using default parameters.')
+        if (cos.INIT is False) or reINIT:
+            #print('WARNING: cosmology not yet initiated, using default parameters.')
             cos.init_dist_measures()
         self.dV=cos.dvdtau(self.zvals)*self.dz
         
@@ -512,6 +512,7 @@ class Grid:
                 grid
                 mask
                     dmx_params (lmean, lsigma)
+            dV
             zdm_grid
                 H0
         
@@ -521,7 +522,7 @@ class Grid:
             vparams (dict): [description]
         """
         # Init
-        get_zdm = False
+        get_zdm, calc_dV = False, False
         smear_mask, smear_dm, calc_pdv, set_evol = False, False, False, False
         new_sfr_smear, new_pdv_smear, calc_thresh = False, False, False
 
@@ -530,6 +531,7 @@ class Grid:
             cos.set_cosmology(self.state)
             # The rest
             get_zdm = True
+            calc_dV = True
             smear_mask = True
             smear_dm = True
             calc_thresh = True
@@ -572,6 +574,9 @@ class Grid:
                 self.state, new=True,plot=False,method='analytic')
             # TODO -- Check zvals and dmvals haven't changed!
             self.pass_grid(zDMgrid,zvals,dmvals)
+
+        if calc_dV:
+            self.calc_dV(reINIT=True)
 
         # Smear?
         if smear_mask:
