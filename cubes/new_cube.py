@@ -161,7 +161,7 @@ def main(Cube):
     # generates zdm grids for initial parameter set
     # when submitting a job, make sure this is all pre-generated once
     #if state.analysis.NewGrids:
-    if False:
+    if True:
         grids = misc_functions.initialise_grids(
             surveys,zDMgrid, zvals, dmvals, state, wdist=True)
         # Write to disk
