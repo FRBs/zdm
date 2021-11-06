@@ -60,8 +60,14 @@ def main(Cube):
     # Location for maximisation output
     outdir='Cube/'
 
+    #psetmins,psetmaxes,nvals=misc_functions.process_pfile(Cube[2])
+    input_dict=misc_functions.process_jfile(Cube[2])
+    # Deconstruct the input_dict
+    state_dict, cube_dict, vparam_dict = it.parse_input_dict(input_dict)
+
     ############## Initialise parameters ##############
     state = parameters.State()
+    state.update_param_dict(state_dict)
 
     # alpha-method
     state.FRBdemo.alpha_method = 1
@@ -192,8 +198,6 @@ def main(Cube):
         if not os.path.exists(outdir):
             os.mkdir(outdir)
         
-        #psetmins,psetmaxes,nvals=misc_functions.process_pfile(Cube[2])
-        vparam_dict=misc_functions.process_jfile(Cube[2])
         run=Cube[0]
         howmany=Cube[1]
         opfile=Cube[3]
@@ -211,7 +215,7 @@ def main(Cube):
         # Check cosmology
         print(f"cosmology: {cos.cosmo}")
         #
-        it.cube_likelihoods(grids,surveys, vparam_dict,
+        it.cube_likelihoods(grids,surveys, vparam_dict, cube_dict,
                       run,howmany,opfile, starti=starti,clone=clone)
         
 

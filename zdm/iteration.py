@@ -3,7 +3,7 @@
 from IPython.terminal.embed import embed
 import matplotlib.pyplot as plt
 import numpy as np
-from zdm import pcosmic
+from zdm import parameters, pcosmic
 from scipy.optimize import minimize
 # to hold one of these parameters constant, just remove it from the arg set here
 from zdm import cosmology as cos
@@ -854,6 +854,7 @@ def missing_cube_likelihoods(grids,surveys,todo,outfile,norm=True,psnr=True,star
 
 def cube_likelihoods(grids:list,surveys:list, 
                      vparam_dict:dict,
+                     cube_dict:dict,
                      run,howmany,outfile,norm=True,
                      psnr=True,starti=0,clone=None):
     """
@@ -889,6 +890,7 @@ def cube_likelihoods(grids:list,surveys:list,
     # expected number for best-fit constant
     
     """
+    # 
     npoints = np.array([item['n'] for key, item in vparam_dict.items()])
     ntotal = np.prod(np.abs(npoints))
     print(f"The total grid has {ntotal} npoints")
@@ -938,22 +940,14 @@ def cube_likelihoods(grids:list,surveys:list,
     start=(run-1)*howmany
 
     ####### counters for each dimensions ######
-    if grids[0].state.FRBdemo.alpha_method==0:
-        parameter_order = ['lC', 'sfr_n', 'lEmin', 'alpha', 'lEmax', 'gamma', 'lmean', 'lsigma', 'H0']
-    elif grids[0].state.FRBdemo.alpha_method==1:
-        parameter_order = ['lC', 'sfr_n', 'lEmin', 'alpha', 'lEmax', 'gamma', 'lmean', 'lsigma', 'H0']
-    else:
-        raise ValueError("Unknown value of alpha method!",grids[0].state.FRBdemo.alpha_method)
+    parameter_order = cube_dict['parameter_order']
 
-    # Convert params to an order
-    order = []
-    for param in parameter_order:
-        if param in PARAMS:
-            order.append(PARAMS.index(param))
-    # Test
-    if len(order) != len(PARAMS):
-        raise ValueError("One or more of your PARAMS are not in the parameter_order list!")
+    order, iorder = set_orders(parameter_order, PARAMS)
 
+    # Shape of the grid (ignoring the constant, lC)
+    cube_shape = set_cube_shape(vparam_dict, order)
+
+    '''
     # Translate
     r_npoints=npoints[order]
     ndims=npoints.size
@@ -979,6 +973,7 @@ def cube_likelihoods(grids:list,surveys:list,
         this -= r_current[ndims-i-1]*r_cp[ndims-i-1]
     
     current=r_current[iorder] # sets initial values
+    '''
     
     t0=time.process_time()
     print("Starting at time ",t0)
@@ -995,6 +990,11 @@ def cube_likelihoods(grids:list,surveys:list,
         if i>=starti:
             
             nth=i+(run-1)*howmany
+            # Unravel -- The pre-pended 0 is for lC
+            r_current = np.array([0]+list(np.unravel_index(
+                nth, cube_shape, order='F')))
+            current = r_current[iorder]
+            #
             string=str(nth)
             t1=time.process_time()
             # set initial values of parameters - although we could easily do this in  the end loop
@@ -1004,9 +1004,8 @@ def cube_likelihoods(grids:list,surveys:list,
                     vparams[vp_keys[j]] = vparam_dict[vp_keys[j]]['vals'][n]
                     #pset[j]=psetvals[j][n]
 
-            # Update the state
-            #state.update_params(vparams)
-            print(f"vparams: {vparams}")
+            #print(f"vparams: {vparams}")
+            #embed(header='1006 of it')
 
             ### minimise if appropriate ### 
             if minimise:
@@ -1069,6 +1068,7 @@ def cube_likelihoods(grids:list,surveys:list,
             f.write(string)
             
         
+        '''
         # update current values. Uses re-ordered version. Has to do this even if skipping
         thisdim=0
         r_current[thisdim]+=1
@@ -1078,10 +1078,11 @@ def cube_likelihoods(grids:list,surveys:list,
             r_current[thisdim]+=1
         # maps back to original order of things
         current=r_current[iorder]
+        '''
         
-        t1=time.process_time()
+        #t1=time.process_time()
         #print("Loop: ",i+run*howmany," took ", t1-t0," seconds")
-        t0=t1
+        #t0=t1
         
     f.close()
     
@@ -1861,3 +1862,52 @@ def minimise_const_only(vparams,grids,surveys,
     #embed(header='1840 of it')
     return newC,llC,lltot
     
+'''
+def set_param_order(alpha_method):
+    if alpha_method==0:
+        parameter_order = ['lC', 'sfr_n', 'lEmin', 'alpha', 'lEmax', 'gamma', 'lmean', 'lsigma', 'H0']
+    elif alpha_method==1:
+        parameter_order = ['lC', 'sfr_n', 'lEmin', 'alpha', 'lEmax', 'gamma', 'lmean', 'lsigma', 'H0']
+    else:
+        raise ValueError("Unknown value of alpha method!",alpha_method)
+    return parameter_order
+'''
+    
+def set_orders(parameter_order, PARAMS):
+    # Convert params to an order
+    order = []
+    for param in parameter_order:
+        if param in PARAMS:
+            order.append(PARAMS.index(param))
+    # Test
+    if len(order) != len(PARAMS):
+        raise ValueError("One or more of your PARAMS are not in the parameter_order list!")
+    # iorder
+    iorder=np.zeros([len(order)],dtype='int')
+    for i,n in enumerate(order): #creates an inverse to map back, so we know to change the nth parameter 1st
+        iorder[n]=i
+    return order, iorder
+
+
+def set_cube_shape(vparam_dict:dict, order:list):
+    # Dimensisons of the parameter dict
+    dims = []
+    for key, item in vparam_dict.items():
+        dims.append(item['n'])
+    # Order em
+    order_dims = []
+    for i in order:
+        order_dims.append(dims[i])
+
+    # cube shape
+    return order_dims[1:]
+
+def parse_input_dict(input_dict:dict):
+    state_dict, cube_dict = {}, {}
+    # 
+    if 'state' in input_dict.keys():
+        state_dict = input_dict.pop('state')
+    if 'cube' in input_dict.keys():
+        cube_dict = input_dict.pop('cube')
+    # Return 
+    return state_dict, cube_dict, input_dict
