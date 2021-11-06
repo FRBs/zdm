@@ -1,5 +1,7 @@
 ### this file includes various routines to iterate /maximise / minimise
 # values on a zdm grid
+import os
+import time
 from IPython.terminal.embed import embed
 import matplotlib.pyplot as plt
 import numpy as np
@@ -890,7 +892,7 @@ def cube_likelihoods(grids:list,surveys:list,
     ntotal = np.prod(np.abs(npoints))
     print(f"The total grid has {ntotal} npoints")
     vp_keys = list(vparam_dict.keys())
-    
+
     # check feasible range of job number
     if (howmany <= 0) or (run <= 0) or ntotal < (run-1)*howmany+1:
         print("Invalid range of run=",run," and howmany=",howmany," for ", ntotal, "points")
