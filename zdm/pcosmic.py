@@ -131,14 +131,14 @@ def get_C0(z,F,zgrid,Fgrid,C0grid):
     iz2=np.where(zgrid>z)[0] # gets first element greater than
     iz1=iz2-1
     kz1=(zgrid[iz2]-z)/(zgrid[iz2]-zgrid[iz1])
-    kz2=1.-k1
+    kz2=1.-kz1
     
     iF2=np.where(Fgrid>F)[0] # gets first element greater than
     iF1=iF2-1
     kF1=(Fgrid[iF2]-F)/(Fgrid[iF2]-Fgrid[iF1])
     kF2=1.-kF1
     
-    C0=kz1*kF1*C0grid[iz1,iF1] + kz2*kF1C0grid[iz2,iF1] + kz1*kF2*C0grid[iz1,iF2] + kz2*kF2*C0grid[iz2,iF2]
+    C0=kz1*kF1*C0grid[iz1,iF1] + kz2*kF1*C0grid[iz2,iF1] + kz1*kF2*C0grid[iz1,iF2] + kz2*kF2*C0grid[iz2,iF2]
     return C0
     
     
@@ -147,7 +147,7 @@ def get_pDM(z,F,DMgrid,zgrid,Fgrid,C0grid):
     C0=get_C0(z,F,zgrid,Fgrid,C0grid)
     DMbar=get_mean_DM(z)
     deltas=DMgrid/DMbar
-    pDM=pcosmic(deltasm,z,F,C0)
+    pDM=pcosmic(deltas,z,F,C0)
     return pDM
 
 
@@ -199,7 +199,7 @@ def loglognormal_dlog(logDM,*args):
     norm=args[2]
     return norm*np.exp(-0.5*((logDM-logmean)/logsigma)**2)
 
-def plot_mean(zvals,saveas):
+def plot_mean(zvals,saveas, title="Mean DM"):
     
     mean=get_mean_DM(zvals)
     plt.figure()
@@ -207,6 +207,7 @@ def plot_mean(zvals,saveas):
     plt.ylabel('$\\overline{\\rm DM}$')
     plt.plot(zvals,mean,linewidth=2)
     plt.tight_layout()
+    plt.title(title)
     plt.savefig(saveas)
     plt.show()
     plt.close()

@@ -66,14 +66,18 @@ font = {'family' : 'normal',
         'size'   : defaultsize}
 matplotlib.rc('font', **font)
 
-def main():
+def main(N=100,plots=False):
+    "created N*survey.NFRBs mock FRBs for all surveys"
+    "Input N : creates N*survey.NFRBs"
+    "Output : Sample(list) and Surveys(list)"
+
 
     ############## Initialise cosmology ##############
     cos.init_dist_measures()
     
     # get the grid of p(DM|z). See function for default values.
     # set new to False once this is already initialised
-    zDMgrid, zvals,dmvals=misc_functions.get_zdm_grid(
+    zDMgrid, zvals,dmvals, H0 = misc_functions.get_zdm_grid(
         new=True,plot=False,method='analytic')
     # NOTE: if this is new, we also need new surveys and grids!
     
@@ -84,12 +88,12 @@ def main():
     
     # sets which kind of source evolution function is being used
     #source_evolution=0 # SFR^n scaling
-    source_evolution=1 # (1+z)^(2.7n) scaling
+    source_evolution=0 # (1+z)^(2.7n) scaling
     
     
     # sets the nature of scaling with the 'spectral index' alpha
-    alpha_method=0 # spectral index interpretation: includes k-correction. Slower to update
-    #alpha_method=1 # rate interpretation: extra factor of (1+z)^alpha in source evolution
+    #alpha_method=0 # spectral index interpretation: includes k-correction. Slower to update
+    alpha_method=1 # rate interpretation: extra factor of (1+z)^alpha in source evolution
     
     ############## Initialise surveys ##############
     
@@ -133,6 +137,14 @@ def main():
         ICS.init_beam(nbins=Nbeams[1],method=2,plot=False,thresh=thresh) # tells the survey to use the beam file
         pwidths,pprobs=survey.make_widths(ICS,Wlogmean,Wlogsigma,Wbins,scale=Wscale)
         efficiencies=ICS.get_efficiency_from_wlist(dmvals,pwidths,pprobs)
+
+        # load ICS 892 MHz data
+        ICS892=survey.survey()
+        ICS892.process_survey_file(sdir+'CRAFT_ICS_892.dat')
+        ICS892.init_DMEG(DMhalo)
+        ICS892.init_beam(nbins=Nbeams[1],method=2,plot=False,thresh=thresh) # tells the survey to use the beam file
+        pwidths,pprobs=survey.make_widths(ICS892,Wlogmean,Wlogsigma,Wbins,scale=Wscale)
+        efficiencies892=ICS892.get_efficiency_from_wlist(dmvals,pwidths,pprobs)
         
         # load Parkes data
         pks=survey.survey()
@@ -143,9 +155,9 @@ def main():
         efficiencies=pks.get_efficiency_from_wlist(dmvals,pwidths,pprobs)
         
         
-        names=['ASKAP/FE','ASKAP/ICS','Parkes/Mb']
+        names=['ASKAP/FE','ASKAP/ICS','ASKAP/ICS892','Parkes/Mb']
         
-        surveys=[lat50,ICS,pks]
+        surveys=[lat50,ICS,ICS892,pks]
         if not os.path.isdir('Pickle'):
             os.mkdir('Pickle')
         with open('Pickle/'+sprefix+'surveys.pkl', 'wb') as output:
@@ -157,23 +169,35 @@ def main():
             names=pickle.load(infile)
             lat50=surveys[0]
             ICS=surveys[1]
-            pks=surveys[2]
+            ICS892=surveys[2]
+            pks=surveys[3]
+
     print("Initialised surveys ",names)
     
     dirnames=['ASKAP_FE','ASKAP_ICS','Parkes_Mb']
     
-    #### these are hard-coded best-fit parameters ####
-    # initial parameter values. SHOULD BE LOGSIGMA 0.75! (WAS 0.25!?!?!?)
-    # Best-fit parameter values (result from cube iteration)
-    lEmin=30. # log10 in erg
-    lEmax=41.84 # log10 in erg
-    alpha=1.54 # spectral index. WARNING: here F(nu)~nu^-alpha in the code, opposite to the paper!
-    gamma=-1.16 # slope of luminosity distribution function
-    sfr_n=1.77 #scaling with star-formation rate
-    lmean=2.16 # log10 mean of DM host contribution in pc cm^-3
-    lsigma=0.51 # log10 sigma of DM host contribution in pc cm^-3
-    C=4.19 # log10 constant in number per Gpc^-3 yr^-1 at z=0
-    pset=[lEmin,lEmax,alpha,gamma,sfr_n,lmean,lsigma,C]
+    #updated best-fit values
+    alpha_method=0
+    lmean=2.11
+    lsigma=0.53
+    alpha=1.55
+    gamma=-1.09
+    lEmax=41.7
+    lEmin=30
+    sfr_n=1.67
+    C=3.188
+
+    #alpha_method=1
+    #lEmin=30
+    #lEmax =41.40
+    #alpha =-0.66
+    #gamma = -1.01
+    #sfr_n= 0.73
+    #lmean=2.18
+    #lsigma=0.48
+    #C=2.36 ##it.GetFirstConstantEstimate(grids,surveys,pset)
+
+    pset=[lEmin,lEmax,alpha,gamma,sfr_n,lmean,lsigma,C,H0]
     
     
     # generates zdm grids for the specified parameter set
@@ -185,7 +209,8 @@ def main():
     
     if NewGrids:
         print("Generating new grids, set NewGrids=False to save time later")
-        grids=misc_functions.initialise_grids(surveys,zDMgrid, zvals,dmvals,pset,wdist=True,source_evolution=source_evolution,alpha_method=alpha_method)
+        grids=misc_functions.initialise_grids(surveys,zDMgrid, zvals,dmvals,pset,wdist=True,
+                source_evolution=source_evolution,alpha_method=alpha_method)
         with open('Pickle/'+gprefix+'grids.pkl', 'wb') as output:
             pickle.dump(grids, output, pickle.HIGHEST_PROTOCOL)
     else:
@@ -198,28 +223,35 @@ def main():
     print("Initialised grids")
     
     
-    #testing_MC!!! Generate pseudo samples from lat50
-    which=0
-    g=grids[which]
-    s=surveys[which]
+    samples = []
+    for i in range(len(surveys)):
+        # testing_MC!!! Generate pseudo samples from all surveys
+        g = grids[i]
+        s = surveys[i]
+        name = i
+        name = str(name)
     
-    savefile='mc_sample.npy'
+        savefile='mc_sample_'+name+'_alpha_'+str(alpha_method)+str(N)+'.npy'
     
-    try:
-        sample=np.load(savefile)
-        print("Loading ",sample.shape[0]," samples from file ",savefile)
-    except:
-        Nsamples=10000
-        print("Generating ",Nsamples," samples from survey/grid ",which)
-        sample=g.GenMCSample(Nsamples)
-        sample=np.array(sample)
-        np.save(savefile,sample)
-    
-    # plot some sample plots
-    #do_basic_sample_plots(sample)
-    
-    #evaluate_mc_sample_v1(g,s,pset,sample)
-    evaluate_mc_sample_v2(g,s,pset,sample)
+        try:
+            sample=np.load(savefile)
+            print("Loading ",sample.shape[0]," samples from file ",savefile)
+        except:
+            Nsamples=s.NFRB*N
+            print("Generating ",Nsamples," samples from survey/grid ",i)
+            sample=g.GenMCSample(Nsamples)
+            sample=np.array(sample)
+            np.save(savefile,sample)
+
+        samples.append(sample)
+            
+        if plots:
+            #plot some sample plots
+            do_basic_sample_plots(sample)
+            #evaluate_mc_sample_v1(g,s,pset,sample)
+            evaluate_mc_sample_v2(g,s,pset,sample)
+        
+    return samples,surveys
     
     
 def evaluate_mc_sample_v1(grid,survey,pset,sample,opdir='Plots'):
@@ -271,7 +303,7 @@ def evaluate_mc_sample_v1(grid,survey,pset,sample,opdir='Plots'):
     plt.close()
 
 
-def evaluate_mc_sample_v2(grid,survey,pset,sample,opdir='Plots',Nsubsamp=1000):
+def evaluate_mc_sample_v2(grid,survey,pset,sample,opdir='Plots',Nsubsamp=1000,title=''):
     """
     Evaluates the likelihoods for an MC sample of events
     First, gets likelihoods for entire set of FRBs
@@ -286,12 +318,12 @@ def evaluate_mc_sample_v2(grid,survey,pset,sample,opdir='Plots',Nsubsamp=1000):
     NFRBs=s.NFRB
     
     s.NFRB=nsamples # NOTE: does NOT change the assumed normalised FRB total!
-    s.DMEGs=sample[:,0]
+    s.DMEGs=sample[:,1]
     s.Ss=sample[:,4]
     if s.nD==1: # DM, snr only
         llsum,lllist,expected,longlist=it.calc_likelihoods_1D(grid,s,pset,psnr=True,Pn=True,dolist=2)
     else:
-        s.Zs=sample[:,1]
+        s.Zs=sample[:,0]
         llsum,lllist,expected,longlist=it.calc_likelihoods_2D(grid,s,pset,psnr=True,Pn=True,dolist=2)
     
     # we should preserve the normalisation factor for Tobs from lllist
@@ -303,6 +335,7 @@ def evaluate_mc_sample_v2(grid,survey,pset,sample,opdir='Plots',Nsubsamp=1000):
     plt.xlabel('Individual Psnr,Pzdm log likelihoods [log10]')
     plt.ylabel('p(ll)')
     plt.tight_layout()
+    plt.title(title)
     plt.savefig(opdir+'/individual_ll_histogram.pdf')
     plt.close()
     
@@ -327,7 +360,7 @@ def evaluate_mc_sample_v2(grid,survey,pset,sample,opdir='Plots',Nsubsamp=1000):
     print("Finished after ",dt," seconds")
     
     
-def do_basic_sample_plots(sample,opdir='Plots'):
+def do_basic_sample_plots(sample,opdir='Plots',title=''):
     """
     Data order is DM,z,b,w,s
     
@@ -342,6 +375,7 @@ def do_basic_sample_plots(sample,opdir='Plots'):
     plt.ylabel('Sampled DMs')
     plt.tight_layout()
     plt.savefig(opdir+'/DM_histogram.pdf')
+    plt.title(title)
     plt.close()
     
     plt.figure()
@@ -350,6 +384,7 @@ def do_basic_sample_plots(sample,opdir='Plots'):
     plt.ylabel('Sampled redshifts')
     plt.tight_layout()
     plt.savefig(opdir+'/z_histogram.pdf')
+    plt.title(title)
     plt.close()
     
     bs=sample[:,2]
@@ -358,6 +393,7 @@ def do_basic_sample_plots(sample,opdir='Plots'):
     plt.xlabel('log10 beam value')
     plt.yscale('log')
     plt.ylabel('Sampled beam bin')
+    plt.title(title)
     plt.tight_layout()
     plt.savefig(opdir+'/b_histogram.pdf')
     plt.close()
@@ -369,6 +405,7 @@ def do_basic_sample_plots(sample,opdir='Plots'):
     plt.ylabel('Sampled width bin')
     plt.yscale('log')
     plt.tight_layout()
+    plt.title(title)
     plt.savefig(opdir+'/w_histogram.pdf')
     plt.close()
     
@@ -379,7 +416,9 @@ def do_basic_sample_plots(sample,opdir='Plots'):
     plt.yscale('log')
     plt.ylabel('Sampled $s$')
     plt.tight_layout()
+    plt.title(title)
+    
     plt.savefig(opdir+'/s_histogram.pdf')
     plt.close()
     
-main()
+#main()

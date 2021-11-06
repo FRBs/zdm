@@ -388,6 +388,7 @@ def make_dm_redshift(grid,savename="",DMmax=1000,
         plt.xlim(0,xtvals.size)
         zmax=zvals[-1]
         DMbar, zeval = igm.average_DM(zmax, cumul=True, neval=nz+1)
+        DMbar = DMbar*H0/(cos.DEF_H0)  # NOT SURE THIS IS RIGHT
         DMbar=np.array(DMbar)
         DMbar += Macquart #should be interpreted as muDM
         
@@ -1533,7 +1534,7 @@ def test_beam_rates(survey,zDMgrid, zvals,dmvals,pset,binset,method=2,outdir='Pl
 def initialise_grids(surveys: list, zDMgrid: np.ndarray, 
                      zvals: np.ndarray, 
                      dmvals: np.ndarray, state:parameters.State, 
-                     wdist=False): 
+                     wdist=True): 
     """ For a list of surveys, construct a zDMgrid object
     wdist indicates a distribution of widths in the survey,
     i.e. do not use the mean efficiency
@@ -2139,6 +2140,7 @@ def plot_grid_2(zDMgrid,zvals,dmvals,zmax=1,DMmax=1000,norm=0,log=True,name='tem
         zmax=zvals[-1]
         nz=zvals.size
         DMbar, zeval = igm.average_DM(zmax, cumul=True, neval=nz+1)
+        DMbar = DMbar*H0/(cos.DEF_H0)
         DMbar=np.array(DMbar)
         DMbar += Macquart #should be interpreted as muDM
         mu_DM=zDMgrid
