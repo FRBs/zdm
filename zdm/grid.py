@@ -16,26 +16,26 @@ class Grid:
     It also assumes a linear uniform grid.
     """
     
-    def __init__(self, survey, state:parameters.State=None):
+    def __init__(self, survey, state,
+                 zDMgrid, zvals, dmvals, smear_mask,
+                 wdist):
         """
         Class constructor.
 
         Args: 
             survey (survey.Survey):
-            state (parameters.State, optional): 
+            state (parameters.State): 
                 Defines the parameters of the analysis
                 Note, each grid holds the *same* copy so modifying
                 it in one place affects them all.
         """
         self.grid=None
         self.survey = survey
-        # we need to set these to trivial values to ensure correct future behaviour
-        self.beam_b=np.array([1])
-        self.beam_o=np.array([1])
+        # Beam
+        self.beam_b=survey.beam_b
+        self.beam_o=survey.beam_o
         self.b_fractions=None
         # State
-        if state is None:
-            state = parameters.State()
         self.state = state
 
         self.source_function=cos.choose_source_evolution_function(
@@ -43,7 +43,26 @@ class Grid:
 
         self.luminosity_function=0
         self.init_luminosity_functions()
-    
+
+        # Init the grid
+        #   THESE SHOULD BE THE SAME ORDER AS self.update()
+        self.pass_grid(zDMgrid.copy(),zvals.copy(),dmvals.copy())  
+        self.calc_dV()
+        self.smear_dm(smear_mask.copy())
+        if wdist:
+            efficiencies=survey.efficiencies # two dimensions
+            weights=survey.wplist
+        else:
+            efficiencies=survey.mean_efficiencies
+            weights=None
+        self.calc_thresholds(survey.meta['THRESH'],
+                             efficiencies,
+                             weights=weights,
+                             nuObs=survey.meta['FBAR']*1e6)
+        self.calc_pdv()
+        self.set_evolution() # sets star-formation rate scaling with z - here, no evoltion...
+        self.calc_rates() #includes sfr smearing factors and pdv mult
+
     def init_luminosity_functions(self):
         if self.luminosity_function==0:
             self.array_cum_lf=zdm.array_cum_power_law
@@ -59,7 +78,7 @@ class Grid:
         self.dmvals=dmvals
         #
         self.check_grid()
-        self.calc_dV()
+        #self.calc_dV()
         
         # this contains all the values used to generate grids
         # these parameters begin at None, and get filled when
@@ -110,13 +129,13 @@ class Grid:
             raise ValueError("Maximum non-linearity in dm-grid of ",maxoff**0.5,"detected, aborting")
         
         
-    def calc_dV(self):
+    def calc_dV(self, reINIT=False):
         """ Calculates volume per steradian probed by a survey.
         
         Does this only in the z-dimension (for obvious reasons!)
         """
-        if cos.INIT==False:
-            print('WARNING: cosmology not yet initiated, using default parameters.')
+        if (cos.INIT is False) or reINIT:
+            #print('WARNING: cosmology not yet initiated, using default parameters.')
             cos.init_dist_measures()
         self.dV=cos.dvdtau(self.zvals)*self.dz
         
@@ -480,8 +499,9 @@ class Grid:
         return FRBparams,pwb
         
 
-    def update(self, vparams:dict):
-        """[summary]
+    def update(self, vparams:dict, ALL=False):
+        """Update the grid based on a set of input
+        parameters
         
         Hierarchy:
         Each indent corresponds to one 'level'.
@@ -494,6 +514,11 @@ class Grid:
         Hence, we deal with these first, and
         calc rates as a final step regardless
         of what else has changed.
+
+        Args:
+            vparams (dict):  dict containing the parameters
+                to be updated and their values
+            ALL (bool, optional):  If True, update the full grid
         
         calc_rates:
             calc_pdv
@@ -507,10 +532,13 @@ class Grid:
             set_evolution
                 sfr_n
             
-            smear_grid:
+            smear_grid
                 grid
                 mask
-                    dmx_params
+                    dmx_params (lmean, lsigma)
+            dV
+            zdm_grid
+                H0
         
         Note that the grid is independent of the constant C (trivial dependence)
 
@@ -518,17 +546,15 @@ class Grid:
             vparams (dict): [description]
         """
         # Init
+        reset_cos, get_zdm, calc_dV = False, False, False
         smear_mask, smear_dm, calc_pdv, set_evol = False, False, False, False
         new_sfr_smear, new_pdv_smear, calc_thresh = False, False, False
 
         # Cosmology -- Only H0 so far
         if self.chk_upd_param('H0', vparams, update=True):
-            cos.set_cosmology(self.state)
-            zDMgrid, zvals,dmvals=misc_functions.get_zdm_grid(
-                self.state, new=True,plot=False,method='analytic')
-            # TODO -- Check zvals and dmvals haven't changed!
-            self.pass_grid(zDMgrid,zvals,dmvals)
-            # The rest
+            reset_cos = True
+            get_zdm = True
+            calc_dV = True
             smear_mask = True
             smear_dm = True
             calc_thresh = True
@@ -539,17 +565,10 @@ class Grid:
         # Mask?
         # IT IS IMPORTANT TO USE np.any so that each item is executed!!
         if np.any([self.chk_upd_param('lmean', vparams, update=True), 
-            self.chk_upd_param('lsigma', vparams, update=True),
-            smear_mask]):
-            self.smear=pcosmic.get_dm_mask(
-                self.dmvals,(self.state.host.lmean,
-                             self.state.host.lsigma),
-                self.zvals)
+            self.chk_upd_param('lsigma', vparams, update=True)]):
+            smear_mask = True
             smear_dm = True
 
-        # Smear?
-        if smear_dm:
-            self.smear_dm(self.smear)
 
         # SFR?
         if self.chk_upd_param('sfr_n', vparams, update=True):
@@ -563,30 +582,53 @@ class Grid:
                 calc_thresh = True
             elif self.state.FRBdemo.alpha_method == 1:
                 new_sfr_smear=True
-        if set_evol:
-            self.set_evolution() # sets star-formation rate scaling with z - here, no evoltion...
-
-        # TODO -- Thresholds and pdv come *before* in initialize_grids
-        #  SHOULD WE DO THE SAME HERE??
 
         ##### examines the 'pdv tree' affecting sensitivity #####
         # begin with alpha
         # alpha does not change thresholds under rate scaling, only spec index
-        if calc_thresh:
-            self.calc_thresholds(
-                self.F0,self.eff_table, bandwidth=self.bandwidth,
-                weights=self.eff_weights)
-
         if np.any([self.chk_upd_param('lEmin', vparams, update=True),
             self.chk_upd_param('lEmax', vparams, update=True),
             self.chk_upd_param('gamma', vparams, update=True)]):
             calc_pdv = True
             new_pdv_smear=True
+
+        # ###########################
+        # NOW DO THE REAL WORK!!
+
+        # Update cosmology?
+        if reset_cos:
+            cos.set_cosmology(self.state)
+            cos.init_dist_measures()
+
+        if get_zdm or ALL:
+            zDMgrid, zvals,dmvals=misc_functions.get_zdm_grid(
+                self.state, new=True,plot=False,method='analytic')
+            # TODO -- Check zvals and dmvals haven't changed!
+            self.pass_grid(zDMgrid,zvals,dmvals)
+
+        if calc_dV or ALL:
+            self.calc_dV()
+
+        # Smear?
+        if smear_mask or ALL:
+            self.smear=pcosmic.get_dm_mask(
+                self.dmvals,(self.state.host.lmean,
+                             self.state.host.lsigma), self.zvals)
+        if smear_dm or ALL:
+            self.smear_dm(self.smear)
+            
+        if calc_thresh or ALL:
+            self.calc_thresholds(
+                self.F0,self.eff_table, bandwidth=self.bandwidth,
+                weights=self.eff_weights)
         
-        if calc_pdv:
+        if calc_pdv or ALL:
             self.calc_pdv()
 
-        if new_sfr_smear:
+        if set_evol or ALL:
+            self.set_evolution() # sets star-formation rate scaling with z - here, no evoltion...
+
+        if new_sfr_smear or ALL:
             self.calc_rates() #includes sfr smearing factors and pdv mult
         elif new_pdv_smear:
             self.rates=self.pdv*self.sfr_smear #does pdv mult only, 'by hand'
@@ -619,53 +661,3 @@ class Grid:
                     self.state.update_param(param, vparams[param])
         #
         return updated
-
-    
-    '''
-    def copy(self,grid):
-        """ copies all values from grid to here
-        is OK if this is a shallow copy
-        explicit function to open the possibility of making it faster
-        This is likely now deprecated, and was made before the difference
-        in NFRB and NORM_FRB was implemented to allow two grids with
-        identical properties, but only one of which had a normalise time,
-        to be rapidly evaluated.
-        """
-        self.grid=grid.grid
-        self.beam_b=grid.beam_b
-        self.b_fractions=grid.b_fractions
-        self.zvals=grid.zvals
-        self.dmvals=grid.dmvals
-        self.nz=grid.nz
-        self.ndm=grid.ndm
-        self.dz=grid.dz
-        self.ddm=grid.ddm
-        self.dV=grid.dV
-        self.FtoE=grid.FtoE
-        self.sfr_n=grid.sfr_n
-        self.sfr=grid.sfr
-        self.beam_b=grid.beam_b
-        self.beam_o=grid.beam_o
-        self.Emin=grid.Emin
-        self.Emax=grid.Emax
-        self.gamma=grid.gamma
-        self.b_fractions=grid.b_fractions
-        self.fractions=grid.fractions
-        self.pdv=grid.pdv
-        self.smear_grid=grid.smear_grid
-        self.sfr_smear=grid.sfr_smear
-        self.rates=grid.rates
-        self.F0=grid.F0
-        self.alpha=grid.alpha
-        self.bandwidth=grid.bandwidth
-        self.nthresh=grid.nthresh
-        self.eff_weights=grid.eff_weights
-        self.eff_table=grid.eff_table
-        self.thresholds=grid.thresholds
-        self.smear_mean=grid.smear_mean
-        self.smear_sigma=grid.smear_sigma
-        self.smear=grid.smear
-        self.smear_grid=grid.smear_grid
-        self.nu0=grid.nuObs
-        self.nuref=grid.nuRef
-    '''

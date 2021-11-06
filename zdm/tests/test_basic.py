@@ -29,7 +29,7 @@ def make_grids():
     vparams['cosmo']['Omega_b'] = 0.044
 
     # Update state
-    state.update(vparams)
+    state.update_param_dict(vparams)
 
     ############## Initialise cosmology ##############
     cos.set_cosmology(state)
