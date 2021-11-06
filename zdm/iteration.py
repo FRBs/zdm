@@ -170,7 +170,7 @@ def maximise_likelihood(grid,survey):
     return results
 
 
-# TODO -- Remove this method
+'''
 def update_grid(grid,pset,survey):
     #added routine to update H0 values within grid
     """Updates the grid  
@@ -317,6 +317,7 @@ def update_grid(grid,pset,survey):
         grid.calc_rates() #includes sfr smearing factors and pdv mult
     elif new_pdv_smear:
         grid.rates=grid.pdv*grid.sfr_smear #does pdv mult only, 'by hand'
+'''
     
 
 def calc_likelihoods_1D(grid,survey,lC,doplot=False,norm=True,psnr=False,Pn=True,dolist=0):

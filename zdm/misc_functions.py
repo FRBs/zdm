@@ -1567,6 +1567,7 @@ def initialise_grids(surveys: list, zDMgrid: np.ndarray,
         zvals,plot=True)
     grids=[]
     for survey in surveys:
+        '''
         if wdist:
             efficiencies=survey.efficiencies # two dimensions
             weights=survey.wplist
@@ -1574,8 +1575,11 @@ def initialise_grids(surveys: list, zDMgrid: np.ndarray,
             efficiencies=survey.mean_efficiencies
             weights=None
             #efficiencies=survey.get_efficiency(dmvals)
+        '''
         
-        grid=zdm_grid.Grid(survey, copy.deepcopy(state))
+        grid=zdm_grid.Grid(survey, copy.deepcopy(state),
+                           zDMgrid, zvals, dmvals, mask, wdist)
+        '''
         grid.pass_grid(zDMgrid,zvals,dmvals)
         grid.smear_dm(mask)#,logmean,logsigma)
         
@@ -1586,10 +1590,11 @@ def initialise_grids(surveys: list, zDMgrid: np.ndarray,
                              weights=weights,
                              nuObs=survey.meta['FBAR']*1e6)
         grid.calc_dV()
-        grid.calc_pdv(survey.beam_b,
-                      survey.beam_o) # calculates volumetric-weighted probabilities
+        grid.calc_pdv()#survey.beam_b,
+                      #survey.beam_o) # calculates volumetric-weighted probabilities
         grid.set_evolution() # sets star-formation rate scaling with z - here, no evoltion...
         grid.calc_rates() # calculates rates by multiplying above with pdm plot
+        '''
         grids.append(grid)
     
     return grids
