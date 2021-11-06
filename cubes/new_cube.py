@@ -32,6 +32,7 @@ from zdm import cosmology as cos
 from zdm import misc_functions
 from zdm import pcosmic
 from zdm import iteration as it
+from zdm import io
 
 from IPython import embed
 
@@ -61,7 +62,7 @@ def main(Cube):
     outdir='Cube/'
 
     #psetmins,psetmaxes,nvals=misc_functions.process_pfile(Cube[2])
-    input_dict=misc_functions.process_jfile(Cube[2])
+    input_dict=io.process_jfile(Cube[2])
     # Deconstruct the input_dict
     state_dict, cube_dict, vparam_dict = it.parse_input_dict(input_dict)
 

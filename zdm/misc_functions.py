@@ -2424,8 +2424,3 @@ def process_pfile(pfile):
             Nits[count]=int(vals[2])
             count += 1
     return mins,maxs,Nits
-
-def process_jfile(jfile:str):
-    with open(jfile, 'rt') as fh:
-        obj = json.load(fh)
-    return obj

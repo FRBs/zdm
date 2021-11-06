@@ -3,14 +3,9 @@
 from IPython.terminal.embed import embed
 import matplotlib.pyplot as plt
 import numpy as np
-from zdm import parameters, pcosmic
 from scipy.optimize import minimize
 # to hold one of these parameters constant, just remove it from the arg set here
 from zdm import cosmology as cos
-from zdm import zdm
-from zdm import misc_functions
-import time
-import os
 from scipy.stats import poisson
 # internal counter
 NCF=0
