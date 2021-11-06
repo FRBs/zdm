@@ -123,7 +123,7 @@ def get_bayesian_data(lls, plls=None, pklfile=None,load=False,
     return uvals,vectors,wvectors
 
 
-def do_single_plots(uvals,vectors,wvectors,names,tag=None,
+def do_single_plots(uvals,vectors,wvectors,names,tag=None, fig_exten='png',
                     dolevels=False,log=True,outdir='SingleFigs/'):
     
     if tag is not None:
@@ -408,7 +408,7 @@ def do_single_plots(uvals,vectors,wvectors,names,tag=None,
             plt.legend(loc='upper left',title='Prior on $\\alpha$')
         
         plt.tight_layout()
-        plt.savefig(os.path.join(outdir, names[i]+".pdf"))
+        plt.savefig(os.path.join(outdir, names[i]+fig_exten))
         plt.close()
     if log:
         logfile.close()
