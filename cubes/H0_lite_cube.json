@@ -1,4 +1,15 @@
 {
+    "state": {
+        "FRBdemo": {
+            "alpha_method": 1
+        },
+        "cosmo": {
+            "fix_Omega_b_h2": true
+        }
+    },
+    "cube": {
+        "parameter_order": ["lC", "sfr_n", "lEmin", "alpha", "lEmax", "gamma", "lmean", "lsigma", "H0"]
+    },
     "lEmin": {
         "DC": "energy",
         "min": 30.0, 
