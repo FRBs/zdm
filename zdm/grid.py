@@ -568,6 +568,7 @@ class Grid:
             self.chk_upd_param('lsigma', vparams, update=True)]):
             smear_mask = True
             smear_dm = True
+            new_sfr_smear=True
 
 
         # SFR?
