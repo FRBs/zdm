@@ -125,7 +125,7 @@ def get_bayesian_data(lls, plls=None, pklfile=None,load=False,
 
 def do_single_plots(uvals,vectors,wvectors,names,tag=None, fig_exten='.png',
                     dolevels=False,log=True,outdir='SingleFigs/',
-                    prefix=''):
+                    vparams_dict=None, prefix=''):
     
     if tag is not None:
         outdir=tag+outdir
@@ -155,6 +155,14 @@ def do_single_plots(uvals,vectors,wvectors,names,tag=None, fig_exten='.png',
         #bad=np.array(bad)
         lw=3
         
+
+        # Convert vals?
+        if vparams_dict is not None:
+            # Check
+            assert vparams_dict[names[i]]['n'] == len(vals)
+            vals = np.linspace(vparams_dict[names[i]]['min'], 
+                               vparams_dict[names[i]]['max'],
+                               len(vals))
         
         # get raw ylimits
         ymax=np.max(vectors[i])
