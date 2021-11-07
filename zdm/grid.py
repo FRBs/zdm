@@ -596,6 +596,8 @@ class Grid:
         # ###########################
         # NOW DO THE REAL WORK!!
 
+        # TODO -- For cubes with multiple surveys can we do these
+        #   first two steps (even the first 5!) only once??
         # Update cosmology?
         if reset_cos:
             cos.set_cosmology(self.state)
