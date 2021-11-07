@@ -123,8 +123,9 @@ def get_bayesian_data(lls, plls=None, pklfile=None,load=False,
     return uvals,vectors,wvectors
 
 
-def do_single_plots(uvals,vectors,wvectors,names,tag=None, fig_exten='png',
-                    dolevels=False,log=True,outdir='SingleFigs/'):
+def do_single_plots(uvals,vectors,wvectors,names,tag=None, fig_exten='.png',
+                    dolevels=False,log=True,outdir='SingleFigs/',
+                    prefix=''):
     
     if tag is not None:
         outdir=tag+outdir
@@ -140,6 +141,8 @@ def do_single_plots(uvals,vectors,wvectors,names,tag=None, fig_exten='png',
         prior_results=np.zeros([len(uvals),9]) # does the same with alpha priors
     
     for i,vals in enumerate(uvals):
+        if len(vals) == 1:
+            continue
         if len(vals) < 4:
             kind = 'linear'
         else:
@@ -174,8 +177,7 @@ def do_single_plots(uvals,vectors,wvectors,names,tag=None, fig_exten='png',
         
         #### does unweighted plotting ####
         x=np.linspace(vals[temp][0],vals[temp][-1],400)
-        f=scipy.interpolate.interp1d(vals[temp],vectors[i][temp],
-                                     kind=kind)
+        f=scipy.interpolate.interp1d(vals[temp],vectors[i][temp], kind=kind)
         y=f(x)
         y[np.where(y < 0.)]=0.
         
@@ -408,7 +410,7 @@ def do_single_plots(uvals,vectors,wvectors,names,tag=None, fig_exten='png',
             plt.legend(loc='upper left',title='Prior on $\\alpha$')
         
         plt.tight_layout()
-        plt.savefig(os.path.join(outdir, names[i]+fig_exten))
+        plt.savefig(os.path.join(outdir, prefix+names[i]+fig_exten))
         plt.close()
     if log:
         logfile.close()
