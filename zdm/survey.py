@@ -468,6 +468,9 @@ def load_survey(survey_name:str, state:parameters.State, dmvals:np.ndarray,
     elif survey_name == 'CRAFT/CRACO':
         dfile = 'CRAFT_CRACO_MC_frbs.dat'
         Nbeams = 5
+    elif survey_name == 'CRAFT/CRACO_1':  # alpha_method = 1
+        dfile = 'CRAFT_CRACO_MC_frbs_alpha1.dat'
+        Nbeams = 5
     elif survey_name == 'CRAFT/ICS892':
         dfile = 'CRAFT_ICS_892.dat'
         Nbeams = 5

@@ -76,13 +76,14 @@ def make_grids():
     if do2DPlots:
         # Unpack for convenience
         lat50,ICS,ICS892,pks = surveys
-        muDM=10**state.host.lmean
-        Macquart=muDM
+        #muDM=10**state.host.lmean
+        Macquart=grids[0].state
         # plots zdm distribution
         misc_functions.plot_grid_2(gpks.rates,gpks.zvals,gpks.dmvals,zmax=3,DMmax=3000,
                              name=os.path.join(Location,prefix+'nop_pks_optimised_grid.pdf'),
                              norm=2,log=True,label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$',
-                             project=False,FRBDM=pks.DMEGs,FRBZ=None,Aconts=[0.01,0.1,0.5],Macquart=Macquart)
+                             project=False,FRBDM=pks.DMEGs,FRBZ=None,Aconts=[0.01,0.1,0.5],
+                             Macquart=Macquart)
         misc_functions.plot_grid_2(gICS.rates,gICS.zvals,gICS.dmvals,zmax=1,DMmax=2000,
                              name=os.path.join(Location,prefix+'nop_ICS_optimised_grid.pdf'),
                              norm=2,log=True,label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$',

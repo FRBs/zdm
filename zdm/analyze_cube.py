@@ -2,6 +2,7 @@
 import os
 import numpy as np
 import pickle
+import glob
 
 import math
 import scipy
@@ -15,17 +16,20 @@ from zdm import iteration
 
 from IPython import embed
 
-def slurp_cube(input_file:str, prefix:str, outfile:str, nfile=10,
-               nsurveys=3):
-    """ Slurp the cube ASCII output files into a numpy file
+def slurp_cube(input_file:str, prefix:str, outfile:str, 
+               nsurveys, debug:bool=False):
+    """ Slurp the cube ASCII output files and write 
+    lC and ll into a numpy savez file
 
     Args:
         input_file (str): parameter file used to generate the cube
         prefix (str): prefix on the output files
-        outfile (str): output file name.  Should have .npy extension
-        nfile (int, optional): Number of output files expected. Defaults to 10.
-        nsurveys (int, optional): Number of surveys in the analysis. Defaults to 3.
+        outfile (str): output file name.  Should have .npz extension
+        nsurveys (int): Number of surveys in the analysis. 
+        debug (int, optional): Debug?
     """
+    # Grab em.  The order doesn't matter
+    files = glob.glob(prefix+'*.out') 
 
     # Init
     input_dict=io.process_jfile(input_file)
@@ -38,6 +42,7 @@ def slurp_cube(input_file:str, prefix:str, outfile:str, nfile=10,
 
     param_shape = np.array([0]+cube_shape)[iorder].tolist()[:-1]
     ll_cube = np.zeros(param_shape)
+    lC_cube = np.zeros(param_shape)
     ll_cube[:] = -9e9
 
     survey_items = ['lls', 'DM_z', 'N', 'SNR', 'Nex']
@@ -47,8 +52,7 @@ def slurp_cube(input_file:str, prefix:str, outfile:str, nfile=10,
     names += ['ll']
     
     # Loop on cube output files
-    for ss in range(nfile):
-        dfile = prefix+f'_{ss+1}.out'
+    for dfile in files:
         print(f"Loading: {dfile}")
         df = pandas.read_csv(dfile, header=None, delimiter=r"\s+", names=names)
 
@@ -61,9 +65,13 @@ def slurp_cube(input_file:str, prefix:str, outfile:str, nfile=10,
             idx = np.ravel_multi_index(current, ll_cube.shape)
             # Set
             ll_cube.flat[idx] = row.ll
+            lC_cube.flat[idx] = row.lC
+        # Check
+        if debug:
+            embed(header='69 of analyze')
     
     # Write
-    np.save(outfile, ll_cube)
+    np.savez(outfile, ll=ll_cube, lC=lC_cube)
     print(f"Wrote: {outfile}")
 
 

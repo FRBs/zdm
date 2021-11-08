@@ -98,7 +98,7 @@ def get_mean_DM(zeds, state:parameters.State):
         state (parameters.State): 
 
     Returns:
-        np.ndarray: [description]
+        np.ndarray: DM_cosmic
     """
     # Generate the cosmology
     cosmo = FlatLambdaCDM(H0=state.cosmo.H0, 
@@ -108,13 +108,12 @@ def get_mean_DM(zeds, state:parameters.State):
     zmax=zeds[-1]
     nz=zeds.size
     DMbar, zeval = igm.average_DM(
-        zmax, cosmo=cosmo, cumul=True, neval=nz) #neval=nz+1 was giving 
-                                                              #wrong dimension
-    #added H0 dependency
-    #DMbar = DMbar*current_H0/(cosmo_H0)
-    DMbar=np.array(DMbar)
+        zmax, cosmo=cosmo, cumul=True, neval=nz+1)
 
-    return DMbar
+    # Check
+    assert np.allclose(zeds, zeval[1:])
+                                                              #wrong dimension
+    return DMbar[1:].value
     
 
 def get_C0(z,F,zgrid,Fgrid,C0grid):

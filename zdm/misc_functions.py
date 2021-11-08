@@ -5,6 +5,7 @@ import argparse
 import pickle
 import json
 import copy
+from numpy.core.fromnumeric import mean
 
 import scipy as sp
 
@@ -1951,10 +1952,35 @@ def plot_zdm_basic_paper(zDMgrid,zvals,dmvals,zmax=1,DMmax=1000,
         plt.show()
     plt.close()		
 
-
-def plot_grid_2(zDMgrid,zvals,dmvals,zmax=1,DMmax=1000,norm=0,log=True,name='temp.pdf',label='$\\log_{10}p(DM_{\\rm EG},z)$',project=False,conts=False,FRBZ=None,FRBDM=None,Aconts=False,Macquart=None,title="Plot",
+def plot_grid_2(zDMgrid,zvals,dmvals,
+                zmax=1,DMmax=1000,norm=0,log=True,name='temp.pdf',label='$\\log_{10}p(DM_{\\rm EG},z)$',project=False,conts=False,
+                FRBZ=None,FRBDM=None,Aconts=False,
+                Macquart=None,title="Plot",
                 H0=None,showplot=False):
-    ''' Very complicated routine for plotting 2D zdm grids '''
+    """
+    Very complicated routine for plotting 2D zdm grids 
+
+    Args:
+        zDMgrid ([type]): [description]
+        zvals ([type]): [description]
+        dmvals ([type]): [description]
+        zmax (int, optional): [description]. Defaults to 1.
+        DMmax (int, optional): [description]. Defaults to 1000.
+        norm (int, optional): [description]. Defaults to 0.
+        log (bool, optional): [description]. Defaults to True.
+        name (str, optional): [description]. Defaults to 'temp.pdf'.
+        label (str, optional): [description]. Defaults to '$\log_{10}p(DM_{\rm EG},z)$'.
+        project (bool, optional): [description]. Defaults to False.
+        conts (bool, optional): [description]. Defaults to False.
+        FRBZ ([type], optional): [description]. Defaults to None.
+        FRBDM ([type], optional): [description]. Defaults to None.
+        Aconts (bool, optional): [description]. Defaults to False.
+        Macquart (state, optional): state object.  Used to generat the Maquart relation.
+            Defaults to None.
+        title (str, optional): [description]. Defaults to "Plot".
+        H0 ([type], optional): [description]. Defaults to None.
+        showplot (bool, optional): [description]. Defaults to False.
+    """
     if H0 is None:
         H0 = cos.cosmo.H0
     cmx = plt.get_cmap('cubehelix')
@@ -2133,23 +2159,30 @@ def plot_grid_2(zDMgrid,zvals,dmvals,zmax=1,DMmax=1000,norm=0,log=True,name='tem
         #l=plt.legend(bbox_to_anchor=(0.2, 0.8),fontsize=8)
         for text in l.get_texts():
                 text.set_color("white")
-    #Macquart=None
+
     if Macquart is not None:
+        # Note this is the Median for the lognormal, not the mean
+        muDMhost=np.log(10**Macquart.host.lmean)
+        sigmaDMhost=np.log(10**Macquart.host.lsigma)
+        meanHost = np.exp(muDMhost + sigmaDMhost**2/2.)
+        medianHost = np.exp(muDMhost) 
+        print(f"Host: mean={meanHost}, median={medianHost}")
         plt.ylim(0,ndm-1)
         plt.xlim(0,nz-1)
         zmax=zvals[-1]
         nz=zvals.size
-        DMbar, zeval = igm.average_DM(zmax, cumul=True, neval=nz+1)
-        DMbar = DMbar*H0/(cos.DEF_H0)
-        DMbar=np.array(DMbar)
-        DMbar += Macquart #should be interpreted as muDM
-        mu_DM=zDMgrid
+        #DMbar, zeval = igm.average_DM(zmax, cumul=True, neval=nz+1)
+        DM_cosmic = pcosmic.get_mean_DM(zvals, Macquart)
         
         #idea is that 1 point is 1, hence...
-        zeval /= (zvals[1]-zvals[0])
-        DMbar /= (dmvals[1]-dmvals[0])
-        
-        plt.plot(zeval,DMbar,color='blue',linewidth=2,label='Macquart relation')
+        zeval = zvals/dz
+        DMEG_mean = (DM_cosmic+meanHost)/ddm
+        DMEG_median = (DM_cosmic+medianHost)/ddm
+        plt.plot(zeval,DMEG_mean,color='blue',linewidth=2,
+                 label='Macquart relation (mean)')
+        plt.plot(zeval,DMEG_median,color='blue',
+                 linewidth=2, ls='--',
+                 label='Macquart relation (median)')
         l=plt.legend(loc='lower right',fontsize=12)
         #l=plt.legend(bbox_to_anchor=(0.2, 0.8),fontsize=8)
         #for text in l.get_texts():
@@ -2166,6 +2199,7 @@ def plot_grid_2(zDMgrid,zvals,dmvals,zmax=1,DMmax=1000,norm=0,log=True,name='tem
     if FRBZ is not None:
         iDMs=FRBDM/ddm
         iZ=FRBZ/dz
+        import pdb; pdb.set_trace()
         plt.plot(iZ,iDMs,'ro',linestyle="")
         
     # do 1-D projected plots
