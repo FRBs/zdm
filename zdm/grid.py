@@ -261,12 +261,24 @@ class Grid:
             #self.sfr_smear_grid=np.multiply(self.smear_grid.T,self.sfr).T
             #self.pdv_sfr=np.multiply(self.pdv.T,self.sfr)
         
-    def calc_thresholds(self, F0, eff_table, bandwidth=1e9, nuObs=1.3e9, nuRef=1.3e9, weights=None):
+    def calc_thresholds(self, F0:float, eff_table, 
+                        bandwidth=1e9, nuObs=1.3e9, 
+                        nuRef=1.3e9, weights=None):
         """ Sets the effective survey threshold on the zdm grid
-        F0: base survey threshold
-        eff_table: table of efficiencies corresponding to DM-values
-        nu0: survey frequency (affects sensitivity via alpha - only for alpha method)
-        nuref: reference frequency we are calculating thresholds at
+
+        Args:
+            F0 (float): base survey threshold
+            eff_table ([type]): table of efficiencies corresponding to DM-values
+            bandwidth ([type], optional): [description]. Defaults to 1e9.
+            nuObs ([float], optional): survey frequency (affects sensitivity via alpha - only for alpha method)
+                Defaults to 1.3e9.
+            nuRef ([float], optional): reference frequency we are calculating thresholds at
+                Defaults to 1.3e9.
+            weights ([type], optional): [description]. Defaults to None.
+
+        Raises:
+            ValueError: [description]
+            ValueError: [description]
         """
         # keep the inputs for later use
         self.F0=F0
@@ -555,7 +567,6 @@ class Grid:
             reset_cos = True
             get_zdm = True
             calc_dV = True
-            smear_mask = True
             smear_dm = True
             calc_thresh = True
             calc_pdv = True
@@ -577,10 +588,10 @@ class Grid:
             new_sfr_smear=True  # True for either alpha_method
         if self.chk_upd_param('alpha', vparams, update=True):
             set_evol = True
-            calc_pdv = True
-            new_pdv_smear=True
             if self.state.FRBdemo.alpha_method == 0:
                 calc_thresh = True
+                calc_pdv = True
+                new_pdv_smear=True
             elif self.state.FRBdemo.alpha_method == 1:
                 new_sfr_smear=True
 
