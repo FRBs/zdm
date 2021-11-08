@@ -2199,7 +2199,6 @@ def plot_grid_2(zDMgrid,zvals,dmvals,
     if FRBZ is not None:
         iDMs=FRBDM/ddm
         iZ=FRBZ/dz
-        import pdb; pdb.set_trace()
         plt.plot(iZ,iDMs,'ro',linestyle="")
         
     # do 1-D projected plots
