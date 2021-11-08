@@ -1,5 +1,6 @@
 ### this file includes various routines to iterate /maximise / minimise
 # values on a zdm grid
+from IPython.terminal.embed import embed
 import matplotlib.pyplot as plt
 import numpy as np
 from zdm import pcosmic
@@ -82,6 +83,7 @@ def get_names(which=None):
         names=names[which]
     return names
 
+'''
 def set_defaults(grid):
     # we should make sure each grid does this, do not use "old"!
 #    global oldlEmin
@@ -103,6 +105,7 @@ def set_defaults(grid):
     pset=[oldlEmin,oldlEmax,oldalpha,oldgamma,oldsfrn,old_smean,old_ssigma,C,H0value]
     return pset
     #added H0 as a param
+'''
 
 def print_pset(pset):
     """ pset defined as:
@@ -167,9 +170,11 @@ def maximise_likelihood(grid,survey):
     return results
 
 
+'''
 def update_grid(grid,pset,survey):
     #added routine to update H0 values within grid
-    """gets the likelihood
+    """Updates the grid  
+    DEFUNCT!
     
     Hierarchy:
     Each indent corresponds to one 'level'.
@@ -273,6 +278,7 @@ def update_grid(grid,pset,survey):
     # begin with alpha
     # alpha does not change thresholds under rate scaling, only spec index
     if grid.alpha_method==0 and alpha != oldalpha:
+        # TODO -- The weights look like a bug!!  Not going to the right variable
         grid.calc_thresholds(grid.F0,grid.eff_table,alpha,grid.bandwidth,grid.eff_weights)
         changed_alpha=True
         oldalpha=alpha
@@ -311,9 +317,10 @@ def update_grid(grid,pset,survey):
         grid.calc_rates() #includes sfr smearing factors and pdv mult
     elif new_pdv_smear:
         grid.rates=grid.pdv*grid.sfr_smear #does pdv mult only, 'by hand'
+'''
     
 
-def calc_likelihoods_1D(grid,survey,pset,doplot=False,norm=True,psnr=False,Pn=True,dolist=0):
+def calc_likelihoods_1D(grid,survey,lC,doplot=False,norm=True,psnr=False,Pn=True,dolist=0):
     """ Calculates 1D likelihoods using only observedDM values
     Here, Zfrbs is a dummy variable allowing it to be treated like a 2D function
     for purposes of calling.
@@ -357,7 +364,7 @@ def calc_likelihoods_1D(grid,survey,pset,doplot=False,norm=True,psnr=False,Pn=Tr
     ### Assesses total number of FRBs ###
     if Pn and (survey.TOBS is not None):
         expected=CalculateIntegral(grid,survey)
-        expected *= 10**pset[7]
+        expected *= 10**lC
         observed=survey.NORM_FRB
         Pn=Poisson_p(observed,expected)
         Nll=np.log10(Pn)
@@ -377,9 +384,12 @@ def calc_likelihoods_1D(grid,survey,pset,doplot=False,norm=True,psnr=False,Pn=Tr
         # parameterisation
         
         # calculate vector of grid thresholds
-        Emax=grid.Emax
-        Emin=grid.Emin
-        gamma=grid.gamma
+        #Emax=grid.Emax
+        #Emin=grid.Emin
+        #gamma=grid.gamma
+        Emax=10**grid.state.energy.lEmax
+        Emin=10**grid.state.energy.lEmin
+        gamma=grid.state.energy.gamma
         psnr=np.zeros([survey.Ss.size])
         
         # get vector of thresholds as function of z and threshold/weight list
@@ -441,6 +451,8 @@ def calc_likelihoods_1D(grid,survey,pset,doplot=False,norm=True,psnr=False,Pn=Tr
             snrll = np.sum(np.log10(psnr))
         lllist.append(snrll)
         llsum += snrll
+
+        #embed(header='450 of it')
         
         if doplot:
             fig1=plt.figure()
@@ -539,7 +551,8 @@ def calc_likelihoods_1D(grid,survey,pset,doplot=False,norm=True,psnr=False,Pn=Tr
         return llsum,lllist,expected,longlist
     
 
-def calc_likelihoods_2D(grid,survey,pset,doplot=False,norm=True,psnr=False,printit=False,Pn=True,dolist=0):
+def calc_likelihoods_2D(grid,survey, lC,
+                        doplot=False,norm=True,psnr=False,printit=False,Pn=True,dolist=0):
     """ Calculates 2D likelihoods using observed DM,z values """
     
     ######## Calculates p(DM,z | FRB) ########
@@ -599,7 +612,7 @@ def calc_likelihoods_2D(grid,survey,pset,doplot=False,norm=True,psnr=False,print
     
     if Pn and (survey.TOBS is not None):
         expected=CalculateIntegral(grid,survey)
-        expected *= 10**pset[7]
+        expected *= 10**lC
         observed=survey.NORM_FRB
         Pn=Poisson_p(observed,expected)
         Pll=np.log10(Pn)
@@ -612,7 +625,7 @@ def calc_likelihoods_2D(grid,survey,pset,doplot=False,norm=True,psnr=False,print
     # plots figures as appropriate
     if doplot:
         plt.figure()
-        plt.plot(dmvals,pdm,color='blue')
+        #plt.plot(dmvals,pdm,color='blue')
         plt.plot(DMobs,pvals,'ro')
         plt.xlabel('DM')
         plt.ylabel('p(DM)')
@@ -639,6 +652,7 @@ def calc_likelihoods_2D(grid,survey,pset,doplot=False,norm=True,psnr=False,print
     # - we want to make FRB width analogous to beam, THEN
     # - we need an analogous 'beam' (i.e. width) distribution to integrate over,
     #     which gives the normalisation
+
     if psnr:
         # NOTE: to break this into a p(SNR|b) p(b) term, we first take
         # the relative likelihood of the threshold b value compare
@@ -648,9 +662,12 @@ def calc_likelihoods_2D(grid,survey,pset,doplot=False,norm=True,psnr=False,print
         # parameterisation
         
         # calculate vector of grid thresholds
-        Emax=grid.Emax
-        Emin=grid.Emin
-        gamma=grid.gamma
+        #Emax=grid.Emax
+        ##Emin=grid.Emin
+        #gamma=grid.gamma
+        Emax=10**grid.state.energy.lEmax
+        Emin=10**grid.state.energy.lEmin
+        gamma=grid.state.energy.gamma
         #Eths has dimensions of width likelihoods and nobs
         # i.e. later, the loop over j,w uses the first index
         Eths = grid.thresholds[:,izs1,idms1]*(1.-dkdms)*(1-dkzs)
@@ -835,7 +852,8 @@ def missing_cube_likelihoods(grids,surveys,todo,outfile,norm=True,psnr=True,star
     f.close()
 
 
-def cube_likelihoods(grids,surveys,psetmins,psetmaxes,npoints,
+def cube_likelihoods(grids,surveys, #psetmins,psetmaxes,npoints,
+                     vparam_dict:dict,
                      run,howmany,outfile,norm=True,
                      psnr=True,starti=0,clone=None):
     """
@@ -869,55 +887,62 @@ def cube_likelihoods(grids,surveys,psetmins,psetmaxes,npoints,
     # expected number for best-fit constant
     
     """
+    npoints = np.array([item['n'] for key, item in vparam_dict.items()])
+    vp_keys = list(vparam_dict.keys())
+    state = grids[0].state # Any grid will do
     
     # check feasible range of job number
     if (howmany <= 0) or (run <= 0) or np.prod(np.abs(npoints)) < (run-1)*howmany+1:
-        print("Invalid range of run=",run," and howmany=",howmany," for ",np.prod(npoints)," points")
+        print("Invalid range of run=",run," and howmany=",howmany," for ",np.prod(
+            np.abs(npoints))," points")
         exit()
     
-    NPARAMS=8
-    nsets=len(grids)
-    lls=np.zeros([nsets])
+    NPARAMS = len(vparam_dict)
+    PARAMS = list(vparam_dict.keys())
+    nsets = len(grids)
+    lls = np.zeros([nsets])
     
     f=open(outfile,'a+')
     
     ### calculates actual values at each point ###
-    psetvals=[]
-    
-    active=np.zeros([NPARAMS])
+    active=np.zeros([NPARAMS], dtype=int)
     disable=[]
-    for ip,n in enumerate(npoints):
-        if n==-1: #code to maximise it at each point
-            active[ip]=1
-            n=1
-            npoints[ip]=1
+    lC_active = False
+    for ip, tmp in enumerate(vparam_dict.items()):
+        key, item = tmp
+        if item['n'] == -1: #code to maximise it at each point
+            active[ip] = 1
+            item['n'] = 1
+            npoints[ip] = 1
+            if key == 'lC':
+                lC_active = True
         else:
             disable.append(ip)
-        
-        vals=np.linspace(psetmins[ip],psetmaxes[ip],n)
-        psetvals.append(vals)
+        # 
+        item['vals']=np.linspace(item['min'], item['max'], np.abs(item['n']))
+
     if np.sum(active)>0:
         minimise=True
     else:
         minimise=False
     
     # check to see if we can minimise the constant only
-    if active[-1]==1 and np.sum(active)==1:
+    if lC_active and np.sum(active)==1:
         minimise=False
         const_only=True
     else:
         const_only=False
     
-    ntotal=np.prod(npoints)
     start=(run-1)*howmany
-    
+
     ####### counters for each dimensions ######
     
     # this is the order of fastest to slowest, i.e. we update index
     # order[0] first, then order [1], etc
     # the order can depend on the methods being used
     # note: takes this from the first grid, it should be identical for all grids
-    if grids[0].alpha_method==0:
+    if grids[0].state.FRBdemo.alpha_method==0:
+        # TODO -- I am going to fix this in the next PR
         order=[7,4,5,6,0,1,2,3]
     elif grids[0].alpha_method==0:
         order=[7,4,2,5,6,0,1,3]
@@ -952,7 +977,14 @@ def cube_likelihoods(grids,surveys,psetmins,psetmaxes,npoints,
     t0=time.process_time()
     print("Starting at time ",t0)
     # iterates
+
     pset=np.zeros([ndims]) #current parameter set
+
+    # Init
+    vparams = {}
+    for key in vparam_dict.keys():
+        vparams[key] = None
+
     for i in np.arange(howmany):
         
         print("Testing ",i," of ",howmany," begin at ",starti)
@@ -965,39 +997,55 @@ def cube_likelihoods(grids,surveys,psetmins,psetmaxes,npoints,
             # provided that current is updated properly this does not care about re-ordering
             for j,n in enumerate(current):
                 if active[j]==0 or i==0: #only update if we are not minimising or it's the first time
-                    pset[j]=psetvals[j][n]
-            
+                    vparams[vp_keys[j]] = vparam_dict[vp_keys[j]]['vals'][n]
+                    #pset[j]=psetvals[j][n]
+
+            # Update the state
+            #state.update_params(vparams)
+            print(f"vparams: {vparams}")
+
             ### minimise if appropriate ### 
             if minimise:
-                C_ll,C_p=my_minimise(pset,grids,surveys,disable=disable,psnr=True,PenParams=None,Verbose=False)
-                toset=np.where(active==1)
-                for s in toset:
-                    pset[s]=C_p[s]
+                #C_ll,C_p=my_minimise(pset,grids,surveys,
+                C_ll = my_minimise(vparams,grids,surveys,
+                                     disable=disable,psnr=True,
+                                     PenParams=None,Verbose=True)
+                # The following was unnecessary
+                #  Only the active ones can be modified in my_minimise
+                #  And, pset was being modified in place (as a list)
+                #toset=np.where(active==1)
+                #for s in toset:
+                #    pset[s]=C_p[s]
             
             if const_only:
-                C,llC,lltot=minimise_const_only(pset,grids,surveys)
-                pset[7]=C
-            
-            
+                C,llC,lltot=minimise_const_only(
+                    vparams,grids,surveys)
+                #pset[7]=C
+                vparams['lC']=C
+
             
             # for the minimised parameters, set the values
             for j,n in enumerate(current):
-                string +=' {:8.2f}'.format(pset[j])
+                #string +=' {:8.2f}'.format(pset[j])
+                string +=' {:8.2f}'.format(vparams[PARAMS[j]])
             
             
             # in theory we could save the following step if we have already minimised by oh well. Too annoying!
             ll=0.
-            
             for j,s in enumerate(surveys):
                 if clone is not None and clone[j] > 0:
+                    embed(header='1047 of it -- this wont work')
                     grids[j].copy(grids[clone[j]])
                 else:
-                    update_grid(grids[j],pset,s)
+                    #update_grid(grids[j],pset,s)
+                    grids[j].update(vparams)
                 if s.nD==1:
                     func=calc_likelihoods_1D
                 else:
                     func=calc_likelihoods_2D
-                lls[j],alist,expected=func(grids[j],s,pset,norm=norm,psnr=psnr,dolist=1)
+                lls[j],alist,expected=func(
+                    grids[j],s, vparams['lC'],
+                    norm=norm,psnr=psnr,dolist=1)
                 # these are slow operations but negligible in the grand scheme of things
                 
                 string += ' {:8.2f}'.format(lls[j]) # for now, we are recording the individual log likelihoods, but not the components
@@ -1031,17 +1079,39 @@ def cube_likelihoods(grids,surveys,psetmins,psetmaxes,npoints,
         
     f.close()
     
-def my_minimise(pset,grids,surveys,steps=None,disable=None,Verbose=False,MaxIter=200,psnr=False,PenTypes=None,PenParams=None):
+def my_minimise(vparams:dict,grids,surveys,steps=None,
+                disable=None,Verbose=False,MaxIter=200,psnr=False,
+                PenTypes=None,PenParams=None):
+    """Minimise on the not disabled parameters
+
+    Args:
+        vparams (dict): [description]
+        grids ([type]): [description]
+        surveys ([type]): [description]
+        steps ([type], optional): [description]. Defaults to None.
+            Steps, if given, must be a length NPARAMS array, giving initial step size
+        disable ([type], optional): [description]. Defaults to None.
+        Verbose (bool, optional): [description]. Defaults to False.
+        MaxIter (int, optional): [description]. Defaults to 200.
+        psnr (bool, optional): [description]. Defaults to False.
+        PenTypes ([type], optional): [description]. Defaults to None.
+        PenParams ([type], optional): [description]. Defaults to None.
+
+    Raises:
+        ValueError: [description]
+
+    Returns:
+        float: log-likelihood value
     """
-    Steps, if given, must be a length NPARAMS array, giving initial step size
-    """
-    NPARAMS=8
+
+    #NPARAMS=8
+    NPARAMS= len(vparams)
     
     ### set up initial step size ###
     steps0=np.full([NPARAMS],0.1) #initial step size in parameters (0.5 is HUGE!)
     
-    if len(pset) != NPARAMS:
-        raise ValueError("my minimise needs ",NPARAMS," parameters, not ",params)
+    #if len(pset) != NPARAMS:
+    #    raise ValueError("my minimise needs ",NPARAMS," parameters, not ",params)
     
     if steps is not None:
         if len(steps) != NPARAMS:
@@ -1072,23 +1142,26 @@ def my_minimise(pset,grids,surveys,steps=None,disable=None,Verbose=False,MaxIter
     careful=False
     if Verbose:
         print("### Begginning iteration ####")
-        print(pset)
+        print(vparams)
     while True:
         niter += 1
-        ll2,pset2,steps,active,lastsign,careful=step_log_likelihood2(pset,grids,surveys,steps,active,lastsign,minstep,delta=1e-2,dstep=3.,careful=careful,psnr=psnr,PenTypes=PenTypes,PenParams=PenParams,Verbose=Verbose)
+        ll2,steps,active,lastsign,careful=step_log_likelihood2(
+            vparams,grids,surveys,steps,active,lastsign,minstep,
+            delta=1e-2,dstep=3.,careful=careful,psnr=psnr,PenTypes=PenTypes,
+            PenParams=PenParams,Verbose=Verbose)
         
         if np.isnan(ll):
-            print("Got nan on likelihood with parameters ",pset2)
+            print("Got nan on likelihood with parameters ", vparams)
             break #returns old value
         
         # update parameters
         ll=ll2
-        pset=pset2
+        #pset=pset2
         
         if Verbose:
             string="Iteration "+str(niter)
             string += ' {:8.3}'.format(ll)
-            for p in pset:
+            for p in list(vparams.values()):
                 string += ' {:8.3}'.format(p)
             for a in active:
                 string += ' {:2d}'.format(int(a))
@@ -1101,9 +1174,11 @@ def my_minimise(pset,grids,surveys,steps=None,disable=None,Verbose=False,MaxIter
         if np.all(active==False):
             break
     
-    return ll,pset
+    return ll #,pset
     
-def step_log_likelihood(pset,grids,surveys,step,active,lastsign,minstep,delta=1e-2,dstep=2.,psnr=True,norm=True,careful=False):
+def step_log_likelihood(pset,grids,surveys,step,active,
+                        lastsign,minstep,delta=1e-2,dstep=2.,
+                        psnr=True,norm=True,careful=False):
     """
     #### currently only set of a signle survey...#####
     pset is the current parameter ste
@@ -1140,6 +1215,7 @@ def step_log_likelihood(pset,grids,surveys,step,active,lastsign,minstep,delta=1e
     
     check_careful=False
     NC=np.zeros([NPARAMS])
+
     
     for j,grid in enumerate(grids):
         # calculates derivatives in all the variables
@@ -1240,7 +1316,9 @@ def step_log_likelihood(pset,grids,surveys,step,active,lastsign,minstep,delta=1e
     # return current array values
     return loglik,pset,step,active,lastsign,careful
     
-def step_log_likelihood2(pset,grids,surveys,step,active,lastsign,minstep,delta=1e-2,dstep=2.,psnr=True,norm=True,careful=False,PenTypes=None,PenParams=None,Verbose=False):
+def step_log_likelihood2(vparams:dict, grids,surveys,step,active,lastsign,minstep,
+                         delta=1e-2,dstep=2.,psnr=True,norm=True,careful=False,
+                         PenTypes=None,PenParams=None,Verbose=False):
     """
     #### currently only set of a signle survey...#####
     pset is the current parameter ste
@@ -1260,9 +1338,8 @@ def step_log_likelihood2(pset,grids,surveys,step,active,lastsign,minstep,delta=1
     
     PenTypes lists the penalties, PenParams are the parameters to the function
     """
-    NPARAMS=8 # working off 8 parameters here
-    # we can easily turn some off to begin with
-    
+    NPARAMS= len(vparams)
+    PARAMS = list(vparams.keys())
     
     # calculate initial likelihood
     loglik=0
@@ -1276,14 +1353,17 @@ def step_log_likelihood2(pset,grids,surveys,step,active,lastsign,minstep,delta=1
     for j,grid in enumerate(grids):
         # calculates derivatives in all the variables
         s=surveys[j]
-        update_grid(grid,pset,s)
+        grid.update(vparams)
+        #update_grid(grid,pset,s)
         
         # determine correct function: 1 or  D
         if s.nD==1:
             func=calc_likelihoods_1D
         else:
             func=calc_likelihoods_2D
-        tll[j]=func(grid,s,pset,norm=norm,psnr=psnr)
+        #tll[j]=func(grid,s,pset,norm=norm,psnr=psnr)
+        tll[j]=func(grid,s, grid.state.FRBdemo.lC, 
+                    norm=norm,psnr=psnr)
         loglik+=tll[j]
         if Verbose:
             print("Likelihood ",j,tll[j])
@@ -1294,23 +1374,33 @@ def step_log_likelihood2(pset,grids,surveys,step,active,lastsign,minstep,delta=1
                 tlls[i,j,0]=-1e99
                 tlls[i,j,1]=-1e99
                 continue
-            temp=pset[i]
-            pset[i] -= step[i]
-            update_grid(grid,pset,s)
+            #temp=pset[i]
+            #pset[i] -= step[i]
+            #update_grid(grid,pset,s)
+            temp=vparams[PARAMS[i]]
+            vparams[PARAMS[i]] -= step[i]
+            grid.update(vparams)
             #derivs[i,0] += func(grid,s,pset,norm=norm,psnr=psnr)
-            tlls[i,j,0] = func(grid,s,pset,norm=norm,psnr=psnr)
+            #tlls[i,j,0] = func(grid,s,pset,norm=norm,psnr=psnr)
+            tlls[i,j,0] = func(grid,s, grid.state.FRBdemo.lC, 
+                               norm=norm,psnr=psnr)
             derivs[i,0] += tlls[i,j,0] 
             if np.isnan(derivs[i,0]) or np.isinf(derivs[i,0]):
                 derivs[i,0]=-1e99
             
-            pset[i] += 2.*step[i]
-            update_grid(grid,pset,s)
+            #pset[i] += 2.*step[i]
+            #update_grid(grid,pset,s)
+            vparams[PARAMS[i]] += 2*step[i]
+            grid.update(vparams)
             #derivs[i,1] += func(grid,s,pset,norm=norm,psnr=psnr)
-            tlls[i,j,1] = func(grid,s,pset,norm=norm,psnr=psnr)
+            #tlls[i,j,1] = func(grid,s,pset,norm=norm,psnr=psnr)
+            tlls[i,j,1] = func(grid,s, grid.state.FRBdemo.lC, 
+                               norm=norm,psnr=psnr)
             derivs[i,1] += tlls[i,j,1]
             if np.isnan(derivs[i,1]) or np.isinf(derivs[i,1]):
                 derivs[i,1]=-1e99
-            pset[i]=temp
+            #pset[i]=temp
+            vparams[PARAMS[i]] = temp
         if np.isnan(loglik) or np.isinf(loglik):
                 loglik=-1e99
         if Verbose:
@@ -1318,17 +1408,27 @@ def step_log_likelihood2(pset,grids,surveys,step,active,lastsign,minstep,delta=1
             print(tlls[:,j,1]-tll[j])
             
     # Handles the penalties on parameters
-    loglik += HandlePenalties(pset,PenTypes,PenParams)
+    #loglik += HandlePenalties(pset,PenTypes,PenParams)
+    loglik += HandlePenalties(list(vparams.values()),
+                              PenTypes,PenParams)
     for i in np.arange(NPARAMS):
         if not active[i]: # tests for inactive dimension
             continue
-        temp=pset[i]
-        pset[i] -= step[i]
-        derivs[i,0] += HandlePenalties(pset,PenTypes,PenParams)
+        #temp=pset[i]
+        #pset[i] -= step[i]
+        #derivs[i,0] += HandlePenalties(pset,PenTypes,PenParams)
+        temp=vparams[PARAMS[i]]
+        vparams[PARAMS[i]] -= step[i]
+        derivs[i,0] += HandlePenalties(list(vparams.values()),
+                                       PenTypes,PenParams)
         
-        pset[i] += 2.*step[i]
-        derivs[i,1] += HandlePenalties(pset,PenTypes,PenParams)
-        pset[i]=temp
+        #pset[i] += 2.*step[i]
+        #derivs[i,1] += HandlePenalties(pset,PenTypes,PenParams)
+        #pset[i]=temp
+        vparams[PARAMS[i]] += 2*step[i]
+        derivs[i,1] += HandlePenalties(list(vparams.values()),
+                                       PenTypes,PenParams)
+        vparams[PARAMS[i]] = temp
     
     # looks for the best option
     llmax1=np.max(derivs[:,0])
@@ -1353,7 +1453,8 @@ def step_log_likelihood2(pset,grids,surveys,step,active,lastsign,minstep,delta=1
     else: # keep running while the running's good
         count=0
         while(1):
-            pset[dim] += step[dim]*sign
+            #pset[dim] += step[dim]*sign
+            vparams[PARAMS[dim]] += step[dim]*sign
             if Verbose:
                 print("Incrementing dim ",dim," by ",step[dim]*sign)
             #print("Running! ",loglik,pset)
@@ -1361,20 +1462,25 @@ def step_log_likelihood2(pset,grids,surveys,step,active,lastsign,minstep,delta=1
             for j,grid in enumerate(grids):
                 # calculates derivatives in all the variables
                 s=surveys[j]
-                update_grid(grid,pset,s)
+                #update_grid(grid,pset,s)
+                grid.update(vparams)
                 
                 # determine correct function: 1 or  D
                 if s.nD==1:
                     func=calc_likelihoods_1D
                 else:
                     func=calc_likelihoods_2D
-                ll+=func(grid,s,pset,norm=norm,psnr=psnr)
+                #ll+=func(grid,s,pset,norm=norm,psnr=psnr)
+                ll+=func(grid,s, grid.state.FRBdemo.lC,
+                         norm=norm,psnr=psnr)
                 if np.isnan(ll) or np.isinf(ll):
-                    pset[dim] -= step[dim]*sign
+                    #pset[dim] -= step[dim]*sign
+                    vparams[PARAMS[dim]] -= step[dim]*sign
                     step[dim] /= dstep
                     break
             if ll < loglik:
-                pset[dim] -= step[dim]*sign
+                #pset[dim] -= step[dim]*sign
+                vparams[PARAMS[dim]] -= step[dim]*sign
                 step[dim] /= dstep
                 break
             elif ll-loglik < 0.001:
@@ -1390,11 +1496,193 @@ def step_log_likelihood2(pset,grids,surveys,step,active,lastsign,minstep,delta=1
             active[i]=False
     
     # return current array values
-    return loglik,pset,step,active,lastsign,careful
+    return loglik,step,active,lastsign,careful
 
-def HandlePenalties(pset,Ptypes,Pparams):
+'''
+def step_log_likelihoodX(vparams:dict,grids,surveys,step,active,lastsign,minstep,
+                         delta=1e-2,dstep=2.,psnr=True,norm=True,careful=False,
+                         PenTypes=None,PenParams=None,Verbose=False):
+    """
+    #### currently only set of a signle survey...#####
+    pset is the current parameter ste
+    grid is the standard grid
+    survey is the survey of interest
+    
+    func is the minimisation function (1 or 2 D)
+    
+    step the current step size
+    
+    delta is the size over which to measure derivatives
+        this is sufficient accuracy for anything we wish to do...
+    dstep is the factor by which the step size is reduced in
+        each iteration
+        
+    This version only ever takes a step is the largest direction
+    
+    PenTypes lists the penalties, PenParams are the parameters to the function
+    """
+    NPARAMS= len(vparams)
+    PARAMS = list(vparams.keys())
+    
+    # calculate initial likelihood
+    loglik=0
+    derivs=np.zeros([NPARAMS,2])
+    ngrids=len(grids)
+    tlls=np.zeros([NPARAMS,ngrids,2])
+    tll=np.zeros([ngrids])
+    if Verbose:
+        print("Calculating initial likelihoods...")
+
+    # search initial steps
+    for j,grid in enumerate(grids):
+        # calculates derivatives in all the variables
+        s=surveys[j]
+        # TODO -- Should we really update all the varaibles?
+        #update_grid(grid,pset,s)
+        grid.update(vparams)
+        
+        # determine correct function: 1 or  D
+        if s.nD==1:
+            func=calc_likelihoods_1D
+        else:
+            func=calc_likelihoods_2D
+        tll[j]=func(grid,s, grid.state.FRBdemo.lC, 
+                    norm=norm,psnr=psnr)
+        loglik+=tll[j]
+        if Verbose:
+            print("Likelihood ",j,tll[j])
+        for i in np.arange(NPARAMS):
+            if not active[i]: # tests for inactive dimension
+                derivs[i,0]=-1e99
+                derivs[i,1]=-1e99
+                tlls[i,j,0]=-1e99
+                tlls[i,j,1]=-1e99
+                continue
+            #temp=pset[i]
+            #pset[i] -= step[i]
+            temp=vparams[PARAMS[i]]
+            vparams[PARAMS[i]] -= step[i]
+            grid.update(vparams)
+            #update_grid(grid,pset,s)
+            #derivs[i,0] += func(grid,s,pset,norm=norm,psnr=psnr)
+            tlls[i,j,0] = func(grid,s, grid.state.FRBdemo.lC, 
+                               norm=norm,psnr=psnr)
+            derivs[i,0] += tlls[i,j,0] 
+            if np.isnan(derivs[i,0]) or np.isinf(derivs[i,0]):
+                derivs[i,0]=-1e99
+            
+            #pset[i] += 2.*step[i]
+            #update_grid(grid,pset,s)
+            vparams[PARAMS[i]] += 2*step[i]
+            grid.update(vparams)
+            #derivs[i,1] += func(grid,s,pset,norm=norm,psnr=psnr)
+            tlls[i,j,1] = func(grid,s, grid.state.FRBdemo.lC, 
+                               norm=norm,psnr=psnr)
+            derivs[i,1] += tlls[i,j,1]
+            if np.isnan(derivs[i,1]) or np.isinf(derivs[i,1]):
+                derivs[i,1]=-1e99
+            #pset[i]=temp
+            vparams[PARAMS[i]] = temp
+        if np.isnan(loglik) or np.isinf(loglik):
+                loglik=-1e99
+        if Verbose:
+            print(tlls[:,j,0]-tll[j])
+            print(tlls[:,j,1]-tll[j])
+            
+    # Handles the penalties on parameters
+    loglik += HandlePenalties(list(vparams.values()),
+                              PenTypes,PenParams)
+    for i in np.arange(NPARAMS):
+        if not active[i]: # tests for inactive dimension
+            continue
+        #temp=pset[i]
+        #pset[i] -= step[i]
+        temp=vparams[PARAMS[i]]
+        vparams[PARAMS[i]] -= step[i]
+        derivs[i,0] += HandlePenalties(list(vparams.values()),
+                                       PenTypes,PenParams)
+        
+        #pset[i] += 2.*step[i]
+        vparams[PARAMS[i]] += 2*step[i]
+        derivs[i,1] += HandlePenalties(list(vparams.values()),
+                                       PenTypes,PenParams)
+        #pset[i]=temp
+        vparams[PARAMS[i]] = temp
+
+    
+    # looks for the best option
+    #  Specified by dim
+    llmax1=np.max(derivs[:,0])
+    llmax2=np.max(derivs[:,1])
+    if llmax1 > llmax2:
+        sign=-1
+        dim=np.argmax(derivs[:,0])
+        llmax=llmax1
+    else:
+        sign=1
+        dim=np.argmax(derivs[:,1])
+        llmax=llmax2
+    loc=np.where(derivs==llmax)[0]
+    
+    # if this is the case, we need to reduce the step size
+    if llmax <= loglik:
+        for i in np.arange(NPARAMS):
+            if active[i]:
+                step[i] /= dstep
+        if Verbose:
+            print("Reducing all step sizes")
+    else: # keep running while the running's good
+        count=0
+        while(1):
+            #pset[dim] += step[dim]*sign
+            vparams[PARAMS[dim]] += step[dim]*sign
+            if Verbose:
+                print("Incrementing dim ",dim," by ",step[dim]*sign)
+            #print("Running! ",loglik,pset)
+            ll=0
+            for j,grid in enumerate(grids):
+                # calculates derivatives in all the variables
+                s=surveys[j]
+                #update_grid(grid,pset,s)
+                grid.update(vparams)
+                
+                # determine correct function: 1 or  D
+                if s.nD==1:
+                    func=calc_likelihoods_1D
+                else:
+                    func=calc_likelihoods_2D
+                ll+=func(grid,s, grid.state.FRBdemo.lC,
+                         norm=norm,psnr=psnr)
+                if np.isnan(ll) or np.isinf(ll):
+                    #pset[dim] -= step[dim]*sign
+                    vparams[PARAMS[dim]] -= step[dim]*sign
+                    step[dim] /= dstep
+                    break
+            if ll < loglik:
+                #pset[dim] -= step[dim]*sign
+                vparams[PARAMS[dim]] -= step[dim]*sign
+                step[dim] /= dstep
+                break
+            elif ll-loglik < 0.001:
+                step[dim] /= dstep
+                break
+            if Verbose:
+                print("Old ll was ",loglik," new is ",ll)
+            loglik=ll
+            
+    # deactivates regions where the step size is now too small
+    for i in np.arange(NPARAMS):
+        if step[i] < minstep[i]:
+            active[i]=False
+    
+    # return current array values
+    return loglik,step,active,lastsign,careful
+'''
+
+def HandlePenalties(pset:list, Ptypes,Pparams):
     logpenalty=0
-    if not (Ptypes is not None): # checks to see if we are using penalties
+    #if not (Ptypes is not None): # checks to see if we are using penalties
+    if Ptypes is None: # checks to see if we are using penalties
         return 0
     for i,param in enumerate(pset):
         if Ptypes[i]==0: #no restriction
@@ -1503,7 +1791,8 @@ def minus_poisson_ps(log10C,data):
     return -lp
     
 
-def minimise_const_only(pset,grids,surveys):
+def minimise_const_only(vparams,grids,surveys,
+                        Verbose=True):
     '''
     Only minimises for the constant, but returns the full likelihood
     It treats the rest as constants
@@ -1528,17 +1817,23 @@ def minimise_const_only(pset,grids,surveys):
     os=[] #observed
     lls=np.zeros([ng])
     for j,s in enumerate(surveys):
-        update_grid(grids[j],pset,s)
+        #update_grid(grids[j],pset,s)
+        #embed(header='1805 of it')
+        grids[j].update(vparams)
         if s.nD==1:
             func=calc_likelihoods_1D
         else:
             func=calc_likelihoods_2D
-        lls[j]=func(grids[j],s,pset,norm=True,psnr=True,Pn=False) #excludes Pn term
+        #embed(header='1811 of it')
+        lls[j]=func(grids[j],s, vparams['lC'], 
+                    norm=True,psnr=True,Pn=False) #excludes Pn term
+        if Verbose:
+            print(f"survey={grids[j].survey.name}, lls={lls[j]}")
         
         ### Assesses total number of FRBs ###
         if s.TOBS is not None:
             r=np.sum(grids[j].rates)*s.TOBS
-            r*=10**pset[7]
+            r*=10**vparams['lC']
             o=s.NORM_FRB
             rs.append(r)
             os.append(o)
@@ -1549,11 +1844,14 @@ def minimise_const_only(pset,grids,surveys):
     startlog10C=(bounds[0]+bounds[1])/2.
     bounds=[bounds]
     t0=time.process_time()
-    result=minimize(minus_poisson_ps,startlog10C,args=data,bounds=bounds)
+    result=minimize(minus_poisson_ps,startlog10C,
+                    args=data,bounds=bounds)
     t1=time.process_time()
     dC=result.x
-    newC=pset[7]+dC
+    #newC=pset[7]+dC
+    newC=vparams['lC']+float(dC)
     llC=-minus_poisson_ps(dC,data)
     lltot=llC+np.sum(lls)
+    #embed(header='1840 of it')
     return newC,llC,lltot
     

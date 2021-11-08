@@ -1,4 +1,16 @@
+""" JXP VERSION """
 
+'''
+Questions for Clancy:
+
+1. lC vs. C
+2. Order of update_grid()
+3. Survey is unique to a grid, right?
+4. Order of grid parameters
+5. Why 90s per iteration?
+6. Is it ok to get a NAN??   And why is it ignored??
+7. https://docs.scipy.org/doc/scipy/reference/tutorial/integrate.html#faster-integration-using-low-level-callback-functions
+'''
 
 ######
 # first run this to generate surveys and parameter sets, by 
@@ -12,12 +24,16 @@
 import argparse
 import numpy as np
 import os
+import matplotlib
 
 from zdm import survey
 from zdm import parameters
 from zdm import cosmology as cos
+from zdm import misc_functions
+from zdm import pcosmic
+from zdm import iteration as it
 
-import iteration as it
+from IPython import embed
 
 import pickle
 
@@ -29,7 +45,6 @@ font = {'family' : 'normal',
         'weight' : 'normal',
         'size'   : defaultsize}
 matplotlib.rc('font', **font)
-import pcosmic
 
 #import igm
 defaultsize=14
@@ -44,17 +59,24 @@ def main(Cube):
     ############## Initialise cosmology ##############
     # Location for maximisation output
     outdir='Cube/'
-    
-    #cos.set_cosmology(Omega_m=1.2) setup for cosmology
+
+    ############## Initialise parameters ##############
+    state = parameters.State()
+
+    # Cosmology
+    cos.set_cosmology(state)
     cos.init_dist_measures()
     
     #parser.add_argument(", help
     # get the grid of p(DM|z)
-    zDMgrid, zvals,dmvals=get_zdm_grid(new=False,plot=False,method='analytic')
+    zDMgrid, zvals,dmvals = misc_functions.get_zdm_grid(
+        state, new=True, plot=False, method='analytic',
+        datdir='../zdm/GridData')
     # NOTE: if this is new, we also need new surveys and grids!
     
     ############## Initialise surveys ##############
     
+    '''
     # constants of beam method
     thresh=0
     method=2
@@ -66,11 +88,19 @@ def main(Cube):
     
     NewSurveys=False
     
-    prefix='Cube'
     Wbins=5
     Wscale=3.5
     Nbeams=[5,5,10]
+    '''
+    prefix='Cube'
     
+    surveys = []
+    #names = ['CRAFT/FE', 'CRAFT/ICS', 'CRAFT/ICS892', 'PKS/Mb']
+    names = ['CRAFT/FE', 'CRAFT/ICS', 'PKS/Mb'] # Match x_cube.py
+    #names = ['CRAFT/FE'] # For debugging
+    for survey_name in names:
+        surveys.append(survey.load_survey(survey_name, state, dmvals))
+    '''
     # Five surveys: we need to distinguish between those with and without a time normalisation
     if NewSurveys:
         # contains both normalised and unnormalised Tobs FRBs
@@ -109,9 +139,11 @@ def main(Cube):
             surveys=pickle.load(infile)
             names=pickle.load(infile)
             FE1,ICS,p1=surveys
+    '''
     print("Initialised surveys ",names)
     
     
+    '''
     # initial parameter values. SHOULD BE LOGSIGMA 0.75! (WAS 0.25!?!?!?)
     # these are meaningless btw - but the program is set up to require
     # a parameter set when first initialising grids
@@ -124,20 +156,25 @@ def main(Cube):
     lsigma=0.5
     C=0.
     pset=[lEmin,lEmax,alpha,gamma,sfr_n,lmean,lsigma,C]
+    '''
     
     # generates zdm grids for initial parameter set
     # when submitting a job, make sure this is all pre-generated once
-    NewGrids=False
-    if NewGrids:
-        grids=initialise_grids(surveys,zDMgrid, zvals,dmvals,pset,wdist=True)
+    #if state.analysis.NewGrids:
+    if True:
+        grids = misc_functions.initialise_grids(
+            surveys,zDMgrid, zvals, dmvals, state, wdist=True)
+        # Write to disk
+        if not os.path.isdir('Pickle'):
+            os.mkdir('Pickle')
         with open('Pickle/'+prefix+'grids.pkl', 'wb') as output:
             pickle.dump(grids, output, pickle.HIGHEST_PROTOCOL)
     else:
         with open('Pickle/'+prefix+'grids.pkl', 'rb') as infile:
             grids=pickle.load(infile)
-        gFE1,gFE2,gICS,gp1,gp2=grids
+        #gFE1,gFE2,gICS,gp1,gp2=grids
     print("Initialised grids")
-    
+    #embed(header='175 of new_cube')
     
     if Cube is not None:
         # hard-coded cloning ability. This is now out-dated.
@@ -152,7 +189,8 @@ def main(Cube):
         if not os.path.exists(outdir):
             os.mkdir(outdir)
         
-        psetmins,psetmaxes,nvals=process_pfile(args.pfile)
+        #psetmins,psetmaxes,nvals=misc_functions.process_pfile(Cube[2])
+        vparam_dict=misc_functions.process_jfile(Cube[2])
         run=Cube[0]
         howmany=Cube[1]
         opfile=Cube[3]
@@ -164,29 +202,53 @@ def main(Cube):
             print("Done everything!")
             pass
         # this takes a while...
-        it.cube_likelihoods(grids,surveys,psetmins,psetmaxes,
-                      nvals,run,howmany,opfile,
-                      starti=starti,clone=clone)
+        #it.cube_likelihoods(grids,surveys,psetmins,psetmaxes,
+        #              nvals,run,howmany,opfile,
+        #              starti=starti,clone=clone)
+        # Check cosmology
+        print(f"cosmology: {cos.cosmo}")
+        #
+        it.cube_likelihoods(grids,surveys, vparam_dict,
+                      run,howmany,opfile, starti=starti,clone=clone)
         
 
 
 # test for command-line arguments here
-from misc_functions import *
-import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument('-n','--number',type=int,required=False,help="nth iteration, beginning at 0")
 parser.add_argument('-m','--howmany',type=int,required=False,help="number m to iterate at once")
 parser.add_argument('-p','--pfile',type=str,required=False,help="File defining parameter ranges")
 parser.add_argument('-o','--opfile',type=str,required=False,help="Output file for the data")
+parser.add_argument('--clobber', default=False, action='store_true',
+                    help="Clobber output file?")
 args = parser.parse_args()
+
+
 if args.number is not None and args.howmany is not None and args.pfile is not None and args.opfile is not None:
     if args.number is None or args.howmany is None or args.pfile is None or args.opfile is None:
         print("We require some or all values of the arguments!")
         exit()
     Cube=[args.number,args.howmany,args.pfile,args.opfile]
-    mins,maxs,Ns=process_pfile(args.pfile)
+    #mins,maxs,Ns=misc_functions.process_pfile(args.pfile)
+    # Clobber?
+    if args.clobber and os.path.isfile(args.opfile):
+        os.remove(args.opfile)
 else:
     Cube=None
 
 
 main(Cube)
+
+'''
+python new_cube.py -n 1 -m 3 -p all_params.json -o tmp.npy --clobber
+starti is  0
+cosmology: CosmoParams(H0=67.66, Omega_k=0.0, Omega_lambda=0.6888463055445441, Omega_m=0.30966, Omega_b=0.04897, Omega_b_h2=0.0224178568132, fixed_H0=67.66, fix_Omega_b_h2=True)
+FIX THIS!!!!!
+Starting at time  25.224615935
+Testing  0  of  3  begin at  0
+vparams: {'lEmin': 30.0, 'lEmax': 41.4, 'alpha': 1.0, 'gamma': -0.5, 'sfr_n': 0.0, 'lmean': 0.5, 'lsigma': 0.2, 'lC': -0.911}
+survey=CRAFT_class_I_and_II, lls=47.359007883041286
+/home/xavier/Projects/FRB_Software/zdm/zdm/iteration.py:723: RuntimeWarning: divide by zero encountered in log10
+  longlist += np.log10(wzpsnr)
+survey=CRAFT_ICS, lls=nan
+'''

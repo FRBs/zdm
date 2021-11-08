@@ -3,6 +3,7 @@ import numpy as np
 from dataclasses import dataclass, field
 from typing import IO, List
 from astropy.cosmology import Planck18
+import pandas
 
 # Add a few methods to be shared by them all
 @dataclass
@@ -32,10 +33,10 @@ class BeamParams(myDataClass):
     method: str = field(
         default='Std',
         metadata={'help': 'Method for calculation. Full=more detailed and more time. Std=fast'})
-    Nbeams: List[int] = field(  # can use in list in 3.9
-        default_factory=list,
-        #default_factory=[5,5,5,10],
-        metadata={'help': '???'})
+    #Nbeams: List[int] = field(  # can use in list in 3.9
+    #    default_factory=list,
+    #    #default_factory=[5,5,5,10],
+    #    metadata={'help': '???'})
     Wbins: int = field(
         default=5,
         metadata={'help': '???'})
@@ -43,8 +44,8 @@ class BeamParams(myDataClass):
         default=3.5,
         metadata={'help': '???'})
 
-    def __post_init__(self):
-        self.Nbeams = [5,5,5,10]
+    #def __post_init__(self):
+    #    self.Nbeams = [5,5,5,10]
 
 # Cosmology parameters
 @dataclass
@@ -74,7 +75,7 @@ class CosmoParams(myDataClass):
         default=True,
         metadata={'help': 'Fix Omega_b_h2 by the Placnk18 value?'})
 
-# FRB Demographics
+# FRB Demographics -- FRBdemo
 @dataclass
 class FRBDemoParams(myDataClass):
     source_evolution: int = field(
@@ -88,9 +89,6 @@ class FRBDemoParams(myDataClass):
                  '0: spectral index interpretation: includes k-correction. Slower to update ' +\
                  '1: rate interpretation: extra factor of (1+z)^alpha in source evolution', 
                  'options': [0,1]})
-    gamma: float = field(
-        default = -1.16,
-        metadata={'help': 'slope of luminosity distribution function'})
     sfr_n: float = field(
         default = 1.77,
         metadata={'help': 'scaling with star-formation rate'})
@@ -112,7 +110,7 @@ class IGMParams(myDataClass):
         default=0.32,
         metadata={'help': 'F parameter in DM PDF for the Cosmic web'})
 
-# Host parameters
+# Host parameters -- host
 @dataclass
 class HostParams(myDataClass):
     lmean: float = field(
@@ -132,7 +130,7 @@ class WidthParams(myDataClass):
         default = 0.899148,
         metadata={'help': 'Intrinsic width log of sigma'})
 
-# FRB Energetics
+# FRB Energetics -- energy
 @dataclass
 class EnergeticsParams(myDataClass):
     lEmin: float = field(
@@ -144,73 +142,117 @@ class EnergeticsParams(myDataClass):
     alpha: float = field(
         default = 1.54,
         metadata={'help': 'spectral index. WARNING: here F(nu)~nu^-alpha in the code, opposite to the paper!'})
+    gamma: float = field(
+        default = -1.16,
+        metadata={'help': 'slope of luminosity distribution function'})
 
-def init_parameters():
-
-    # Begin
-    param_dict = {}
-
-    # Wrap em together
-    param_dict['width'] = WidthParams()
-    param_dict['MW'] = MWParams()
-    param_dict['analysis'] = AnalysisParams()
-    param_dict['beam'] = BeamParams()
-    param_dict['FRBdemo'] = FRBDemoParams()
-    param_dict['cosmo'] = CosmoParams()
-    param_dict['host'] = HostParams()
-    param_dict['IGM'] = IGMParams()
-    param_dict['energy'] = EnergeticsParams()
-
-    return param_dict
-
-
-def unpack_pset(params:dict, mode:str='H0_std'):
-    if mode == 'H0_std':
-        return [
-            params['energy'].lEmin,
-            params['energy'].lEmax,
-            params['energy'].alpha,
-            params['FRBdemo'].gamma,
-            params['FRBdemo'].sfr_n,
-            params['host'].lmean,
-            params['host'].lsigma,
-            params['FRBdemo'].lC,
-            params['cosmo'].H0,
-        ]
-    else:
-        raise IOError('Bad mode')
-
-def vet_param(obj, dmodel:dict, verbose=True):
-    """ Vet the input object against its data model
-
-    Args:
-        obj (dict or pandas.DataFrame):  Instance of the data model
-        dmodel (dict): Data model
-        verbose (bool): Print when something doesn't check
+class State:
+    """ Initialize the full state for the analysis 
+    with the default parameters
 
     Returns:
-        tuple: chk (bool), disallowed_keys (list), badtype_keys (list)
+        dict: [description]
     """
+    def __init__(self):
 
-    chk = True
-    # Loop on the keys
-    disallowed_keys = []
-    badtype_keys = []
-    for key in obj.keys():
-        # In data model?
-        if not key in dmodel.keys():
-            disallowed_keys.append(key)
-            chk = False
-            if verbose:
-                print("Disallowed key: {}".format(key))
+        self.width = WidthParams()
+        self.MW = MWParams()
+        self.analysis = AnalysisParams()
+        self.beam = BeamParams()
+        self.FRBdemo = FRBDemoParams()
+        self.cosmo = CosmoParams()
+        self.host = HostParams()
+        self.IGM = IGMParams()
+        self.energy = EnergeticsParams()
 
-        # Check data type
-        iobj = obj[key].values if isinstance(obj, pandas.DataFrame) else obj[key]
-        if not isinstance(iobj,
-                          dmodel[key]['dtype']):
-            badtype_keys.append(key)
-            chk = False        
-            if verbose:
-                print("Bad key type: {}".format(key))
-    # Return
-    return chk, disallowed_keys, badtype_keys
+        # Look-up table or convenience
+        self.params = {}
+        for dc_key in self.__dict__.keys():
+            if dc_key == 'params':
+                continue
+            for param in self[dc_key].__dict__.keys():
+                self.params[param] = dc_key
+
+    def __getitem__(self, attrib:str):
+        """Enables dict like access to the state
+
+        Args:
+            attrib (str): [description]
+
+        Returns:
+            [type]: [description]
+        """
+        return getattr(self, attrib)
+
+    def update_param_dict(self, params:dict):
+        for key in params.keys():
+            idict = params[key]
+            for ikey in idict.keys():
+                # Set
+                self.update_param(ikey, params[key][ikey])
+
+    def update_params(self, params:dict):
+        for key in params.keys():
+            self.update_param(key, params[key])
+
+    def update_param(self, param:str, value):
+        DC = self.params[param]
+        setattr(self[DC], param, value)
+        # Special treatment
+        if DC == 'cosmo' and param == 'H0':
+            if self.cosmo.fix_Omega_b_h2:
+                self.cosmo.Omega_b = self.cosmo.Omega_b_h2/(
+                    self.cosmo.H0/100.)**2
+
+    '''
+    def unpack_pset(self, mode:str='H0_std'):
+        if mode == 'H0_std':
+            return [
+                params['energy'].lEmin,
+                params['energy'].lEmax,
+                params['energy'].alpha,
+                params['energy'].gamma,
+                params['FRBdemo'].sfr_n,
+                params['host'].lmean,
+                params['host'].lsigma,
+                params['FRBdemo'].lC,
+                params['cosmo'].H0,
+            ]
+        else:
+            raise IOError('Bad mode')
+    '''
+
+    def vet(self, obj, dmodel:dict, verbose=True):
+        """ Vet the input object against its data model
+
+        Args:
+            obj (dict or pandas.DataFrame):  Instance of the data model
+            dmodel (dict): Data model
+            verbose (bool): Print when something doesn't check
+
+        Returns:
+            tuple: chk (bool), disallowed_keys (list), badtype_keys (list)
+        """
+
+        chk = True
+        # Loop on the keys
+        disallowed_keys = []
+        badtype_keys = []
+        for key in obj.keys():
+            # In data model?
+            if not key in dmodel.keys():
+                disallowed_keys.append(key)
+                chk = False
+                if verbose:
+                    print("Disallowed key: {}".format(key))
+
+            # Check data type
+            iobj = obj[key].values if isinstance(obj, pandas.DataFrame) else obj[key]
+            if not isinstance(iobj,
+                            dmodel[key]['dtype']):
+                badtype_keys.append(key)
+                chk = False        
+                if verbose:
+                    print("Bad key type: {}".format(key))
+        # Return
+        return chk, disallowed_keys, badtype_keys

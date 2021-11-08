@@ -3,6 +3,7 @@ import pytest
 
 from pkg_resources import resource_filename
 import os
+import copy
 import pickle
 
 from astropy.cosmology import Planck18
@@ -17,80 +18,43 @@ from IPython import embed
 def make_grids():
 
     ############## Initialise parameters ##############
-    params = parameters.init_parameters()
+    state = parameters.State()
 
-    # Test against main
-    params['cosmo'].H0 = 67.74
-    params['cosmo'].Omega_lambda = 0.685
-    params['cosmo'].Omega_m = 0.315
-    params['cosmo'].Omega_b = 0.044
+    # Variable parameters
+    vparams = {}
+    vparams['cosmo'] = {}
+    vparams['cosmo']['H0'] = 67.74
+    vparams['cosmo']['Omega_lambda'] = 0.685
+    vparams['cosmo']['Omega_m'] = 0.315
+    vparams['cosmo']['Omega_b'] = 0.044
 
-    # Fix Omega_b?
-    if params['cosmo'].fix_Omega_b_h2:
-        params['cosmo'].Omega_b = params['cosmo'].Omega_b_h2/(
-            params['cosmo'].H0/100.)**2
-        print(f"Omega_b adjusted to {params['cosmo'].Omega_b}")
-
-    # Compare to main branch
-    #DEF_Omega_k=0.
-    # dark energy / cosmological constant (in current epoch)
-    #DEF_Omega_lambda=0.685
-    # matter density in current epoch
-    #DEF_Omega_m=0.315 #Plank says 0.315
-    # baryon density
-    #DEF_Omega_b=0.044
-    #DEF_Omega_b_h2=0.0224 #Planck says 0.0224, WMAP 0.02264
-    # hubble constant in current epoch
-    #DEF_H0 = igm.Planck15.H0.value #km s^-1 Mpc^-1 #planck15 used in frb.igm
-
+    # Update state
+    state.update_param_dict(vparams)
 
     ############## Initialise cosmology ##############
-    cos.set_cosmology(params)
+    cos.set_cosmology(state)
     cos.init_dist_measures()
 
     # get the grid of p(DM|z). See function for default values.
     # set new to False once this is already initialised
-    zDMgrid, zvals,dmvals = misc_functions.get_zdm_grid(params,
-        new=True, plot=False, method='analytic')
-
-
-    sdir = os.path.join(resource_filename('zdm', 'data'), 'Surveys')
+    zDMgrid, zvals,dmvals = misc_functions.get_zdm_grid(
+        state, new=True, plot=False, method='analytic')
 
     surveys = []
-    for ss, dfile in zip(range(4),
-                         ['CRAFT_class_I_and_II.dat',
-                         'CRAFT_ICS.dat',
-                         'CRAFT_ICS_892.dat', 
-                         'parkes_mb_class_I_and_II.dat']): 
+    names = ['CRAFT/FE', 'CRAFT/ICS', 'CRAFT/ICS892', 'PKS/Mb']
+    for survey_name in names:
+        surveys.append(survey.load_survey(survey_name, state, dmvals))
 
-        srvy=survey.survey()
-        srvy.process_survey_file(os.path.join(sdir, dfile))
-        srvy.init_DMEG(params['MW'].DMhalo)
-        srvy.init_beam(nbins=params['beam'].Nbeams[ss],
-                    method=2, plot=False,
-                    thresh=params['beam'].thresh) # tells the survey to use the beam file
-        pwidths,pprobs=survey.make_widths(srvy, 
-                                      params['width'].logmean,
-                                      params['width'].logsigma,
-                                      params['beam'].Wbins,
-                                      scale=params['beam'].Wscale)
-        _ = srvy.get_efficiency_from_wlist(dmvals,pwidths,pprobs)
-
-        # Append
-        surveys.append(srvy)
-
-    
     # generates zdm grids for the specified parameter set
-    if params['beam'].method =='Full':
+    if state.beam.method =='Full':
         gprefix='best'
-    elif params['beam'].method =='Std':
+    elif state.beam.method =='Std':
         gprefix='Std_best'
     
-    if params['analysis'].NewGrids:
+    if state.analysis.NewGrids:
         print("Generating new grids, set NewGrids=False to save time later")
         grids=misc_functions.initialise_grids(
-            surveys,zDMgrid, zvals, dmvals, params,
-            wdist=True)#, source_evolution=source_evolution, alpha_method=alpha_method)
+            surveys,zDMgrid, zvals, dmvals, state, wdist=True)#, source_evolution=source_evolution, alpha_method=alpha_method)
         with open('Pickle/'+gprefix+'grids.pkl', 'wb') as output:
             pickle.dump(grids, output, pickle.HIGHEST_PROTOCOL)
     else:
@@ -102,7 +66,7 @@ def make_grids():
     gICS892=grids[2]
     gpks=grids[3]
     print("Initialised grids")
-    
+
     Location='Plots'
     if not os.path.isdir(Location):
         os.mkdir(Location)
@@ -112,7 +76,7 @@ def make_grids():
     if do2DPlots:
         # Unpack for convenience
         lat50,ICS,ICS892,pks = surveys
-        muDM=10**params['host'].lmean
+        muDM=10**state.host.lmean
         Macquart=muDM
         # plots zdm distribution
         misc_functions.plot_grid_2(gpks.rates,gpks.zvals,gpks.dmvals,zmax=3,DMmax=3000,
