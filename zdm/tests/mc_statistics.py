@@ -166,15 +166,16 @@ def main():
 	#### these are hard-coded best-fit parameters ####
 	# initial parameter values. SHOULD BE LOGSIGMA 0.75! (WAS 0.25!?!?!?)
 	# Best-fit parameter values (result from cube iteration)
-	lEmin=30. # log10 in erg
-	lEmax=41.84 # log10 in erg
-	alpha=1.54 # spectral index. WARNING: here F(nu)~nu^-alpha in the code, opposite to the paper!
-	gamma=-1.16 # slope of luminosity distribution function
-	sfr_n=1.77 #scaling with star-formation rate
-	lmean=2.16 # log10 mean of DM host contribution in pc cm^-3
-	lsigma=0.51 # log10 sigma of DM host contribution in pc cm^-3
-	C=4.19 # log10 constant in number per Gpc^-3 yr^-1 at z=0
-	pset=[lEmin,lEmax,alpha,gamma,sfr_n,lmean,lsigma,C]
+	#lEmin=30. # log10 in erg
+	#lEmax=41.84 # log10 in erg
+	#alpha=1.54 # spectral index. WARNING: here F(nu)~nu^-alpha in the code, opposite to the paper!
+	#gamma=-1.16 # slope of luminosity distribution function
+	#sfr_n=1.77 #scaling with star-formation rate
+	#lmean=2.16 # log10 mean of DM host contribution in pc cm^-3
+	#lsigma=0.51 # log10 sigma of DM host contribution in pc cm^-3
+	#C=4.19 # log10 constant in number per Gpc^-3 yr^-1 at z=0
+	#pset=[lEmin,lEmax,alpha,gamma,sfr_n,lmean,lsigma,C]
+	pset=np.array([30. ,  41.7  ,  1.55 , -1.09 ,  1.67 ,  2.11  ,  0.53 ,  3.15])
 	
 	
 	# generates zdm grids for the specified parameter set
