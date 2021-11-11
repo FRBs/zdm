@@ -1795,7 +1795,7 @@ def minus_poisson_ps(log10C,data):
     return -lp
     
 
-def minimise_const_only(vparams,grids,surveys,
+def minimise_const_only(vparams:dict,grids,surveys,
                         Verbose=True):
     '''
     Only minimises for the constant, but returns the full likelihood
@@ -1841,7 +1841,8 @@ def minimise_const_only(vparams,grids,surveys,
             o=s.NORM_FRB
             rs.append(r)
             os.append(o)
-    print("Total sum of ll w/o const is ",np.sum(lls[j]))
+    if Verbose:
+        print("Total sum of ll w/o const is ",np.sum(lls[j]))
     data=np.array([rs,os])
     ratios=np.log10(data[1,:]/data[0,:])
     bounds=(np.min(ratios),np.max(ratios))

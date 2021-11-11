@@ -150,7 +150,7 @@ def get_pDM(z,F,DMgrid,zgrid,Fgrid,C0grid):
     return pDM
 
 
-def get_pDM_grid(state:parameters.State, DMgrid,zgrid,C0s):
+def get_pDM_grid(state:parameters.State, DMgrid,zgrid,C0s, verbose=False):
     """ Gets pDM when the zvals are the same as the zgrid
     state
     C0grid: C0 values obtained by convergence
@@ -163,7 +163,8 @@ def get_pDM_grid(state:parameters.State, DMgrid,zgrid,C0s):
     DMbars=get_mean_DM(zgrid, state)
     
     pDMgrid=np.zeros([zgrid.size,DMgrid.size])
-    print("shapes and sizes are ",C0s.size,pDMgrid.shape,DMbars.shape)
+    if verbose:
+        print("shapes and sizes are ",C0s.size,pDMgrid.shape,DMbars.shape)
     # iterates over zgrid to calculate p_delta_DM
     for i,z in enumerate(zgrid):
         deltas=DMgrid/DMbars[i] # since pDM is defined such that the mean is 1

@@ -31,6 +31,7 @@ class Grid:
         """
         self.grid=None
         self.survey = survey
+        self.verbose=False
         # Beam
         self.beam_b=survey.beam_b
         self.beam_o=survey.beam_o
@@ -111,7 +112,8 @@ class Grid:
                 raise ValueError("wrong shape of grid for zvals and dm vals")
         else:
             if shape[1] == self.ndm:
-                print("Grid successfully initialised")
+                if self.verbose:
+                    print("Grid successfully initialised")
             else:
                 raise ValueError("wrong shape of grid for zvals and dm vals")
         

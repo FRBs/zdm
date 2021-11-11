@@ -161,7 +161,8 @@ def dVdtau(z):
 # these functions are numerical, and require initialisation
 
 
-def init_dist_measures(this_ZMIN=DEF_ZMIN,this_ZMAX=DEF_ZMAX,this_NZ=DEF_NZ):
+def init_dist_measures(this_ZMIN=DEF_ZMIN,this_ZMAX=DEF_ZMAX,this_NZ=DEF_NZ,
+                       verbose=False):
     """ Initialises cosmological distance measures.
     
     Fills in look-up tables that can operate on input numpy arrays.
@@ -190,7 +191,8 @@ def init_dist_measures(this_ZMIN=DEF_ZMIN,this_ZMAX=DEF_ZMAX,this_NZ=DEF_NZ):
     das=dms/(1.+zs)
     dls=dms*(1.+zs)
     INIT=True
-    print("Initialised distance measures")
+    if verbose:
+        print("Initialised distance measures")
     
 
 # The following are interpolation functions

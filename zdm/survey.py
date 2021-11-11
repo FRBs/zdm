@@ -11,6 +11,7 @@
 ##############################################
 
 
+from IPython.terminal.embed import embed
 import numpy as np
 import os
 from pkg_resources import resource_filename
@@ -70,7 +71,7 @@ class Survey:
         self.mean_efficiencies=mean_efficiencies #be careful here!!! This may not be what we want!
         return efficiencies
     
-    def process_survey_file(self,filename):
+    def process_survey_file(self,filename, NFRB=None):
         """ Loads a survey file, then creates dictionaries of the loaded variables """
         info=[]
         keys=[]
@@ -103,18 +104,24 @@ class Survey:
         #### Find the number of FRBs in the file ###
         self.info=info
         self.keys=keys
-        #try:
-        #	iNFRB=keys.index('NFRB')
-        #except:
-        self.NFRB=keys.count('FRB')
+
+        # 
+        if NFRB is None:
+            self.NFRB=keys.count('FRB')
+        else:
+            self.NFRB = NFRB
         if self.NFRB==0:
             raise ValueError('No FRBs found in file '+filename) #change this?
-        #else:
-        #	self.NFRB=int(info[iNFRB][0])
+
+
         self.meta['NFRB']=self.NFRB
         
         #### separates FRB and non-FRB keys
         self.frblist=self.find(keys,'FRB')
+
+        if NFRB is not None:
+            # Take the first set
+            self.frblist=self.frblist[0:NFRB]
         
         ### first check for the key list to interpret the FRB table
         iKEY=self.do_metakey('KEY')
@@ -440,7 +447,7 @@ def make_widths(s:Survey,wlogmean,wlogsigma,nbins,scale=2,thresh=0.5):
 
 
 def load_survey(survey_name:str, state:parameters.State, dmvals:np.ndarray,
-                sdir:str=None):
+                sdir:str=None, NFRB:int=None):
     """Load a survey
 
     Args:
@@ -449,6 +456,8 @@ def load_survey(survey_name:str, state:parameters.State, dmvals:np.ndarray,
         state (parameters.State): Parameters for the state
         dmvals (np.ndarray): DM values
         sdir (str, optional): Path to survey files. Defaults to None.
+        NFRB (int, optional): Cut the total survey down to a random
+            subset [useful for testing]
 
     Raises:
         IOError: [description]
@@ -471,6 +480,9 @@ def load_survey(survey_name:str, state:parameters.State, dmvals:np.ndarray,
     elif survey_name == 'CRAFT/CRACO_1':  # alpha_method = 1
         dfile = 'CRAFT_CRACO_MC_frbs_alpha1.dat'
         Nbeams = 5
+    elif survey_name == 'CRAFT/CRACO_1_5000':  # alpha_method = 1
+        dfile = 'CRAFT_CRACO_MC_frbs_alpha1_5000.dat'
+        Nbeams = 5
     elif survey_name == 'CRAFT/ICS892':
         dfile = 'CRAFT_ICS_892.dat'
         Nbeams = 5
@@ -482,7 +494,7 @@ def load_survey(survey_name:str, state:parameters.State, dmvals:np.ndarray,
     # Do it
     srvy=Survey()
     srvy.name = survey_name
-    srvy.process_survey_file(os.path.join(sdir, dfile))
+    srvy.process_survey_file(os.path.join(sdir, dfile), NFRB=NFRB)
     srvy.init_DMEG(state.MW.DMhalo)
     srvy.init_beam(nbins=Nbeams, method=2, plot=False,
                 thresh=state.beam.thresh) # tells the survey to use the beam file

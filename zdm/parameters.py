@@ -68,9 +68,6 @@ class CosmoParams(myDataClass):
     Omega_b_h2: float = field(
         default=Planck18.Ob0 * (Planck18.H0.value/100.)**2,
         metadata={'help': 'Baryon density weighted by h_100**2.  This should always be the CMB value!'})
-    fixed_H0: float = field(
-        default=Planck18.H0.value,
-        metadata={'help': "Hubble's constant (km/s/Mpc) for the fixed Omega_h2 value"})
     fix_Omega_b_h2: bool = field(
         default=True,
         metadata={'help': 'Fix Omega_b_h2 by the Placnk18 value?'})
@@ -221,6 +218,14 @@ class State:
         else:
             raise IOError('Bad mode')
     '''
+
+    def set_astropy_cosmo(self, cosmo):
+        self.cosmo.H0 = cosmo.H0.value
+        self.cosmo.Omega_lambda = cosmo.Ode0
+        self.cosmo.Omega_m = cosmo.Om0
+        self.cosmo.Omega_b = cosmo.Ob0
+        self.cosmo.Omega_b_h2 = cosmo.Ob0 * (cosmo.H0.value/100.)**2
+        return
 
     def vet(self, obj, dmodel:dict, verbose=True):
         """ Vet the input object against its data model

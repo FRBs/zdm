@@ -1689,7 +1689,8 @@ def plot_1d(pvec,lset,xlabel,savename,showplot=False):
 # generates grid based on Monte Carlo model
 def get_zdm_grid(state:parameters.State, new=True,plot=False,method='analytic',
                  nz=500,zmax=5,ndm=1400,dmmax=7000.,
-                 datdir='GridData',tag="", orig=False):
+                 datdir='GridData',tag="", orig=False,
+                 verbose=False):
     """Generate a grid of z vs. DM for an assumed F value
     for a specified z range and DM range.
 
@@ -1745,7 +1746,8 @@ def get_zdm_grid(state:parameters.State, new=True,plot=False,method='analytic',
         
         if method=='MC':
             # generate DM grid from the models
-            print("Generating the zdm Monte Carlo grid")
+            if verbose:
+                print("Generating the zdm Monte Carlo grid")
             nfrb=10000
             t0=time.process_time()
             DMs = dlas.monte_DM(np.array(zvals)*3000, nrand=nfrb)
@@ -1762,7 +1764,8 @@ def get_zdm_grid(state:parameters.State, new=True,plot=False,method='analytic',
             #all_hists /= float(nfrb)
             print(all_hists.shape)
         elif method=='analytic':
-            print("Generating the zdm analytic grid")
+            if verbose:
+                print("Generating the zdm analytic grid")
             t0=time.process_time()
             # calculate constants for p_DM distribution
             if orig:
@@ -1776,7 +1779,8 @@ def get_zdm_grid(state:parameters.State, new=True,plot=False,method='analytic',
             zDMgrid=pcosmic.get_pDM_grid(state,dmvals,zvals,C0s)
             t1=time.process_time()
             dt=t1-t0
-            print("Done. Took ",dt," seconds")
+            if verbose:
+                print("Done. Took ",dt," seconds")
         
         np.save(savefile,zDMgrid)
         metadata=np.array([nz,ndm,state.IGM.F])
@@ -1950,7 +1954,7 @@ def plot_zdm_basic_paper(zDMgrid,zvals,dmvals,zmax=1,DMmax=1000,
     plt.title(title+str(H0))
     if showplot:
         plt.show()
-    plt.close()		
+    plt.close()	
 
 def plot_grid_2(zDMgrid,zvals,dmvals,
                 zmax=1,DMmax=1000,norm=0,log=True,name='temp.pdf',label='$\\log_{10}p(DM_{\\rm EG},z)$',project=False,conts=False,
