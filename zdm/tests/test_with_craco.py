@@ -66,6 +66,8 @@ def main(pargs):
     state.host.lmean=2.18
     state.host.lsigma=0.48
 
+    state.energy.luminosity_function = pargs.lum_func
+
     state.update_param_dict(state_dict)
     
     ############## Initialise cosmology ##############
@@ -154,6 +156,7 @@ parser.add_argument('-o','--opfile',type=str,required=False,help="Output file fo
 parser.add_argument('--cosmo',type=str,default='Planck18', required=False,help="Output file for the data")
 parser.add_argument('--survey',type=str,default='CRAFT/CRACO_1_5000',
                     required=False,help="Output file for the data")
+parser.add_argument('--lum_func',type=int,default=0, required=False,help="Luminosity function (0=power-law, 1=gamma)")
 pargs = parser.parse_args()
 
 

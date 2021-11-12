@@ -142,6 +142,9 @@ class EnergeticsParams(myDataClass):
     gamma: float = field(
         default = -1.16,
         metadata={'help': 'slope of luminosity distribution function'})
+    luminosity_function: int = field(
+        default = 0,
+        metadata={'help': 'luminosity function applied (0=power-law, 1=gamma)'})
 
 class State:
     """ Initialize the full state for the analysis 
