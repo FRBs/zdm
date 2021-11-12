@@ -113,7 +113,7 @@ def vector_diff_power_law(Eth,*params):
     
     low=np.where(Eth < Emin)[0]
     if len(low) > 0:
-        result[low]=1.  # This was 0 and I think it was wrong
+        result[low]=1.  # This was 0 and I think it was wrong -- JXP
     high=np.where(Eth > Emax)[0]
     if len(high) > 0:
         result[high]=0.
