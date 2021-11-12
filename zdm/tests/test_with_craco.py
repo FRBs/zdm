@@ -1,16 +1,4 @@
-""" JXP VERSION """
-
-'''
-Questions for Clancy:
-
-1. lC vs. C
-2. Order of update_grid()
-3. Survey is unique to a grid, right?
-4. Order of grid parameters
-5. Why 90s per iteration?
-6. Is it ok to get a NAN??   And why is it ignored??
-7. https://docs.scipy.org/doc/scipy/reference/tutorial/integrate.html#faster-integration-using-low-level-callback-functions
-'''
+""" Run tests with CRACO FRBs """
 
 ######
 # first run this to generate surveys and parameter sets, by 
@@ -102,25 +90,8 @@ def main(pargs):
     isurvey = survey.load_survey(pargs.survey, state, dmvals,
                                  NFRB=pargs.nFRB)
     surveys = [isurvey]
-        # Cut down the number of FRBs
-    '''
-    # initial parameter values. SHOULD BE LOGSIGMA 0.75! (WAS 0.25!?!?!?)
-    # these are meaningless btw - but the program is set up to require
-    # a parameter set when first initialising grids
-    lEmin=30.
-    lEmax=42.
-    gamma=-0.7
-    alpha=1.5
-    sfr_n=1.
-    lmean=np.log10(50)
-    lsigma=0.5
-    C=0.
-    pset=[lEmin,lEmax,alpha,gamma,sfr_n,lmean,lsigma,C]
-    '''
-    
-    # generates zdm grids for initial parameter set
-    # when submitting a job, make sure this is all pre-generated once
-    #if state.analysis.NewGrids:
+
+    # generates zdm grid
     grids = misc_functions.initialise_grids(
         surveys,zDMgrid, zvals, dmvals, state, wdist=True)
     print("Initialised grids")

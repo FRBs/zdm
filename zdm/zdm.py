@@ -120,24 +120,6 @@ def vector_diff_power_law(Eth,*params):
     return result
 
 
-############### unused - to delete ##########
-# power-laws here are differential
-#def power_law_norm(Emin,Emax,gamma):
-#	""" Calculates the normalisation factor for a power-law """
-#	return Emin**gamma-Emax**-gamma
-
-#def power_law(Eth,Emin,Emax,gamma):
-#	""" Calculates the fraction of bursts above a certain power law
-#	for a given Eth.
-#	"""
-#	if Eth <= Emin:
-#		return 1
-#	elif Eth >= Emax:
-#		return 0
-#	else:
-#		return (Eth**gamma-Emax**gamma ) / (Emin**gamma-Emax**gamma )
-
-
 ######### misc function to load some data - do we ever use it? ##########
 
 def load_data(filename):

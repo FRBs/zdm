@@ -549,7 +549,8 @@ def calc_likelihoods_1D(grid,survey,lC,doplot=False,norm=True,psnr=False,Pn=True
     
 
 def calc_likelihoods_2D(grid,survey, lC,
-                        doplot=False,norm=True,psnr=False,printit=False,Pn=True,dolist=0):
+                        doplot=False,norm=True,psnr=False,
+                        printit=False,Pn=True,dolist=0):
     """ Calculates 2D likelihoods using observed DM,z values """
     
     ######## Calculates p(DM,z | FRB) ########
@@ -659,9 +660,6 @@ def calc_likelihoods_2D(grid,survey, lC,
         # parameterisation
         
         # calculate vector of grid thresholds
-        #Emax=grid.Emax
-        ##Emin=grid.Emin
-        #gamma=grid.gamma
         Emax=10**grid.state.energy.lEmax
         Emin=10**grid.state.energy.lEmin
         gamma=grid.state.energy.gamma
@@ -679,7 +677,7 @@ def calc_likelihoods_2D(grid,survey, lC,
         
         # now do this in one go
         # We integrate p(snr|b,w) p(b,w) db dw. I have no idea how this could be multidimensional
-        psnr=np.zeros(Eths.shape[1:])
+        psnr=np.zeros(Eths.shape[1])
         for i,b in enumerate(survey.beam_b):
             bEths=Eths/b # array of shape NFRB, 1/b
             bEobs=bEths*survey.Ss
@@ -731,6 +729,7 @@ def calc_likelihoods_2D(grid,survey, lC,
         bad=np.array(np.where(wzpsnr == 0.))
         if bad.size > 0:
             snrll = float('NaN') # none of this is possible! [somehow...]
+            embed(header='732 of it')
         else:
             snrll = np.sum(np.log10(wzpsnr))
         
