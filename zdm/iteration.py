@@ -729,7 +729,6 @@ def calc_likelihoods_2D(grid,survey, lC,
         bad=np.array(np.where(wzpsnr == 0.))
         if bad.size > 0:
             snrll = float('NaN') # none of this is possible! [somehow...]
-            embed(header='732 of it')
         else:
             snrll = np.sum(np.log10(wzpsnr))
         
