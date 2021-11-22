@@ -133,7 +133,7 @@ def vector_cum_gamma(Eth,*params):
     gamma=params[2]
 
     # Calculate
-    norm = float(mpmath.gammainc(gamma, a=Emin/Emax))
+    norm = Emax*float(mpmath.gammainc(gamma, a=Emin/Emax))
     Eth_Emax = Eth/Emax
     # If this is too slow, we can adopt scipy + recurrance
     numer = np.array([float(mpmath.gammainc(
