@@ -685,6 +685,7 @@ def calc_likelihoods_2D(grid,survey, lC,
                 temp=grid.array_diff_lf(bEobs[j,:],Emin,Emax,gamma) * FtoE #one dim in beamshape, one dim in FRB
                 
                 psnr += temp.T*survey.beam_o[i]*w #multiplies by beam factors and weight
+                #embed(header='735 of it')
                 
         # at this stage, we have the amplitude from diff power law summed over beam and weight
         
