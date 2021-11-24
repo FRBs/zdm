@@ -590,6 +590,7 @@ def calc_likelihoods_2D(grid,survey, lC,
     izs2=izs1+1
     dkzs=kzs-izs1
     
+    # Linear interpolation
     pvals = rates[izs1,idms1]*(1.-dkdms)*(1-dkzs)
     pvals += rates[izs2,idms1]*(1.-dkdms)*dkzs
     pvals += rates[izs1,idms2]*dkdms*(1-dkzs)
@@ -604,8 +605,13 @@ def calc_likelihoods_2D(grid,survey, lC,
     longlist=np.log10(pvals)-np.log10(norm)
     
     llsum=np.sum(np.log10(pvals))#-norm
+    # 
     llsum -= np.log10(norm)*Zobs.size # once per event
+    # JXP intuition..
+    #llsum -= np.log10(norm * 10**lC)*Zobs.size # once per event
     lllist=[llsum]
+
+    #embed(header='610 of it')
     
     
     if Pn and (survey.TOBS is not None):
@@ -674,9 +680,11 @@ def calc_likelihoods_2D(grid,survey, lC,
         FtoE += grid.FtoE[izs2]*dkzs
         
         beam_norm=np.sum(survey.beam_o)
+        embed(header='683 of it')
         
         # now do this in one go
-        # We integrate p(snr|b,w) p(b,w) db dw. I have no idea how this could be multidimensional
+        # We integrate p(snr|b,w) p(b,w) db dw. 
+        # I have no idea how this could be multidimensional
         psnr=np.zeros(Eths.shape[1])
         for i,b in enumerate(survey.beam_b):
             bEths=Eths/b # array of shape NFRB, 1/b
@@ -685,9 +693,10 @@ def calc_likelihoods_2D(grid,survey, lC,
                 temp=grid.array_diff_lf(bEobs[j,:],Emin,Emax,gamma) * FtoE #one dim in beamshape, one dim in FRB
                 
                 psnr += temp.T*survey.beam_o[i]*w #multiplies by beam factors and weight
-                #embed(header='735 of it')
+
                 
-        # at this stage, we have the amplitude from diff power law summed over beam and weight
+        # at this stage, we have the amplitude from diff power law 
+        # summed over beam and weight
         
         # we only alculate the following sg and V factors to get units to be
         # comparable to the 1D case - otherwise it is superfluous
@@ -701,6 +710,7 @@ def calc_likelihoods_2D(grid,survey, lC,
         # we just multiply these together
         sgV = sg*dV
         wzpsnr = psnr.T*sgV
+
         
         # this step weights psnr by the volumetric values
         
@@ -708,18 +718,23 @@ def calc_likelihoods_2D(grid,survey, lC,
         # we want to calculate p(snr) dpsnr
         # this must be \int p(snr | w,b) p(w,b) dw,b
         # \int p(snr | detection) p(det|w,b) p(w,b) dw,b
-        # to make it an indpeendent factor, and not double-count it, means calculating
+        # to make it an indpeendent factor, and not double-count it, 
+        # means calculating
         # \int p(snr | detection) dsnr p(det|w,b) p(w,b) dw,b / \int p(det|w,b) p(w,b) dw,b
         # array_diff_power_law simply calculates p(snr), which is the probability amplitude
         # -(gamma*Eth**(gamma-1)) / (Emin**gamma-Emax**gamma )
         # this includes the probability; hence need to account for this
         
         # it is essential that this normalisation occurs for a normalised pvals
-        # this normalisation essentially undoes the absolute calculation of the rate, i.e. we are normalising by the total distribution
+        # this normalisation essentially undoes 
+        # the absolute calculation of the rate, 
+        # i.e. we are normalising by the total distribution
         # hence we *really* ought to be adding the normalisation to this...
-        # the idea here is that p(snr,det)/p(det) * p(det)/pnorm. Hence pvals - which contains
+        # the idea here is that p(snr,det)/p(det) * p(det)/pnorm. 
+        # Hence pvals - which contains
         # the normalisation - should be the un-normalised values.
         
+        #sv_wzpsnr = wzpsnr.copy()
         wzpsnr /= pvals
         
         
@@ -740,6 +755,11 @@ def calc_likelihoods_2D(grid,survey, lC,
                 print(i,snr,psnr[i])
     else:
         lllist.append(0)
+
+    #print(Emax, np.sum(np.log10(pvals)), 
+    #            -np.log10(norm)*Zobs.size,
+    #            np.sum(np.log10(sv_wzpsnr)),
+    #            snrll, llsum)
     if dolist==0:
         return llsum
     elif dolist==1:

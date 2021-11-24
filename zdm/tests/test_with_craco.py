@@ -66,14 +66,11 @@ def main(pargs):
         C,llC,lltot=it.minimise_const_only(
                     vparams,grids,surveys, Verbose=False)
         vparams['lC']=C
-        if tt == 0: # do it again as the initial guess is often junk!
-            C,llC,lltot=it.minimise_const_only(
-                    vparams,grids,surveys, Verbose=False)
-            vparams['lC']=C
-        #likeli =  it.cube_likelihoods(grids,surveys, vparam_dict, cube_dict,
-        #            run,howmany,opfile, starti=starti,clone=clone)
-        lls.append(lltot)
-        print(f'{pargs.param}: pval={pval}, C={C}, lltot={lltot}')
+        lls_final,alist,expected= it.calc_likelihoods_2D(
+                    igrid, isurvey, vparams['lC'],
+                    norm=True,psnr=True,dolist=1)
+        lls.append(lls_final)
+        print(f'{pargs.param}: pval={pval}, C={C}, lltot={lls_final}')
 
     # Max
     imx = np.nanargmax(lls)
