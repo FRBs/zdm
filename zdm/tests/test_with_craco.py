@@ -23,7 +23,7 @@ from zdm import parameters
 from zdm import cosmology as cos
 from zdm import misc_functions
 from zdm import iteration as it
-from zdm import io
+from zdm.tests import craco 
 
 from IPython import embed
 
@@ -48,55 +48,12 @@ matplotlib.rc('font', **font)
 
 def main(pargs):
 
-    #psetmins,psetmaxes,nvals=misc_functions.process_pfile(Cube[2])
-    #input_dict= io.process_jfile(Cube[2])
-    #state_dict, cube_dict, vparam_dict = it.parse_input_dict(input_dict)
-
-    state_dict = dict(FRBdemo=dict(alpha_method=1),
-                      cosmo=dict(fix_Omega_b_h2=True))
-
-    ############## Initialise parameters ##############
-    state = parameters.State()
-
-    # Clancy values
-    state.energy.lEmax=41.4 
-    state.energy.alpha=0.65 
-    state.energy.gamma=-1.01 
-    state.FRBdemo.sfr_n=0.73 
-    state.host.lmean=2.18
-    state.host.lsigma=0.48
-
-    state.energy.luminosity_function = pargs.lum_func
-
-    state.update_param_dict(state_dict)
-    
-    ############## Initialise cosmology ##############
-    if pargs.cosmo == 'Planck18':
-        state.set_astropy_cosmo(Planck18)
-    elif pargs.cosmo == 'Planck15':
-        state.set_astropy_cosmo(Planck15)
-    else:
-        raise IOError("Bad astropy cosmology")
-        
-    cos.set_cosmology(state)
-    cos.init_dist_measures()
-    
-    # get the grid of p(DM|z)
-    zDMgrid, zvals,dmvals = misc_functions.get_zdm_grid(
-        state, new=True, plot=False, method='analytic',
-        datdir=resource_filename('zdm', 'GridData'))
-    
-    ############## Initialise surveys ##############
-    
-    
-    isurvey = survey.load_survey(pargs.survey, state, dmvals,
-                                 NFRB=pargs.nFRB)
-    surveys = [isurvey]
-
-    # generates zdm grid
-    grids = misc_functions.initialise_grids(
-        surveys,zDMgrid, zvals, dmvals, state, wdist=True)
-    print("Initialised grids")
+    isurvey, igrid = craco.load_craco(cosmo=pargs.cosmo,
+                                      survey_name=pargs.survey,
+                                      NFRB=pargs.nFRB,
+                                      lum_func=pargs.lum_func)
+    surveys = [isurvey]                                      
+    grids = [igrid]
 
     pvals = np.linspace(pargs.min, pargs.max, pargs.nstep)
     vparams = {}
