@@ -124,7 +124,7 @@ def vector_diff_power_law(Eth,*params):
 ########### gamma functions #############
 
 def vector_cum_gamma(Eth,*params):
-    """ Calculates the fraction of bursts above a certain power law
+    """ Calculates the fraction of bursts above a certain gamma function
     for a given Eth.
     """
     params=np.array(params)
@@ -159,7 +159,7 @@ def array_diff_gamma(Eth,*params):
 
     
 def array_cum_gamma(Eth,*params):
-    """ Calculates the fraction of bursts above a certain power law
+    """ Calculates the fraction of bursts above a certain gamma function
     for a given Eth, where Eth is an N-dimensional array
     """
     dims=Eth.shape
@@ -168,6 +168,8 @@ def array_cum_gamma(Eth,*params):
     return result
 
 def vector_diff_gamma(Eth,*params):
+    """ Calculates the differential fraction of bursts for a gamma function
+    """
     Emin=params[0]
     Emax=params[1]
     gamma=params[2]

@@ -167,155 +167,6 @@ def maximise_likelihood(grid,survey):
     return results
 
 
-'''
-def update_grid(grid,pset,survey):
-    #added routine to update H0 values within grid
-    """Updates the grid  
-    DEFUNCT!
-    
-    Hierarchy:
-    Each indent corresponds to one 'level'.
-    This is used in the program control below
-    to dictate how far each tree should proceed
-    in calculation.
-    Direct variable inputs are always listed first
-    We see that sfr evolution and dm smearing
-    lie just before the pdv step
-    Hence, we deal with these first, and
-    calc rates as a final step regardless
-    of what else has changed.
-    
-    calc_rates:
-        calc_pdv
-            Emin
-            Emax
-            gamma
-            calc_thresholds
-                F0
-                alpha
-                bandwidth
-        set_evolution
-            sfr_n
-        
-        smear_grid:
-            grid
-            mask
-                dmx_params
-    
-    Note that the grid is independent of the constant C (trivial dependence)
-    """
-    
-    lEmin=pset[0]
-    lEmax=pset[1]
-    Emin=10.**lEmin # may cause problems when going forwards and backwards in Emin, Emax... store log values?
-    Emax=10.**lEmax
-    alpha=pset[2]
-    gamma=pset[3]
-    sfrn=pset[4]
-    H0value=pset[8]
-
-    # assumes all parameters following this are passed to DM distribution
-    smear_mean=pset[5]
-    smear_sigma=pset[6]
-
-    #taking all the old grid parameters
-    oldmask=grid.smear
-    oldsmeargrid=grid.smear_grid
-
-    oldlEmin=np.log10(float(grid.Emin))
-    oldlEmax=np.log10(float(grid.Emax))
-    oldalpha=grid.alpha
-    oldgamma=grid.gamma
-    oldsfrn=grid.sfr_n
-    oldsmean=grid.smear_mean
-    oldssigma=grid.smear_sigma
-    oldH0value=grid.H0
-    new_sfr_smear=False #do not need to calculate new product of sfr and smearing
-    
-    ##check if H0 value changed
-    
-    if oldH0value != H0value:
-        cos.set_cosmology(H0=H0value)
-        zDMgrid, zvals,dmvals,H0=misc_functions.get_zdm_grid(H0=H0value,new=True,plot=False,method='analytic')
-        grid.pass_grid(zDMgrid,zvals,dmvals,H0)
-        grid.smear_mean=oldsmean
-        grid.smear_sigma=oldssigma
-        grid.smear_dm(oldmask,oldsmean,oldssigma)
-        grid.calc_thresholds(survey.meta['THRESH'],survey.efficiencies,alpha=oldalpha, weights=survey.wplist)
-        grid.calc_dV()
-        grid.calc_pdv(Emin,Emax,gamma,survey.beam_b,survey.beam_o)
-        grid.set_evolution(oldsfrn) 
-        grid.calc_rates()
-
-    ##### checks to see if the dmx parameters have changed ######
-    if oldsmean != pset[5] or oldssigma != pset[6]:
-        changed_smear=True
-        mask=pcosmic.get_dm_mask(grid.dmvals,[smear_mean,smear_sigma],grid.zvals)
-        grid.smear_dm(mask,smear_mean,smear_sigma)
-        # now have to perform the calc_rates step again
-        # must get correct pdv and sfr first
-        new_sfr_smear=True
-        oldssigma=smear_sigma
-        oldsmean=smear_mean
-    
-    ###### checks to see if the sfr parameters have changed ######
-    if grid.alpha_method==0:
-        if sfrn != oldsfrn:
-            grid.set_evolution(sfrn)
-            new_sfr_smear=True
-            oldsfrn=sfrn
-    elif grid.alpha_method==1:
-        if sfrn != oldsfrn or alpha != oldalpha:
-            grid.set_evolution(sfrn,alpha=alpha)
-            new_sfr_smear=True
-            oldsfrn=sfrn
-            oldalpha=alpha
-    
-    ##### examines the 'pdv tree' affecting sensitivity #####
-    # begin with alpha
-    # alpha does not change thresholds under rate scaling, only spec index
-    if grid.alpha_method==0 and alpha != oldalpha:
-        # TODO -- The weights look like a bug!!  Not going to the right variable
-        grid.calc_thresholds(grid.F0,grid.eff_table,alpha,grid.bandwidth,grid.eff_weights)
-        changed_alpha=True
-        oldalpha=alpha
-    else:
-        changed_alpha=False
-    
-    # handles for potential future use, currently any change requires this
-    if lEmin != oldlEmin:
-        clEmin=True
-    else:
-        clEmin=False
-    
-    if lEmax != oldlEmax:
-        clEmax=True
-    else:
-        clEmax=False
-    
-    if gamma != oldgamma:
-        clgamma=True
-    else:
-        clgamma=False
-    
-    # checks if we need to calculate new pdv: this depends on thresholds, i.e. alpha
-    # OK now we need to be careful, and distinguish between the different changes
-    # note that changed_alpha is always 0 if alpha_method=1
-    if changed_alpha or clEmin or clEmax or clgamma:
-        grid.calc_pdv(Emin,Emax,gamma)#,newbg=changed_alpha,newEmin=clEmin,newEmax=clEmax,newGamma=clgamma)
-        oldlEmin=lEmin
-        oldlEmax=lEmax
-        oldgamma=gamma
-        new_pdv_smear=True
-    else:
-        new_pdv_smear=False
-    
-    if new_sfr_smear:
-        grid.calc_rates() #includes sfr smearing factors and pdv mult
-    elif new_pdv_smear:
-        grid.rates=grid.pdv*grid.sfr_smear #does pdv mult only, 'by hand'
-'''
-    
 
 def calc_likelihoods_1D(grid,survey,lC,doplot=False,norm=True,psnr=False,Pn=True,dolist=0):
     """ Calculates 1D likelihoods using only observedDM values
@@ -607,8 +458,6 @@ def calc_likelihoods_2D(grid,survey, lC,
     llsum=np.sum(np.log10(pvals))#-norm
     # 
     llsum -= np.log10(norm)*Zobs.size # once per event
-    # JXP intuition..
-    #llsum -= np.log10(norm * 10**lC)*Zobs.size # once per event
     lllist=[llsum]
 
     #embed(header='610 of it')
@@ -680,7 +529,6 @@ def calc_likelihoods_2D(grid,survey, lC,
         FtoE += grid.FtoE[izs2]*dkzs
         
         beam_norm=np.sum(survey.beam_o)
-        embed(header='683 of it')
         
         # now do this in one go
         # We integrate p(snr|b,w) p(b,w) db dw. 
@@ -734,7 +582,6 @@ def calc_likelihoods_2D(grid,survey, lC,
         # Hence pvals - which contains
         # the normalisation - should be the un-normalised values.
         
-        #sv_wzpsnr = wzpsnr.copy()
         wzpsnr /= pvals
         
         
@@ -756,10 +603,6 @@ def calc_likelihoods_2D(grid,survey, lC,
     else:
         lllist.append(0)
 
-    #print(Emax, np.sum(np.log10(pvals)), 
-    #            -np.log10(norm)*Zobs.size,
-    #            np.sum(np.log10(sv_wzpsnr)),
-    #            snrll, llsum)
     if dolist==0:
         return llsum
     elif dolist==1:
@@ -963,34 +806,6 @@ def cube_likelihoods(grids:list,surveys:list,
     # Shape of the grid (ignoring the constant, lC)
     cube_shape = set_cube_shape(vparam_dict, order)
 
-    '''
-    # Translate
-    r_npoints=npoints[order]
-    ndims=npoints.size
-    iorder=np.zeros([ndims],dtype='int')
-    for i,n in enumerate(order): #creates an inverse to map back, so we know to change the nth parameter 1st
-        iorder[n]=i
-    
-    # gets cumulative factors
-    r_cp=np.zeros([ndims])
-    for i in np.arange(ndims):
-        if i==0:
-            r_cp[i]=1
-        else:
-            r_cp[i] =r_cp[i-1]*r_npoints[i-1]
-    
-    # sets counters
-    this=start
-    # current holids the integer index of which set of values we are 'currently' analysing
-    # does this in the re-ordered domain
-    r_current=np.zeros([ndims],dtype='int')
-    for i in np.arange(ndims):
-        r_current[ndims-i-1]=int(this/r_cp[ndims-i-1])
-        this -= r_current[ndims-i-1]*r_cp[ndims-i-1]
-    
-    current=r_current[iorder] # sets initial values
-    '''
-    
     t0=time.process_time()
     print("Starting at time ",t0)
 
@@ -1039,13 +854,11 @@ def cube_likelihoods(grids:list,surveys:list,
             if const_only:
                 C,llC,lltot=minimise_const_only(
                     vparams,grids,surveys)
-                #pset[7]=C
                 vparams['lC']=C
 
             
             # for the minimised parameters, set the values
             for j,n in enumerate(current):
-                #string +=' {:8.2f}'.format(pset[j])
                 string +=' {:8.2f}'.format(vparams[PARAMS[j]])
             
             
@@ -1083,18 +896,6 @@ def cube_likelihoods(grids:list,surveys:list,
             # write output: parameters, likelihoods (and components)
             f.write(string)
             
-        
-        '''
-        # update current values. Uses re-ordered version. Has to do this even if skipping
-        thisdim=0
-        r_current[thisdim]+=1
-        while(r_current[thisdim]==r_npoints[thisdim]):
-            r_current[thisdim]=0
-            thisdim+=1
-            r_current[thisdim]+=1
-        # maps back to original order of things
-        current=r_current[iorder]
-        '''
         
         #t1=time.process_time()
         #print("Loop: ",i+run*howmany," took ", t1-t0," seconds")
@@ -1879,18 +1680,24 @@ def minimise_const_only(vparams:dict,grids,surveys,
     #embed(header='1840 of it')
     return newC,llC,lltot
     
-'''
-def set_param_order(alpha_method):
-    if alpha_method==0:
-        parameter_order = ['lC', 'sfr_n', 'lEmin', 'alpha', 'lEmax', 'gamma', 'lmean', 'lsigma', 'H0']
-    elif alpha_method==1:
-        parameter_order = ['lC', 'sfr_n', 'lEmin', 'alpha', 'lEmax', 'gamma', 'lmean', 'lsigma', 'H0']
-    else:
-        raise ValueError("Unknown value of alpha method!",alpha_method)
-    return parameter_order
-'''
     
-def set_orders(parameter_order, PARAMS):
+def set_orders(parameter_order:list, PARAMS:list):
+    """
+    Set the order of the parameters based on the input 
+    parameter_order list
+
+    Args:
+        parameter_order (list):  Order in which to run the
+            cube on the parameters.
+            e.g. ["lC", "sfr_n", "lEmin", "alpha", "lEmax", "gamma", "lmean", "lsigma", "H0"]
+        PARAMS (list): Actual parameters being explored 
+
+    Raises:
+        ValueError: [description]
+
+    Returns:
+        tuple: list, np.ndarray -- indices of the PARAMS in the order to run them, inverse of that
+    """
     # Convert params to an order
     order = []
     for param in parameter_order:
@@ -1907,6 +1714,16 @@ def set_orders(parameter_order, PARAMS):
 
 
 def set_cube_shape(vparam_dict:dict, order:list):
+    """ Generate a list holding the dimensions of the cube 
+    in the order it was generated
+
+    Args:
+        vparam_dict (dict): parameter dict
+        order (list): order list (integers)
+
+    Returns:
+        list: List of the dimensions of the cube
+    """
     # Dimensisons of the parameter dict
     dims = []
     for key, item in vparam_dict.items():
@@ -1920,6 +1737,15 @@ def set_cube_shape(vparam_dict:dict, order:list):
     return order_dims[1:]
 
 def parse_input_dict(input_dict:dict):
+    """ Method to parse the input dict for generating a cube
+    It is split up into its various pieces
+
+    Args:
+        input_dict (dict): [description]
+
+    Returns:
+        tuple: dicts (can be empty):  state, cube, input
+    """
     state_dict, cube_dict = {}, {}
     # 
     if 'state' in input_dict.keys():

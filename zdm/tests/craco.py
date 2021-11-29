@@ -1,4 +1,4 @@
-""" Run tests with CRACO FRBs """
+""" CRACO FRBs: This may move out of tests someday """
 
 ######
 # first run this to generate surveys and parameter sets, by 
@@ -30,9 +30,24 @@ from IPython import embed
 import pickle
 
 
-def load_craco(cosmo='Planck15', 
-               survey_name='CRAFT/CRACO_1_5000',
-               NFRB=100, lum_func=0):
+def load_craco(cosmo:str='Planck15', 
+               survey_name:str='CRAFT/CRACO_1_5000',
+               NFRB:int=100, lum_func:int=0):
+    """ Load up a survey and grid for a CRACO mock dataset
+
+    Args:
+        cosmo (str, optional): astropy cosmology. Defaults to 'Planck15'.
+        survey_name (str, optional):  Defaults to 'CRAFT/CRACO_1_5000'.
+        NFRB (int, optional): Number of FRBs to analyze. Defaults to 100.
+        lum_func (int, optional): Flag for the luminosity function. 
+            0=power-law, 1=gamma.  Defaults to 0.
+
+    Raises:
+        IOError: [description]
+
+    Returns:
+        tuple: Survey, Grid objects
+    """
 
     #psetmins,psetmaxes,nvals=misc_functions.process_pfile(Cube[2])
     #input_dict= io.process_jfile(Cube[2])
