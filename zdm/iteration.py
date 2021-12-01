@@ -460,9 +460,6 @@ def calc_likelihoods_2D(grid,survey, lC,
     llsum -= np.log10(norm)*Zobs.size # once per event
     lllist=[llsum]
 
-    #embed(header='610 of it')
-    
-    
     if Pn and (survey.TOBS is not None):
         expected=CalculateIntegral(grid,survey)
         expected *= 10**lC
