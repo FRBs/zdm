@@ -401,7 +401,8 @@ def calc_likelihoods_1D(grid,survey,lC,doplot=False,norm=True,psnr=False,Pn=True
 
 def calc_likelihoods_2D(grid,survey, lC,
                         doplot=False,norm=True,psnr=False,
-                        printit=False,Pn=True,dolist=0):
+                        printit=False,Pn=True,dolist=0,
+                        verbose=False):
     """ Calculates 2D likelihoods using observed DM,z values """
     
     ######## Calculates p(DM,z | FRB) ########
@@ -600,12 +601,23 @@ def calc_likelihoods_2D(grid,survey, lC,
     else:
         lllist.append(0)
 
+    if verbose:
+        print(f"rates={np.sum(rates):0.5f}," \
+            f"nterm={-np.log10(norm)*Zobs.size:0.2f}," \
+            f"pvterm={np.sum(np.log10(pvals)):0.2f}," \
+            f"wzterm={np.sum(np.log10(wzpsnr)):0.2f}," \
+            f"comb={np.sum(np.log10(wzpsnr*pvals)):0.2f}")
+        
+
     if dolist==0:
         return llsum
     elif dolist==1:
         return llsum,lllist,expected
     elif dolist==2:
         return llsum,lllist,expected,longlist
+    elif dolist==3:
+        return (llsum, -np.log10(norm)*Zobs.size, 
+                np.sum(np.log10(pvals)), np.sum(np.log10(wzpsnr)))
 
 def check_cube_opfile(run,howmany,opfile):
     """

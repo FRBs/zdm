@@ -61,15 +61,20 @@ def main(pargs):
     vparams['lC'] = -0.9
 
     lls = []
+    nterms = []  # LL term related to norm (i.e. rates)
+    pvterms = []  # LL term related to norm (i.e. rates)
     for tt, pval in enumerate(pvals):
         vparams[pargs.param] = pval
         C,llC,lltot=it.minimise_const_only(
                     vparams,grids,surveys, Verbose=False)
         vparams['lC']=C
-        lls_final,alist,expected= it.calc_likelihoods_2D(
+        lls_final, nterm, pvterm, wzterm = it.calc_likelihoods_2D(
                     igrid, isurvey, vparams['lC'],
-                    norm=True,psnr=True,dolist=1)
+                    norm=True,psnr=True,dolist=3)
+        # Hold
         lls.append(lls_final)
+        nterms.append(nterm)
+        pvterms.append(pvterm)
         print(f'{pargs.param}: pval={pval}, C={C}, lltot={lls_final}')
 
     # Max
@@ -96,8 +101,24 @@ def main(pargs):
     else:
         plt.show()
     plt.close()
-        
 
+    # Plot nterm
+    plt.clf()
+    ax = plt.gca()
+    ax.plot(pvals, nterms, 'o')
+    ax.set_xlabel(pargs.param)
+    ax.set_ylabel('nterm')
+    plt.savefig('nterms.png')
+    plt.close()
+
+    # Plot nterm
+    plt.clf()
+    ax = plt.gca()
+    ax.plot(pvals, pvterms, 'o')
+    ax.set_xlabel(pargs.param)
+    ax.set_ylabel('pvterm')
+    plt.savefig('pvterms.png')
+    plt.close()
 
 # command-line arguments here
 parser = argparse.ArgumentParser()
@@ -125,4 +146,9 @@ python test_with_craco.py H0 60. 80. --nstep 50 --nFRB 1000 --cosmo Planck15 -o 
 python test_with_craco.py lmean 1.9 2.5  --nstep 30 --nFRB 1000 --cosmo Planck15 -o CRACO_1000_lmean.png
 #
 python test_with_craco.py alpha 0.0 1.0 --nstep 50 --nFRB 100 --cosmo Planck15 --survey CRAFT/CRACO_1 -o CRACO_100_alpha_anew.png
+python test_with_craco.py H0 60.0 80.0 --nstep 50 --nFRB 100 --cosmo Planck15 --survey CRAFT/CRACO_1 -o CRACO_100_H0_Gamma_new.png --lum_func 1
+python test_with_craco.py lEmax 41. 43. --nstep 50 --nFRB 100 --cosmo Planck15 --survey CRAFT/CRACO_1 -o CRACO_100_Emax_Gamma_new.png --lum_func 1
+python test_with_craco.py H0 60.0 80.0 --nstep 50 --nFRB 100 --cosmo Planck15 --survey CRAFT/CRACO_1 -o CRACO_100_H0_new.png 
+python test_with_craco.py lEmax 41. 43. --nstep 50 --nFRB 100 --cosmo Planck15 --survey CRAFT/CRACO_1 -o CRACO_100_Emax_new.png 
+#
 '''
