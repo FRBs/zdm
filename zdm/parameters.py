@@ -222,7 +222,7 @@ class State:
             raise IOError('Bad mode')
     '''
 
-    def set_astropy_cosmo(self, cosmo:astropy.cosmology):
+    def set_astropy_cosmo(self, cosmo):
         """Slurp the values from an astropy Cosmology object
         into our format
 
