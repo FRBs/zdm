@@ -491,7 +491,7 @@ def load_survey(survey_name:str, state:parameters.State, dmvals:np.ndarray,
         Nbeams = 10
     else: # Should only be used for MC analysis
         dfile = survey_name+'.dat'
-        #raise IOError("Bad survey name!!")
+
     # Do it
     srvy=Survey()
     srvy.name = survey_name

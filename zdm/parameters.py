@@ -32,9 +32,9 @@ class BeamParams(myDataClass):
     thresh: int = field(
         default=0,
         metadata={'help': '??'})
-    method: str = field(
-        default='Std',
-        metadata={'help': 'Method for calculation. Full=more detailed and more time. Std=fast'})
+    method: int = field(
+        default=2,
+        metadata={'help': 'Method for calculation. See beams.py:simplify_beam() for options'})
     #Nbeams: List[int] = field(  # can use in list in 3.9
     #    default_factory=list,
     #    #default_factory=[5,5,5,10],

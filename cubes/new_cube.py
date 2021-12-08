@@ -260,4 +260,7 @@ survey=CRAFT_class_I_and_II, lls=47.359007883041286
 /home/xavier/Projects/FRB_Software/zdm/zdm/iteration.py:723: RuntimeWarning: divide by zero encountered in log10
   longlist += np.log10(wzpsnr)
 survey=CRAFT_ICS, lls=nan
+
+# TESTING CONTINUES
+python new_cube.py -n 1 -m 3 -p H0_lite_cube.json -o H0.dat --clobber
 '''
