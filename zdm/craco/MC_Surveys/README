@@ -1,0 +1,6 @@
+This file describes the various Monte Carlo surveys in the 
+folder.  
+
+CRAFT_CRACO_MC_base.dat
+  -- Base survey file used to generate the MCs
+  -- The FRBs within it have no provenence

@@ -1,9 +1,11 @@
 from IPython.terminal.embed import embed
 import numpy as np
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, asdict
 from typing import IO, List
 from astropy.cosmology import Planck18
 import pandas
+
+from zdm import io
 
 # Add a few methods to be shared by them all
 @dataclass
@@ -96,6 +98,9 @@ class FRBDemoParams(myDataClass):
 # Galactic parameters
 @dataclass
 class MWParams(myDataClass):
+    ISM: float = field(
+        default=35.,
+        metadata={'help': 'Assumed DM for the Galactic ISM in units of pc/cm^3'})
     DMhalo: float = field(
         default=50.,
         metadata={'help': 'DM for the Galactic halo in units of pc/cm^3'})
@@ -235,6 +240,22 @@ class State:
         self.cosmo.Omega_b = cosmo.Ob0
         self.cosmo.Omega_b_h2 = cosmo.Ob0 * (cosmo.H0.value/100.)**2
         return
+
+    def to_dict(self):
+        items = []
+        for key in self.params.keys():
+            items.append(self.params[key])
+        uni_items = np.unique(items)
+        #
+        state_dict = {}
+        for uni_item in uni_items:
+            state_dict[uni_item] = asdict(getattr(self, uni_item))
+        # Return
+        return state_dict
+
+    def write(self, outfile):
+        state_dict = self.to_dict()
+        io.savejson(outfile, state_dict, overwrite=True, easy_to_read=True)
 
     def vet(self, obj, dmodel:dict, verbose=True):
         """ Vet the input object against its data model

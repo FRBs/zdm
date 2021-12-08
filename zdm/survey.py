@@ -447,7 +447,7 @@ def make_widths(s:Survey,wlogmean,wlogsigma,nbins,scale=2,thresh=0.5):
 
 
 def load_survey(survey_name:str, state:parameters.State, dmvals:np.ndarray,
-                sdir:str=None, NFRB:int=None):
+                sdir:str=None, NFRB:int=None, Nbeams=None):
     """Load a survey
 
     Args:
@@ -468,20 +468,13 @@ def load_survey(survey_name:str, state:parameters.State, dmvals:np.ndarray,
     print(f"Loading survey: {survey_name}")
     if sdir is None:
         sdir = os.path.join(resource_filename('zdm', 'data'), 'Surveys')
+
+    # Hard code real surveys
     if survey_name == 'CRAFT/FE':
         dfile = 'CRAFT_class_I_and_II.dat'
         Nbeams = 5
     elif survey_name == 'CRAFT/ICS':
         dfile = 'CRAFT_ICS.dat'
-        Nbeams = 5
-    elif survey_name == 'CRAFT/CRACO':
-        dfile = 'CRAFT_CRACO_MC_frbs.dat'
-        Nbeams = 5
-    elif survey_name == 'CRAFT/CRACO_1':  # alpha_method = 1 with 100 FRBs
-        dfile = 'CRAFT_CRACO_MC_frbs_alpha1.dat'
-        Nbeams = 5
-    elif survey_name == 'CRAFT/CRACO_1_5000':  # alpha_method = 1
-        dfile = 'CRAFT_CRACO_MC_frbs_alpha1_5000.dat'
         Nbeams = 5
     elif survey_name == 'CRAFT/ICS892':
         dfile = 'CRAFT_ICS_892.dat'
@@ -489,9 +482,8 @@ def load_survey(survey_name:str, state:parameters.State, dmvals:np.ndarray,
     elif survey_name == 'PKS/Mb':
         dfile = 'parkes_mb_class_I_and_II.dat'
         Nbeams = 10
-    else:
+    else: # Should only be used for MC analysis
         dfile = survey_name+'.dat'
-        Nbeams = 10
         #raise IOError("Bad survey name!!")
     # Do it
     srvy=Survey()

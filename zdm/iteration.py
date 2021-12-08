@@ -527,7 +527,7 @@ def calc_likelihoods_2D(grid,survey, lC,
         FtoE += grid.FtoE[izs2]*dkzs
         
         beam_norm=np.sum(survey.beam_o)
-        
+
         # now do this in one go
         # We integrate p(snr|b,w) p(b,w) db dw. 
         # I have no idea how this could be multidimensional
@@ -608,7 +608,6 @@ def calc_likelihoods_2D(grid,survey, lC,
             f"wzterm={np.sum(np.log10(wzpsnr)):0.2f}," \
             f"comb={np.sum(np.log10(wzpsnr*pvals)):0.2f}")
         
-
     if dolist==0:
         return llsum
     elif dolist==1:
