@@ -46,10 +46,12 @@ def make_grids():
         surveys.append(survey.load_survey(survey_name, state, dmvals))
 
     # generates zdm grids for the specified parameter set
-    if state.beam.method =='Full':
+    if state.beam.method == 3: #'Full':
         gprefix='best'
-    elif state.beam.method =='Std':
+    elif state.beam.method == 2: #'Std':
         gprefix='Std_best'
+    else:
+        raise ValueError("Bad beam method!")
     
     if state.analysis.NewGrids:
         print("Generating new grids, set NewGrids=False to save time later")

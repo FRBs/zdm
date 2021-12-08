@@ -35,10 +35,6 @@ class BeamParams(myDataClass):
     method: int = field(
         default=2,
         metadata={'help': 'Method for calculation. See beams.py:simplify_beam() for options'})
-    #Nbeams: List[int] = field(  # can use in list in 3.9
-    #    default_factory=list,
-    #    #default_factory=[5,5,5,10],
-    #    metadata={'help': '???'})
     Wbins: int = field(
         default=5,
         metadata={'help': '???'})
