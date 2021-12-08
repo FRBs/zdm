@@ -71,8 +71,15 @@ class Survey:
         self.mean_efficiencies=mean_efficiencies #be careful here!!! This may not be what we want!
         return efficiencies
     
-    def process_survey_file(self,filename, NFRB=None):
-        """ Loads a survey file, then creates dictionaries of the loaded variables """
+    def process_survey_file(self,filename:str, NFRB:int=None):
+        """ Loads a survey file, then creates 
+        dictionaries of the loaded variables 
+
+        Args:
+            filename (str): Survey filename
+            NFRB (int, optional): Use only a subset of the FRBs in the Survey file.
+                Mainly used for Monte Carlo analysis
+        """
         info=[]
         keys=[]
         self.meta={} # dict to contain survey metadata, in dictionary format
