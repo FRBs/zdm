@@ -1,15 +1,7 @@
 
 """
-This script illustrates how to generate MC samples and evaluate them
-Note that in this case, only MC samples for:
-- one survey (ASKAP fly's eye)
-- evaluated at the same parameters as they are generated
-- without varying the detected number of bursts
-is generated.
+This script generates MC samples for CRAFT CRACO.
 
-In general, one will want to generate the samples with one set of parameters,
-and then evaluate them with another set of grids.
-Hence the saving of 'mc_sample.npy'
 """
 
 
@@ -35,12 +27,15 @@ from zdm import misc_functions
 
 from IPython import embed
 
+#from zdm import zdm
+#import pcosmic
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 import matplotlib.cm as cm
 import matplotlib
 
 from matplotlib.ticker import NullFormatter
+
 
 matplotlib.rcParams['image.interpolation'] = None
 
@@ -51,12 +46,7 @@ font = {'family' : 'normal',
         'size'   : defaultsize}
 matplotlib.rc('font', **font)
 
-def main(N=100,plots=False):
-    "created N*survey.NFRBs mock FRBs for all surveys"
-    "Input N : creates N*survey.NFRBs"
-    "Output : Sample(list) and Surveys(list)"
-
-
+def main():
         
     ############## Initialise parameters ##############
     state = parameters.State()
@@ -105,6 +95,8 @@ def main(N=100,plots=False):
         vparams['energy']['alpha'] = 0.65
         vparams['energy']['gamma'] = -1.01
         vparams['FRBdemo']['sfr_n'] = 0.73
+        # NOTE: I have not checked what the best-fit value
+        # of lC is for alpha method=1
         vparams['FRBdemo']['lC'] = 1 #not best fit, OK for a once-off
         
         vparams['host']['lmean'] = 2.18
@@ -123,18 +115,16 @@ def main(N=100,plots=False):
     
     ############## Initialise surveys ##############
     
-    #These surveys combine time-normalised and time-unnormalised samples 
-    
    
-    sprefix='Std' # faster - fine for max likelihood calculations, not as pretty
-    # insert more control over detail in grid
-    names = ['CRAFT/FE', 'CRAFT/ICS', 'CRAFT/ICS892', 'PKS/Mb']
     
-    NewSurveys=False
+    #These surveys combine time-normalised and time-unnormalised samples 
+    NewSurveys=True
+    #sprefix='Full' # more detailed estimates. Takes more space and time
+    
+    sprefix='craco_alpha' # faster - fine for max likelihood calculations, not as pretty
+    
     if NewSurveys:
-        surveys = []
-        for survey_name in names:
-            surveys.append(survey.load_survey(survey_name, state, dmvals))
+        surveys=[survey.load_survey('CRAFT_CRACO_MC_frbs_alpha1', state, dmvals)]
         
         if not os.path.isdir('Pickle'):
             os.mkdir('Pickle')
@@ -143,12 +133,9 @@ def main(N=100,plots=False):
     else:
         with open('Pickle/'+sprefix+'surveys.pkl', 'rb') as infile:
             surveys=pickle.load(infile)
+    craco=surveys[0]
     
-    
-    print("Initialised surveys ",names)
-    
-    dirnames=['ASKAP_FE','ASKAP_ICS','ASKAP_ICS892','Parkes_Mb']
-    
+    dirnames=['CRACO']
     gprefix=sprefix
     
     NewGrids=False
@@ -164,42 +151,54 @@ def main(N=100,plots=False):
         with open('Pickle/'+gprefix+'grids.pkl', 'rb') as infile:
             grids=pickle.load(infile)
     
-    glat50=grids[0]
-    gICS=grids[1]
-    gICS892=grids[2]
-    gpks=grids[3]
-    print("Initialised grids")
+    
+    muDM=10**state.host.lmean
+    plot_grid=True
+    if plot_grid:
+        misc_functions.plot_grid_2(grids[0].rates,grids[0].zvals,grids[0].dmvals,FRBZ=craco.frbs["Z"],FRBDM=craco.DMEGs,zmax=1.8,DMmax=2000,name='CRACOalpha/alpha1_mc_frbs_best_zdm_grid.pdf',norm=2,log=True,label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$',project=False,Aconts=[0.01,0.1,0.5],Macquart=muDM)
+    
+    #testing_MC!!! Generate pseudo samples from lat50
+    which=0
+    g=grids[which]
+    s=surveys[which]
+    
+    savefile='CRACOalpha/alpha_mc_sample.npy'
+    
+    try:
+        sample=np.load(savefile)
+        print("Loading ",sample.shape[0]," samples from file ",savefile)
+    except:
+        Nsamples=10000
+        print("Generating ",Nsamples," samples from survey/grid ",which)
+        sample=g.GenMCSample(Nsamples)
+        sample=np.array(sample)
+        np.save(savefile,sample)
     
     
-    samples = []
-    for i in range(len(surveys)):
-        # testing_MC!!! Generate pseudo samples from all surveys
-        g = grids[i]
-        s = surveys[i]
-        name = i
-        name = str(name)
-    
-        savefile='mc_sample_'+name+'_alpha_'+str(alpha_method)+str(N)+'.npy'
-    
-        try:
-            sample=np.load(savefile)
-            print("Loading ",sample.shape[0]," samples from file ",savefile)
-        except:
-            Nsamples=s.NFRB*N
-            print("Generating ",Nsamples," samples from survey/grid ",i)
-            sample=g.GenMCSample(Nsamples)
-            sample=np.array(sample)
-            np.save(savefile,sample)
-
-        samples.append(sample)
-            
-        if plots:
-            #plot some sample plots
-            do_basic_sample_plots(sample)
-            #evaluate_mc_sample_v1(g,s,pset,sample)
-            evaluate_mc_sample_v2(g,s,pset,sample)
+    #sample
+    # 0: z
+    # 1: DM
+    # 2: b
+    # 3: w
+    # 4: s
+    # plot some sample plots
+    do_basic_sample_plots(sample,opdir='CRACOalpha')
+    NFRB=5000
+    for i in np.arange(NFRB):
+        DMG=35
+        DMEG=sample[i,1]
+        DMtot=DMEG+DMG+state.MW.DMhalo
+        SNRTHRESH=9.5
+        SNR=SNRTHRESH*sample[i,4]
+        z=sample[i,0]
+        w=sample[i,3]
         
-    return samples,surveys
+        string="FRB "+str(i)+'  {:6.1f}  35   {:6.1f}  {:5.3f}   {:5.1f}  {:5.1f}'.format(DMtot,DMEG,z,SNR,w)
+        #print("FRB ",i,DMtot,SNR,DMEG,w)
+        print (string)
+    exit()
+    #evaluate_mc_sample_v1(g,s,pset,sample)
+    evaluate_mc_sample_v2(g,s,pset,sample)
     
     
 def evaluate_mc_sample_v1(grid,survey,pset,sample,opdir='Plots'):
@@ -251,7 +250,7 @@ def evaluate_mc_sample_v1(grid,survey,pset,sample,opdir='Plots'):
     plt.close()
 
 
-def evaluate_mc_sample_v2(grid,survey,pset,sample,opdir='Plots',Nsubsamp=1000,title=''):
+def evaluate_mc_sample_v2(grid,survey,pset,sample,opdir='Plots',Nsubsamp=1000):
     """
     Evaluates the likelihoods for an MC sample of events
     First, gets likelihoods for entire set of FRBs
@@ -283,7 +282,6 @@ def evaluate_mc_sample_v2(grid,survey,pset,sample,opdir='Plots',Nsubsamp=1000,ti
     plt.xlabel('Individual Psnr,Pzdm log likelihoods [log10]')
     plt.ylabel('p(ll)')
     plt.tight_layout()
-    plt.title(title)
     plt.savefig(opdir+'/individual_ll_histogram.pdf')
     plt.close()
     
@@ -308,7 +306,7 @@ def evaluate_mc_sample_v2(grid,survey,pset,sample,opdir='Plots',Nsubsamp=1000,ti
     print("Finished after ",dt," seconds")
     
     
-def do_basic_sample_plots(sample,opdir='Plots',title=''):
+def do_basic_sample_plots(sample,opdir='Plots'):
     """
     Data order is DM,z,b,w,s
     
@@ -323,7 +321,6 @@ def do_basic_sample_plots(sample,opdir='Plots',title=''):
     plt.ylabel('Sampled DMs')
     plt.tight_layout()
     plt.savefig(opdir+'/DM_histogram.pdf')
-    plt.title(title)
     plt.close()
     
     plt.figure()
@@ -332,7 +329,6 @@ def do_basic_sample_plots(sample,opdir='Plots',title=''):
     plt.ylabel('Sampled redshifts')
     plt.tight_layout()
     plt.savefig(opdir+'/z_histogram.pdf')
-    plt.title(title)
     plt.close()
     
     bs=sample[:,2]
@@ -341,7 +337,6 @@ def do_basic_sample_plots(sample,opdir='Plots',title=''):
     plt.xlabel('log10 beam value')
     plt.yscale('log')
     plt.ylabel('Sampled beam bin')
-    plt.title(title)
     plt.tight_layout()
     plt.savefig(opdir+'/b_histogram.pdf')
     plt.close()
@@ -353,7 +348,6 @@ def do_basic_sample_plots(sample,opdir='Plots',title=''):
     plt.ylabel('Sampled width bin')
     plt.yscale('log')
     plt.tight_layout()
-    plt.title(title)
     plt.savefig(opdir+'/w_histogram.pdf')
     plt.close()
     
@@ -364,9 +358,7 @@ def do_basic_sample_plots(sample,opdir='Plots',title=''):
     plt.yscale('log')
     plt.ylabel('Sampled $s$')
     plt.tight_layout()
-    plt.title(title)
-    
     plt.savefig(opdir+'/s_histogram.pdf')
     plt.close()
     
-#main()
+main()
