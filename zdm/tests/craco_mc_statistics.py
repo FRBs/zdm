@@ -1,15 +1,7 @@
 
 """
-This script illustrates how to generate MC samples and evaluate them
-Note that in this case, only MC samples for:
-- one survey (ASKAP fly's eye)
-- evaluated at the same parameters as they are generated
-- without varying the detected number of bursts
-is generated.
+This script generates MC samples for CRAFT CRACO.
 
-In general, one will want to generate the samples with one set of parameters,
-and then evaluate them with another set of grids.
-Hence the saving of 'mc_sample.npy'
 """
 
 
@@ -35,12 +27,15 @@ from zdm import misc_functions
 
 from IPython import embed
 
+#from zdm import zdm
+#import pcosmic
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 import matplotlib.cm as cm
 import matplotlib
 
 from matplotlib.ticker import NullFormatter
+
 
 matplotlib.rcParams['image.interpolation'] = None
 
@@ -52,7 +47,6 @@ font = {'family' : 'normal',
 matplotlib.rc('font', **font)
 
 def main():
-
         
     ############## Initialise parameters ##############
     state = parameters.State()
@@ -101,6 +95,8 @@ def main():
         vparams['energy']['alpha'] = 0.65
         vparams['energy']['gamma'] = -1.01
         vparams['FRBdemo']['sfr_n'] = 0.73
+        # NOTE: I have not checked what the best-fit value
+        # of lC is for alpha method=1
         vparams['FRBdemo']['lC'] = 1 #not best fit, OK for a once-off
         
         vparams['host']['lmean'] = 2.18
@@ -119,18 +115,16 @@ def main():
     
     ############## Initialise surveys ##############
     
-    #These surveys combine time-normalised and time-unnormalised samples 
-    
    
-    sprefix='Std' # faster - fine for max likelihood calculations, not as pretty
-    # insert more control over detail in grid
-    names = ['CRAFT/FE', 'CRAFT/ICS', 'CRAFT/ICS892', 'PKS/Mb']
     
-    NewSurveys=False
+    #These surveys combine time-normalised and time-unnormalised samples 
+    NewSurveys=True
+    #sprefix='Full' # more detailed estimates. Takes more space and time
+    
+    sprefix='craco_alpha' # faster - fine for max likelihood calculations, not as pretty
+    
     if NewSurveys:
-        surveys = []
-        for survey_name in names:
-            surveys.append(survey.load_survey(survey_name, state, dmvals))
+        surveys=[survey.load_survey('CRAFT_CRACO_MC_frbs_alpha1', state, dmvals)]
         
         if not os.path.isdir('Pickle'):
             os.mkdir('Pickle')
@@ -139,12 +133,9 @@ def main():
     else:
         with open('Pickle/'+sprefix+'surveys.pkl', 'rb') as infile:
             surveys=pickle.load(infile)
+    craco=surveys[0]
     
-    
-    print("Initialised surveys ",names)
-    
-    dirnames=['ASKAP_FE','ASKAP_ICS','ASKAP_ICS892','Parkes_Mb']
-    
+    dirnames=['CRACO']
     gprefix=sprefix
     
     NewGrids=False
@@ -160,19 +151,18 @@ def main():
         with open('Pickle/'+gprefix+'grids.pkl', 'rb') as infile:
             grids=pickle.load(infile)
     
-    glat50=grids[0]
-    gICS=grids[1]
-    gICS892=grids[2]
-    gpks=grids[3]
-    print("Initialised grids")
     
+    muDM=10**state.host.lmean
+    plot_grid=True
+    if plot_grid:
+        misc_functions.plot_grid_2(grids[0].rates,grids[0].zvals,grids[0].dmvals,FRBZ=craco.frbs["Z"],FRBDM=craco.DMEGs,zmax=1.8,DMmax=2000,name='CRACOalpha/alpha1_mc_frbs_best_zdm_grid.pdf',norm=2,log=True,label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$',project=False,Aconts=[0.01,0.1,0.5],Macquart=muDM)
     
     #testing_MC!!! Generate pseudo samples from lat50
     which=0
     g=grids[which]
     s=surveys[which]
     
-    savefile='mc_sample.npy'
+    savefile='CRACOalpha/alpha_mc_sample.npy'
     
     try:
         sample=np.load(savefile)
@@ -184,9 +174,29 @@ def main():
         sample=np.array(sample)
         np.save(savefile,sample)
     
-    # plot some sample plots
-    #do_basic_sample_plots(sample)
     
+    #sample
+    # 0: z
+    # 1: DM
+    # 2: b
+    # 3: w
+    # 4: s
+    # plot some sample plots
+    do_basic_sample_plots(sample,opdir='CRACOalpha')
+    NFRB=5000
+    for i in np.arange(NFRB):
+        DMG=35
+        DMEG=sample[i,1]
+        DMtot=DMEG+DMG+state.MW.DMhalo
+        SNRTHRESH=9.5
+        SNR=SNRTHRESH*sample[i,4]
+        z=sample[i,0]
+        w=sample[i,3]
+        
+        string="FRB "+str(i)+'  {:6.1f}  35   {:6.1f}  {:5.3f}   {:5.1f}  {:5.1f}'.format(DMtot,DMEG,z,SNR,w)
+        #print("FRB ",i,DMtot,SNR,DMEG,w)
+        print (string)
+    exit()
     #evaluate_mc_sample_v1(g,s,pset,sample)
     evaluate_mc_sample_v2(g,s,pset,sample)
     
@@ -255,12 +265,12 @@ def evaluate_mc_sample_v2(grid,survey,pset,sample,opdir='Plots',Nsubsamp=1000):
     NFRBs=s.NFRB
     
     s.NFRB=nsamples # NOTE: does NOT change the assumed normalised FRB total!
-    s.DMEGs=sample[:,0]
+    s.DMEGs=sample[:,1]
     s.Ss=sample[:,4]
     if s.nD==1: # DM, snr only
         llsum,lllist,expected,longlist=it.calc_likelihoods_1D(grid,s,pset,psnr=True,Pn=True,dolist=2)
     else:
-        s.Zs=sample[:,1]
+        s.Zs=sample[:,0]
         llsum,lllist,expected,longlist=it.calc_likelihoods_2D(grid,s,pset,psnr=True,Pn=True,dolist=2)
     
     # we should preserve the normalisation factor for Tobs from lllist

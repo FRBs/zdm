@@ -244,19 +244,19 @@ class Grid:
         self.rates=self.pdv*self.sfr_smear
         
         #try:
-        #	self.smear_grid
+        #    self.smear_grid
         #except:
-        #	print("WARNING: DM grid has not yet been smeared for DMx!")
-        #	self.pdv_smear=self.pdv*self.grid
+        #    print("WARNING: DM grid has not yet been smeared for DMx!")
+        #    self.pdv_smear=self.pdv*self.grid
         #else:
-        #	self.pdv_smear=self.pdv*self.sfr_smear
+        #    self.pdv_smear=self.pdv*self.sfr_smear
         #
         #try:
-        #	self.sfr
+        #    self.sfr
         #except:
-        #	print("WARNING: no evolutionary weight yet applied")
+        #    print("WARNING: no evolutionary weight yet applied")
         #else:
-        #	self.rates=np.multiply(self.pdv_smear.T,self.sfr).T
+        #    self.rates=np.multiply(self.pdv_smear.T,self.sfr).T
             # we do not NEED the following, but it records this info 
             # for faster computation later
             #self.sfr_smear_grid=np.multiply(self.smear_grid.T,self.sfr).T
@@ -328,9 +328,9 @@ class Grid:
         self.smear_grid=np.zeros([lz,ldm])
         self.smear=smear
         #for j in np.arange(ls,ldm):
-        #	self.smear_grid[:,j]=np.sum(np.multiply(self.grid[:,j-ls:j],smear[::-1]),axis=1)
+        #    self.smear_grid[:,j]=np.sum(np.multiply(self.grid[:,j-ls:j],smear[::-1]),axis=1)
         #for j in np.arange(ls):
-        #	self.smear_grid[:,j]=np.sum(np.multiply(self.grid[:,:j+1],np.flip(smear[:j+1])),axis=1)
+        #    self.smear_grid[:,j]=np.sum(np.multiply(self.grid[:,:j+1],np.flip(smear[:j+1])),axis=1)
         
         # this method is O~7 times faster than the 'brute force' above for large arrays
         for i in np.arange(lz):
@@ -380,6 +380,7 @@ class Grid:
         sample=[]
         pwb=None #feeds this back to save time. Lots of time.
         for i in np.arange(NFRB):
+            print(i)
             frb,pwb=self.GenMCFRB(pwb)
             sample.append(frb)
         sample=np.array(sample)
@@ -399,7 +400,15 @@ class Grid:
             not the width itelf.
         
         """
-        # grid of beam values, weights
+        
+    	# shorthand
+        lEmin=self.state.energy.lEmin
+        lEmax=self.state.energy.lEmax
+        gamma=self.state.energy.gamma
+        Emin=10**lEmin
+        Emax=10**lEmax
+        
+    	# grid of beam values, weights
         nw=self.eff_weights.size
         nb=self.beam_b.size
         
@@ -414,7 +423,7 @@ class Grid:
             for i,b in enumerate(self.beam_b):
                 for j,w in enumerate(self.eff_weights):
                     # each of the following is a 2D array over DM, z which we sum to generate B,w values
-                    wb_fraction=self.beam_o[i]*w*self.array_cum_lf(self.thresholds[j,:,:]/b,self.Emin,self.Emax,self.gamma)
+                    wb_fraction=self.beam_o[i]*w*self.array_cum_lf(self.thresholds[j,:,:]/b,Emin,Emax,gamma)
                     pdv=np.multiply(wb_fraction.T,self.dV).T
                     rate=pdv*self.sfr_smear
                     pwb[i*nw+j]=np.sum(rate)
@@ -432,8 +441,8 @@ class Grid:
         MCw=self.eff_weights[j]
         
         # calculate zdm distribution for sampled w,b only
-        pzDM=self.array_cum_lf(self.thresholds[j,:,:]/MCb,self.Emin,self.Emax,self.gamma)
-        wb_fraction=self.array_cum_lf(self.thresholds[j,:,:]/MCb,self.Emin,self.Emax,self.gamma)
+        pzDM=self.array_cum_lf(self.thresholds[j,:,:]/MCb,Emin,Emax,gamma)
+        wb_fraction=self.array_cum_lf(self.thresholds[j,:,:]/MCb,Emin,Emax,gamma)
         pdv=np.multiply(wb_fraction.T,self.dV).T
         pzDM=pdv*self.sfr_smear
         
@@ -496,8 +505,8 @@ class Grid:
         
         # NOW GET snr
         #Eth=self.thresholds[j,k,l]/MCb
-        Es=np.logspace(np.log10(Eth),np.log10(self.Emax),100)
-        PEs=self.vector_cum_lf(Es,self.Emin,self.Emax,self.gamma)
+        Es=np.logspace(np.log10(Eth),np.log10(Emax),100)
+        PEs=self.vector_cum_lf(Es,Emin,Emax,gamma)
         PEs /= PEs[0] # normalises: this is now cumulative distribution from 1 to 0
         r=np.random.rand(1)[0]
         iE1=np.where(PEs>r)[0][-1] #returns list starting at 0 and going upwards

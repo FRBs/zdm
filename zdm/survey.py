@@ -34,8 +34,8 @@ class Survey:
     
     # NEXT STEP: go ahead and try to generate a weighted DM-z distribution, see how you go! (fool...)
     #def get_jyms():
-    #	for i in np.arange(self.NFRB):
-    #		jyms=width**0.5 * SNR/efficiency
+    #    for i in np.arange(self.NFRB):
+    #        jyms=width**0.5 * SNR/efficiency
     
     def get_efficiency(self,DMlist,model="Quadrature",dsmear=True):
         """ Gets efficiency to FRBs
@@ -104,13 +104,13 @@ class Survey:
         self.info=info
         self.keys=keys
         #try:
-        #	iNFRB=keys.index('NFRB')
+        #    iNFRB=keys.index('NFRB')
         #except:
         self.NFRB=keys.count('FRB')
         if self.NFRB==0:
             raise ValueError('No FRBs found in file '+filename) #change this?
         #else:
-        #	self.NFRB=int(info[iNFRB][0])
+        #    self.NFRB=int(info[iNFRB][0])
         self.meta['NFRB']=self.NFRB
         
         #### separates FRB and non-FRB keys
@@ -203,11 +203,11 @@ class Survey:
     
     def do_keyword(self,key,which=3,default=-1):
         """ This kind of key can either be in the metadata, or the table, not both
-        IF which == 	1: must be metadata
+        IF which ==     1: must be metadata
                 2: must be FRB-by-FRB
                 3: could be either
         
-        If default == 	None: it is OK to not be present
+        If default ==     None: it is OK to not be present
                 -1: fail if not there
                 Another value: set this as the default
         """
@@ -240,11 +240,11 @@ class Survey:
     
     def do_keyword_char(self,key,which,default=-1):
         """ This kind of key can either be in the metadata, or the table, not both
-        IF which == 	1: must be metadata
+        IF which ==     1: must be metadata
                 2: must be FRB-by-FRB
                 3: could be either
         
-        If default == 	None: it is OK to not be present
+        If default ==     None: it is OK to not be present
                 -1: fail if not there
                 Another value: set this as the default
         """
@@ -305,7 +305,7 @@ class Survey:
         print(self.keylist)
         exit()
         #if key in self.keys:
-        #	return self.keys
+        #    return self.keys
     
     def init_beam(self,nbins=10,plot=False,method=1,thresh=1e-3,Gauss=False):
         """ Initialises the beam """
@@ -471,13 +471,15 @@ def load_survey(survey_name:str, state:parameters.State, dmvals:np.ndarray,
         dfile = 'parkes_mb_class_I_and_II.dat'
         Nbeams = 10
     else:
-        raise IOError("Bad survey name!!")
+        dfile = survey_name+'.dat'
+        Nbeams = 10
+        #raise IOError("Bad survey name!!")
     # Do it
     srvy=Survey()
     srvy.name = survey_name
     srvy.process_survey_file(os.path.join(sdir, dfile))
     srvy.init_DMEG(state.MW.DMhalo)
-    srvy.init_beam(nbins=Nbeams, method=2, plot=False,
+    srvy.init_beam(nbins=Nbeams, method=state.beam.method, plot=False,
                 thresh=state.beam.thresh) # tells the survey to use the beam file
     pwidths,pprobs=make_widths(srvy, 
                                     state.width.logmean,
