@@ -11,23 +11,13 @@
 # but in the current implementation it is not removed.
 import argparse
 import numpy as np
-import os
-from pkg_resources import resource_filename
 import matplotlib
 from matplotlib import pyplot as plt
 
-from astropy.cosmology import Planck15, Planck18
-
-from zdm import survey
-from zdm import parameters
-from zdm import cosmology as cos
-from zdm import misc_functions
 from zdm import iteration as it
-from zdm.tests import craco 
+from zdm.craco import loading
 
 from IPython import embed
-
-import pickle
 
 matplotlib.rcParams['image.interpolation'] = None
 
@@ -48,8 +38,7 @@ matplotlib.rc('font', **font)
 
 def main(pargs):
 
-    isurvey, igrid = craco.load_craco(cosmo=pargs.cosmo,
-                                      survey_name=pargs.survey,
+    isurvey, igrid = loading.survey_and_grid(survey_name=pargs.survey,
                                       NFRB=pargs.nFRB,
                                       lum_func=pargs.lum_func)
     surveys = [isurvey]                                      
@@ -128,9 +117,8 @@ parser.add_argument('max',type=float,help="maximum value")
 parser.add_argument('--nstep',type=int,default=10,required=False,help="number of steps")
 parser.add_argument('--nFRB',type=int,default=1000,required=False,help="number of FRBs to analyze")
 parser.add_argument('-o','--opfile',type=str,required=False,help="Output file for the data")
-parser.add_argument('--cosmo',type=str,default='Planck18', required=False,help="Output file for the data")
-parser.add_argument('--survey',type=str,default='CRAFT/CRACO_1_5000',
-                    required=False,help="Output file for the data")
+parser.add_argument('--survey',type=str,default='CRACO_alpha1_Planck18',
+                    required=False,help="Survey name")
 parser.add_argument('--lum_func',type=int,default=0, required=False,help="Luminosity function (0=power-law, 1=gamma)")
 pargs = parser.parse_args()
 
@@ -138,17 +126,23 @@ pargs = parser.parse_args()
 main(pargs)
 
 '''
+# OUT OF DATE TESTS
 python test_with_craco.py sfr_n 0.2 2. --nstep 100 --nFRB 1000 --cosmo Planck15 -o CRACO_1000_sfr_n.png
 python test_with_craco.py gamma -1.5 -0.8 --nstep 30 --nFRB 1000 --cosmo Planck15 -o CRACO_1000_gamma.png
 python test_with_craco.py alpha 0.0 1.0 --nstep 50 --nFRB 1000 --cosmo Planck15 -o CRACO_1000_alpha.png
 python test_with_craco.py lEmax 41. 43. --nstep 50 --nFRB 1000 --cosmo Planck15 -o CRACO_1000_lEmax.png
 python test_with_craco.py H0 60. 80. --nstep 50 --nFRB 1000 --cosmo Planck15 -o CRACO_1000_H0.png
 python test_with_craco.py lmean 1.9 2.5  --nstep 30 --nFRB 1000 --cosmo Planck15 -o CRACO_1000_lmean.png
+# OUT OF DATE TESTS
 #
 python test_with_craco.py alpha 0.0 1.0 --nstep 50 --nFRB 100 --cosmo Planck15 --survey CRAFT/CRACO_1 -o CRACO_100_alpha_anew.png
 python test_with_craco.py H0 60.0 80.0 --nstep 50 --nFRB 100 --cosmo Planck15 --survey CRAFT/CRACO_1 -o CRACO_100_H0_Gamma_new.png --lum_func 1
 python test_with_craco.py lEmax 41. 43. --nstep 50 --nFRB 100 --cosmo Planck15 --survey CRAFT/CRACO_1 -o CRACO_100_Emax_Gamma_new.png --lum_func 1
 python test_with_craco.py H0 60.0 80.0 --nstep 50 --nFRB 100 --cosmo Planck15 --survey CRAFT/CRACO_1 -o CRACO_100_H0_new.png 
 python test_with_craco.py lEmax 41. 43. --nstep 50 --nFRB 100 --cosmo Planck15 --survey CRAFT/CRACO_1 -o CRACO_100_Emax_new.png 
+
+# Newest round
+python testing.py lEmax 41. 43. --nstep 50 --nFRB 100 -o MC_Plots/CRACO_100_Emax_new.png 
+python testing.py H0 60. 80. --nstep 50 --nFRB 100 -o MC_Plots/CRACO_100_H0.png 
 #
 '''
