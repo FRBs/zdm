@@ -28,6 +28,8 @@ class Grid:
                 Defines the parameters of the analysis
                 Note, each grid holds the *same* copy so modifying
                 it in one place affects them all.
+            wdist (bool):
+                If True, allow for a distribution of widths
         """
         self.grid=None
         self.survey = survey
