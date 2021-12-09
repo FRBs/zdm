@@ -1,9 +1,11 @@
 from IPython.terminal.embed import embed
 import numpy as np
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, asdict
 from typing import IO, List
 from astropy.cosmology import Planck18
 import pandas
+
+from zdm import io
 
 # Add a few methods to be shared by them all
 @dataclass
@@ -30,13 +32,9 @@ class BeamParams(myDataClass):
     thresh: int = field(
         default=0,
         metadata={'help': '??'})
-    method: str = field(
-        default='Std',
-        metadata={'help': 'Method for calculation. Full=more detailed and more time. Std=fast'})
-    #Nbeams: List[int] = field(  # can use in list in 3.9
-    #    default_factory=list,
-    #    #default_factory=[5,5,5,10],
-    #    metadata={'help': '???'})
+    method: int = field(
+        default=2,
+        metadata={'help': 'Method for calculation. See beams.py:simplify_beam() for options'})
     Wbins: int = field(
         default=5,
         metadata={'help': '???'})
@@ -68,9 +66,6 @@ class CosmoParams(myDataClass):
     Omega_b_h2: float = field(
         default=Planck18.Ob0 * (Planck18.H0.value/100.)**2,
         metadata={'help': 'Baryon density weighted by h_100**2.  This should always be the CMB value!'})
-    fixed_H0: float = field(
-        default=Planck18.H0.value,
-        metadata={'help': "Hubble's constant (km/s/Mpc) for the fixed Omega_h2 value"})
     fix_Omega_b_h2: bool = field(
         default=True,
         metadata={'help': 'Fix Omega_b_h2 by the Placnk18 value?'})
@@ -99,6 +94,9 @@ class FRBDemoParams(myDataClass):
 # Galactic parameters
 @dataclass
 class MWParams(myDataClass):
+    ISM: float = field(
+        default=35.,
+        metadata={'help': 'Assumed DM for the Galactic ISM in units of pc/cm^3'})
     DMhalo: float = field(
         default=50.,
         metadata={'help': 'DM for the Galactic halo in units of pc/cm^3'})
@@ -145,6 +143,9 @@ class EnergeticsParams(myDataClass):
     gamma: float = field(
         default = -1.16,
         metadata={'help': 'slope of luminosity distribution function'})
+    luminosity_function: int = field(
+        default = 0,
+        metadata={'help': 'luminosity function applied (0=power-law, 1=gamma)'})
 
 class State:
     """ Initialize the full state for the analysis 
@@ -221,6 +222,36 @@ class State:
         else:
             raise IOError('Bad mode')
     '''
+
+    def set_astropy_cosmo(self, cosmo):
+        """Slurp the values from an astropy Cosmology object
+        into our format
+
+        Args:
+            cosmo (astropy.cosmology): [description]
+        """
+        self.cosmo.H0 = cosmo.H0.value
+        self.cosmo.Omega_lambda = cosmo.Ode0
+        self.cosmo.Omega_m = cosmo.Om0
+        self.cosmo.Omega_b = cosmo.Ob0
+        self.cosmo.Omega_b_h2 = cosmo.Ob0 * (cosmo.H0.value/100.)**2
+        return
+
+    def to_dict(self):
+        items = []
+        for key in self.params.keys():
+            items.append(self.params[key])
+        uni_items = np.unique(items)
+        #
+        state_dict = {}
+        for uni_item in uni_items:
+            state_dict[uni_item] = asdict(getattr(self, uni_item))
+        # Return
+        return state_dict
+
+    def write(self, outfile):
+        state_dict = self.to_dict()
+        io.savejson(outfile, state_dict, overwrite=True, easy_to_read=True)
 
     def vet(self, obj, dmodel:dict, verbose=True):
         """ Vet the input object against its data model

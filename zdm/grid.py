@@ -28,9 +28,12 @@ class Grid:
                 Defines the parameters of the analysis
                 Note, each grid holds the *same* copy so modifying
                 it in one place affects them all.
+            wdist (bool):
+                If True, allow for a distribution of widths
         """
         self.grid=None
         self.survey = survey
+        self.verbose=False
         # Beam
         self.beam_b=survey.beam_b
         self.beam_o=survey.beam_o
@@ -40,9 +43,8 @@ class Grid:
 
         self.source_function=cos.choose_source_evolution_function(
             state.FRBdemo.source_evolution)
-        #self.alpha_method=alpha_method
-        #
-        self.luminosity_function=0
+
+        self.luminosity_function = self.state.energy.luminosity_function
         self.init_luminosity_functions()
 
         # Init the grid
@@ -65,11 +67,16 @@ class Grid:
         self.calc_rates() #includes sfr smearing factors and pdv mult
 
     def init_luminosity_functions(self):
-        if self.luminosity_function==0:
+        if self.luminosity_function==0:  # Power-law
             self.array_cum_lf=zdm.array_cum_power_law
             self.vector_cum_lf=zdm.vector_cum_power_law
             self.array_diff_lf=zdm.array_diff_power_law
             self.vector_diff_lf=zdm.vector_diff_power_law
+        elif self.luminosity_function==1:  # Gamma function
+            self.array_cum_lf=zdm.array_cum_gamma
+            self.vector_cum_lf=zdm.vector_cum_gamma
+            self.array_diff_lf=zdm.array_diff_gamma
+            self.vector_diff_lf=zdm.vector_diff_gamma
         else:
             raise ValueError("Luminosity function must be 0, not ",self.luminosity_function)
     
@@ -112,7 +119,8 @@ class Grid:
                 raise ValueError("wrong shape of grid for zvals and dm vals")
         else:
             if shape[1] == self.ndm:
-                print("Grid successfully initialised")
+                if self.verbose:
+                    print("Grid successfully initialised")
             else:
                 raise ValueError("wrong shape of grid for zvals and dm vals")
         
@@ -617,6 +625,8 @@ class Grid:
         # ###########################
         # NOW DO THE REAL WORK!!
 
+        # TODO -- For cubes with multiple surveys can we do these
+        #   first two steps (even the first 5!) only once??
         # Update cosmology?
         if reset_cos:
             cos.set_cosmology(self.state)

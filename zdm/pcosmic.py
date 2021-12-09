@@ -20,6 +20,7 @@ from astropy.cosmology import FlatLambdaCDM
 from frb.dm import igm
 from zdm import cosmology as cos
 from zdm import parameters
+from zdm import c_code
 
 import scipy as sp
 #import astropy.units as u
@@ -97,7 +98,7 @@ def get_mean_DM(zeds, state:parameters.State):
         state (parameters.State): 
 
     Returns:
-        np.ndarray: [description]
+        np.ndarray: DM_cosmic
     """
     # Generate the cosmology
     cosmo = FlatLambdaCDM(H0=state.cosmo.H0, 
@@ -107,13 +108,12 @@ def get_mean_DM(zeds, state:parameters.State):
     zmax=zeds[-1]
     nz=zeds.size
     DMbar, zeval = igm.average_DM(
-        zmax, cosmo=cosmo, cumul=True, neval=nz) #neval=nz+1 was giving 
-                                                              #wrong dimension
-    #added H0 dependency
-    #DMbar = DMbar*current_H0/(cosmo_H0)
-    DMbar=np.array(DMbar)
+        zmax, cosmo=cosmo, cumul=True, neval=nz+1)
 
-    return DMbar
+    # Check
+    assert np.allclose(zeds, zeval[1:])
+                                                              #wrong dimension
+    return DMbar[1:].value
     
 
 def get_C0(z,F,zgrid,Fgrid,C0grid):
@@ -130,14 +130,14 @@ def get_C0(z,F,zgrid,Fgrid,C0grid):
     iz2=np.where(zgrid>z)[0] # gets first element greater than
     iz1=iz2-1
     kz1=(zgrid[iz2]-z)/(zgrid[iz2]-zgrid[iz1])
-    kz2=1.-k1
+    kz2=1.-kz1
     
     iF2=np.where(Fgrid>F)[0] # gets first element greater than
     iF1=iF2-1
     kF1=(Fgrid[iF2]-F)/(Fgrid[iF2]-Fgrid[iF1])
     kF2=1.-kF1
     
-    C0=kz1*kF1*C0grid[iz1,iF1] + kz2*kF1C0grid[iz2,iF1] + kz1*kF2*C0grid[iz1,iF2] + kz2*kF2*C0grid[iz2,iF2]
+    C0=kz1*kF1*C0grid[iz1,iF1] + kz2*kF1*C0grid[iz2,iF1] + kz1*kF2*C0grid[iz1,iF2] + kz2*kF2*C0grid[iz2,iF2]
     return C0
     
     
@@ -146,11 +146,11 @@ def get_pDM(z,F,DMgrid,zgrid,Fgrid,C0grid):
     C0=get_C0(z,F,zgrid,Fgrid,C0grid)
     DMbar=get_mean_DM(z)
     deltas=DMgrid/DMbar
-    pDM=pcosmic(deltasm,z,F,C0)
+    pDM=pcosmic(deltas,z,F,C0)
     return pDM
 
 
-def get_pDM_grid(state:parameters.State, DMgrid,zgrid,C0s):
+def get_pDM_grid(state:parameters.State, DMgrid,zgrid,C0s, verbose=False):
     """ Gets pDM when the zvals are the same as the zgrid
     state
     C0grid: C0 values obtained by convergence
@@ -163,7 +163,8 @@ def get_pDM_grid(state:parameters.State, DMgrid,zgrid,C0s):
     DMbars=get_mean_DM(zgrid, state)
     
     pDMgrid=np.zeros([zgrid.size,DMgrid.size])
-    print("shapes and sizes are ",C0s.size,pDMgrid.shape,DMbars.shape)
+    if verbose:
+        print("shapes and sizes are ",C0s.size,pDMgrid.shape,DMbars.shape)
     # iterates over zgrid to calculate p_delta_DM
     for i,z in enumerate(zgrid):
         deltas=DMgrid/DMbars[i] # since pDM is defined such that the mean is 1
@@ -195,10 +196,10 @@ def loglognormal_dlog(logDM,*args):
     '''
     logmean=args[0]
     logsigma=args[1]
-    norm=(2.*np.pi)**-0.5/logsigma
+    norm=args[2]
     return norm*np.exp(-0.5*((logDM-logmean)/logsigma)**2)
 
-def plot_mean(zvals,saveas):
+def plot_mean(zvals,saveas, title="Mean DM"):
     
     mean=get_mean_DM(zvals)
     plt.figure()
@@ -206,6 +207,7 @@ def plot_mean(zvals,saveas):
     plt.ylabel('$\\overline{\\rm DM}$')
     plt.plot(zvals,mean,linewidth=2)
     plt.tight_layout()
+    plt.title(title)
     plt.savefig(saveas)
     plt.show()
     plt.close()
@@ -284,8 +286,10 @@ def get_dm_mask(dmvals, params, zvals=None, plot=False):
 def integrate_pdm(ddm,ndm,logmean,logsigma,csumcut=0.999):
     # do this for the z=0 case
     mask=np.zeros([ndm])
-    args=(logmean,logsigma)
-    pdm,err=sp.integrate.quad(loglognormal_dlog,np.log(ddm*0.5)-logsigma*10,np.log(ddm*0.5),args=args)
+    norm=(2.*np.pi)**-0.5/logsigma
+    args=(logmean,logsigma,norm)
+    #pdm,err=sp.integrate.quad(loglognormal_dlog,np.log(ddm*0.5)-logsigma*10,np.log(ddm*0.5),args=args)
+    pdm,err=sp.integrate.quad(c_code.func_ll,np.log(ddm*0.5)-logsigma*10,np.log(ddm*0.5),args=args)
     mask[0]=pdm
     #csum=pdm
     #imax=ndm
@@ -295,7 +299,8 @@ def integrate_pdm(ddm,ndm,logmean,logsigma,csumcut=0.999):
         #    break
         dmmin=(i-0.5)*ddm
         dmmax=dmmin+ddm
-        pdm,err=sp.integrate.quad(loglognormal_dlog,np.log(dmmin),np.log(dmmax),args=(logmean,logsigma))
+        #pdm,err=sp.integrate.quad(loglognormal_dlog,np.log(dmmin),np.log(dmmax),args=(logmean,logsigma))
+        pdm,err=sp.integrate.quad(c_code.func_ll,np.log(dmmin),np.log(dmmax),args=args)#(logmean,logsigma))
         #csum += pdm
         mask[i]=pdm
         

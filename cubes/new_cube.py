@@ -32,6 +32,7 @@ from zdm import cosmology as cos
 from zdm import misc_functions
 from zdm import pcosmic
 from zdm import iteration as it
+from zdm import io
 
 from IPython import embed
 
@@ -60,8 +61,17 @@ def main(Cube):
     # Location for maximisation output
     outdir='Cube/'
 
+    #psetmins,psetmaxes,nvals=misc_functions.process_pfile(Cube[2])
+    input_dict=io.process_jfile(Cube[2])
+    # Deconstruct the input_dict
+    state_dict, cube_dict, vparam_dict = it.parse_input_dict(input_dict)
+
     ############## Initialise parameters ##############
     state = parameters.State()
+    state.update_param_dict(state_dict)
+
+    # alpha-method
+    state.FRBdemo.alpha_method = 1
 
     # Cosmology
     cos.set_cosmology(state)
@@ -188,9 +198,8 @@ def main(Cube):
         
         if not os.path.exists(outdir):
             os.mkdir(outdir)
-        
-        #psetmins,psetmaxes,nvals=misc_functions.process_pfile(Cube[2])
-        vparam_dict=misc_functions.process_jfile(Cube[2])
+
+        # Set what portion of the Cube we are generating 
         run=Cube[0]
         howmany=Cube[1]
         opfile=Cube[3]
@@ -208,7 +217,7 @@ def main(Cube):
         # Check cosmology
         print(f"cosmology: {cos.cosmo}")
         #
-        it.cube_likelihoods(grids,surveys, vparam_dict,
+        it.cube_likelihoods(grids,surveys, vparam_dict, cube_dict,
                       run,howmany,opfile, starti=starti,clone=clone)
         
 
@@ -240,10 +249,10 @@ else:
 main(Cube)
 
 '''
-python new_cube.py -n 1 -m 3 -p all_params.json -o tmp.npy --clobber
+python new_cube.py -n 1 -m 3 -p all_params.json -o tmp.out --clobber
+python new_cube.py -n 1 -m 3 -p H0_params.json -o H0.out --clobber
 starti is  0
 cosmology: CosmoParams(H0=67.66, Omega_k=0.0, Omega_lambda=0.6888463055445441, Omega_m=0.30966, Omega_b=0.04897, Omega_b_h2=0.0224178568132, fixed_H0=67.66, fix_Omega_b_h2=True)
-FIX THIS!!!!!
 Starting at time  25.224615935
 Testing  0  of  3  begin at  0
 vparams: {'lEmin': 30.0, 'lEmax': 41.4, 'alpha': 1.0, 'gamma': -0.5, 'sfr_n': 0.0, 'lmean': 0.5, 'lsigma': 0.2, 'lC': -0.911}
@@ -251,4 +260,7 @@ survey=CRAFT_class_I_and_II, lls=47.359007883041286
 /home/xavier/Projects/FRB_Software/zdm/zdm/iteration.py:723: RuntimeWarning: divide by zero encountered in log10
   longlist += np.log10(wzpsnr)
 survey=CRAFT_ICS, lls=nan
+
+# TESTING CONTINUES
+python new_cube.py -n 1 -m 3 -p H0_lite_cube.json -o H0.dat --clobber
 '''

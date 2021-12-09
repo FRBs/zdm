@@ -51,7 +51,11 @@ font = {'family' : 'normal',
         'size'   : defaultsize}
 matplotlib.rc('font', **font)
 
-def main():
+def main(N=100,plots=False):
+    "created N*survey.NFRBs mock FRBs for all surveys"
+    "Input N : creates N*survey.NFRBs"
+    "Output : Sample(list) and Surveys(list)"
+
 
         
     ############## Initialise parameters ##############
@@ -167,28 +171,35 @@ def main():
     print("Initialised grids")
     
     
-    #testing_MC!!! Generate pseudo samples from lat50
-    which=0
-    g=grids[which]
-    s=surveys[which]
+    samples = []
+    for i in range(len(surveys)):
+        # testing_MC!!! Generate pseudo samples from all surveys
+        g = grids[i]
+        s = surveys[i]
+        name = i
+        name = str(name)
     
-    savefile='mc_sample.npy'
+        savefile='mc_sample_'+name+'_alpha_'+str(alpha_method)+str(N)+'.npy'
     
-    try:
-        sample=np.load(savefile)
-        print("Loading ",sample.shape[0]," samples from file ",savefile)
-    except:
-        Nsamples=10000
-        print("Generating ",Nsamples," samples from survey/grid ",which)
-        sample=g.GenMCSample(Nsamples)
-        sample=np.array(sample)
-        np.save(savefile,sample)
-    
-    # plot some sample plots
-    #do_basic_sample_plots(sample)
-    
-    #evaluate_mc_sample_v1(g,s,pset,sample)
-    evaluate_mc_sample_v2(g,s,pset,sample)
+        try:
+            sample=np.load(savefile)
+            print("Loading ",sample.shape[0]," samples from file ",savefile)
+        except:
+            Nsamples=s.NFRB*N
+            print("Generating ",Nsamples," samples from survey/grid ",i)
+            sample=g.GenMCSample(Nsamples)
+            sample=np.array(sample)
+            np.save(savefile,sample)
+
+        samples.append(sample)
+            
+        if plots:
+            #plot some sample plots
+            do_basic_sample_plots(sample)
+            #evaluate_mc_sample_v1(g,s,pset,sample)
+            evaluate_mc_sample_v2(g,s,pset,sample)
+        
+    return samples,surveys
     
     
 def evaluate_mc_sample_v1(grid,survey,pset,sample,opdir='Plots'):
@@ -240,7 +251,7 @@ def evaluate_mc_sample_v1(grid,survey,pset,sample,opdir='Plots'):
     plt.close()
 
 
-def evaluate_mc_sample_v2(grid,survey,pset,sample,opdir='Plots',Nsubsamp=1000):
+def evaluate_mc_sample_v2(grid,survey,pset,sample,opdir='Plots',Nsubsamp=1000,title=''):
     """
     Evaluates the likelihoods for an MC sample of events
     First, gets likelihoods for entire set of FRBs
@@ -255,12 +266,12 @@ def evaluate_mc_sample_v2(grid,survey,pset,sample,opdir='Plots',Nsubsamp=1000):
     NFRBs=s.NFRB
     
     s.NFRB=nsamples # NOTE: does NOT change the assumed normalised FRB total!
-    s.DMEGs=sample[:,0]
+    s.DMEGs=sample[:,1]
     s.Ss=sample[:,4]
     if s.nD==1: # DM, snr only
         llsum,lllist,expected,longlist=it.calc_likelihoods_1D(grid,s,pset,psnr=True,Pn=True,dolist=2)
     else:
-        s.Zs=sample[:,1]
+        s.Zs=sample[:,0]
         llsum,lllist,expected,longlist=it.calc_likelihoods_2D(grid,s,pset,psnr=True,Pn=True,dolist=2)
     
     # we should preserve the normalisation factor for Tobs from lllist
@@ -272,6 +283,7 @@ def evaluate_mc_sample_v2(grid,survey,pset,sample,opdir='Plots',Nsubsamp=1000):
     plt.xlabel('Individual Psnr,Pzdm log likelihoods [log10]')
     plt.ylabel('p(ll)')
     plt.tight_layout()
+    plt.title(title)
     plt.savefig(opdir+'/individual_ll_histogram.pdf')
     plt.close()
     
@@ -296,7 +308,7 @@ def evaluate_mc_sample_v2(grid,survey,pset,sample,opdir='Plots',Nsubsamp=1000):
     print("Finished after ",dt," seconds")
     
     
-def do_basic_sample_plots(sample,opdir='Plots'):
+def do_basic_sample_plots(sample,opdir='Plots',title=''):
     """
     Data order is DM,z,b,w,s
     
@@ -311,6 +323,7 @@ def do_basic_sample_plots(sample,opdir='Plots'):
     plt.ylabel('Sampled DMs')
     plt.tight_layout()
     plt.savefig(opdir+'/DM_histogram.pdf')
+    plt.title(title)
     plt.close()
     
     plt.figure()
@@ -319,6 +332,7 @@ def do_basic_sample_plots(sample,opdir='Plots'):
     plt.ylabel('Sampled redshifts')
     plt.tight_layout()
     plt.savefig(opdir+'/z_histogram.pdf')
+    plt.title(title)
     plt.close()
     
     bs=sample[:,2]
@@ -327,6 +341,7 @@ def do_basic_sample_plots(sample,opdir='Plots'):
     plt.xlabel('log10 beam value')
     plt.yscale('log')
     plt.ylabel('Sampled beam bin')
+    plt.title(title)
     plt.tight_layout()
     plt.savefig(opdir+'/b_histogram.pdf')
     plt.close()
@@ -338,6 +353,7 @@ def do_basic_sample_plots(sample,opdir='Plots'):
     plt.ylabel('Sampled width bin')
     plt.yscale('log')
     plt.tight_layout()
+    plt.title(title)
     plt.savefig(opdir+'/w_histogram.pdf')
     plt.close()
     
@@ -348,7 +364,9 @@ def do_basic_sample_plots(sample,opdir='Plots'):
     plt.yscale('log')
     plt.ylabel('Sampled $s$')
     plt.tight_layout()
+    plt.title(title)
+    
     plt.savefig(opdir+'/s_histogram.pdf')
     plt.close()
     
-main()
+#main()
