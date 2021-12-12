@@ -12,6 +12,7 @@ from zdm import cosmology as cos
 from zdm import misc_functions
 from zdm import parameters
 from zdm import survey
+from zdm import iteration as it
 
 from IPython import embed
 
@@ -68,6 +69,14 @@ def make_grids():
     gICS892=grids[2]
     gpks=grids[3]
     print("Initialised grids")
+
+    # Let's update H0 (barely) and find the constant for fun too as part of the test
+    vparams = {}
+    vparams['lC'] = -0.9
+    vparams['H0'] = 67.75
+    C,llC,lltot=it.minimise_const_only(
+                vparams,grids,surveys, Verbose=True,
+                use_prev_grid=False)
 
     Location='Plots'
     if not os.path.isdir(Location):

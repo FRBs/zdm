@@ -46,7 +46,7 @@ font = {'family' : 'normal',
 matplotlib.rc('font', **font)
 
 def generate(alpha_method=1, Nsamples=10000, do_plots=True,
-    base_survey='CRAFT_CRACO_MC_base',
+    lum_func=0, base_survey='CRAFT_CRACO_MC_base',
     outfile='FRBs.txt',
     savefile=None): 
 
@@ -96,7 +96,7 @@ def generate(alpha_method=1, Nsamples=10000, do_plots=True,
             grids=pickle.load(infile)
     '''
     craco, grid = loading.survey_and_grid(alpha_method=alpha_method,
-        survey_name=base_survey)
+        survey_name=base_survey, lum_func=lum_func)
     
     print("Generating ",Nsamples," samples from CRACO survey/grid ")
     sample=grid.GenMCSample(Nsamples)
@@ -327,6 +327,11 @@ def do_basic_sample_plots(sample,opdir='Plots'):
 # Generate em!
 
 # Default run with Planck18
-generate(alpha_method=1, Nsamples=5000, do_plots=True,
-    outfile='MC_Surveys/CRACO_alpha1_Planck18.dat',
-    savefile=None)#'MC_Surveys/alpha_mc_sample_100.npy')
+#generate(alpha_method=1, Nsamples=5000, do_plots=True,
+#    outfile='MC_Surveys/CRACO_alpha1_Planck18.dat',
+#    savefile=None)
+
+# Gamma furnction for energies
+generate(alpha_method=1, lum_func=1, Nsamples=5000, do_plots=True,
+    outfile='MC_Surveys/CRACO_alpha1_Planck18_Gamma.dat',
+    savefile=None)

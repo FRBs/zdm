@@ -326,6 +326,11 @@ class Grid:
     def smear_dm(self,smear:np.ndarray):#,mean:float,sigma:float):
         """ Smears DM using the supplied array.
         Example use: DMX contribution
+
+        smear_grid is created in place
+
+        Args:
+            smear (np.ndarray): Smearing array
         """
         # just easier to have short variables for this
         
@@ -351,11 +356,16 @@ class Grid:
             else:
                 raise ValueError("Wrong number of dimensions for DM smearing ",smear.shape)
             
-    def get_p_zgdm(self, DMs):
+    def get_p_zgdm(self, DMs:np.ndarray):
         """ Calcuates the probability of redshift given a DM
         We already have our grid of observed DM values.
         Just take slices!
-        
+
+        Args:
+            DMs (np.ndarray): array of DM values
+
+        Returns:
+            np.ndarray: array of priors for the DMs
         """
         # first gets ids of matching DMs
         priors=np.zeros([DMs.size,self.zvals.size])
@@ -379,6 +389,11 @@ class Grid:
             which w bin it generates.
         
         """
+        # Boost?
+        if self.state.energy.luminosity_function == 1:
+            Emax_boost = 2.
+        else:
+            Emax_boost = 0.
         
         if Poisson:
             #from np.random import poisson
@@ -389,12 +404,12 @@ class Grid:
         pwb=None #feeds this back to save time. Lots of time.
         for i in np.arange(NFRB):
             print(i)
-            frb,pwb=self.GenMCFRB(pwb)
+            frb,pwb=self.GenMCFRB(pwb, Emax_boost=Emax_boost)
             sample.append(frb)
         sample=np.array(sample)
         return sample
     
-    def GenMCFRB(self,pwb=None):
+    def GenMCFRB(self,pwb=None, Emax_boost=0.):
         """
         Generates a single FRB according to the grid distributions
         
@@ -406,7 +421,16 @@ class Grid:
             only the relative probabilities of any given width.
             Hence, this routine only returns the integer of the width bin
             not the width itelf.
-        
+
+        Args:
+            pwb (optional): ??
+            Emax_boost (float, optional): 
+                Allow for larger energies than Emax
+                The factor is logarithmic, i.e. Emax_boost = 2. allows
+                for 10**2 higher energies than Emax
+
+        Returns:
+            tuple: FRBparams=[MCz,MCDM,MCb,j,MCs], pwb values
         """
         
     	# shorthand
@@ -513,13 +537,13 @@ class Grid:
         
         # NOW GET snr
         #Eth=self.thresholds[j,k,l]/MCb
-        Es=np.logspace(np.log10(Eth),np.log10(Emax),100)
+        Es=np.logspace(np.log10(Eth),np.log10(Emax) + Emax_boost, 1000)
         PEs=self.vector_cum_lf(Es,Emin,Emax,gamma)
         PEs /= PEs[0] # normalises: this is now cumulative distribution from 1 to 0
         r=np.random.rand(1)[0]
         iE1=np.where(PEs>r)[0][-1] #returns list starting at 0 and going upwards
         iE2 = iE1+1
-        # iE1 should never be the highest energy, since it will always have a probability of 0
+        # iE1 should never be the highest energy, since it will always have a probability of 0 (or near 0 for Gamma)
         kE1=(r-PEs[iE2])/(PEs[iE1]-PEs[iE2])
         kE2=1.-kE1
         MCE=10**(np.log10(Es[iE1])*kE1 + np.log10(Es[iE2])*kE2)
@@ -529,7 +553,7 @@ class Grid:
         return FRBparams,pwb
         
 
-    def update(self, vparams:dict, ALL=False):
+    def update(self, vparams:dict, ALL=False, prev_grid=None):
         """Update the grid based on a set of input
         parameters
         
@@ -548,6 +572,10 @@ class Grid:
         Args:
             vparams (dict):  dict containing the parameters
                 to be updated and their values
+            prev_grid (Grid, optional):
+                If provided, it is assumed this grid has been
+                updated on items that need not be repeated for
+                the current grid.  i.e. Speed up!
             ALL (bool, optional):  If True, update the full grid
         
         calc_rates:
@@ -628,26 +656,41 @@ class Grid:
         # TODO -- For cubes with multiple surveys can we do these
         #   first two steps (even the first 5!) only once??
         # Update cosmology?
-        if reset_cos:
+        if reset_cos and prev_grid is None:
             cos.set_cosmology(self.state)
             cos.init_dist_measures()
 
         if get_zdm or ALL:
-            zDMgrid, zvals,dmvals=misc_functions.get_zdm_grid(
-                self.state, new=True,plot=False,method='analytic')
-            # TODO -- Check zvals and dmvals haven't changed!
-            self.pass_grid(zDMgrid,zvals,dmvals)
+            if prev_grid is None:
+                zDMgrid, zvals,dmvals=misc_functions.get_zdm_grid(
+                    self.state, new=True,plot=False,method='analytic')
+                self.pass_grid(zDMgrid,zvals,dmvals)
+            else:
+                # Pass a copy (just to be safe)
+                self.pass_grid(prev_grid.grid.copy(),
+                               prev_grid.zvals.copy(),
+                               prev_grid.dmvals.copy())
 
         if calc_dV or ALL:
-            self.calc_dV()
+            if prev_grid is None:
+                self.calc_dV()
+            else:
+                self.dV = prev_grid.dV.copy()
 
         # Smear?
         if smear_mask or ALL:
-            self.smear=pcosmic.get_dm_mask(
-                self.dmvals,(self.state.host.lmean,
+            if prev_grid is None:
+                self.smear=pcosmic.get_dm_mask(
+                    self.dmvals,(self.state.host.lmean,
                              self.state.host.lsigma), self.zvals)
+            else:
+                self.smear = prev_grid.smear.copy()
         if smear_dm or ALL:
-            self.smear_dm(self.smear)
+            if prev_grid is None:
+                self.smear_dm(self.smear)
+            else:
+                self.smear = prev_grid.smear.copy()
+                self.smear_grid = prev_grid.smear_grid.copy()
             
         if calc_thresh or ALL:
             self.calc_thresholds(

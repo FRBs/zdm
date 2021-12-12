@@ -539,7 +539,6 @@ def calc_likelihoods_2D(grid,survey, lC,
                 temp=grid.array_diff_lf(bEobs[j,:],Emin,Emax,gamma) * FtoE #one dim in beamshape, one dim in FRB
                 
                 psnr += temp.T*survey.beam_o[i]*w #multiplies by beam factors and weight
-
                 
         # at this stage, we have the amplitude from diff power law 
         # summed over beam and weight
@@ -617,6 +616,10 @@ def calc_likelihoods_2D(grid,survey, lC,
     elif dolist==3:
         return (llsum, -np.log10(norm)*Zobs.size, 
                 np.sum(np.log10(pvals)), np.sum(np.log10(wzpsnr)))
+    elif dolist==4:
+        return (llsum, -np.log10(norm)*Zobs.size, 
+                np.sum(np.log10(pvals)), 
+                pvals.copy(), wzpsnr.copy())
 
 def check_cube_opfile(run,howmany,opfile):
     """
@@ -1623,12 +1626,32 @@ def minus_poisson_ps(log10C,data):
     return -lp
     
 
-def minimise_const_only(vparams:dict,grids,surveys,
-                        Verbose=True):
-    '''
+def minimise_const_only(vparams:dict,grids:list,surveys:list,
+                        Verbose=True, use_prev_grid:bool=True):
+    """
     Only minimises for the constant, but returns the full likelihood
     It treats the rest as constants
     the grids must be initialised at the currect values for pset already
+
+    Args:
+        vparams (dict): Parameter dict
+        grids (list): List of grids
+        surveys (list): List of surveys
+            A bit superfluous as these are in the grids..
+        Verbose (bool, optional): [description]. Defaults to True.
+        use_prev_grid (bool, optional): 
+            If True, make use of the previous grid when 
+            looping over them. Defaults to True.
+
+    Raises:
+        ValueError: [description]
+        ValueError: [description]
+
+    Returns:
+        tuple: newC,llC,lltot
+    """
+
+    '''
     '''
     
     # specifies which set of parameters to pass to the dmx function
@@ -1651,12 +1674,16 @@ def minimise_const_only(vparams:dict,grids,surveys,
     for j,s in enumerate(surveys):
         #update_grid(grids[j],pset,s)
         #embed(header='1805 of it')
-        grids[j].update(vparams)
+        # Update
+        grids[j].update(vparams, 
+                        prev_grid=grids[j-1] if (
+                            j > 0 and use_prev_grid) else None)
+        # Calculate
         if s.nD==1:
             func=calc_likelihoods_1D
         else:
             func=calc_likelihoods_2D
-        #embed(header='1811 of it')
+
         lls[j]=func(grids[j],s, vparams['lC'], 
                     norm=True,psnr=True,Pn=False) #excludes Pn term
         if Verbose:
