@@ -23,6 +23,7 @@ import h5py
 
 from zdm.craco import loading
 from zdm import pcosmic
+from zdm import analyze_cube
 
 from IPython import embed
 
@@ -334,6 +335,7 @@ def fig_craco_fiducial(outfile='fig_craco_fiducial.png',
     plt.close()
     print(f"Wrote: {outfile}")
 
+
 def fig_craco_varyH0(outfile='fig_craco_varyH0.png',
                 zmax=2,DMmax=1500,
                 norm=2,log=True,
@@ -471,6 +473,14 @@ def fig_craco_varyH0(outfile='fig_craco_varyH0.png',
     plt.savefig(outfile)
     plt.close()
     print(f"Wrote: {outfile}")
+
+
+def fig_craco_H0vsEmax(outfile='fig_craco_H0vsEmax.png'):
+    # Load the cube
+    cube_out = np.load('../Analysis/Cubes/craco_H0_Emax_cube.npz')
+    ll = cube_out['ll'] # log10
+
+    embed(header='482 of figs')
         
 #### ########################## #########################
 def main(pargs):
@@ -483,6 +493,10 @@ def main(pargs):
     if pargs.figure == 'varyH0':
         fig_craco_varyH0()
 
+    # H0 vs. Emax
+    if pargs.figure == 'H0vsEmax':
+        fig_craco_H0vsEmax()
+
 def parse_option():
     """
     This is a function used to parse the arguments for figure making
@@ -492,7 +506,7 @@ def parse_option():
     """
     parser = argparse.ArgumentParser("zdm H0 I Figures")
     parser.add_argument("figure", type=str, 
-                        help="function to execute: 'fiducial'")
+                        help="function to execute: ('fiducial, 'varyH0', 'H0vsEmax')")
     #parser.add_argument('--cmap', type=str, help="Color map")
     #parser.add_argument('--distr', type=str, default='normal',
     #                    help='Distribution to fit [normal, lognorm]')

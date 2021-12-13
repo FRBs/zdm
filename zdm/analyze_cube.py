@@ -70,8 +70,15 @@ def slurp_cube(input_file:str, prefix:str, outfile:str,
         if debug:
             embed(header='69 of analyze')
     
+    # Grids
+    out_dict = dict(ll=ll_cube, lC=lC_cube, params=PARAMS[:-1])
+    # Save the parameter values too
+    for name in PARAMS[:-1]:
+        out_dict[name] = np.linspace(vparam_dict[name]['min'], 
+                               vparam_dict[name]['max'],
+                               vparam_dict[name]['n'])
     # Write
-    np.savez(outfile, ll=ll_cube, lC=lC_cube)
+    np.savez(outfile, **out_dict) #ll=ll_cube, lC=lC_cube, params=PARAMS[-1])
     print(f"Wrote: {outfile}")
 
 

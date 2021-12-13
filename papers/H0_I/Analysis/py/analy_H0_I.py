@@ -41,11 +41,11 @@ def generate_sz_grid(ns=1000, outfile='sz_grid.npy'):
             # Sum on w
             psnr += np.inner(temp.T, grid.eff_weights).T
 
-        # Normalize by collapse
+        # Collapse in DM
+        #  TODO -- Do I need to weight by rates??
         ps = np.sum(psnr, axis=0)
         norm = np.sum(ps)
-
-
+        # Save, Normalize by collapse in DMz
         sz_grid[zz,:] = z_coll[zz]*ps/norm
 
     
