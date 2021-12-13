@@ -335,7 +335,7 @@ def fig_craco_fiducial(outfile='fig_craco_fiducial.png',
     print(f"Wrote: {outfile}")
 
 def fig_craco_varyH0(outfile='fig_craco_varyH0.png',
-                zmax=2,DMmax=2000,
+                zmax=2,DMmax=1500,
                 norm=2,log=True,
                 label='$\\log_{10} \, p(DM_{\\rm EG},z)$',
                 Aconts=[0.05]):
@@ -453,7 +453,7 @@ def fig_craco_varyH0(outfile='fig_craco_varyH0.png',
             #ax.clabel(cs, cs.levels, inline=True, fontsize=10,fmt=['0.5','0.1','0.01'])
         ###### gets decent axis labels, down to 1 decimal place #######
         ax=plt.gca()
-        ax.legend()
+        ax.legend(loc='lower right')
         labels = [item.get_text() for item in ax.get_xticklabels()]
         for i in np.arange(len(labels)):
             labels[i]=labels[i][0:4]
