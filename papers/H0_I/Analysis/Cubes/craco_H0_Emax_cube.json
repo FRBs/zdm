@@ -1,5 +1,8 @@
 {
     "state": {
+        "energy": {
+            "luminosity_function": 1
+        },
         "FRBdemo": {
             "alpha_method": 1
         },
@@ -8,55 +11,19 @@
         }
     },
     "cube": {
-        "parameter_order": ["lC", "sfr_n", "lEmin", "alpha", "lEmax", "gamma", "lmean", "lsigma", "H0"]
-    },
-    "lEmin": {
-        "DC": "energy",
-        "min": 30.0, 
-        "max": 30.0, 
-        "n": 1
+        "parameter_order": ["lC", "lEmax", "H0"]
     },
     "lEmax": {
         "DC": "energy",
-        "min": 41.4, 
-        "max": 43.4, 
-        "n": 10
-    },
-    "alpha": {
-        "DC": "energy",
-        "min": 1.0, 
-        "max": 2.5, 
-        "n": 3
-    },
-    "gamma": {
-        "DC": "energy",
-        "min": -0.5, 
-        "max": -1.5, 
-        "n": 3
-    },
-    "sfr_n": {
-        "DC": "FRBdemo",
-        "min": 0.0, 
-        "max": 5.0, 
-        "n": 10
-    },
-    "lmean": {
-        "DC": "host",
-        "min": 0.5, 
-        "max": 2.75, 
-        "n": 3
-    },
-    "lsigma": {
-        "DC": "host",
-        "min": 0.2, 
-        "max": 1.1, 
-        "n": 3
+        "min": 40.5, 
+        "max": 42.5, 
+        "n": 50
     },
     "H0": {
         "DC": "cosmo",
-        "min": 60.0, 
+        "min": 55.0, 
         "max": 80.0, 
-        "n": 10
+        "n": 50
     },
     "lC": {
         "DC": "FRBdemo",
