@@ -552,6 +552,8 @@ class Grid:
         FRBparams=[MCz,MCDM,MCb,j,MCs]
         return FRBparams,pwb
         
+    def build_sz(self):
+        pass
 
     def update(self, vparams:dict, ALL=False, prev_grid=None):
         """Update the grid based on a set of input
