@@ -137,7 +137,12 @@ def generate(alpha_method=1, Nsamples=10000, do_plots=True,
         # Header
         for base_line in base_lines:
             if add_header:
-                f.write(base_line)
+                if 'NFRB' in base_line:
+                    f.write(f'NFRB {Nsamples}\n')
+                elif 'NORM_FRB' in base_line:
+                    f.write(f'NORM_FRB {Nsamples}\n')
+                else:
+                    f.write(base_line)
                 if 'fake data' in base_line:
                     add_header = False
         #         

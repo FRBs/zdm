@@ -1,14 +1,13 @@
 BW    288 #MHz
 FRES  1 #MHz
-NFRB 1 #Number of FRBs
 DIAM 12
 NBEAMS 36
 BEAM lat50_log #prefix of beam file
 FBAR 1320
 TRES  1.7 #ms
 SNRTHRESH 9.5
-NFRB 100
-NORM_FRB 100
+NFRB 5000
+NORM_FRB 5000
 TOBS 96.65 # days of 100% efficient operation
 THRESH 0.99 #Jy ms to 1 ms burst [ 22 Jy ms / 24 antennas *sqrt{336/288} bandwidth factor]
 KEY ID 	DM    	DMG     DMEG	Z	SNR	WIDTH
