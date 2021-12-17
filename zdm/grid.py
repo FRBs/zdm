@@ -423,7 +423,7 @@ class Grid:
             not the width itelf.
 
         Args:
-            pwb (optional): ??
+            pwb (optional): probability(width,beam)
             Emax_boost (float, optional): 
                 Allow for larger energies than Emax
                 The factor is logarithmic, i.e. Emax_boost = 2. allows
