@@ -1,6 +1,5 @@
 BW    288 #MHz
 FRES  1 #MHz
-NFRB 1 #Number of FRBs
 DIAM 12
 NBEAMS 36
 BEAM lat50_log #prefix of beam file

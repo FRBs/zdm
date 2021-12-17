@@ -52,18 +52,22 @@ def main(pargs):
     lls = []
     nterms = []  # LL term related to norm (i.e. rates)
     pvterms = []  # LL term related to norm (i.e. rates)
+    pvvals = []  # 
+    wzvals = []  # 
     for tt, pval in enumerate(pvals):
         vparams[pargs.param] = pval
         C,llC,lltot=it.minimise_const_only(
                     vparams,grids,surveys, Verbose=False)
         vparams['lC']=C
-        lls_final, nterm, pvterm, wzterm = it.calc_likelihoods_2D(
+        lls_final, nterm, pvterm, lpvals, lwz = it.calc_likelihoods_2D(
                     igrid, isurvey, vparams['lC'],
-                    norm=True,psnr=True,dolist=3)
+                    norm=True,psnr=True,dolist=4)
         # Hold
         lls.append(lls_final)
         nterms.append(nterm)
         pvterms.append(pvterm)
+        pvvals.append(lpvals)
+        wzvals.append(lwz)
         print(f'{pargs.param}: pval={pval}, C={C}, lltot={lls_final}')
 
     # Max
@@ -144,5 +148,9 @@ python test_with_craco.py lEmax 41. 43. --nstep 50 --nFRB 100 --cosmo Planck15 -
 # Newest round
 python testing.py lEmax 41. 43. --nstep 50 --nFRB 100 -o MC_Plots/CRACO_100_Emax_new.png 
 python testing.py H0 60. 80. --nstep 50 --nFRB 100 -o MC_Plots/CRACO_100_H0.png 
+
+# Gamma
+python testing.py H0 60. 80. --nstep 50 --nFRB 100 --survey CRACO_alpha1_Planck18_Gamma -o MC_Plots/CRACO_100_H0_Gamma.png --lum_func 1
+python testing.py lEmax 41. 43. --nstep 50 --nFRB 100 --survey CRACO_alpha1_Planck18_Gamma -o MC_Plots/CRACO_100_Emax_Gamma.png --lum_func 1
 #
 '''
