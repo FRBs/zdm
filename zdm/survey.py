@@ -54,14 +54,38 @@ class Survey:
         self.mean_efficiencies=mean_efficiencies
         return efficiencies
     
-    def get_efficiency_from_wlist(self,DMlist,wlist,plist,model="Quadrature"):
+    def get_efficiency_from_wlist(self,DMlist,wlist,plist,model="Quadrature",addGalacticDM=True):
         """ Gets efficiency to FRBs
         Returns a list of relative efficiencies
         as a function of dispersion measure for each width given in wlist
+        
+        
+        DMlist:
+            - list of dispersion measures (pc/cm3) at which to calculate efficiency
+        
+        wlist:
+            list of intrinsic FRB widths
+        
+        plist:
+            list of relative probabilities for FRBs to have widths of wlist
+        
+        model: method of estimating efficiency as function of width, DM, and time resolution
+            Takes values of "Quadrature" or "Sammons" (from Mawson Sammons summer project)
+        
+        addGalacticDM:
+            - True: this routine adds in contributions from the MW Halo and ISM, i.e.
+                it acts like DMlist is an extragalactic DM
+            - False: just used the supplied DMlist
+        
         """
         efficiencies=np.zeros([wlist.size,DMlist.size])
+        if addGalacticDM:
+            toAdd = self.DMhalo + np.mean(self.DMGs)
+        else:
+            toAdd = 0.
+        
         for i,w in enumerate(wlist):
-            efficiencies[i,:]=calc_relative_sensitivity(None,DMlist,w,self.meta["FBAR"],self.meta["TRES"],self.meta["FRES"],model=model,dsmear=False)
+            efficiencies[i,:]=calc_relative_sensitivity(None,DMlist+toAdd,w,self.meta["FBAR"],self.meta["TRES"],self.meta["FRES"],model=model,dsmear=False)
         # keep an internal record of this
         self.efficiencies=efficiencies
         self.wplist=plist
@@ -202,6 +226,7 @@ class Survey:
         
     def init_DMEG(self,DMhalo):
         """ Calculates extragalactic DMs assuming halo DM """
+        self.DMhalo=DMhalo
         self.DMEGs=self.DMs-self.DMGs-DMhalo
     
     def do_metakey(self,key):
@@ -377,7 +402,7 @@ def calc_relative_sensitivity(DM_frb,DM,w,fbar,t_res,nu_res,model='Quadrature',d
     # for this we use the *true* DM at which the FRB was observed
     if dsmear==True:
         measured_dm_smearing=2*(nu_res/1.e3)*k_DM*DM_frb/(fbar/1e3)**3 #smearing factor of FRB in the band
-        uw=w**2-measured_dm_smearing**2-t_res**2
+        uw=w**2-measured_dm_smearing**2-t_res**2 # uses the quadrature model to calculate intrinsic width uw
         if uw < 0:
             uw=0
         else:
@@ -389,7 +414,8 @@ def calc_relative_sensitivity(DM_frb,DM,w,fbar,t_res,nu_res,model='Quadrature',d
         sensitivity=(uw**2+dm_smearing**2+t_res**2)**-0.5
     elif model=='Sammons':
         sensitivity=0.75*(0.93*dm_smearing + uw + 0.35*t_res)**-0.5
-    
+    else:
+        raiseValueError(model," is an unknown DM smearing model --- use Sammons or Quadrature")
     # calculates relative sensitivity to bursts as a function of DM
     return sensitivity
     

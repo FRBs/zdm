@@ -2027,7 +2027,7 @@ def plot_grid_2(zDMgrid,zvals,dmvals,
     
     plt.xlabel('z')
     plt.ylabel('${\\rm DM}_{\\rm EG}$')
-    plt.title(title+str(H0))
+    #plt.title(title+str(H0)) # I have removed this default title, use a file naming convention instead
     
     nz,ndm=zDMgrid.shape
     
