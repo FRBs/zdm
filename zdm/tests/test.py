@@ -5,6 +5,8 @@ When running, look for do_something=False and do_something=True statements to tu
 Also look for New=True or LOAD=False statements and change these once they have been run; intermediate data
 gets saved to Pickle for massive speedups (e.g. if just fine-tuning plots); but it also takes up space!
 
+
+This file is almost certainly outdated.
 """
 
 import argparse
@@ -61,7 +63,8 @@ font = {'family' : 'normal',
 matplotlib.rc('font', **font)
 
 def main():
-
+    print("WARNING: this file is massively out of date, do not use")
+    exit()
     ############## Initialise cosmology ##############
     cos.init_dist_measures()
     

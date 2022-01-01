@@ -190,11 +190,21 @@ class Survey:
         
         self.do_keyword('Z',which,None)
         if self.frbs["Z"] is not None:
-            self.nD=2
+            
             self.Zs=self.frbs["Z"]
+            # checks to see if there are any FRBs
+            self.zlist = np.where(self.Zs > 0.)[0]
+            if len(self.zlist) < self.NFRB:
+                self.nozlist = np.where(self.Zs <= 0.)[0]
+                self.nD=3 # code for both
+            else:
+                self.nozlist = None
+                self.nD=2
         else:
             self.nD=1
             self.Zs=None
+            self.nozlist=np.arange(self.NFRB)
+            self.zlist=None
         
         ### processes galactic contributions
         self.process_dmg()
@@ -415,7 +425,7 @@ def calc_relative_sensitivity(DM_frb,DM,w,fbar,t_res,nu_res,model='Quadrature',d
     elif model=='Sammons':
         sensitivity=0.75*(0.93*dm_smearing + uw + 0.35*t_res)**-0.5
     else:
-        raiseValueError(model," is an unknown DM smearing model --- use Sammons or Quadrature")
+        raise ValueError(model," is an unknown DM smearing model --- use Sammons or Quadrature")
     # calculates relative sensitivity to bursts as a function of DM
     return sensitivity
     
@@ -517,6 +527,7 @@ def load_survey(survey_name:str, state:parameters.State, dmvals:np.ndarray,
         Nbeams = 10
     else: # Should only be used for MC analysis
         dfile = survey_name+'.dat'
+        Nbeams = 5
 
     # Do it
     srvy=Survey()

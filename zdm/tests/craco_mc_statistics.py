@@ -1,15 +1,29 @@
 
 """
-This script illustrates how to generate MC samples and evaluate them
-Note that in this case, only MC samples for:
-- one survey (ASKAP fly's eye)
-- evaluated at the same parameters as they are generated
-- without varying the detected number of bursts
-is generated.
+This generates 1000 MC samples from CRACO.
 
-In general, one will want to generate the samples with one set of parameters,
-and then evaluate them with another set of grids.
-Hence the saving of 'mc_sample.npy'
+It's written slightly differently from the standard mc_statistics.py
+to make it easier to iterate through different surveys, i.e.
+it processes the surveys one at a time.
+
+The main output is the print to screen. This gives the (default 1000)
+FRBs and measured redshifts. This has been copied to
+CRAFT_CRACO_MC_alpha1_1000.dat (power law)
+CRAFT_CRACO_MC_alpha1_gamma_1000.dat (gamma function)
+
+It then also removes the redshift info for all FRBs with DMEG > 1000
+and sets z=-1 (z < 0 is code for "unlocalised"), and re-prints the
+same list. See
+CRAFT_CRACO_MC_alpha1_1000.dat
+CRAFT_CRACO_MC_alpha1_gamma_1000.dat
+
+Finally, it also takes one third of all FRBs (irrespective of DM)
+and *also* sets z=-1 to simulate FRBs that have not yet been
+localised. See
+CRAFT_CRACO_MC_alpha1_1000_missing.dat
+CRAFT_CRACO_MC_alpha1_gamma_1000_missing.dat
+
+
 """
 
 
@@ -51,19 +65,17 @@ font = {'family' : 'normal',
         'size'   : defaultsize}
 matplotlib.rc('font', **font)
 
-def main(Nsamples=100,plots=False):
+
+
+
+def main(N=100,plots=False):
     "created N*survey.NFRBs mock FRBs for all surveys"
     "Input N : creates N*survey.NFRBs"
     "Output : Sample(list) and Surveys(list)"
-
-    #saves everything in this directory
-    outdir='MC/'
-    if not os.path.isdir(outdir):
-        os.mkdir(outdir)
-        
+    
     ############## Initialise parameters ##############
     state = parameters.State()
-
+    
     # Variable parameters
     vparams = {}
     vparams['cosmo'] = {}
@@ -73,7 +85,7 @@ def main(Nsamples=100,plots=False):
     vparams['cosmo']['Omega_b'] = 0.044
     
     vparams['FRBdemo'] = {}
-    vparams['FRBdemo']['alpha_method'] = 1
+    vparams['FRBdemo']['alpha_method'] = 1 #or set to zero for spectral index interpretation
     vparams['FRBdemo']['source_evolution'] = 0
     
     vparams['beam'] = {}
@@ -98,6 +110,7 @@ def main(Nsamples=100,plots=False):
         vparams['energy']['lEmax'] = 41.7
         vparams['energy']['alpha'] = 1.55
         vparams['energy']['gamma'] = -1.09
+        vparams['energy']['luminosity_function'] = 1
         vparams['FRBdemo']['sfr_n'] = 1.67
         vparams['FRBdemo']['lC'] = 3.15
         vparams['host']['lmean'] = 2.11
@@ -107,6 +120,7 @@ def main(Nsamples=100,plots=False):
         vparams['energy']['lEmax'] = 41.4
         vparams['energy']['alpha'] = 0.65
         vparams['energy']['gamma'] = -1.01
+        vparams['energy']['luminosity_function'] = 1
         vparams['FRBdemo']['sfr_n'] = 0.73
         vparams['FRBdemo']['lC'] = 1 #not best fit, OK for a once-off
         
@@ -124,35 +138,40 @@ def main(Nsamples=100,plots=False):
     zDMgrid, zvals,dmvals = misc_functions.get_zdm_grid(
         state, new=True, plot=False, method='analytic')
     
+    
+    ######## choose which surveys to do an MC for #######
+    
+    # choose which survey to create an MC for
+    names = ['CRAFT/FE', 'CRAFT/ICS', 'CRAFT/ICS892', 'PKS/Mb','CRAFT_CRACO_MC_frbs_alpha1_5000']
+    dirnames=['ASKAP_FE','ASKAP_ICS','ASKAP_ICS892','Parkes_Mb','CRACO']
+    # select which to perform an MC for
+    which=4
+    N=1000
+    
+    samples,surveys=do_mc(state,zvals,dmvals,zDMgrid,N,names[which],dirnames[which],printit=True)
+    
+
+def do_mc(state,zvals,dmvals,zDMgrid,Nsamples,names,dirnames,printit=False,plots=False):   
     ############## Initialise surveys ##############
+    #saves everything in this directory
+    outdir='MC/'
+    if not os.path.isdir(outdir):
+        os.mkdir(outdir)
     
     #These surveys combine time-normalised and time-unnormalised samples 
-    
-   
-    sprefix='Std' # faster - fine for max likelihood calculations, not as pretty
+    #sprefix='Std' # faster - fine for max likelihood calculations, not as pretty
     # insert more control over detail in grid
-    names = ['CRAFT/FE', 'CRAFT/ICS', 'CRAFT/ICS892', 'PKS/Mb']
-    
+    names=[names]
+    dirnames=[dirnames]
     NewSurveys=True
     if NewSurveys:
         surveys = []
         for survey_name in names:
             surveys.append(survey.load_survey(survey_name, state, dmvals))
         
-        if not os.path.isdir('Pickle'):
-            os.mkdir('Pickle')
-        with open('Pickle/'+sprefix+'surveys.pkl', 'wb') as output:
-            pickle.dump(surveys, output, pickle.HIGHEST_PROTOCOL)
-    else:
-        with open('Pickle/'+sprefix+'surveys.pkl', 'rb') as infile:
-            surveys=pickle.load(infile)
-    
-    
     print("Initialised surveys ",names)
     
-    dirnames=['ASKAP_FE','ASKAP_ICS','ASKAP_ICS892','Parkes_Mb']
-    
-    gprefix=sprefix
+    #gprefix=sprefix
     
     NewGrids=True
     
@@ -160,14 +179,9 @@ def main(Nsamples=100,plots=False):
         print("Generating new grids, set NewGrids=False to save time later")
         grids=misc_functions.initialise_grids(
             surveys,zDMgrid, zvals, dmvals, state, wdist=True)#, source_evolution=source_evolution, alpha_method=alpha_method)
-        with open('Pickle/'+gprefix+'grids.pkl', 'wb') as output:
-            pickle.dump(grids, output, pickle.HIGHEST_PROTOCOL)
-    else:
-        print("Loading grid ",'Pickle/'+gprefix+'grids.pkl')
-        with open('Pickle/'+gprefix+'grids.pkl', 'rb') as infile:
-            grids=pickle.load(infile)
     
     print("Initialised grids")
+    
     
     samples = []
     for i in range(len(surveys)):
@@ -183,14 +197,61 @@ def main(Nsamples=100,plots=False):
             sample=np.load(savefile)
             print("Loading ",sample.shape[0]," samples from file ",savefile)
         except:
-            #Nsamples=s.NFRB*N
             print("Generating ",Nsamples," samples from survey/grid ",i)
             sample=g.GenMCSample(Nsamples)
             sample=np.array(sample)
             np.save(savefile,sample)
-
+        print("Shape of samples is ",samples)
         samples.append(sample)
+        
+        print("########### Set 1: complete ########")
+        for j in np.arange(Nsamples):
+            DMG=35
+            DMEG=sample[j,1]
+            DMtot=DMEG+DMG+state.MW.DMhalo
+            SNRTHRESH=9.5
+            SNR=SNRTHRESH*sample[j,4]
+            z=sample[j,0]
+            w=sample[j,3]
             
+            string="FRB "+str(j)+'  {:6.1f}  35   {:6.1f}  {:5.3f}   {:5.1f}  {:5.1f}'.format(DMtot,DMEG,z,SNR,w)
+            #print("FRB ",i,DMtot,SNR,DMEG,w)
+            print (string)
+        
+        print("\n\n\n\n########### Set 2: no z above DM 1000 ########")
+        for j in np.arange(Nsamples):
+            DMG=35
+            DMEG=sample[j,1]
+            DMtot=DMEG+DMG+state.MW.DMhalo
+            SNRTHRESH=9.5
+            SNR=SNRTHRESH*sample[j,4]
+            if DMEG > 1000:
+                z = -1
+            else:
+                z = sample[j,0]
+            w=sample[j,3]
+            
+            string="FRB "+str(j)+'  {:6.1f}  35   {:6.1f}  {:5.3f}   {:5.1f}  {:5.1f}'.format(DMtot,DMEG,z,SNR,w)
+            #print("FRB ",i,DMtot,SNR,DMEG,w)
+            print (string)
+        
+        print("\n\n\n\n########### Set 3: also one in 3 unlocalised ########")
+        for j in np.arange(Nsamples):
+            DMG=35
+            DMEG=sample[j,1]
+            DMtot=DMEG+DMG+state.MW.DMhalo
+            SNRTHRESH=9.5
+            SNR=SNRTHRESH*sample[j,4]
+            if DMEG > 1000 or j%3==0:
+                z = -1
+            else:
+                z = sample[j,0]
+            w=sample[j,3]
+            
+            string="FRB "+str(j)+'  {:6.1f}  35   {:6.1f}  {:5.3f}   {:5.1f}  {:5.1f}'.format(DMtot,DMEG,z,SNR,w)
+            #print("FRB ",i,DMtot,SNR,DMEG,w)
+            print (string)
+        
         if plots:
             #plot some sample plots
             do_basic_sample_plots(sample)
