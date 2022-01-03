@@ -453,9 +453,12 @@ def fig_craco_varyH0(outfile='fig_craco_varyH0.png',
             r"$H_0 = $"+f"{H0}, log Emax = {vparams['lEmax']}")
             #plt.clim(0,2e-5)
             #ax.clabel(cs, cs.levels, inline=True, fontsize=10,fmt=['0.5','0.1','0.01'])
+
         ###### gets decent axis labels, down to 1 decimal place #######
         ax=plt.gca()
         ax.legend(loc='lower right')
+
+        # Ticks
         labels = [item.get_text() for item in ax.get_xticklabels()]
         for i in np.arange(len(labels)):
             labels[i]=labels[i][0:4]
@@ -470,7 +473,7 @@ def fig_craco_varyH0(outfile='fig_craco_varyH0.png',
 
     # Finish
     plt.tight_layout()
-    plt.savefig(outfile)
+    plt.savefig(outfile, dpi=300)
     plt.close()
     print(f"Wrote: {outfile}")
 
@@ -480,8 +483,68 @@ def fig_craco_H0vsEmax(outfile='fig_craco_H0vsEmax.png'):
     cube_out = np.load('../Analysis/Cubes/craco_H0_Emax_cube.npz')
     ll = cube_out['ll'] # log10
 
-    embed(header='482 of figs')
+    # Slurp
+    lEmax = cube_out['lEmax']
+    H0 = cube_out['H0']
+    #
+    dE = lEmax[1]-lEmax[0]
+    dH = H0[1] - H0[0]
         
+    # Normalize
+    ll -= ll.max()
+
+    # Plot
+    plt.clf()
+    ax = plt.gca()
+
+    im=plt.imshow(ll.T,cmap='jet',origin='lower', 
+                    interpolation='None', extent=[40.4-dE/2, 43.4+dE/2, 
+                                                  60.-dH/2, 80+dH/2],
+                aspect='auto', vmin=-4.
+                )#aspect=aspect)
+    # Color bar
+    cbar=plt.colorbar(im,fraction=0.046, shrink=1.2,aspect=15,pad=0.05)
+    cbar.set_label(r'$\Delta$ Log10 Likelihood')
+    #
+    ax.set_xlabel('log Emax')
+    ax.set_ylabel('H0 (km/s/Mpc)')
+    plt.savefig(outfile, dpi=200)
+    print(f"Wrote: {outfile}")
+
+
+def fig_craco_H0vsF(outfile='fig_craco_H0vsF.png'):
+    # Load the cube
+    cube_out = np.load('../Analysis/Cubes/craco_H0_F_cube.npz')
+    ll = cube_out['ll'] # log10
+
+    # Slurp
+    F = cube_out['F']
+    H0 = cube_out['H0']
+    #
+    dF = F[1]-F[0]
+    dH = H0[1] - H0[0]
+        
+    # Normalize
+    ll -= ll.max()
+
+    # Plot
+    plt.clf()
+    ax = plt.gca()
+
+    im=plt.imshow(ll.T,cmap='jet',origin='lower', 
+                    interpolation='None', extent=[0.1-dF/2, 0.5+dF/2, 
+                                                  60.-dH/2, 80+dH/2],
+                aspect='auto', vmin=-4.
+                )#aspect=aspect)
+    # Color bar
+    cbar=plt.colorbar(im,fraction=0.046, shrink=1.2,aspect=15,pad=0.05)
+    cbar.set_label(r'$\Delta$ Log10 Likelihood')
+    #
+    ax.set_xlabel('F')
+    ax.set_ylabel('H0 (km/s/Mpc)')
+    plt.savefig(outfile, dpi=200)
+    print(f"Wrote: {outfile}")
+
 #### ########################## #########################
 def main(pargs):
 
@@ -496,6 +559,11 @@ def main(pargs):
     # H0 vs. Emax
     if pargs.figure == 'H0vsEmax':
         fig_craco_H0vsEmax()
+
+    # H0 vs. F
+    if pargs.figure == 'H0vsF':
+        fig_craco_H0vsF()
+
 
 def parse_option():
     """
@@ -519,3 +587,8 @@ if __name__ == '__main__':
 
     pargs = parse_option()
     main(pargs)
+
+
+# python py/figs_zdm_H0_I.py varyH0
+# python py/figs_zdm_H0_I.py H0vsEmax
+# python py/figs_zdm_H0_I.py H0vsF

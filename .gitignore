@@ -14,6 +14,10 @@ __pycache__/
 tmp.np
 tmp.npy
 
+# data files
+*.out
+*.npz
+
 # Distribution / packaging
 .Python
 build/

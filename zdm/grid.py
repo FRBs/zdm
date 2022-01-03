@@ -621,6 +621,15 @@ class Grid:
             set_evol = True
             new_sfr_smear = True
 
+        # IGM
+        if self.chk_upd_param('F', vparams, update=True):
+            get_zdm = True
+            smear_dm = True
+            calc_thresh = True
+            calc_pdv = True
+            set_evol = True
+            new_sfr_smear = True
+
         # Mask?
         # IT IS IMPORTANT TO USE np.any so that each item is executed!!
         if np.any([self.chk_upd_param('lmean', vparams, update=True), 
@@ -628,7 +637,6 @@ class Grid:
             smear_mask = True
             smear_dm = True
             new_sfr_smear=True
-
 
         # SFR?
         if self.chk_upd_param('sfr_n', vparams, update=True):
