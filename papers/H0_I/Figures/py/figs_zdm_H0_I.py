@@ -336,9 +336,9 @@ def fig_craco_fiducial(outfile='fig_craco_fiducial.png',
     print(f"Wrote: {outfile}")
 
 
-def fig_craco_varyH0(outfile='fig_craco_varyH0.png',
+def fig_craco_varyH0(outfile,
                 zmax=2,DMmax=1500,
-                norm=2,log=True,
+                norm=2, other_param='Emax',
                 label='$\\log_{10} \, p(DM_{\\rm EG},z)$',
                 Aconts=[0.05]):
     # Generate the grid
@@ -346,6 +346,7 @@ def fig_craco_varyH0(outfile='fig_craco_varyH0.png',
         survey_name='CRACO_alpha1_Planck18_Gamma',
         NFRB=100, lum_func=1)
     fiducial_Emax = grid.state.energy.lEmax
+    fiducial_F = grid.state.IGM.F
 
     plt.figure()
     ax1=plt.axes()
@@ -356,16 +357,28 @@ def fig_craco_varyH0(outfile='fig_craco_varyH0.png',
     plt.ylabel('${\\rm DM}_{\\rm EG}$')
     #plt.title(title+str(H0))
 
+    if other_param == 'Emax':
+        H0_values = [60., 70., 80., 80.]
+        other_values = [0., 0., 0., -0.1]
+    elif other_param == 'F':
+        H0_values = [60., 70., 80., 60.]
+        other_values = [fiducial_F, fiducial_F, fiducial_F, 0.5]
+
     # Loop on grids
+    legend_lines = []
+    labels = []
     for ss, H0, scl, clr in zip(np.arange(4), 
-                      [60., 70., 80., 80.],
-                      [0., 0., 0., -0.1],
+                      H0_values,
+                      other_values,
                       ['b', 'k','r', 'gray']):
 
         # Update grid
         vparams = {}
         vparams['H0'] = H0
-        vparams['lEmax'] = fiducial_Emax + scl
+        if other_param == 'Emax':
+            vparams['lEmax'] = fiducial_Emax + scl
+        elif other_param == 'F':
+            vparams['F'] = scl
         grid.update(vparams)
 
         # Unpack
@@ -448,29 +461,36 @@ def fig_craco_varyH0(outfile='fig_craco_varyH0.png',
         cs=ax.contour(zDMgrid.T,levels=alevels,
                       origin='lower',colors=[clr],
                       linestyles=['-'])
+        leg, _ = cs.legend_elements()
+        legend_lines.append(leg[0])
         # Label
-        cs.collections[0].set_label(
-            r"$H_0 = $"+f"{H0}, log Emax = {vparams['lEmax']}")
+        if other_param == 'Emax':
+            labels.append(r"$H_0 = $"+f"{H0}, log Emax = {vparams['lEmax']}")
+        elif other_param == 'F':
+            labels.append(r"$H_0 = $"+f"{H0}, F = {vparams['F']}")
             #plt.clim(0,2e-5)
             #ax.clabel(cs, cs.levels, inline=True, fontsize=10,fmt=['0.5','0.1','0.01'])
-        ###### gets decent axis labels, down to 1 decimal place #######
-        ax=plt.gca()
-        ax.legend(loc='lower right')
-        labels = [item.get_text() for item in ax.get_xticklabels()]
-        for i in np.arange(len(labels)):
-            labels[i]=labels[i][0:4]
-        ax.set_xticklabels(labels)
-        labels = [item.get_text() for item in ax.get_yticklabels()]
-        for i in np.arange(len(labels)):
-            if '.' in labels[i]:
-                labels[i]=labels[i].split('.')[0]
-        ax.set_yticklabels(labels)
-        ax.yaxis.labelpad = 0
+
+    ###### gets decent axis labels, down to 1 decimal place #######
+    ax=plt.gca()
+    ax.legend(legend_lines, labels, loc='lower right')
+
+    # Ticks
+    labels = [item.get_text() for item in ax.get_xticklabels()]
+    for i in np.arange(len(labels)):
+        labels[i]=labels[i][0:4]
+    ax.set_xticklabels(labels)
+    labels = [item.get_text() for item in ax.get_yticklabels()]
+    for i in np.arange(len(labels)):
+        if '.' in labels[i]:
+            labels[i]=labels[i].split('.')[0]
+    ax.set_yticklabels(labels)
+    ax.yaxis.labelpad = 0
         
 
     # Finish
     plt.tight_layout()
-    plt.savefig(outfile)
+    plt.savefig(outfile, dpi=300)
     plt.close()
     print(f"Wrote: {outfile}")
 
@@ -480,8 +500,68 @@ def fig_craco_H0vsEmax(outfile='fig_craco_H0vsEmax.png'):
     cube_out = np.load('../Analysis/Cubes/craco_H0_Emax_cube.npz')
     ll = cube_out['ll'] # log10
 
-    embed(header='482 of figs')
+    # Slurp
+    lEmax = cube_out['lEmax']
+    H0 = cube_out['H0']
+    #
+    dE = lEmax[1]-lEmax[0]
+    dH = H0[1] - H0[0]
         
+    # Normalize
+    ll -= ll.max()
+
+    # Plot
+    plt.clf()
+    ax = plt.gca()
+
+    im=plt.imshow(ll.T,cmap='jet',origin='lower', 
+                    interpolation='None', extent=[40.4-dE/2, 43.4+dE/2, 
+                                                  60.-dH/2, 80+dH/2],
+                aspect='auto', vmin=-4.
+                )#aspect=aspect)
+    # Color bar
+    cbar=plt.colorbar(im,fraction=0.046, shrink=1.2,aspect=15,pad=0.05)
+    cbar.set_label(r'$\Delta$ Log10 Likelihood')
+    #
+    ax.set_xlabel('log Emax')
+    ax.set_ylabel('H0 (km/s/Mpc)')
+    plt.savefig(outfile, dpi=200)
+    print(f"Wrote: {outfile}")
+
+
+def fig_craco_H0vsF(outfile='fig_craco_H0vsF.png'):
+    # Load the cube
+    cube_out = np.load('../Analysis/Cubes/craco_H0_F_cube.npz')
+    ll = cube_out['ll'] # log10
+
+    # Slurp
+    F = cube_out['F']
+    H0 = cube_out['H0']
+    #
+    dF = F[1]-F[0]
+    dH = H0[1] - H0[0]
+        
+    # Normalize
+    ll -= ll.max()
+
+    # Plot
+    plt.clf()
+    ax = plt.gca()
+
+    im=plt.imshow(ll.T,cmap='jet',origin='lower', 
+                    interpolation='None', extent=[0.1-dF/2, 0.5+dF/2, 
+                                                  60.-dH/2, 80+dH/2],
+                aspect='auto', vmin=-4.
+                )#aspect=aspect)
+    # Color bar
+    cbar=plt.colorbar(im,fraction=0.046, shrink=1.2,aspect=15,pad=0.05)
+    cbar.set_label(r'$\Delta$ Log10 Likelihood')
+    #
+    ax.set_xlabel('F')
+    ax.set_ylabel('H0 (km/s/Mpc)')
+    plt.savefig(outfile, dpi=200)
+    print(f"Wrote: {outfile}")
+
 #### ########################## #########################
 def main(pargs):
 
@@ -490,12 +570,24 @@ def main(pargs):
         fig_craco_fiducial()
 
     # Vary H0, Emax
-    if pargs.figure == 'varyH0':
-        fig_craco_varyH0()
+    if pargs.figure == 'varyH0E':
+        fig_craco_varyH0(outfile='fig_craco_varyH0E.png',
+                         other_param='Emax')
+
+    # Vary H0, F
+    if pargs.figure == 'varyH0F':
+        fig_craco_varyH0(outfile='fig_craco_varyH0F.png',
+                         other_param='F')
+
 
     # H0 vs. Emax
     if pargs.figure == 'H0vsEmax':
         fig_craco_H0vsEmax()
+
+    # H0 vs. F
+    if pargs.figure == 'H0vsF':
+        fig_craco_H0vsF()
+
 
 def parse_option():
     """
@@ -519,3 +611,10 @@ if __name__ == '__main__':
 
     pargs = parse_option()
     main(pargs)
+
+
+# python py/figs_zdm_H0_I.py fiducial
+# python py/figs_zdm_H0_I.py varyH0E
+# python py/figs_zdm_H0_I.py H0vsEmax
+# python py/figs_zdm_H0_I.py H0vsF
+# python py/figs_zdm_H0_I.py varyH0F
