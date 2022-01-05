@@ -4,25 +4,37 @@ import zdm
 
 import pickle
 
-def get_sc_grid(grid,nsnr,snrs):
+def get_sc_grid(grid,nsnr:int,snrs:np.ndarray, calc_psz:bool=False):
+    """Generate an s,DM grid
+
+    Args:
+        grid ([type]): [description]
+        nsnr (int):  Length of the snrs array.  Seems superfluous..
+        snrs (np.ndarray): [description]
+        calc_psz(bool, optional):
+            If True, calcualte p(s,z) instead!
+
+    Returns:
+        tuple: Two np.ndarray's.  
+            One is p(s) and the other is p(s,DM) or p(s,z)
+    """
     
-    # calculate vector of grid thresholds
-    Emax=grid.Emax
-    Emin=grid.Emin
-    gamma=grid.gamma
-    ndm=grid.dmvals.size
+
     # holds cumulative and differential source counts
     cpsnrs=np.zeros([nsnr])
     psnrs=np.zeros([nsnr-1])
     
-    # holds DM-dependent source counts
-    dmcpsnrs=np.zeros([nsnr,ndm])
-    dmpsnrs=np.zeros([nsnr-1,ndm])
+    if not calc_psz:
+        nother=grid.dmvals.size
+    else:
+        # holds DM-dependent source counts
+        nother=grid.zvals.size
+
+    # Generate the grids
+    cpgrid=np.zeros([nsnr,nother])
+    pgrid=np.zeros([nsnr-1,nother])
     
     backup1=np.copy(grid.thresholds)
-    Emin=grid.Emin
-    Emax=grid.Emax
-    gamma=grid.gamma
     
     # modifies grid to simplify beamshape
     grid.beam_b=np.array([grid.beam_b[-1]])
@@ -32,19 +44,22 @@ def get_sc_grid(grid,nsnr,snrs):
     for i,s in enumerate(snrs):
         
         grid.thresholds=backup1*s
-        grid.calc_pdv(Emin,Emax,gamma)
+        grid.calc_pdv()
         grid.calc_rates()
         rates=grid.rates
-        dmcpsnrs[i,:]=np.sum(rates,axis=0)
-        cpsnrs[i]=np.sum(dmcpsnrs[i,:])
+        if calc_psz:
+            cpgrid[i,:]=np.sum(rates,axis=1)
+        else:
+            cpgrid[i,:]=np.sum(rates,axis=0)
+        cpsnrs[i]=np.sum(cpgrid[i,:])
     
     # the last one contains cumulative values
     for i,s in enumerate(snrs):
         if i==0:
             continue
         psnrs[i-1]=cpsnrs[i-1]-cpsnrs[i]
-        dmpsnrs[i-1,:]=dmcpsnrs[i-1,:]-dmcpsnrs[i,:]
-    return psnrs,dmpsnrs
+        pgrid[i-1,:]=cpgrid[i-1,:]-cpgrid[i,:]
+    return psnrs, pgrid
     
 def error_get_source_counts(grid,errorsets,Emin,plot=None,Slabel=None,load=False,tag=None):
     """
