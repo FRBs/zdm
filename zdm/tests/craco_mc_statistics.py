@@ -26,7 +26,7 @@ CRAFT_CRACO_MC_alpha1_gamma_1000_missing.dat
 
 """
 
-
+from zdm.craco import loading
 from pkg_resources import resource_filename
 import os
 import copy
@@ -54,6 +54,8 @@ import matplotlib.colors as colors
 import matplotlib.cm as cm
 import matplotlib
 
+from zdm import io
+
 from matplotlib.ticker import NullFormatter
 
 matplotlib.rcParams['image.interpolation'] = None
@@ -65,200 +67,110 @@ font = {'family' : 'normal',
         'size'   : defaultsize}
 matplotlib.rc('font', **font)
 
-
-
-
 def main(N=100,plots=False):
     "created N*survey.NFRBs mock FRBs for all surveys"
     "Input N : creates N*survey.NFRBs"
     "Output : Sample(list) and Surveys(list)"
     
-    ############## Initialise parameters ##############
-    state = parameters.State()
-    
-    # Variable parameters
-    vparams = {}
-    vparams['cosmo'] = {}
-    vparams['cosmo']['H0'] = 67.74
-    vparams['cosmo']['Omega_lambda'] = 0.685
-    vparams['cosmo']['Omega_m'] = 0.315
-    vparams['cosmo']['Omega_b'] = 0.044
-    
-    vparams['FRBdemo'] = {}
-    vparams['FRBdemo']['alpha_method'] = 1 #or set to zero for spectral index interpretation
-    vparams['FRBdemo']['source_evolution'] = 0
-    
-    vparams['beam'] = {}
-    vparams['beam']['thresh'] = 0
-    vparams['beam']['method'] = 2
-    
-    vparams['width'] = {}
-    vparams['width']['logmean'] = 1.70267
-    vparams['width']['logsigma'] = 0.899148
-    vparams['width']['Wbins'] = 10
-    vparams['width']['Wscale'] = 2
-    
-     # constants of intrinsic width distribution
-    vparams['MW']={}
-    vparams['MW']['DMhalo']=50
-    
-    vparams['host']={}
-    vparams['energy'] = {}
-    
-    if vparams['FRBdemo']['alpha_method'] == 0:
-        vparams['energy']['lEmin'] = 30
-        vparams['energy']['lEmax'] = 41.7
-        vparams['energy']['alpha'] = 1.55
-        vparams['energy']['gamma'] = -1.09
-        vparams['energy']['luminosity_function'] = 1
-        vparams['FRBdemo']['sfr_n'] = 1.67
-        vparams['FRBdemo']['lC'] = 3.15
-        vparams['host']['lmean'] = 2.11
-        vparams['host']['lsigma'] = 0.53
-    elif  vparams['FRBdemo']['alpha_method'] == 1:
-        vparams['energy']['lEmin'] = 30
-        vparams['energy']['lEmax'] = 41.4
-        vparams['energy']['alpha'] = 0.65
-        vparams['energy']['gamma'] = -1.01
-        vparams['energy']['luminosity_function'] = 1
-        vparams['FRBdemo']['sfr_n'] = 0.73
-        vparams['FRBdemo']['lC'] = 1 #not best fit, OK for a once-off
-        
-        vparams['host']['lmean'] = 2.18
-        vparams['host']['lsigma'] = 0.48
-        
-    state.update_param_dict(vparams)
-    
-    ############## Initialise cosmology ##############
-    cos.set_cosmology(state)
-    cos.init_dist_measures()
-    
-      # get the grid of p(DM|z). See function for default values.
-    # set new to False once this is already initialised
-    zDMgrid, zvals,dmvals = misc_functions.get_zdm_grid(
-        state, new=True, plot=False, method='analytic')
-    
+    ############## Load up ##############
+    input_dict=io.process_jfile('../../papers/H0_I/Analysis/Cubes/craco_H0_Emax_cube.json')
+
+    # Deconstruct the input_dict
+    state, cube_dict, vparam_dict = it.parse_input_dict(input_dict)
     
     ######## choose which surveys to do an MC for #######
     
     # choose which survey to create an MC for
-    names = ['CRAFT/FE', 'CRAFT/ICS', 'CRAFT/ICS892', 'PKS/Mb','CRAFT_CRACO_MC_frbs_alpha1_5000']
+    names = ['CRAFT/FE', 'CRAFT/ICS', 'CRAFT/ICS892', 'PKS/Mb','CRAFT_CRACO_MC_alpha1_gamma_1000']
     dirnames=['ASKAP_FE','ASKAP_ICS','ASKAP_ICS892','Parkes_Mb','CRACO']
     # select which to perform an MC for
     which=4
     N=1000
     
-    samples,surveys=do_mc(state,zvals,dmvals,zDMgrid,N,names[which],dirnames[which],printit=True)
+    do_mc(state,names[which],N,which)
     
-
-def do_mc(state,zvals,dmvals,zDMgrid,Nsamples,names,dirnames,printit=False,plots=False):   
+def do_mc(state_dict, survey_name, Nsamples, which_survey,plots=False):
+ 
+    ############## Initialise survey and grid ##############
+    s,g = loading.survey_and_grid(
+        state_dict=state_dict,
+        survey_name=survey_name, NFRB=Nsamples)
+          
     ############## Initialise surveys ##############
     #saves everything in this directory
     outdir='MC/'
     if not os.path.isdir(outdir):
         os.mkdir(outdir)
     
-    #These surveys combine time-normalised and time-unnormalised samples 
-    #sprefix='Std' # faster - fine for max likelihood calculations, not as pretty
-    # insert more control over detail in grid
-    names=[names]
-    dirnames=[dirnames]
-    NewSurveys=True
-    if NewSurveys:
-        surveys = []
-        for survey_name in names:
-            surveys.append(survey.load_survey(survey_name, state, dmvals))
-        
-    print("Initialised surveys ",names)
-    
-    #gprefix=sprefix
-    
-    NewGrids=True
-    
-    if NewGrids:
-        print("Generating new grids, set NewGrids=False to save time later")
-        grids=misc_functions.initialise_grids(
-            surveys,zDMgrid, zvals, dmvals, state, wdist=True)#, source_evolution=source_evolution, alpha_method=alpha_method)
-    
-    print("Initialised grids")
-    
     
     samples = []
-    for i in range(len(surveys)):
-        # testing_MC!!! Generate pseudo samples from all surveys
-        g = grids[i]
-        s = surveys[i]
-        name = i
-        name = str(name)
     
-        savefile=outdir+'mc_sample_'+name+'_alpha_'+str(state.FRBdemo.alpha_method)+str(Nsamples)+'.npy'
+    name = str(which_survey)
+    savefile=outdir+'mc_sample_'+name+'_alpha_'+str(g.state.FRBdemo.alpha_method)+str(Nsamples)+'.npy'
     
-        try:
-            sample=np.load(savefile)
-            print("Loading ",sample.shape[0]," samples from file ",savefile)
-        except:
-            print("Generating ",Nsamples," samples from survey/grid ",i)
-            sample=g.GenMCSample(Nsamples)
-            sample=np.array(sample)
-            np.save(savefile,sample)
-        print("Shape of samples is ",samples)
-        samples.append(sample)
+    try:
+        sample=np.load(savefile)
+        print("Loading ",sample.shape[0]," samples from file ",savefile)
+    except:
+        print("Generating ",Nsamples," samples from survey/grid ",which_survey)
+        sample=g.GenMCSample(Nsamples)
+        sample=np.array(sample)
+        np.save(savefile,sample)
+    print("Shape of samples is ",samples)
+    samples.append(sample)
+    
+    print("########### Set 1: complete ########")
+    for j in np.arange(Nsamples):
+        DMG=35
+        DMEG=sample[j,1]
+        DMtot=DMEG+DMG+g.state.MW.DMhalo
+        SNRTHRESH=9.5
+        SNR=SNRTHRESH*sample[j,4]
+        z=sample[j,0]
+        w=sample[j,3]
         
-        print("########### Set 1: complete ########")
-        for j in np.arange(Nsamples):
-            DMG=35
-            DMEG=sample[j,1]
-            DMtot=DMEG+DMG+state.MW.DMhalo
-            SNRTHRESH=9.5
-            SNR=SNRTHRESH*sample[j,4]
-            z=sample[j,0]
-            w=sample[j,3]
-            
-            string="FRB "+str(j)+'  {:6.1f}  35   {:6.1f}  {:5.3f}   {:5.1f}  {:5.1f}'.format(DMtot,DMEG,z,SNR,w)
-            #print("FRB ",i,DMtot,SNR,DMEG,w)
-            print (string)
+        string="FRB "+str(j)+'  {:6.1f}  35   {:6.1f}  {:5.3f}   {:5.1f}  {:5.1f}'.format(DMtot,DMEG,z,SNR,w)
+        #print("FRB ",i,DMtot,SNR,DMEG,w)
+        print (string)
         
-        print("\n\n\n\n########### Set 2: no z above DM 1000 ########")
-        for j in np.arange(Nsamples):
-            DMG=35
-            DMEG=sample[j,1]
-            DMtot=DMEG+DMG+state.MW.DMhalo
-            SNRTHRESH=9.5
-            SNR=SNRTHRESH*sample[j,4]
-            if DMEG > 1000:
-                z = -1
-            else:
-                z = sample[j,0]
-            w=sample[j,3]
-            
-            string="FRB "+str(j)+'  {:6.1f}  35   {:6.1f}  {:5.3f}   {:5.1f}  {:5.1f}'.format(DMtot,DMEG,z,SNR,w)
-            #print("FRB ",i,DMtot,SNR,DMEG,w)
-            print (string)
+    print("\n\n\n\n########### Set 2: no z above DM 1000 ########")
+    for j in np.arange(Nsamples):
+        DMG=35
+        DMEG=sample[j,1]
+        DMtot=DMEG+DMG+g.state.MW.DMhalo
+        SNRTHRESH=9.5
+        SNR=SNRTHRESH*sample[j,4]
+        if DMEG > 1000:
+            z = -1
+        else:
+            z = sample[j,0]
+        w=sample[j,3]
         
-        print("\n\n\n\n########### Set 3: also one in 3 unlocalised ########")
-        for j in np.arange(Nsamples):
-            DMG=35
-            DMEG=sample[j,1]
-            DMtot=DMEG+DMG+state.MW.DMhalo
-            SNRTHRESH=9.5
-            SNR=SNRTHRESH*sample[j,4]
-            if DMEG > 1000 or j%3==0:
-                z = -1
-            else:
-                z = sample[j,0]
-            w=sample[j,3]
-            
-            string="FRB "+str(j)+'  {:6.1f}  35   {:6.1f}  {:5.3f}   {:5.1f}  {:5.1f}'.format(DMtot,DMEG,z,SNR,w)
-            #print("FRB ",i,DMtot,SNR,DMEG,w)
-            print (string)
+        string="FRB "+str(j)+'  {:6.1f}  35   {:6.1f}  {:5.3f}   {:5.1f}  {:5.1f}'.format(DMtot,DMEG,z,SNR,w)
+        print (string)
         
-        if plots:
-            #plot some sample plots
-            do_basic_sample_plots(sample)
-            #evaluate_mc_sample_v1(g,s,pset,sample)
-            evaluate_mc_sample_v2(g,s,pset,sample)
+    print("\n\n\n\n########### Set 3: also one in 3 unlocalised ########")
+    for j in np.arange(Nsamples):
+        DMG=35
+        DMEG=sample[j,1]
+        DMtot=DMEG+DMG+g.state.MW.DMhalo
+        SNRTHRESH=9.5
+        SNR=SNRTHRESH*sample[j,4]
+        if DMEG > 1000 or j%3==0:
+            z = -1
+        else:
+            z = sample[j,0]
+        w=sample[j,3]
         
-    return samples,surveys
+        string="FRB "+str(j)+'  {:6.1f}  35   {:6.1f}  {:5.3f}   {:5.1f}  {:5.1f}'.format(DMtot,DMEG,z,SNR,w)
+        print (string)
+    
+    if plots:
+        #plot some sample plots
+        do_basic_sample_plots(sample)
+        #evaluate_mc_sample_v1(g,s,pset,sample)
+        evaluate_mc_sample_v2(g,s,pset,sample)
+    
     
     
 def evaluate_mc_sample_v1(grid,survey,pset,sample,opdir='Plots'):

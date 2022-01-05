@@ -968,14 +968,14 @@ def cube_likelihoods(grids:list,surveys:list,
                     raise ValueError("Unknown code ",s.nD," for dimensions of survey")
                 # these are slow operations but negligible in the grand scheme of things
                 
-                string += ' {:8.2f}'.format(lls[j]) # for now, we are recording the individual log likelihoods, but not the components
-                string += ' {:8.2f}'.format(alist[0]) # DM / z value likelihood
-                string += ' {:8.2f}'.format(alist[1]) # N events likelihood
-                string += ' {:8.2f}'.format(alist[2]) # SNR likelihoods
-                string += ' {:8.2f}'.format(expected) # expected number of events
+                string += ' {:9.2f}'.format(lls[j]) # for now, we are recording the individual log likelihoods, but not the components
+                string += ' {:9.2f}'.format(alist[0]) # DM / z value likelihood
+                string += ' {:9.2f}'.format(alist[1]) # N events likelihood
+                string += ' {:9.2f}'.format(alist[2]) # SNR likelihoods
+                string += ' {:9.2f}'.format(expected) # expected number of events
                 
             ll=np.sum(lls)
-            string += '{:8.2f}'.format(ll)
+            string += '{:9.2f}'.format(ll)
             string += '\n'
             t2=time.process_time()
             print("Iteration ",nth," took ",t2-t1," seconds")
