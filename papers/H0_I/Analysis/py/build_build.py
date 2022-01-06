@@ -9,8 +9,6 @@ import os
 from zdm import iteration as it
 from zdm import io
 
-import analy_H0_I
-
 from IPython import embed
 
 def main(pargs):
