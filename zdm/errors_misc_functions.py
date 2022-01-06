@@ -59,6 +59,13 @@ def get_sc_grid(grid,nsnr:int,snrs:np.ndarray, calc_psz:bool=False):
             continue
         psnrs[i-1]=cpsnrs[i-1]-cpsnrs[i]
         pgrid[i-1,:]=cpgrid[i-1,:]-cpgrid[i,:]
+
+    # Reset grid
+    grid.thresholds = backup1
+    grid.calc_pdv()
+    grid.calc_rates()
+
+    #
     return psnrs, pgrid
     
 def error_get_source_counts(grid,errorsets,Emin,plot=None,Slabel=None,load=False,tag=None):
