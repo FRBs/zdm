@@ -6,13 +6,8 @@ import argparse
 import numpy as np
 import os
 
-from zdm import survey
-from zdm import parameters
-from zdm import cosmology as cos
-from zdm import misc_functions
 from zdm import iteration as it
 from zdm import io
-from zdm.craco import loading
 
 import analy_H0_I
 
@@ -27,25 +22,31 @@ def main(pargs):
     state_dict, cube_dict, vparam_dict = it.parse_input_dict(input_dict)
 
     npoints = np.array([item['n'] for key, item in vparam_dict.items()])
-    ntotal = np.prod(np.abs(npoints))
+    ntotal = int(np.prod(np.abs(npoints)))
 
-    with open(pargs.opfile) as f:    
+    nper_cpu = ntotal // pargs.ncpu
+    if int(ntotal/pargs.ncpu) != nper_cpu:
+        raise IOError(f"Ncpu={pargs.ncpu} must divide evenly into ntotal={ntotal}")
+
+
+    with open(pargs.bfile, 'w') as f:    
+        for kk in range(pargs.ncpu):
+            outfile = pargs.opfile.replace('.out', f'{kk+1}.out')
+            line = f'zdm_build_cube -n {kk+1} -m {nper_cpu} -o {outfile} -s CRAFT_CRACO_MC_alpha1_gamma_1000 --clobber -p {pargs.pfile} & \n'
+            f.write(line)
 
 # test for command-line arguments here
 parser = argparse.ArgumentParser()
 parser.add_argument('-n','--ncpu',type=int, required=True,help="Number of CPUs to run on")
 parser.add_argument('-p','--pfile',type=str, required=True,help="File defining parameter ranges")
 parser.add_argument('-o','--opfile',type=str,required=True,help="Output file for the data")
+parser.add_argument('-b','--bfile',type=str,required=True,help="Output file for script")
 args = parser.parse_args()
 
 
 main(args)
 
 '''
-# Test
-python py/craco_H0_Emax_cube.py -n 1 -m 100 -o tmp.out --clobber
-
-# 
-python py/craco_H0_Emax_cube.py -n 1 -m 250 -o Cubes/craco_H0_Emax_cube0.out --clobber
-
+Mini CRACO
+python py/build_build.py -n 10 -p Cubes/craco_mini_cube.json -o Cubes/craco_mini_cube.out -b build_craco_mini_cube.src
 '''
