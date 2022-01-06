@@ -5,7 +5,8 @@ from matplotlib import pyplot as plt
 
 def find_Alevels(pgrid:np.ndarray,
                  Aconts:list, 
-                 norm:bool=True):
+                 norm:bool=True,
+                 log:bool=True):
     slist=np.sort(pgrid.flatten())
     cslist=np.cumsum(slist)
     cslist /= cslist[-1]
@@ -26,6 +27,10 @@ def find_Alevels(pgrid:np.ndarray,
     if norm:
         xnorm=np.sum(pgrid)
         alevels /= xnorm
+
+    # Log?
+    if log:
+        alevels = np.log10(alevels)
 
     # Return
     return alevels
@@ -70,6 +75,8 @@ def ticks_pgrid(vals, everyn=5, fmt=None):
         ticks = vals[everx-1::everx]
     elif fmt[0:3] == 'str':
         ticks = [str(item)[0:int(fmt[3:])] for item in vals[everx-1::everx]]
+    elif fmt == 'int':
+        ticks = [int(item) for item in vals[everx-1::everx]]
 
     # Return
     return tvals[everx-1::everx], ticks

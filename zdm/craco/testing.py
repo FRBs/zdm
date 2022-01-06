@@ -60,7 +60,7 @@ def main(pargs):
                     vparams,grids,surveys, Verbose=False)
         vparams['lC']=C
         lls_final, nterm, pvterm, lpvals, lwz = it.calc_likelihoods_2D(
-                    igrid, isurvey, vparams['lC'],
+                    igrid, isurvey, 
                     norm=True,psnr=True,dolist=4)
         # Hold
         lls.append(lls_final)
@@ -91,6 +91,7 @@ def main(pargs):
     # Save?
     if pargs.opfile is not None:
         plt.savefig(pargs.opfile)
+        print(f"Wrote: {pargs.opfile}")
     else:
         plt.show()
     plt.close()
@@ -152,5 +153,7 @@ python testing.py H0 60. 80. --nstep 50 --nFRB 100 -o MC_Plots/CRACO_100_H0.png
 # Gamma
 python testing.py H0 60. 80. --nstep 50 --nFRB 100 --survey CRACO_alpha1_Planck18_Gamma -o MC_Plots/CRACO_100_H0_Gamma.png --lum_func 1
 python testing.py lEmax 41. 43. --nstep 50 --nFRB 100 --survey CRACO_alpha1_Planck18_Gamma -o MC_Plots/CRACO_100_Emax_Gamma.png --lum_func 1
+
+python testing.py alpha 0. 2. --nstep 50 --nFRB 100 --survey CRACO_alpha1_Planck18_Gamma -o MC_Plots/CRACO_100_alpha_Gamma.png --lum_func 1
 #
 '''

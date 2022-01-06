@@ -3,7 +3,9 @@ import numpy as np
 from dataclasses import dataclass, field, asdict
 from typing import IO, List
 from astropy.cosmology import Planck18
+
 import pandas
+import json
 
 from zdm import io
 
@@ -50,22 +52,37 @@ class BeamParams(myDataClass):
 class CosmoParams(myDataClass):
     H0: float = field(
         default=Planck18.H0.value,
-        metadata={'help': "Hubble's constant (km/s/Mpc)"})
+        metadata={'help': "Hubble's constant", 
+                  'unit': 'km s$^{-1}$ Mpc$^{-1}$',
+                  'Notation': 'H_0',
+                  })
     Omega_k: float = field(
         default=0.,
         metadata={'help': 'photo density. Ignored here (we do not go back far enough)'})
     Omega_lambda: float = field(
         default=Planck18.Ode0,
-        metadata={'help': 'dark energy / cosmological constant (in current epoch)'})
+        metadata={'help': 'dark energy / cosmological constant (in current epoch)',
+                  'unit': '',
+                  'Notation': '\Omega_{\Lambda}',
+                  })
     Omega_m: float = field(
         default=Planck18.Om0,
-        metadata={'help': 'matter density in current epoch'})
+        metadata={'help': 'matter density in current epoch',
+                  'unit': '',
+                  'Notation': '\Omega_m',
+                  })
     Omega_b: float = field(
         default=Planck18.Ob0,
-        metadata={'help': 'baryon density'})
+        metadata={'help': 'baryon density in current epoch',
+                  'unit': '',
+                  'Notation': '\Omega_b',
+                  })
     Omega_b_h2: float = field(
         default=Planck18.Ob0 * (Planck18.H0.value/100.)**2,
-        metadata={'help': 'Baryon density weighted by h_100**2.  This should always be the CMB value!'})
+        metadata={'help': 'Baryon density weighted by $h_{100}^2$',
+                  'unit': '',
+                  'Notation': '\Omega_b h^2',
+                  })
     fix_Omega_b_h2: bool = field(
         default=True,
         metadata={'help': 'Fix Omega_b_h2 by the Placnk18 value?'})
@@ -86,7 +103,10 @@ class FRBDemoParams(myDataClass):
                  'options': [0,1]})
     sfr_n: float = field(
         default = 1.77,
-        metadata={'help': 'scaling with star-formation rate'})
+        metadata={'help': 'scaling with star-formation rate',
+                  'unit': '',
+                  'Notation': 'n',
+                  })
     lC: float = field(
         default = 4.19,
         metadata={'help': 'log10 constant in number per Gpc^-3 yr^-1 at z=0'})
@@ -99,50 +119,79 @@ class MWParams(myDataClass):
         metadata={'help': 'Assumed DM for the Galactic ISM in units of pc/cm^3'})
     DMhalo: float = field(
         default=50.,
-        metadata={'help': 'DM for the Galactic halo in units of pc/cm^3'})
-
+        metadata={'help': 'DM for the Galactic halo',
+                  'unit': 'pc cm$^{-3}$',
+                  'Notation': '{\\rm DM}_{\\rm halo}',
+        })
 # IGM parameters
 @dataclass
 class IGMParams(myDataClass):
     F: float = field(
         default=0.32,
-        metadata={'help': 'F parameter in DM PDF for the Cosmic web'})
+        metadata={'help': 'F parameter in DM$_{\\rm cosmic}$ PDF for the Cosmic web',
+                  'unit': '',
+                  'Notation': 'F',
+        })
 
 # Host parameters -- host
 @dataclass
 class HostParams(myDataClass):
     lmean: float = field(
         default=2.16,
-        metadata={'help': 'log10 mean of DM host contribution in pc cm^-3'})
+        metadata={'help': 'log10 mean of DM host contribution in pc cm^-3',
+                  'unit': '',
+                  'Notation': '\mu_{\\rm host}',
+        })
     lsigma: float = field(
         default=0.51,
-        metadata={'help': 'log10 sigma of DM host contribution in pc cm^-3'})
+        metadata={'help': 'log10 sigma of DM host contribution in pc cm^-3',
+                  'unit': '',
+                  'Notation': '\sigma_{\\rm host}',
+        })
 
 # FRB intrinsic width parameters
 @dataclass
 class WidthParams(myDataClass):
     logmean: float = field(
         default = 1.70267, 
-        metadata={'help': 'Intrinsic width log of mean'})
+        metadata={'help': 'Intrinsic width log of mean',
+                  'unit': 'ms',
+                  'Notation': '\mu_{w}',
+                  })
     logsigma: float = field(
         default = 0.899148,
-        metadata={'help': 'Intrinsic width log of sigma'})
+        metadata={'help': 'Intrinsic width log of sigma',
+                  'unit': 'ms',
+                  'Notation': '\sigma_{w}',
+                  })
 
 # FRB Energetics -- energy
 @dataclass
 class EnergeticsParams(myDataClass):
     lEmin: float = field(
         default = 30.,
-        metadata={'help': 'Minimum energy.  log10 in erg'})
+        metadata={'help': 'log10 of minimum energy ',
+                  'unit': 'erg',
+                  'Notation': 'E_{\\rm min}',
+                  })
     lEmax: float = field(
         default = 41.84,
-        metadata={'help': 'Maximum energy.  log10 in erg'})
+        metadata={'help': 'log 10 of maximum energy',
+                  'unit': 'erg',
+                  'Notation': 'E_{\\rm max}',
+                  })
     alpha: float = field(
         default = 1.54,
-        metadata={'help': 'spectral index. WARNING: here F(nu)~nu^-alpha in the code, opposite to the paper!'})
+        metadata={'help': 'spectral index',
+                  'unit': '',
+                  'Notation': '\\alpha',
+                  })
     gamma: float = field(
         default = -1.16,
-        metadata={'help': 'slope of luminosity distribution function'})
+        metadata={'help': 'slope of luminosity distribution function',
+                  'unit': '',
+                  'Notation': '\gamma',
+                  })
     luminosity_function: int = field(
         default = 0,
         metadata={'help': 'luminosity function applied (0=power-law, 1=gamma)'})
@@ -287,3 +336,8 @@ class State:
                     print("Bad key type: {}".format(key))
         # Return
         return chk, disallowed_keys, badtype_keys
+
+    def __repr__(self) -> str:
+        return json.dumps(self.to_dict(), 
+                   sort_keys=True, indent=4,
+                   separators=(',', ': '))

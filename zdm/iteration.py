@@ -790,6 +790,7 @@ def cube_likelihoods(grids:list,surveys:list,
                      vparam_dict:dict,
                      cube_dict:dict,
                      run,howmany,outfile,norm=True,
+                     Verbose:bool=False,
                      psnr=True,starti=0,clone=None):
     """
 
@@ -892,7 +893,8 @@ def cube_likelihoods(grids:list,surveys:list,
     # Run!
     for i in np.arange(howmany):
         
-        print("Testing ",i," of ",howmany," begin at ",starti)
+        if (i % 100) == 0:
+            print("Testing ",i," of ",howmany," begin at ",starti)
         if i>=starti:
             
             nth=i+(run-1)*howmany
@@ -978,7 +980,8 @@ def cube_likelihoods(grids:list,surveys:list,
             string += '{:9.2f}'.format(ll)
             string += '\n'
             t2=time.process_time()
-            print("Iteration ",nth," took ",t2-t1," seconds")
+            if Verbose:
+                print("Iteration ",nth," took ",t2-t1," seconds")
 
             # write output: parameters, likelihoods (and components)
             f.write(string)
@@ -1717,7 +1720,7 @@ def minus_poisson_ps(log10C,data):
     
 
 def minimise_const_only(vparams:dict,grids:list,surveys:list,
-                        Verbose=True, use_prev_grid:bool=True):
+                        Verbose=False, use_prev_grid:bool=True):
     """
     Only minimises for the constant, but returns the full likelihood
     It treats the rest as constants

@@ -1,16 +1,47 @@
 # imports
 import numpy as np
 from zdm.craco import loading
+from zdm import errors_misc_functions as err
 
 from IPython import embed
 
+fiducial_survey = 'CRAFT_CRACO_MC_alpha1_gamma_1000'
 
-def generate_sz_grid(ns=1000, outfile='sz_grid.npy'):
+def generate_grids(params, ns=100, logsmax=2.5):
+
+    H0_values = [60., 70., 80., 80.]
+    lEmax_values = [41.4, 41.4, 41.4, 41.3]
+    snrs=np.logspace(0,logsmax,ns)
+
     # Load
     survey, grid = loading.survey_and_grid(
-        survey_name='CRACO_alpha1_Planck18_Gamma',
+        survey_name=fiducial_survey,
         NFRB=100, lum_func=1)
 
+    for H0, lEmax, in zip(H0_values, lEmax_values):
+
+        print(f"Working on H0={H0}, lEmax={lEmax}")
+        vparams = {}
+        vparams['H0'] = H0
+        vparams['lEmax'] = lEmax
+        grid.update(vparams)
+
+        # Generate sz
+        if params == 'sz':
+            psnrs,psz=err.get_sc_grid(grid, ns, snrs, calc_psz=True)
+        elif params == 'sDM':
+            psnrs,psDM=err.get_sc_grid(grid, ns, snrs, calc_psz=False)
+
+        # Outfile
+        outfile = f'GridData/p{params}_H0{int(H0)}_Emax{lEmax}.npz'
+        if params == 'sz':
+            np.savez(outfile, snrs=snrs, zvals=grid.zvals, psz=psz)
+        elif params == 'sDM':
+            np.savez(outfile, snrs=snrs, dmvals=grid.dmvals, psDM=psDM)
+        print(f"Wrote: {outfile}")
+
+
+def deprecated():
     # Init
     nw, nz, nDM = grid.thresholds.shape
     Emax=10**grid.state.energy.lEmax
@@ -58,4 +89,6 @@ def generate_sz_grid(ns=1000, outfile='sz_grid.npy'):
     ax.legend()
     plt.show()
 
-generate_sz_grid()
+if __name__ == '__main__':
+    #generate_grids('sz')
+    generate_grids('sDM')

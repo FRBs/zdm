@@ -50,51 +50,6 @@ def generate(alpha_method=1, Nsamples=10000, do_plots=True,
     outfile='FRBs.txt',
     savefile=None): 
 
-    '''
-    state = load.set_state(alpha_method=alpha_method)
-        
-    ############## Initialise cosmology ##############
-    cos.set_cosmology(state)
-    cos.init_dist_measures()
-    
-    # get the grid of p(DM|z). See function for default values.
-    # set new to False once this is already initialised
-    zDMgrid, zvals,dmvals = misc_functions.get_zdm_grid(
-        state, new=True, plot=False, method='analytic')
-    
-    ############## Initialise surveys ##############
-    
-    
-    NewSurveys=True
-    sprefix='craco_alpha' # faster - fine for max likelihood calculations, not as pretty
-    
-    if NewSurveys:
-        surveys=[survey.load_survey('CRAFT_CRACO_MC_frbs_alpha1', 
-                                    state, dmvals)]
-        
-        if not os.path.isdir('Pickle'):
-            os.mkdir('Pickle')
-        with open('Pickle/'+sprefix+'surveys.pkl', 'wb') as output:
-            pickle.dump(surveys, output, pickle.HIGHEST_PROTOCOL)
-    else:
-        with open('Pickle/'+sprefix+'surveys.pkl', 'rb') as infile:
-            surveys=pickle.load(infile)
-    craco=surveys[0]
-    
-    gprefix=sprefix
-    NewGrids=False
-    
-    if NewGrids:
-        print("Generating new grids, set NewGrids=False to save time later")
-        grids=misc_functions.initialise_grids(
-            surveys,zDMgrid, zvals, dmvals, state, wdist=True)#, source_evolution=source_evolution, alpha_method=alpha_method)
-        with open('Pickle/'+gprefix+'grids.pkl', 'wb') as output:
-            pickle.dump(grids, output, pickle.HIGHEST_PROTOCOL)
-    else:
-        print("Loading grid ",'Pickle/'+gprefix+'grids.pkl')
-        with open('Pickle/'+gprefix+'grids.pkl', 'rb') as infile:
-            grids=pickle.load(infile)
-    '''
     craco, grid = loading.survey_and_grid(alpha_method=alpha_method,
         survey_name=base_survey, lum_func=lum_func)
     
