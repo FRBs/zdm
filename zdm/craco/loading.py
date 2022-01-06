@@ -82,7 +82,7 @@ def set_state(alpha_method=1, cosmo=Planck18):
 
 def survey_and_grid(survey_name:str='CRAFT/CRACO_1_5000',
             state_dict=None,
-               alpha_method=1, NFRB:int=100, lum_func:int=0):
+               alpha_method=1, NFRB:int=100, lum_func:int=0,sdir=None):
     """ Load up a survey and grid for a CRACO mock dataset
 
     Args:
@@ -119,7 +119,10 @@ def survey_and_grid(survey_name:str='CRAFT/CRACO_1_5000',
         datdir=resource_filename('zdm', 'GridData'))
     
     ############## Initialise surveys ##############
-    sdir = os.path.join(resource_filename('zdm', 'craco'), 'MC_Surveys')
+    if sdir is not None:
+        print("Searching for survey in directory ",sdir)
+    else:
+        sdir = os.path.join(resource_filename('zdm', 'craco'), 'MC_Surveys')
     isurvey = survey.load_survey(survey_name, state, dmvals,
                                  NFRB=NFRB, sdir=sdir, Nbeams=5)
 

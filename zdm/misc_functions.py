@@ -2203,7 +2203,8 @@ def plot_grid_2(zDMgrid,zvals,dmvals,
     if FRBZ is not None:
         iDMs=FRBDM/ddm
         iZ=FRBZ/dz
-        plt.plot(iZ,iDMs,'ro',linestyle="")
+        OK = np.where(FRBZ>0)[0]
+        plt.plot(iZ[OK],iDMs[OK],'ro',linestyle="")
         
     # do 1-D projected plots
     if project:
@@ -2233,10 +2234,11 @@ def plot_grid_2(zDMgrid,zvals,dmvals,
                         tick.label.set_fontsize(6)
             
         if FRBZ is not None:
-            hvals=np.zeros(FRBZ.size)
-            for i,Z in enumerate(FRBZ):
+            OK = np.where(FRBZ>0)[0]
+            hvals=np.zeros(FRBZ[OK].size)
+            for i,Z in enumerate(FRBZ[OK]):
                 hvals[i]=xonly[np.where(zvals > Z)[0][0]]
-            axx.plot(FRBZ,hvals,'ro',linestyle="")
+            axx.plot(FRBZ[OK],hvals,'ro',linestyle="")
             for tick in axx.xaxis.get_major_ticks():
                         tick.label.set_fontsize(6)
     else:
