@@ -4,22 +4,42 @@ import zdm
 
 import pickle
 
-def get_sc_grid(grid,snrs):
+def get_sc_grid(grid,nsnr:int,snrs:np.ndarray, calc_psz:bool=False):
+    """Generate an s,DM grid
+
+    Args:
+        grid ([type]): [description]
+        nsnr (int):  Length of the snrs array.  Seems superfluous..
+        snrs (np.ndarray): [description]
+        calc_psz(bool, optional):
+            If True, calcualte p(s,z) instead!
+
+    Returns:
+        tuple: Two np.ndarray's.  
+            One is p(s) and the other is p(s,DM) or p(s,z)
+    """
     
-    # calculate vector of grid thresholds
-    ndm=grid.dmvals.size
-    
+
     # holds cumulative and differential source counts
-    nsnr=snrs.size
     cpsnrs=np.zeros([nsnr])
     psnrs=np.zeros([nsnr-1])
     
-    # holds DM-dependent source counts
-    dmcpsnrs=np.zeros([nsnr,ndm])
-    dmpsnrs=np.zeros([nsnr-1,ndm])
+    if not calc_psz:
+        nother=grid.dmvals.size
+    else:
+        # holds DM-dependent source counts
+        nother=grid.zvals.size
+
+    # Generate the grids
+    cpgrid=np.zeros([nsnr,nother])
+    pgrid=np.zeros([nsnr-1,nother])
     
-    # create a copy of the thresholds to artificially increase
     backup1=np.copy(grid.thresholds)
+    
+    # modifies grid to simplify beamshape
+    grid.beam_b=np.array([grid.beam_b[-1]])
+    grid.beam_o=np.array([grid.beam_o[-1]])
+    grid.b_fractions=None
     
     for i,s in enumerate(snrs):
         
@@ -27,16 +47,19 @@ def get_sc_grid(grid,snrs):
         grid.calc_pdv()
         grid.calc_rates()
         rates=grid.rates
-        dmcpsnrs[i,:]=np.sum(rates,axis=0)
-        cpsnrs[i]=np.sum(dmcpsnrs[i,:])
+        if calc_psz:
+            cpgrid[i,:]=np.sum(rates,axis=1)
+        else:
+            cpgrid[i,:]=np.sum(rates,axis=0)
+        cpsnrs[i]=np.sum(cpgrid[i,:])
     
     # the last one contains cumulative values
     for i,s in enumerate(snrs):
         if i==0:
             continue
         psnrs[i-1]=cpsnrs[i-1]-cpsnrs[i]
-        dmpsnrs[i-1,:]=dmcpsnrs[i-1,:]-dmcpsnrs[i,:]
-    return psnrs,dmpsnrs
+        pgrid[i-1,:]=cpgrid[i-1,:]-cpgrid[i,:]
+    return psnrs, pgrid
     
 def error_get_source_counts(grid,errorsets,Emin,plot=None,Slabel=None,load=False,tag=None):
     """
@@ -117,11 +140,11 @@ def error_get_source_counts(grid,errorsets,Emin,plot=None,Slabel=None,load=False
         temp=[1.02,1.3,1.6,2.05,2.5]
         for i,s in enumerate(slopes):
             plt.plot(snrs,ys[i]*snrs**mod/fixpoint,linestyle='--',zorder=0,color='black')#,label='slope='+str(s)[0:3])
-            plt.text(0.65,temp[i],'$s^{-'+str(s)[0:3]+'}$',zorder=0)#,rotation=30-i*15)    
+            plt.text(0.65,temp[i],'$s^{-'+str(s)[0:3]+'}$',zorder=0)#,rotation=30-i*15)	
         
         
         #for i,g in enumerate(errorsets):
-        #    psnrs,dmpsnrs=get_sc_grid(grid,nsnr,snrs)
+        #	psnrs,dmpsnrs=get_sc_grid(grid,nsnr,snrs)
         
         ax=plt.gca()
         #labels = [item.get_text() for item in ax.get_yticklabels()]
@@ -702,7 +725,7 @@ def ks_test(x,theory,obs,nMC,label='',tag='',outdir='ErrorPlots',xmax=0.5):
         cmc_obs=make_cumulative_hist(x,dmlist)
         ks_stats[i]=np.max(np.abs(ctheory-cmc_obs))
         #if i==0:
-        #    plt.plot(x,cmc_obs,label='simulated')
+        #	plt.plot(x,cmc_obs,label='simulated')
         
     plt.legend()
     plt.tight_layout()
@@ -963,7 +986,7 @@ def calc_psnr_1D(grid,survey,pset,slist,doplot=None,xlim=[1,100],ylim=[0.01,1]):
         # p(snr,DM)/p(DM) * p(DM)/b(burst)
         # get a vector of rates as a function of z
         #rs = rates[:,idms1[j]]*(1.-dkdms[j])+ rates[:,idms2[j]]*dkdms[j]
-        rs = rates[:,idms1]*(1.-dkdms)+ rates[:,idms2]*dkdms    
+        rs = rates[:,idms1]*(1.-dkdms)+ rates[:,idms2]*dkdms	
         #norms=np.sum(rs,axis=0)/global_norm
         norms=pvals
         
@@ -1106,7 +1129,7 @@ def calc_psnr_2D(grid,survey,pset,slist,doplot=None,xlim=[1,100],ylim=[0.01,1]):
     
     
     #if survey.meta["TOBS"] is not None:
-    #    TotalRate=np.sum(rates)*survey.meta["TOBS"]
+    #	TotalRate=np.sum(rates)*survey.meta["TOBS"]
         # this is in units of number per MPc^3 at Emin
     
     # normalise to total probability of 1
