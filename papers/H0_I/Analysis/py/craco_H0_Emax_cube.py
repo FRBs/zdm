@@ -32,7 +32,9 @@ def main(pargs, outdir='Cubes/'):
     ############## Initialise ##############
     survey, grid = loading.survey_and_grid(
         state_dict=state_dict,
-        survey_name='CRACO_alpha1_Planck18_Gamma', NFRB=100)
+        survey_name='CRACO_alpha1_Planck18_Gamma', 
+        iFRB=100,  # This drives the value closer to true.  The first 100 are "skewed"!
+        NFRB=100)
 
     # Write state to disk
     state_file = pfile.replace('cube.json', 'state.json')

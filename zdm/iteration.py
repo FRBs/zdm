@@ -947,7 +947,6 @@ def cube_likelihoods(grids:list,surveys:list,
                     embed(header='1047 of it -- this wont work')
                     grids[j].copy(grids[clone[j]])
                 else:
-                    #update_grid(grids[j],pset,s)
                     grids[j].update(vparams)
                 if s.nD==1:
                     lls[j],alist,expected = calc_likelihoods_1D(

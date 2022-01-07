@@ -45,6 +45,9 @@ args = parser.parse_args()
 main(args)
 
 '''
+SubMini CRACO
+python py/build_build.py -n 10 -p Cubes/craco_submini_cube.json -o Cubes/craco_mini_cube.out -b build_craco_submini_cube.src
+
 Mini CRACO
 python py/build_build.py -n 10 -p Cubes/craco_mini_cube.json -o Cubes/craco_mini_cube.out -b build_craco_mini_cube.src
 '''

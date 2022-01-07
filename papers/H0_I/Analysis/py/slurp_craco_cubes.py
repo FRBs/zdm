@@ -3,7 +3,7 @@
 from zdm import analyze_cube
 
 
-Emax = False
+Emax = True
 if Emax:
     # Emax
     input_file = 'Cubes/craco_H0_Emax_cube.json'
@@ -14,7 +14,7 @@ if Emax:
     analyze_cube.slurp_cube(input_file, prefix, 'Cubes/craco_H0_Emax_cube.npz',
                             nsurveys)
 
-F = True
+F = False
 if F:
     # Emax
     input_file = 'Cubes/craco_H0_F_cube.json'
@@ -24,4 +24,16 @@ if F:
     # Run it
     analyze_cube.slurp_cube(input_file, prefix, 
                             'Cubes/craco_H0_F_cube.npz',
+                            nsurveys)
+
+mini = False
+if mini:
+    # Emax
+    input_file = 'Cubes/craco_mini_cube.json'
+    prefix = 'Cubes/craco_mini_cube'
+    nsurveys = 1
+
+    # Run it
+    analyze_cube.slurp_cube(input_file, prefix, 
+                            'Cubes/craco_mini_cube.npz',
                             nsurveys)

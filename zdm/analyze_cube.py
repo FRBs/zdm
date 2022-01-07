@@ -146,6 +146,8 @@ def get_bayesian_data(lls:np.ndarray,
             
             vector[iv]=np.sum(10**lls[OKlls])
             wvector[iv]=np.sum(10**wlls[OKwlls])
+            #import pdb; pdb.set_trace()
+        # Check
         vector *= 1./np.sum(vector)
         wvector *= 1./np.sum(wvector)	
         vectors.append(vector)
@@ -474,7 +476,7 @@ def do_single_plots(uvals,vectors,wvectors,names,tag=None, fig_exten='.png',
             plt.legend(loc='upper left',title='Prior on $\\alpha$')
         
         plt.tight_layout()
-        plt.savefig(os.path.join(outdir, prefix+names[i]+fig_exten))
+        plt.savefig(os.path.join(outdir, prefix+names[i]+fig_exten), dpi=200)
         plt.close()
     if log:
         logfile.close()

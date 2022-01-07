@@ -81,7 +81,7 @@ def set_state(alpha_method=1, cosmo=Planck18):
 
 
 def survey_and_grid(survey_name:str='CRAFT/CRACO_1_5000',
-            state_dict=None,
+            state_dict=None, iFRB:int=0,
                alpha_method=1, NFRB:int=100, lum_func:int=0,sdir=None):
     """ Load up a survey and grid for a CRACO mock dataset
 
@@ -89,6 +89,7 @@ def survey_and_grid(survey_name:str='CRAFT/CRACO_1_5000',
         cosmo (str, optional): astropy cosmology. Defaults to 'Planck15'.
         survey_name (str, optional):  Defaults to 'CRAFT/CRACO_1_5000'.
         NFRB (int, optional): Number of FRBs to analyze. Defaults to 100.
+        iFRB (int, optional): Starting index for the FRBs.  Defaults to 0
         lum_func (int, optional): Flag for the luminosity function. 
             0=power-law, 1=gamma.  Defaults to 0.
         state_dict (dict, optional):
@@ -124,7 +125,8 @@ def survey_and_grid(survey_name:str='CRAFT/CRACO_1_5000',
     else:
         sdir = os.path.join(resource_filename('zdm', 'craco'), 'MC_Surveys')
     isurvey = survey.load_survey(survey_name, state, dmvals,
-                                 NFRB=NFRB, sdir=sdir, Nbeams=5)
+                                 NFRB=NFRB, sdir=sdir, Nbeams=5,
+                                 iFRB=iFRB)
 
     # generates zdm grid
     grids = misc_functions.initialise_grids(
