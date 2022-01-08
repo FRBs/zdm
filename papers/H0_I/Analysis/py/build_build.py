@@ -55,6 +55,9 @@ args = parser.parse_args()
 main(args)
 
 '''
+sfr vs Emax
+python py/build_build.py -n 10 -p Cubes/craco_sfr_Emax_cube.json -o Cubes/craco_sfr_Emax_cube.out -b build_craco_sfr_Emax_cube.src --NFRB 100 --iFRB 100
+
 SubMini CRACO
 python py/build_build.py -n 10 -p Cubes/craco_submini_cube.json -o Cubes/craco_submini_cube.out -b build_craco_submini_cube.src --NFRB 100 --iFRB 100
 
