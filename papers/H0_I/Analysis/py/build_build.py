@@ -30,7 +30,15 @@ def main(pargs):
     with open(pargs.bfile, 'w') as f:    
         for kk in range(pargs.ncpu):
             outfile = pargs.opfile.replace('.out', f'{kk+1}.out')
-            line = f'zdm_build_cube -n {kk+1} -m {nper_cpu} -o {outfile} -s CRAFT_CRACO_MC_alpha1_gamma_1000 --clobber -p {pargs.pfile} & \n'
+            line = f'zdm_build_cube -n {kk+1} -m {nper_cpu} -o {outfile} -s CRACO_alpha1_Planck18_Gamma --clobber -p {pargs.pfile}' 
+            # NFRB?
+            if pargs.NFRB is not None:
+                line += f' --NFRB {pargs.NFRB}'
+            # iFRB?
+            if pargs.iFRB > 0:
+                line += f' --iFRB {pargs.iFRB}'
+            # Finish
+            line += ' & \n'
             f.write(line)
 
 # test for command-line arguments here
@@ -39,6 +47,8 @@ parser.add_argument('-n','--ncpu',type=int, required=True,help="Number of CPUs t
 parser.add_argument('-p','--pfile',type=str, required=True,help="File defining parameter ranges")
 parser.add_argument('-o','--opfile',type=str,required=True,help="Output file for the data")
 parser.add_argument('-b','--bfile',type=str,required=True,help="Output file for script")
+parser.add_argument('--NFRB',type=int,required=False,help="Number of FRBs to analzye")
+parser.add_argument('--iFRB',type=int,default=0,help="Initial FRB to run from")
 args = parser.parse_args()
 
 
@@ -46,8 +56,8 @@ main(args)
 
 '''
 SubMini CRACO
-python py/build_build.py -n 10 -p Cubes/craco_submini_cube.json -o Cubes/craco_mini_cube.out -b build_craco_submini_cube.src
+python py/build_build.py -n 10 -p Cubes/craco_submini_cube.json -o Cubes/craco_submini_cube.out -b build_craco_submini_cube.src --NFRB 100 --iFRB 100
 
 Mini CRACO
-python py/build_build.py -n 10 -p Cubes/craco_mini_cube.json -o Cubes/craco_mini_cube.out -b build_craco_mini_cube.src
+python py/build_build.py -n 10 -p Cubes/craco_mini_cube.json -o Cubes/craco_mini_cube.out -b build_craco_mini_cube.src --NFRB 100 --iFRB 100
 '''

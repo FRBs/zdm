@@ -37,3 +37,15 @@ if mini:
     analyze_cube.slurp_cube(input_file, prefix, 
                             'Cubes/craco_mini_cube.npz',
                             nsurveys)
+
+submini = False
+if submini:
+    # Emax
+    input_file = 'Cubes/craco_submini_cube.json'
+    prefix = 'Cubes/craco_submini_cube'
+    nsurveys = 1
+
+    # Run it
+    analyze_cube.slurp_cube(input_file, prefix, 
+                            'Cubes/craco_submini_cube.npz',
+                            nsurveys)

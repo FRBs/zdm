@@ -31,7 +31,8 @@ def main(pargs, outdir='Cubes'):
     survey, grid = loading.survey_and_grid(
         state_dict=state_dict,
         survey_name=pargs.survey,
-        NFRB=100)
+        NFRB=pargs.NFRB,
+        iFRB=pargs.iFRB)
 
     # Write state to disk
     state_file = pargs.pfile.replace('cube.json', 'state.json')
@@ -64,6 +65,8 @@ def parse_args(options=None):
     parser.add_argument('-p','--pfile',type=str, required=True,help="File defining parameter ranges")
     parser.add_argument('-s','--survey',type=str, required=True,help="Name of CRACO MC survey")
     parser.add_argument('-o','--opfile',type=str,required=True,help="Output file for the data")
+    parser.add_argument('--NFRB',type=int,required=False,help="Number of FRBs to analzye")
+    parser.add_argument('--iFRB',type=int,default=0,help="Initial FRB to run from")
     parser.add_argument('--clobber', default=False, action='store_true',
                     help="Clobber output file?")
     args = parser.parse_args()

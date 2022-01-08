@@ -40,20 +40,20 @@
     "sfr_n": {
         "DC": "FRBdemo",
         "min": 0.0, 
-        "max": 5.0, 
+        "max": 2.0, 
         "n": 10
     },
     "lmean": {
         "DC": "host",
-        "min": 0.5, 
-        "max": 2.75, 
-        "n": 3
+        "min": 1.7, 
+        "max": 2.5, 
+        "n": 5
     },
     "lsigma": {
         "DC": "host",
-        "min": 0.2, 
-        "max": 1.1, 
-        "n": 3
+        "min": 0.3, 
+        "max": 0.7, 
+        "n": 5
     },
     "lC": {
         "DC": "FRBdemo",
