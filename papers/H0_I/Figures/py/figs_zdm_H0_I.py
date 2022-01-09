@@ -35,7 +35,8 @@ def fig_craco_fiducial(outfile='fig_craco_fiducial.png',
                 log=True,
                 label='$\\log_{10} \; p(DM_{\\rm EG},z)$',
                 Aconts=[0.01, 0.1, 0.5],
-                cmap='jet'):
+                cmap='jet', show=False, figsize=None,
+                grid=None, survey=None):
     """
     Very complicated routine for plotting 2D zdm grids 
 
@@ -60,9 +61,10 @@ def fig_craco_fiducial(outfile='fig_craco_fiducial.png',
         showplot (bool, optional): [description]. Defaults to False.
     """
     # Generate the grid
-    survey, grid = loading.survey_and_grid(
-        survey_name=analy_H0_I.fiducial_survey,
-        NFRB=100, lum_func=1)
+    if grid is None or survey is None:
+        survey, grid = loading.survey_and_grid(
+            survey_name=analy_H0_I.fiducial_survey,
+            NFRB=100, lum_func=1)
 
     # Unpack
     full_zDMgrid, zvals, dmvals = grid.rates, grid.zvals, grid.dmvals
@@ -70,7 +72,7 @@ def fig_craco_fiducial(outfile='fig_craco_fiducial.png',
     FRBDM=survey.DMEGs
     
     ##### imshow of grid #######
-    plt.figure()
+    plt.figure(figsize=figsize)
     ax1=plt.axes()
     plt.sca(ax1)
     
@@ -152,7 +154,10 @@ def fig_craco_fiducial(outfile='fig_craco_fiducial.png',
     cbar.set_label(label)
     plt.tight_layout()
     
-    plt.savefig(outfile, dpi=300)
+    if show:
+        plt.show()
+    else:
+        plt.savefig(outfile, dpi=300)
     plt.close()
     print(f"Wrote: {outfile}")
 
