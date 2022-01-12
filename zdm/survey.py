@@ -192,11 +192,19 @@ class Survey:
         if self.frbs["Z"] is not None:
             
             self.Zs=self.frbs["Z"]
-            # checks to see if there are any FRBs
+            # checks for any redhsifts identically equal to zero
+            #exactly zero can be bad... only happens in MC generation
+            # 0.001 is chosen as smallest redshift in original fit
+            zeroz = np.where(self.Zs == 0.)[0]
+            if len(zeroz) >0:
+                self.Zs[zeroz]=0.001
+            
+            # checks to see if there are any FRBs which are localised
             self.zlist = np.where(self.Zs > 0.)[0]
             if len(self.zlist) < self.NFRB:
-                self.nozlist = np.where(self.Zs <= 0.)[0]
+                self.nozlist = np.where(self.Zs < 0.)[0]
                 self.nD=3 # code for both
+                print("For this survey, found nozlist of ",np.where(self.Zs < 0.)[0])
             else:
                 self.nozlist = None
                 self.nD=2
