@@ -23,19 +23,20 @@ import h5py
 
 from zdm.craco import loading
 from zdm import pcosmic
-from zdm import analyze_cube
+from zdm import figures
 
 from IPython import embed
 
+sys.path.append(os.path.abspath("../Analysis/py"))
+import analy_H0_I
+
 def fig_craco_fiducial(outfile='fig_craco_fiducial.png',
                 zmax=2,DMmax=2000,
-                norm=2,log=True,
-                label='$\\log_{10} \, p(DM_{\\rm EG},z)$',
-                project=False,
-                conts=False,
+                log=True,
+                label='$\\log_{10} \; p(DM_{\\rm EG},z)$',
                 Aconts=[0.01, 0.1, 0.5],
-                Macquart=None,title="Plot",
-                H0=None,showplot=False):
+                cmap='jet', show=False, figsize=None,
+                grid=None, survey=None):
     """
     Very complicated routine for plotting 2D zdm grids 
 
@@ -60,194 +61,54 @@ def fig_craco_fiducial(outfile='fig_craco_fiducial.png',
         showplot (bool, optional): [description]. Defaults to False.
     """
     # Generate the grid
-    survey, grid = loading.survey_and_grid(
-        survey_name='CRACO_alpha1_Planck18_Gamma',
-        NFRB=100, lum_func=1)
+    if grid is None or survey is None:
+        survey, grid = loading.survey_and_grid(
+            survey_name=analy_H0_I.fiducial_survey,
+            NFRB=100, lum_func=1)
 
     # Unpack
-    zDMgrid, zvals, dmvals = grid.rates, grid.zvals, grid.dmvals
+    full_zDMgrid, zvals, dmvals = grid.rates, grid.zvals, grid.dmvals
     FRBZ=survey.frbs['Z']
     FRBDM=survey.DMEGs
     
-    cmx = plt.get_cmap('cubehelix')
-    
     ##### imshow of grid #######
-    
-    # we protect these variables
-    zDMgrid=np.copy(zDMgrid)
-    zvals=np.copy(zvals)
-    dmvals=np.copy(dmvals)
-    
-    if (project):
-        plt.figure(1, figsize=(8, 8))
-        left, width = 0.1, 0.65
-        bottom, height = 0.1, 0.65
-        gap=0.02
-        woff=width+gap+left
-        hoff=height+gap+bottom
-        dw=1.-woff-gap
-        dh=1.-hoff-gap
-        
-        delta=1-height-bottom-0.05
-        gap=0.11
-        rect_2D = [left, bottom, width, height]
-        rect_1Dx = [left, hoff, width, dh]
-        rect_1Dy = [woff, bottom, dw, height]
-        rect_cb = [woff,hoff,dw*0.5,dh]
-        ax1=plt.axes(rect_2D)
-        axx=plt.axes(rect_1Dx)
-        axy=plt.axes(rect_1Dy)
-        acb=plt.axes(rect_cb)
-        #axx.xaxis.set_major_formatter(NullFormatter())
-        #axy.yaxis.set_major_formatter(NullFormatter())
-    else:
-        plt.figure()
-        #rect_2D=[0,0,1,1]
-        ax1=plt.axes()
-    
+    plt.figure(figsize=figsize)
+    ax1=plt.axes()
     plt.sca(ax1)
     
     plt.xlabel('z')
     plt.ylabel('${\\rm DM}_{\\rm EG}$')
     #plt.title(title+str(H0))
     
-    nz,ndm=zDMgrid.shape
-    
-    
-    ixmax=np.where(zvals > zmax)[0]
-    if len(ixmax) >0:
-        zvals=zvals[:ixmax[0]]
-        nz=zvals.size
-        zDMgrid=zDMgrid[:ixmax[0],:]
-    
-    # sets contours according to norm
-    if Aconts:
-        slist=np.sort(zDMgrid.flatten())
-        cslist=np.cumsum(slist)
-        cslist /= cslist[-1]
-        nAc=len(Aconts)
-        alevels=np.zeros([nAc])
-        for i,ac in enumerate(Aconts):
-            # cslist is the cumulative probability distribution
-            # Where cslist > ac determines the integer locations
-            #    of all cells exceeding the threshold
-            # The first in this list is the first place exceeding
-            #    the threshold
-            # The value of slist at that point is the
-            #    level of the countour to draw
-            iwhich=np.where(cslist > ac)[0][0]
-            alevels[i]=slist[iwhich]
-        
-    ### generates contours *before* cutting array in DM ###
-    ### might need to normalise contours by integer lengths, oh well! ###
-    if conts:
-        nc = len(conts)
-        carray=np.zeros([nc,nz])
-        for i in np.arange(nz):
-            cdf=np.cumsum(zDMgrid[i,:])
-            cdf /= cdf[-1]
-            
-            for j,c in enumerate(conts):
-                less=np.where(cdf < c)[0]
-                
-                if len(less)==0:
-                    carray[j,i]=0.
-                    dmc=0.
-                    il1=0
-                    il2=0
-                else:
-                    il1=less[-1]
-                    
-                    if il1 == ndm-1:
-                        il1=ndm-2
-                    
-                    il2=il1+1
-                    k1=(cdf[il2]-c)/(cdf[il2]-cdf[il1])
-                    dmc=k1*dmvals[il1]+(1.-k1)*dmvals[il2]
-                    carray[j,i]=dmc
-                
-        ddm=dmvals[1]-dmvals[0]
-        carray /= ddm # turns this into integer units for plotting
-        
-    iymax=np.where(dmvals > DMmax)[0]
-    if len(iymax)>0:
-        dmvals=dmvals[:iymax[0]]
-        zDMgrid=zDMgrid[:,:iymax[0]]
-        ndm=dmvals.size
-    
-    # currently this is "per cell" - now to change to "per DM"
-    # normalises the grid by the bin width, i.e. probability per bin, not probability density
+    # Cut down grid
+    zvals, dmvals, zDMgrid = figures.proc_pgrid(
+        full_zDMgrid, 
+        zvals, (0, zmax),
+        dmvals, (0, DMmax))
     ddm=dmvals[1]-dmvals[0]
     dz=zvals[1]-zvals[0]
-    if norm==1:
-        zDMgrid /= ddm
-        if Aconts:
-            alevels /= ddm
-    if norm==2:
-        xnorm=np.sum(zDMgrid)
-        zDMgrid /= xnorm
-        if Aconts:
-            alevels /= xnorm
-    
-    if log:
-        # checks against zeros for a log-plot
-        orig=np.copy(zDMgrid)
-        zDMgrid=zDMgrid.reshape(zDMgrid.size)
-        setzero=np.where(zDMgrid==0.)
-        zDMgrid=np.log10(zDMgrid)
-        zDMgrid[setzero]=-100
-        zDMgrid=zDMgrid.reshape(nz,ndm)
-        if Aconts:
-            alevels=np.log10(alevels)
-    else:
-        orig=zDMgrid
-    
-    # gets a square plot
-    aspect=nz/float(ndm)
-    
-    # sets the x and y tics	
-    xtvals=np.arange(zvals.size)
-    everx=int(zvals.size/5)
-    plt.xticks(xtvals[everx-1::everx],zvals[everx-1::everx])
+    nz, ndm = zDMgrid.shape
 
-    ytvals=np.arange(dmvals.size)
-    every=int(dmvals.size/5)
-    plt.yticks(ytvals[every-1::every],dmvals[every-1::every])
-    
-    im=plt.imshow(zDMgrid.T,cmap=cmx,origin='lower', 
+    # Contours
+    alevels = figures.find_Alevels(full_zDMgrid, Aconts, log=True)
+        
+    # Ticks
+    tvals, ticks = figures.ticks_pgrid(zvals)# , fmt='str4')
+    plt.xticks(tvals, ticks)
+    tvals, ticks = figures.ticks_pgrid(dmvals, fmt='int')# , fmt='str4')
+    plt.yticks(tvals, ticks)
+
+    # Image 
+    im=plt.imshow(zDMgrid.T,cmap=cmap,origin='lower', 
                   interpolation='None',
-                  aspect=aspect)
+                  aspect='auto')
     
-    if Aconts:
-        styles=['--','-.',':']
-        ax=plt.gca()
-        cs=ax.contour(zDMgrid.T,levels=alevels,origin='lower',colors="white",linestyles=styles)
-        #plt.clim(0,2e-5)
-        #ax.clabel(cs, cs.levels, inline=True, fontsize=10,fmt=['0.5','0.1','0.01'])
-    ###### gets decent axis labels, down to 1 decimal place #######
+    styles=['--','-.',':']
     ax=plt.gca()
-    labels = [item.get_text() for item in ax.get_xticklabels()]
-    for i in np.arange(len(labels)):
-        labels[i]=labels[i][0:4]
-    ax.set_xticklabels(labels)
-    labels = [item.get_text() for item in ax.get_yticklabels()]
-    for i in np.arange(len(labels)):
-        if '.' in labels[i]:
-            labels[i]=labels[i].split('.')[0]
-    ax.set_yticklabels(labels)
-    ax.yaxis.labelpad = 0
-    
-    # plots contours i there
-    if conts:
-        plt.ylim(0,ndm-1)
-        for i in np.arange(nc):
-            j=int(nc-i-1)
-            plt.plot(np.arange(nz),carray[j,:],label=str(conts[j]),color='white')
-        l=plt.legend(loc='upper left',fontsize=8)
-        #l=plt.legend(bbox_to_anchor=(0.2, 0.8),fontsize=8)
-        for text in l.get_texts():
-                text.set_color("white")
+    cs=ax.contour(zDMgrid.T,levels=alevels,origin='lower',colors="white",linestyles=styles)
 
+    ax=plt.gca()
+    
     muDMhost=np.log(10**grid.state.host.lmean)
     sigmaDMhost=np.log(10**grid.state.host.lsigma)
     meanHost = np.exp(muDMhost + sigmaDMhost**2/2.)
@@ -264,9 +125,9 @@ def fig_craco_fiducial(outfile='fig_craco_fiducial.png',
     zeval = zvals/dz
     DMEG_mean = (DM_cosmic+meanHost)/ddm
     DMEG_median = (DM_cosmic+medianHost)/ddm
-    plt.plot(zeval,DMEG_mean,color='k',linewidth=2,
+    plt.plot(zeval,DMEG_mean,color='gray',linewidth=2,
                 label='Macquart relation (mean)')
-    plt.plot(zeval,DMEG_median,color='k',
+    plt.plot(zeval,DMEG_median,color='gray',
                 linewidth=2, ls='--',
                 label='Macquart relation (median)')
     l=plt.legend(loc='lower right',fontsize=12)
@@ -287,59 +148,23 @@ def fig_craco_fiducial(outfile='fig_craco_fiducial.png',
         iZ=FRBZ/dz
         # Restrict to plot range
         gd = (FRBDM < DMmax) & (FRBZ < zmax)
-        plt.plot(iZ[gd],iDMs[gd],'bo',linestyle="")
+        plt.plot(iZ[gd],iDMs[gd],'ko',linestyle="",markersize=2.)
 
-    # Set limits
-    #ax1.set_ylim(0., DMmax)
-        
-    # do 1-D projected plots
-    if project:
-        plt.sca(acb)
-        cbar=plt.colorbar(im,fraction=0.046, shrink=1.2,aspect=20,pad=0.00,cax = acb)
-        cbar.ax.tick_params(labelsize=6)
-        cbar.set_label(label,fontsize=8)
-        
-        axy.set_yticklabels([])
-        #axy.set_xticklabels([])
-        #axx.set_yticklabels([])
-        axx.set_xticklabels([])
-        yonly=np.sum(orig,axis=0)
-        xonly=np.sum(orig,axis=1)
-        
-        axy.plot(yonly,dmvals) # DM is the vertical axis now
-        axx.plot(zvals,xonly)
-        
-        # if plotting DM only, put this on the axy axis showing DM distribution
-        if FRBDM is not None:
-            hvals=np.zeros(FRBDM.size)
-            for i,DM in enumerate(FRBDM):
-                hvals[i]=yonly[np.where(dmvals > DM)[0][0]]
-            
-            axy.plot(hvals,FRBDM,'ro',linestyle="")
-            for tick in axy.yaxis.get_major_ticks():
-                        tick.label.set_fontsize(6)
-            
-        if FRBZ is not None:
-            hvals=np.zeros(FRBZ.size)
-            for i,Z in enumerate(FRBZ):
-                hvals[i]=xonly[np.where(zvals > Z)[0][0]]
-            axx.plot(FRBZ,hvals,'ro',linestyle="")
-            for tick in axx.xaxis.get_major_ticks():
-                        tick.label.set_fontsize(6)
-    else:
-        cbar=plt.colorbar(im,fraction=0.046, shrink=1.2,aspect=15,pad=0.05)
-        cbar.set_label(label)
-        plt.tight_layout()
+    cbar=plt.colorbar(im,fraction=0.046, shrink=1.2,aspect=15,pad=0.05)
+    cbar.set_label(label)
+    plt.tight_layout()
     
-    plt.savefig(outfile)
+    if show:
+        plt.show()
+    else:
+        plt.savefig(outfile, dpi=300)
     plt.close()
     print(f"Wrote: {outfile}")
 
 
-def fig_craco_varyH0(outfile,
+def fig_craco_varyH0_zDM(outfile,
                 zmax=2,DMmax=1500,
                 norm=2, other_param='Emax',
-                label='$\\log_{10} \, p(DM_{\\rm EG},z)$',
                 Aconts=[0.05]):
     # Generate the grid
     survey, grid = loading.survey_and_grid(
@@ -360,16 +185,19 @@ def fig_craco_varyH0(outfile,
     if other_param == 'Emax':
         H0_values = [60., 70., 80., 80.]
         other_values = [0., 0., 0., -0.1]
+        lstyles = ['-', '-', '-', ':']
     elif other_param == 'F':
         H0_values = [60., 70., 80., 60.]
         other_values = [fiducial_F, fiducial_F, fiducial_F, 0.5]
+        lstyle = '-'
 
     # Loop on grids
     legend_lines = []
     labels = []
-    for ss, H0, scl, clr in zip(np.arange(4), 
+    for H0, scl, lstyle, clr in zip(
                       H0_values,
                       other_values,
+                      lstyles,
                       ['b', 'k','r', 'gray']):
 
         # Update grid
@@ -382,94 +210,39 @@ def fig_craco_varyH0(outfile,
         grid.update(vparams)
 
         # Unpack
-        zDMgrid, zvals, dmvals = grid.rates.copy(), grid.zvals.copy(), grid.dmvals.copy()
-        FRBZ=survey.frbs['Z']
-        FRBDM=survey.DMEGs
-        nz,ndm=zDMgrid.shape
-    
-        ixmax=np.where(zvals > zmax)[0]
-        if len(ixmax) >0:
-            zvals=zvals[:ixmax[0]]
-            nz=zvals.size
-            zDMgrid=zDMgrid[:ixmax[0],:]
-
-        slist=np.sort(zDMgrid.flatten())
-        cslist=np.cumsum(slist)
-        cslist /= cslist[-1]
-        nAc=len(Aconts)
-        alevels=np.zeros([nAc])
-        for i,ac in enumerate(Aconts):
-            # cslist is the cumulative probability distribution
-            # Where cslist > ac determines the integer locations
-            #    of all cells exceeding the threshold
-            # The first in this list is the first place exceeding
-            #    the threshold
-            # The value of slist at that point is the
-            #    level of the countour to draw
-            iwhich=np.where(cslist > ac)[0][0]
-            alevels[i]=slist[iwhich] 
-
-        iymax=np.where(dmvals > DMmax)[0]
-        if len(iymax)>0:
-            dmvals=dmvals[:iymax[0]]
-            zDMgrid=zDMgrid[:,:iymax[0]]
-            ndm=dmvals.size
+        full_zDMgrid, zvals, dmvals = grid.rates.copy(), grid.zvals.copy(), grid.dmvals.copy()
     
         # currently this is "per cell" - now to change to "per DM"
         # normalises the grid by the bin width, i.e. probability per bin, not probability density
-        ddm=dmvals[1]-dmvals[0]
-        dz=zvals[1]-zvals[0]
-        if norm==1:
-            zDMgrid /= ddm
-            if Aconts:
-                alevels /= ddm
-        if norm==2:
-            xnorm=np.sum(zDMgrid)
-            zDMgrid /= xnorm
-            if Aconts:
-                alevels /= xnorm
         
         # checks against zeros for a log-plot
-        orig=np.copy(zDMgrid)
-        zDMgrid=zDMgrid.reshape(zDMgrid.size)
-        setzero=np.where(zDMgrid==0.)
-        zDMgrid=np.log10(zDMgrid)
-        zDMgrid[setzero]=-100
-        zDMgrid=zDMgrid.reshape(nz,ndm)
-        if Aconts:
-            alevels=np.log10(alevels)
 
-        
-        # gets a square plot
-        aspect=nz/float(ndm)
+        zvals, dmvals, zDMgrid = figures.proc_pgrid(
+            full_zDMgrid, 
+            zvals, (0, zmax),
+            dmvals, (0, DMmax))
+
+        # Contours
+        alevels = figures.find_Alevels(full_zDMgrid, Aconts)
         
         # sets the x and y tics	
-        xtvals=np.arange(zvals.size)
-        everx=int(zvals.size/5)
-        plt.xticks(xtvals[everx-1::everx],zvals[everx-1::everx])
+        tvals, ticks = figures.ticks_pgrid(zvals)# , fmt='str4')
+        plt.xticks(tvals, ticks)
+        tvals, ticks = figures.ticks_pgrid(dmvals, fmt='int')# , fmt='str4')
+        plt.yticks(tvals, ticks)
 
-        ytvals=np.arange(dmvals.size)
-        every=int(dmvals.size/5)
-        plt.yticks(ytvals[every-1::every],dmvals[every-1::every])
-        
-        #im=plt.imshow(zDMgrid.T,cmap=cmx,origin='lower', 
-        #            interpolation='None',
-        #            aspect=aspect)
-        
-        #styles=['--','-.',':']
         ax=plt.gca()
         cs=ax.contour(zDMgrid.T,levels=alevels,
                       origin='lower',colors=[clr],
-                      linestyles=['-'])
+                      linestyles=lstyle)
         leg, _ = cs.legend_elements()
         legend_lines.append(leg[0])
+
         # Label
         if other_param == 'Emax':
-            labels.append(r"$H_0 = $"+f"{H0}, log Emax = {vparams['lEmax']}")
+            labels.append(r"$H_0 = $"+f"{H0}, log "+r"$E_{\rm max}$"+f"= {vparams['lEmax']}")
         elif other_param == 'F':
             labels.append(r"$H_0 = $"+f"{H0}, F = {vparams['F']}")
-            #plt.clim(0,2e-5)
-            #ax.clabel(cs, cs.levels, inline=True, fontsize=10,fmt=['0.5','0.1','0.01'])
 
     ###### gets decent axis labels, down to 1 decimal place #######
     ax=plt.gca()
@@ -494,6 +267,122 @@ def fig_craco_varyH0(outfile,
     plt.close()
     print(f"Wrote: {outfile}")
 
+
+def fig_craco_varyH0_other(outfile, params,
+                zmax=2,DMmax=1500,
+                smax=25., 
+                other_param='Emax',
+                Aconts=[0.05], debug:bool=False):
+
+    if other_param == 'Emax':
+        H0_values = [60., 70., 80., 80.]
+        other_values = [41.4, 41.4, 41.4, 41.3]
+        lstyles = ['-', '-', '-', ':']
+    elif other_param == 'F':
+        H0_values = [60., 70., 80., 60.]
+        other_values = [fiducial_F, fiducial_F, fiducial_F, 0.5]
+        lstyle = '-'
+
+    plt.figure()
+    ax1=plt.axes()
+
+    plt.sca(ax1)
+    
+    if params == 'sDM':
+        plt.xlabel(r'DM$_{\rm EG}$')
+    else:
+        plt.xlabel(r'$z$')
+    plt.ylabel(r'$s$')
+
+    # Loop on grids
+    legend_lines = []
+    labels = []
+    first = True
+    for H0, lEmax, lstyle, clr in zip(
+                      H0_values,
+                      other_values,
+                      lstyles,
+                      ['b', 'k','r', 'gray']):
+
+        # Unpack
+        grid_file = f'../Analysis/GridData/p{params}_H0{int(H0)}_Emax{lEmax}.npz'
+        print(f"Loading: {grid_file}")
+        data = np.load(grid_file)
+        if params == 'sDM':
+            full_pgrid = data['psDM']
+            dmvals = data['dmvals']
+        else:
+            full_pgrid = data['psz']
+            zvals = data['zvals']
+        snrs = data['snrs']
+    
+        # Process full grid
+        if params == 'sDM':
+            snrs, dmvals, cut_pgrid = figures.proc_pgrid(full_pgrid, 
+                snrs[0:-1], (0, smax),
+                dmvals, (0, DMmax))
+        else:
+            snrs, zvals, cut_pgrid = figures.proc_pgrid(full_pgrid, 
+                snrs[0:-1], (0, smax),
+                zvals, (0, zmax))
+
+        # Contours
+        alevels = figures.find_Alevels(full_pgrid, Aconts)
+
+        if first:
+            if debug:
+                im=plt.imshow(cut_pgrid,cmap='jet',origin='lower', 
+                    interpolation='None',
+                    # extent=[0., 2, 0, 2000.],
+                vmin=-30.,
+                    aspect='auto')
+        
+            # sets the x and y tics	
+            if params == 'sz':
+                tvals, ticks = figures.ticks_pgrid(zvals)# , fmt='str4')
+            else:
+                tvals, ticks = figures.ticks_pgrid(dmvals, fmt='int')
+            plt.xticks(tvals, ticks)
+            tvals, ticks = figures.ticks_pgrid(snrs, fmt='str4')
+            plt.yticks(tvals, ticks)
+            #
+            first = False
+
+        ax=plt.gca()
+        cs=ax.contour(cut_pgrid,levels=alevels,
+                      origin='lower',colors=[clr],
+                      linestyles=lstyle)
+        leg, _ = cs.legend_elements()
+        legend_lines.append(leg[0])
+
+        # Label
+        if other_param == 'Emax':
+            labels.append(r"$H_0 = $"+f"{H0}, log "+r"$E_{\rm max}$"+f"= {lEmax}")
+        elif other_param == 'F':
+            labels.append(r"$H_0 = $"+f"{H0}, F = {vparams['F']}")
+
+    ###### gets decent axis labels, down to 1 decimal place #######
+    ax=plt.gca()
+    ax.legend(legend_lines, labels, loc='upper right')
+
+    # Ticks
+    labels = [item.get_text() for item in ax.get_xticklabels()]
+    for i in np.arange(len(labels)):
+        labels[i]=labels[i][0:4]
+    ax.set_xticklabels(labels)
+    labels = [item.get_text() for item in ax.get_yticklabels()]
+    for i in np.arange(len(labels)):
+        if '.' in labels[i]:
+            labels[i]=labels[i].split('.')[0]
+    ax.set_yticklabels(labels)
+    ax.yaxis.labelpad = 0
+        
+
+    # Finish
+    plt.tight_layout()
+    plt.savefig(outfile, dpi=300)
+    plt.close()
+    print(f"Wrote: {outfile}")
 
 def fig_craco_H0vsEmax(outfile='fig_craco_H0vsEmax.png'):
     # Load the cube
@@ -570,13 +459,20 @@ def main(pargs):
         fig_craco_fiducial()
 
     # Vary H0, Emax
-    if pargs.figure == 'varyH0E':
-        fig_craco_varyH0(outfile='fig_craco_varyH0E.png',
+    if pargs.figure == 'varyH0E_zDM':
+        fig_craco_varyH0_zDM(outfile='fig_craco_varyH0E_zDM.png',
                          other_param='Emax')
+    if pargs.figure == 'varyH0E_sz':
+        fig_craco_varyH0_other('fig_craco_varyH0E_sz.png',
+            'sz', other_param='Emax')
+    if pargs.figure == 'varyH0E_sDM':
+        fig_craco_varyH0_other('fig_craco_varyH0E_sDM.png',
+            'sDM', other_param='Emax', DMmax=2000.)
+
 
     # Vary H0, F
     if pargs.figure == 'varyH0F':
-        fig_craco_varyH0(outfile='fig_craco_varyH0F.png',
+        fig_craco_varyH0_zDM(outfile='fig_craco_varyH0F.png',
                          other_param='F')
 
 
@@ -614,7 +510,9 @@ if __name__ == '__main__':
 
 
 # python py/figs_zdm_H0_I.py fiducial
-# python py/figs_zdm_H0_I.py varyH0E
+# python py/figs_zdm_H0_I.py varyH0E_zDM
 # python py/figs_zdm_H0_I.py H0vsEmax
 # python py/figs_zdm_H0_I.py H0vsF
 # python py/figs_zdm_H0_I.py varyH0F
+# python py/figs_zdm_H0_I.py varyH0E_sz
+# python py/figs_zdm_H0_I.py varyH0E_sDM

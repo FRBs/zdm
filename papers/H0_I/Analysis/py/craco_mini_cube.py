@@ -1,4 +1,4 @@
-""" Cube for CRACO H0 vs. Emax degeneracy """
+""" Mini Cube for full CRACO run """
 
 # It should be possible to remove all the matplotlib calls from this
 # but in the current implementation it is not removed.
@@ -14,6 +14,8 @@ from zdm import iteration as it
 from zdm import io
 from zdm.craco import loading
 
+import analy_H0_I
+
 from IPython import embed
 
 def main(pargs, outdir='Cubes/'):
@@ -23,7 +25,7 @@ def main(pargs, outdir='Cubes/'):
         os.remove(pargs.opfile)
 
     ############## Load up ##############
-    pfile = pargs.pfile if pargs.pfile is not None else 'Cubes/craco_H0_Emax_cube.json'
+    pfile = pargs.pfile if pargs.pfile is not None else 'Cubes/craco_mini_cube.json'
     input_dict=io.process_jfile(pfile)
 
     # Deconstruct the input_dict
@@ -32,14 +34,12 @@ def main(pargs, outdir='Cubes/'):
     ############## Initialise ##############
     survey, grid = loading.survey_and_grid(
         state_dict=state_dict,
-        survey_name='CRACO_alpha1_Planck18_Gamma', 
-        iFRB=100,  # This drives the value closer to true.  The first 100 are "skewed"!
+        survey_name=analy_H0_I.fiducial_survey,
         NFRB=100)
 
     # Write state to disk
     state_file = pfile.replace('cube.json', 'state.json')
     grid.state.write(state_file)
-    
     
     if not os.path.exists(outdir):
         os.mkdir(outdir)

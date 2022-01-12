@@ -516,15 +516,19 @@ def calc_likelihoods_2D(grid,survey,
     pvals += rates[izs1,idms2]*dkdms*(1-dkzs)
     pvals += rates[izs2,idms2]*dkdms*dkzs
     
-    bad=np.array(np.where(pvals <= 0.))
-    if bad.size > 0:
-        pvals[bad]=1e-20 # hopefully small but not infinitely so
-    
+    bad= pvals <= 0.
+    flg_bad = False
+    if np.any(bad):
+        # This avoids a divide by 0 but we are in a NAN regime
+        pvals[bad]=1e-50 # hopefully small but not infinitely so
+        flg_bad = True
     
     # holds individual FRB data
     longlist=np.log10(pvals)-np.log10(norm)
     
-    llsum=np.sum(np.log10(pvals))#-norm
+    llsum=np.sum(np.log10(pvals))
+    if flg_bad:
+        llsum = np.nan
     # 
     llsum -= np.log10(norm)*Zobs.size # once per event
     lllist=[llsum]
@@ -568,6 +572,8 @@ def calc_likelihoods_2D(grid,survey,
         Pn=Poisson_p(observed,expected)
         Pll=np.log10(Pn)
         lllist.append(Pll)
+        if verbose:
+            print(f'Pll term = {Pll}')
         llsum += Pll
     else:
         expected=0
@@ -833,6 +839,7 @@ def cube_likelihoods(grids:list,surveys:list,
                      vparam_dict:dict,
                      cube_dict:dict,
                      run,howmany,outfile,norm=True,
+                     Verbose:bool=False,
                      psnr=True,starti=0,clone=None):
     """
 
@@ -935,7 +942,8 @@ def cube_likelihoods(grids:list,surveys:list,
     # Run!
     for i in np.arange(howmany):
         
-        print("Testing ",i," of ",howmany," begin at ",starti)
+        if (i % 100) == 0:
+            print("Testing ",i," of ",howmany," begin at ",starti)
         if i>=starti:
             
             nth=i+(run-1)*howmany
@@ -988,7 +996,6 @@ def cube_likelihoods(grids:list,surveys:list,
                     embed(header='1047 of it -- this wont work')
                     grids[j].copy(grids[clone[j]])
                 else:
-                    #update_grid(grids[j],pset,s)
                     grids[j].update(vparams)
                 if s.nD==1:
                     lls[j],alist,expected = calc_likelihoods_1D(
@@ -1021,7 +1028,8 @@ def cube_likelihoods(grids:list,surveys:list,
             string += '{:9.2f}'.format(ll)
             string += '\n'
             t2=time.process_time()
-            print("Iteration ",nth," took ",t2-t1," seconds")
+            if Verbose:
+                print("Iteration ",nth," took ",t2-t1," seconds")
 
             # write output: parameters, likelihoods (and components)
             f.write(string)
@@ -1760,7 +1768,7 @@ def minus_poisson_ps(log10C,data):
     
 
 def minimise_const_only(vparams:dict,grids:list,surveys:list,
-                        Verbose=True, use_prev_grid:bool=True):
+                        Verbose=False, use_prev_grid:bool=True):
     """
     Only minimises for the constant, but returns the full likelihood
     It treats the rest as constants
@@ -1805,8 +1813,6 @@ def minimise_const_only(vparams:dict,grids:list,surveys:list,
     os=[] #observed
     lls=np.zeros([ng])
     for j,s in enumerate(surveys):
-        #update_grid(grids[j],pset,s)
-        #embed(header='1805 of it')
         # Update - but only if there is something to update!
         if vparams is not None:
             grids[j].update(vparams, 
@@ -1818,7 +1824,7 @@ def minimise_const_only(vparams:dict,grids:list,surveys:list,
                     norm=True,psnr=True,Pn=False) #excludes Pn term
         elif s.nD==2:
             lls[j] = calc_likelihoods_2D(grids[j],s,
-                    norm=True,psnr=True,Pn=False) #excludes Pn term
+                    norm=True,psnr=True,Pn=False, verbose=Verbose) #excludes Pn term
         elif s.nD==3: # mixture of localised and un-localised
             lls[j] = calc_likelihoods_1D(grids[j],s,
                     norm=True,psnr=True,Pn=False) #excludes Pn term

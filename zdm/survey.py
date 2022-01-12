@@ -95,7 +95,8 @@ class Survey:
         self.mean_efficiencies=mean_efficiencies #be careful here!!! This may not be what we want!
         return efficiencies
     
-    def process_survey_file(self,filename:str, NFRB:int=None):
+    def process_survey_file(self,filename:str, NFRB:int=None,
+                            iFRB:int=0):
         """ Loads a survey file, then creates 
         dictionaries of the loaded variables 
 
@@ -103,6 +104,9 @@ class Survey:
             filename (str): Survey filename
             NFRB (int, optional): Use only a subset of the FRBs in the Survey file.
                 Mainly used for Monte Carlo analysis
+            iFRB (int, optional): Start grabbing FRBs at this index
+                Mainly used for Monte Carlo analysis
+                Requires that NFRB be set
         """
         info=[]
         keys=[]
@@ -144,6 +148,8 @@ class Survey:
         if self.NFRB==0:
             raise ValueError('No FRBs found in file '+filename) #change this?
 
+        self.iFRB = iFRB
+
 
         self.meta['NFRB']=self.NFRB
         
@@ -152,7 +158,7 @@ class Survey:
 
         if NFRB is not None:
             # Take the first set
-            self.frblist=self.frblist[0:NFRB]
+            self.frblist=self.frblist[iFRB:NFRB+iFRB]
         
         ### first check for the key list to interpret the FRB table
         iKEY=self.do_metakey('KEY')
@@ -240,7 +246,7 @@ class Survey:
         self.NBEAMS=1
         
         self.init=True
-        print("FRB survey succeffully initialised with ",self.NFRB," FRBs")
+        print("FRB survey sucessfully initialised with ",self.NFRB," FRBs starting from", self.iFRB)
         
     def init_DMEG(self,DMhalo):
         """ Calculates extragalactic DMs assuming halo DM """
@@ -498,7 +504,7 @@ def make_widths(s:Survey,wlogmean,wlogsigma,nbins,scale=2,thresh=0.5):
 
 
 def load_survey(survey_name:str, state:parameters.State, dmvals:np.ndarray,
-                sdir:str=None, NFRB:int=None, Nbeams=None):
+                sdir:str=None, NFRB:int=None, Nbeams=None, iFRB:int=0):
     """Load a survey
 
     Args:
@@ -509,6 +515,9 @@ def load_survey(survey_name:str, state:parameters.State, dmvals:np.ndarray,
         sdir (str, optional): Path to survey files. Defaults to None.
         NFRB (int, optional): Cut the total survey down to a random
             subset [useful for testing]
+        iFRB (int, optional): Start grabbing FRBs at this index
+            Mainly used for Monte Carlo analysis
+            Requires that NFRB be set
 
     Raises:
         IOError: [description]
@@ -540,7 +549,7 @@ def load_survey(survey_name:str, state:parameters.State, dmvals:np.ndarray,
     # Do it
     srvy=Survey()
     srvy.name = survey_name
-    srvy.process_survey_file(os.path.join(sdir, dfile), NFRB=NFRB)
+    srvy.process_survey_file(os.path.join(sdir, dfile), NFRB=NFRB, iFRB=iFRB)
     srvy.init_DMEG(state.MW.DMhalo)
     srvy.init_beam(nbins=Nbeams, method=state.beam.method, plot=False,
                 thresh=state.beam.thresh) # tells the survey to use the beam file

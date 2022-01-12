@@ -1,4 +1,6 @@
-""" Cube for CRACO H0 vs. Emax degeneracy """
+""" Build a log-likelihood cube for zdm 
+  -- ONLY WORKS FOR CRACO MC SO FAR
+"""
 
 # It should be possible to remove all the matplotlib calls from this
 # but in the current implementation it is not removed.
@@ -6,40 +8,35 @@ import argparse
 import numpy as np
 import os
 
-from zdm import survey
-from zdm import parameters
-from zdm import cosmology as cos
-from zdm import misc_functions
 from zdm import iteration as it
 from zdm import io
 from zdm.craco import loading
 
 from IPython import embed
 
-def main(pargs, outdir='Cubes/'):
+def main(pargs, outdir='Cubes'):
     
     # Clobber?
-    if args.clobber and os.path.isfile(pargs.opfile):
+    if pargs.clobber and os.path.isfile(pargs.opfile):
         os.remove(pargs.opfile)
 
     ############## Load up ##############
-    pfile = pargs.pfile if pargs.pfile is not None else 'Cubes/craco_H0_Emax_cube.json'
-    input_dict=io.process_jfile(pfile)
+    input_dict=io.process_jfile(pargs.pfile)
 
     # Deconstruct the input_dict
     state_dict, cube_dict, vparam_dict = it.parse_input_dict(input_dict)
 
     ############## Initialise ##############
+    # ONLY FOR CRACO SO FAR
     survey, grid = loading.survey_and_grid(
         state_dict=state_dict,
-        survey_name='CRACO_alpha1_Planck18_Gamma', 
-        iFRB=100,  # This drives the value closer to true.  The first 100 are "skewed"!
-        NFRB=100)
+        survey_name=pargs.survey,
+        NFRB=pargs.NFRB,
+        iFRB=pargs.iFRB)
 
     # Write state to disk
-    state_file = pfile.replace('cube.json', 'state.json')
+    state_file = pargs.pfile.replace('cube.json', 'state.json')
     grid.state.write(state_file)
-    
     
     if not os.path.exists(outdir):
         os.mkdir(outdir)
@@ -60,18 +57,24 @@ def main(pargs, outdir='Cubes/'):
                     run,howmany,opfile, starti=starti)
         
 
-# test for command-line arguments here
-parser = argparse.ArgumentParser()
-parser.add_argument('-n','--number',type=int,required=False,help="nth iteration, beginning at 0")
-parser.add_argument('-m','--howmany',type=int,required=False,help="number m to iterate at once")
-parser.add_argument('-p','--pfile',type=str, required=False,help="File defining parameter ranges")
-parser.add_argument('-o','--opfile',type=str,required=False,help="Output file for the data")
-parser.add_argument('--clobber', default=False, action='store_true',
+def parse_args(options=None):
+    # test for command-line arguments here
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-n','--number',type=int,required=True,help="nth iteration, beginning at 0")
+    parser.add_argument('-m','--howmany',type=int,required=True,help="number m to iterate at once")
+    parser.add_argument('-p','--pfile',type=str, required=True,help="File defining parameter ranges")
+    parser.add_argument('-s','--survey',type=str, required=True,help="Name of CRACO MC survey")
+    parser.add_argument('-o','--opfile',type=str,required=True,help="Output file for the data")
+    parser.add_argument('--NFRB',type=int,required=False,help="Number of FRBs to analzye")
+    parser.add_argument('--iFRB',type=int,default=0,help="Initial FRB to run from")
+    parser.add_argument('--clobber', default=False, action='store_true',
                     help="Clobber output file?")
-args = parser.parse_args()
+    args = parser.parse_args()
+    return args
 
-
-main(args)
+def run():
+    pargs = parse_args()
+    main(pargs)
 
 '''
 # Test

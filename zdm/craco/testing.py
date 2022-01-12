@@ -40,6 +40,7 @@ def main(pargs):
 
     isurvey, igrid = loading.survey_and_grid(survey_name=pargs.survey,
                                       NFRB=pargs.nFRB,
+                                      iFRB=pargs.iFRB,
                                       lum_func=pargs.lum_func)
     surveys = [isurvey]                                      
     grids = [igrid]
@@ -48,6 +49,10 @@ def main(pargs):
     vparams = {}
     vparams[pargs.param] = None
     vparams['lC'] = -0.9
+
+    # DEBUGGING
+    print("WARNING:  REMOVE THE LINE BELOW WHEN DONE DEBUGGING")
+    vparams['lEmax'] = 40.6
 
     lls = []
     nterms = []  # LL term related to norm (i.e. rates)
@@ -58,9 +63,12 @@ def main(pargs):
         vparams[pargs.param] = pval
         C,llC,lltot=it.minimise_const_only(
                     vparams,grids,surveys, Verbose=False)
+        # Set lC
         vparams['lC']=C
+        igrid.state.FRBdemo.lC = C
+        # Grab final LL
         lls_final, nterm, pvterm, lpvals, lwz = it.calc_likelihoods_2D(
-                    igrid, isurvey, vparams['lC'],
+                    igrid, isurvey, 
                     norm=True,psnr=True,dolist=4)
         # Hold
         lls.append(lls_final)
@@ -91,6 +99,7 @@ def main(pargs):
     # Save?
     if pargs.opfile is not None:
         plt.savefig(pargs.opfile)
+        print(f"Wrote: {pargs.opfile}")
     else:
         plt.show()
     plt.close()
@@ -120,6 +129,7 @@ parser.add_argument('min',type=float,help="minimum value")
 parser.add_argument('max',type=float,help="maximum value")
 parser.add_argument('--nstep',type=int,default=10,required=False,help="number of steps")
 parser.add_argument('--nFRB',type=int,default=1000,required=False,help="number of FRBs to analyze")
+parser.add_argument('--iFRB',type=int,default=0,required=False,help="starting number of FRBs to analyze")
 parser.add_argument('-o','--opfile',type=str,required=False,help="Output file for the data")
 parser.add_argument('--survey',type=str,default='CRACO_alpha1_Planck18',
                     required=False,help="Survey name")
@@ -152,5 +162,8 @@ python testing.py H0 60. 80. --nstep 50 --nFRB 100 -o MC_Plots/CRACO_100_H0.png
 # Gamma
 python testing.py H0 60. 80. --nstep 50 --nFRB 100 --survey CRACO_alpha1_Planck18_Gamma -o MC_Plots/CRACO_100_H0_Gamma.png --lum_func 1
 python testing.py lEmax 41. 43. --nstep 50 --nFRB 100 --survey CRACO_alpha1_Planck18_Gamma -o MC_Plots/CRACO_100_Emax_Gamma.png --lum_func 1
+
+python testing.py alpha 0. 2. --nstep 50 --nFRB 100 --survey CRACO_alpha1_Planck18_Gamma -o MC_Plots/CRACO_100_alpha_Gamma.png --lum_func 1
+python testing.py sfr_n 0. 5. --nstep 100 --nFRB 100 --iFRB 100 --survey CRACO_alpha1_Planck18_Gamma -o MC_Plots/CRACO_100_sfr_Gamma.png --lum_func 1
 #
 '''
