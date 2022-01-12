@@ -484,3 +484,17 @@ def do_single_plots(uvals,vectors,wvectors,names,tag=None, fig_exten='.png',
         return results,prior_results
     else:
         return
+
+def gen_vparams(indices:tuple, vparam_dict:dict):
+    new_dict = {}
+    for ss, key in enumerate(vparam_dict.keys()):
+        if vparam_dict[key]['n'] <= 0:
+            continue
+        # 
+        vals = np.linspace(vparam_dict[key]['min'], 
+                           vparam_dict[key]['max'],
+                           vparam_dict[key]['n'])
+        # 
+        new_dict[key] = vals[indices[ss]]
+    # Return
+    return new_dict
