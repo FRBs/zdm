@@ -40,7 +40,7 @@ def main(pargs, pfile:str, oproot:str, NFRB:int=None, iFRB:int=0,
     commands = []
     for kk in range(pargs.ncpu):
         line = []
-        outfile = oproot.replace('.out', f'{kk+1}.out')
+        outfile = os.path.join(outdir, oproot.replace('.out', f'{kk+1}.out'))
         line = ['zdm_build_cube', '-n', f'{kk+1}',
                 '-m', f'{nper_cpu}', '-o', f'{outfile}',
                 '-s', f'CRACO_alpha1_Planck18_Gamma', '--clobber',
