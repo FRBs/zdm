@@ -210,7 +210,6 @@ class Survey:
             if len(self.zlist) < self.NFRB:
                 self.nozlist = np.where(self.Zs < 0.)[0]
                 self.nD=3 # code for both
-                print("For this survey, found nozlist of ",np.where(self.Zs < 0.)[0])
             else:
                 self.nozlist = None
                 self.nD=2
