@@ -66,4 +66,7 @@ python py/build_build.py -n 10 -p Cubes/craco_submini_cube.json -o Cubes/craco_s
 
 Mini CRACO
 python py/build_build.py -n 15 -p Cubes/craco_mini_cube.json -o Cubes/craco_mini_cube.out -b build_craco_mini_cube.src --NFRB 100 --iFRB 100
+
+Nautilus test
+python py/build_build.py -n 5 -p Cubes/craco_alpha_Emax_cube.json -o Cubes/craco_nautilus_test.out -b build_nautilus_test.src --NFRB 100 --iFRB 100
 '''
