@@ -55,6 +55,7 @@ RUN  pip install astropy-healpix
 RUN  pip install extension_helpers
 RUN  pip install scipy
 RUN  pip install matplotlib
+RUN  pip install mpmath
 
 # FRB
 RUN git clone https://github.com/FRBs/FRB.git
