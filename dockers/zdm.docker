@@ -53,6 +53,8 @@ RUN  pip install astropy
 RUN  pip install pyarrow  
 RUN  pip install astropy-healpix
 RUN  pip install extension_helpers
+RUN  pip install scipy
+RUN  pip install matplotlib
 
 # FRB
 RUN git clone https://github.com/FRBs/FRB.git
@@ -68,8 +70,9 @@ RUN cd ne2001; python setup.py develop
 RUN cd .. 
 RUN cd FRB; python setup.py develop
 RUN cd ..
-RUN cd zdm; pip install -e .
-RUN cd zdm/src; gcc -shared -fPIC -o zdmlib.so zdmlib.c
+#  AVOID pip install -e for now!
+RUN cd zdm; git pull; python setup.py develop
+RUN cd zdm/zdm/src; gcc -shared -fPIC -o zdmlib.so zdmlib.c
 
 # Test
 #ENV ENDPOINT_URL="https://s3.nautilus.optiputer.net"
