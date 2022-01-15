@@ -160,8 +160,8 @@ def fig_craco_fiducial(outfile='fig_craco_fiducial.png',
         plt.show()
     else:
         plt.savefig(outfile, dpi=300)
+        print(f"Wrote: {outfile}")
     plt.close()
-    print(f"Wrote: {outfile}")
 
 
 def fig_craco_varyH0_zDM(outfile,

@@ -1,9 +1,9 @@
-# Testing CPU and RAM
+# 50 processors!
 #  kubectl exec -it test-pod -- /bin/bash
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: xavier-zdm-test2
+  name: xavier-zdm-test3
 spec:
   backoffLimit: 0
   template:
@@ -14,12 +14,12 @@ spec:
         imagePullPolicy: Always
         resources:
           requests:
-            cpu: "5"
-            memory: "2Gi"  # Took 1.41 Gb
+            cpu: "50"
+            memory: "16Gi"  # 
             ephemeral-storage: 50Gi  # 
           limits:
-            cpu: "10"
-            memory: "4Gi"
+            cpu: "52"
+            memory: "24Gi"
             ephemeral-storage: 100Gi
             #nvidia.com/gpu:  "1"  # See docs to exlude certain types
         command: ["/bin/bash", "-c"]
@@ -35,8 +35,8 @@ spec:
             git checkout H0_paper;
             python setup.py develop;
             cd papers/H0_I/Analysis/Cloud;
-            python run_nautilus_test2.py -n 5;
-            aws --endpoint http://rook-ceph-rgw-nautiluss3.rook s3 cp Output s3://pypeit/zdm/Test2/ --recursive --force;
+            python run_nautilus_test2.py -n 50;
+            aws --endpoint http://rook-ceph-rgw-nautiluss3.rook s3 cp Output s3://pypeit/zdm/Test3/ --recursive --force;
         env:
           - name: "ENDPOINT_URL"
             value: "http://rook-ceph-rgw-nautiluss3.rook"
