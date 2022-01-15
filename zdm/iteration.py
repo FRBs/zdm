@@ -210,6 +210,7 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=False,Pn=True,do
         raise ValueError("No non-localised FRBs in this survey, cannot calculate 1D likelihoods")
     
     # start by collapsing over z
+    # TODO: this is slow - should collapse only used columns
     pdm=np.sum(rates,axis=0)
     
     ddm=dmvals[1]-dmvals[0]
@@ -422,6 +423,8 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=False,Pn=True,do
         return llsum,lllist,expected
     elif dolist==2:
         return llsum,lllist,expected,longlist
+    elif dolist==5: #for compatibility with 2D likelihood calculation
+        return llsum,lllist,expected,[0.,0.,0.,0.]
     
 
 def calc_likelihoods_2D(grid,survey,
@@ -452,12 +455,17 @@ def calc_likelihoods_2D(grid,survey,
         4: return (llsum, -np.log10(norm)*Zobs.size, 
                 np.sum(np.log10(pvals)), 
                 pvals.copy(), wzpsnr.copy())
+        5: returns llsum, log10([Pn,Pzdm,Ps]), <Nfrbs>, np.log10([p(z|DM), p(DM), p(DM|z), p(z)])
         else: returns nothing (actually quite useful behaviour!)
     
     norm:
         True: calculates p(z,DM | FRB detected)
         False: calculates p(detecting an FRB with z,DM). Meaningless unless
             some sensible normalisation has already been applied to the grid.
+    
+    zdm_components
+        False: nothing
+        True: Also returns p(z|DM), p(DM), p(DM|z), and p(z)
      """
     
     ######## Calculates p(DM,z | FRB) ########
@@ -487,19 +495,20 @@ def calc_likelihoods_2D(grid,survey,
     else:
         norm=1.
     
+    
     # get indices in dm space
     ddm=dmvals[1]-dmvals[0]
     kdms=DMobs/ddm
     idms1=kdms.astype('int')
     idms2=idms1+1
-    dkdms=kdms-idms1
+    dkdms=kdms-idms1 # applies to idms2
     
     # get indices in z space
     dz=zvals[1]-zvals[0]
     kzs=Zobs/dz
     izs1=kzs.astype('int')
     izs2=izs1+1
-    dkzs=kzs-izs1
+    dkzs=kzs-izs1 # applies to izs2
     
     # Linear interpolation
     pvals = rates[izs1,idms1]*(1.-dkdms)*(1-dkzs)
@@ -523,7 +532,39 @@ def calc_likelihoods_2D(grid,survey,
     # 
     llsum -= np.log10(norm)*Zobs.size # once per event
     lllist=[llsum]
-
+    
+    #### calculates zdm components p(DM),p(z|DM),p(z),p(DM|z)
+    # does this by using previous results for p(z,DM) and
+    # calculating p(DM) and p(z)
+    if dolist==5:
+        # calculates p(dm)
+        pdmvals = np.sum(rates[:,idms1],axis=0)*(1.-dkdms)
+        pdmvals += np.sum(rates[:,idms2],axis=0)*dkdms
+        
+        # implicit calculation of p(z|DM) from p(z,DM)/p(DM)
+        #neither on the RHS is normalised so this is OK!
+        pzgdmvals = pvals/pdmvals
+        
+        #calculates p(z)
+        pzvals = np.sum(rates[izs1,:],axis=1)*(1.-dkzs)
+        pzvals += np.sum(rates[izs2,:],axis=1)*dkzs
+        
+        # implicit calculation of p(z|DM) from p(z,DM)/p(DM)
+        pdmgzvals = pvals/pzvals
+        
+        
+        for array in pdmvals,pzgdmvals,pzvals,pdmgzvals:
+            bad=np.array(np.where(array <= 0.))
+            if bad.size > 0:
+                array[bad]=1e-20 # hopefully small but not infinitely so
+        
+        # logspace and normalisation
+        llpzgdm = np.sum(np.log10(pzgdmvals))
+        llpdmgz = np.sum(np.log10(pdmgzvals))
+        llpdm = np.sum(np.log10(pdmvals)) - np.log10(norm)*Zobs.size
+        llpz = np.sum(np.log10(pzvals)) - np.log10(norm)*Zobs.size
+        dolist5_return = [llpzgdm,llpdm,llpdmgz,llpz]
+        
     if Pn and (survey.TOBS is not None):
         expected=CalculateIntegral(grid,survey)
         expected *= 10**grid.state.FRBdemo.lC
@@ -685,6 +726,8 @@ def calc_likelihoods_2D(grid,survey,
         return (llsum, -np.log10(norm)*Zobs.size, 
                 np.sum(np.log10(pvals)), 
                 pvals.copy(), wzpsnr.copy())
+    elif dolist==5:
+        return llsum,lllist,expected,dolist5_return
 
 def check_cube_opfile(run,howmany,opfile):
     """

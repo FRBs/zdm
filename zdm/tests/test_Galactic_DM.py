@@ -23,6 +23,15 @@ from pathlib import Path as dirpath
 from matplotlib import pyplot as plt
 import numpy as np
 
+import matplotlib
+
+defaultsize=14
+ds=4
+font = {'family' : 'normal',
+        'weight' : 'normal',
+        'size'   : defaultsize}
+matplotlib.rc('font', **font)
+
 def make_grids():
     
     ##### working sub-directory for this analysis #####
@@ -119,7 +128,7 @@ def make_grids():
     dmprojs = np.zeros([nDMGs,nSurveys,ndm])
     zprojs = np.zeros([nDMGs,nSurveys,nz])
     
-    new_DMG_calcs = True
+    new_DMG_calcs = False
     
     
     for i,DMG in enumerate(DMGs):
@@ -182,12 +191,17 @@ def make_grids():
     
     ##### effects on total rate #######
     
+    styles=["-","--",":","-."]
+    
+    names=["CRAFT/FE","CRAFT/ICS (1.3 GHz)","CRAFT/ICS (900 MHz)","Parkes/Mb"]
+    
     plt.figure()
-    plt.xlabel('DM$_{\\rm ISM}$')
+    plt.xlabel('DM$_{\\rm ISM}$ [pc cm$^{-3}$]')
     plt.ylabel('Relative detection rate')
     plt.ylim(0,1)
+    plt.xlim(0,500)
     for i in np.arange(nSurveys):
-        plt.plot(DMGs,totals[:,i]/totals[0,i],label=names[i])
+        plt.plot(DMGs,totals[:,i]/totals[0,i],label=names[i],linestyle=styles[i],linewidth=3)
     
     plt.legend()
     plt.tight_layout()
@@ -230,21 +244,22 @@ def make_grids():
     
     ### plots mean redfhist ###
     plt.figure()
-    plt.xlabel('DMG')
-    plt.ylabel('$\\bar{z}/\\bar{z}(DMG=0)$')
+    plt.xlabel('${\\rm DM_{ISM}}$ [pc cm$^{-3}$]')
+    plt.ylabel('$\\dfrac{\\bar{z}({\\rm DM_{ISM}})}{\\bar{z}({\\rm DM_{ISM}}=0)}$')
     plt.xlim(0,500)
     plt.ylim(0,1)
     for i in np.arange(nSurveys):
-        plt.plot(DMGs,zmeans[:,i]/zmeans[0,i],label=names[i])
+        plt.plot(DMGs,zmeans[:,i]/zmeans[0,i],label=names[i],linestyle=styles[i],linewidth=3)
     plt.legend()
     plt.tight_layout()
     plt.savefig(directory+"mean_z.pdf")
     
     
     ### plots zoomed version ###
-    plt.ylim(0.9,1)
-    plt.xlim(0,200)
-    plt.tight_layout()
+    plt.ylim(0.8,1)
+    plt.xlim(0,500)
+    plt.yticks([0.8,0.85,0.9,0.95,1.0])
+    #plt.tight_layout()
     plt.savefig(directory+"zoomed_mean_z.pdf")
     plt.close()
     

@@ -36,6 +36,7 @@ def fig_craco_fiducial(outfile='fig_craco_fiducial.png',
                 label='$\\log_{10} \; p(DM_{\\rm EG},z)$',
                 Aconts=[0.01, 0.1, 0.5],
                 cmap='jet', show=False, figsize=None,
+                vmnx=(None,None),
                 grid=None, survey=None):
     """
     Very complicated routine for plotting 2D zdm grids 
@@ -100,6 +101,7 @@ def fig_craco_fiducial(outfile='fig_craco_fiducial.png',
 
     # Image 
     im=plt.imshow(zDMgrid.T,cmap=cmap,origin='lower', 
+                  vmin=vmnx[0], vmax=vmnx[1],
                   interpolation='None',
                   aspect='auto')
     
@@ -136,7 +138,7 @@ def fig_craco_fiducial(outfile='fig_craco_fiducial.png',
         #	text.set_color("white")
     
     # limit to a reasonable range if logscale
-    if log:
+    if log and vmnx[0] is None:
         themax=zDMgrid.max()
         themin=int(themax-4)
         themax=int(themax)

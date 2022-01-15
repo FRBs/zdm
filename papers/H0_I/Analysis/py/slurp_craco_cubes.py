@@ -50,7 +50,7 @@ if submini:
                             'Cubes/craco_submini_cube.npz',
                             nsurveys)
 
-sfrEmax = True
+sfrEmax = False
 if sfrEmax:
     # Emax
     input_file = 'Cubes/craco_sfr_Emax_cube.json'
@@ -60,4 +60,16 @@ if sfrEmax:
     # Run it
     analyze_cube.slurp_cube(input_file, prefix, 
                             'Cubes/craco_sfr_Emax_cube.npz',
+                            nsurveys)
+
+alphaEmax = True
+if alphaEmax:
+    # Emax
+    input_file = 'Cubes/craco_alpha_Emax_cube.json'
+    prefix = 'Cubes/craco_alpha_Emax_cube'
+    nsurveys = 1
+
+    # Run it
+    analyze_cube.slurp_cube(input_file, prefix, 
+                            'Cubes/craco_alpha_Emax_cube.npz',
                             nsurveys)

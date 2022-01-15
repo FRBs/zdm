@@ -1,0 +1,5 @@
+zdm_build_cube -n 1 -m 500 -o TstCubes/craco_nautilus_test1.out -s CRACO_alpha1_Planck18_Gamma --clobber -p Cubes/craco_alpha_Emax_cube.json --NFRB 100 --iFRB 100 & 
+zdm_build_cube -n 2 -m 500 -o TstCubes/craco_nautilus_test2.out -s CRACO_alpha1_Planck18_Gamma --clobber -p Cubes/craco_alpha_Emax_cube.json --NFRB 100 --iFRB 100 & 
+zdm_build_cube -n 3 -m 500 -o TstCubes/craco_nautilus_test3.out -s CRACO_alpha1_Planck18_Gamma --clobber -p Cubes/craco_alpha_Emax_cube.json --NFRB 100 --iFRB 100 & 
+zdm_build_cube -n 4 -m 500 -o TstCubes/craco_nautilus_test4.out -s CRACO_alpha1_Planck18_Gamma --clobber -p Cubes/craco_alpha_Emax_cube.json --NFRB 100 --iFRB 100 & 
+zdm_build_cube -n 5 -m 500 -o TstCubes/craco_nautilus_test5.out -s CRACO_alpha1_Planck18_Gamma --clobber -p Cubes/craco_alpha_Emax_cube.json --NFRB 100 --iFRB 100 & 
