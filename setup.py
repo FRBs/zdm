@@ -58,6 +58,7 @@ except Exception:
     version = '{version}'
 """.lstrip()
 
-setup(use_scm_version={'write_to': os.path.join('zdm', 'version.py'),
-                       'write_to_template': VERSION_TEMPLATE},
+# Version was causing troubles
+setup(#use_scm_version={'write_to': os.path.join('zdm', 'version.py'),
+      #                 'write_to_template': VERSION_TEMPLATE},
       ext_modules=get_extensions())
