@@ -53,6 +53,10 @@ def make_grids():
         gprefix='Std_best'
     else:
         raise ValueError("Bad beam method!")
+        
+    
+    filename = "Pickle/"+gprefix+"grids.pkl"
+    os.makedirs(os.path.dirname(filename), exist_ok=True)
     
     if state.analysis.NewGrids:
         print("Generating new grids, set NewGrids=False to save time later")

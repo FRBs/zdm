@@ -20,7 +20,7 @@ from astropy.cosmology import FlatLambdaCDM
 from frb.dm import igm
 from zdm import cosmology as cos
 from zdm import parameters
-from zdm import c_code
+#from zdm import c_code
 
 import scipy as sp
 #import astropy.units as u
@@ -288,8 +288,8 @@ def integrate_pdm(ddm,ndm,logmean,logsigma,csumcut=0.999):
     mask=np.zeros([ndm])
     norm=(2.*np.pi)**-0.5/logsigma
     args=(logmean,logsigma,norm)
-    #pdm,err=sp.integrate.quad(loglognormal_dlog,np.log(ddm*0.5)-logsigma*10,np.log(ddm*0.5),args=args)
-    pdm,err=sp.integrate.quad(c_code.func_ll,np.log(ddm*0.5)-logsigma*10,np.log(ddm*0.5),args=args)
+    pdm,err=sp.integrate.quad(loglognormal_dlog,np.log(ddm*0.5)-logsigma*10,np.log(ddm*0.5),args=args)
+    #pdm,err=sp.integrate.quad(c_code.func_ll,np.log(ddm*0.5)-logsigma*10,np.log(ddm*0.5),args=args)
     mask[0]=pdm
     #csum=pdm
     #imax=ndm
@@ -299,8 +299,8 @@ def integrate_pdm(ddm,ndm,logmean,logsigma,csumcut=0.999):
         #    break
         dmmin=(i-0.5)*ddm
         dmmax=dmmin+ddm
-        #pdm,err=sp.integrate.quad(loglognormal_dlog,np.log(dmmin),np.log(dmmax),args=(logmean,logsigma))
-        pdm,err=sp.integrate.quad(c_code.func_ll,np.log(dmmin),np.log(dmmax),args=args)#(logmean,logsigma))
+        pdm,err=sp.integrate.quad(loglognormal_dlog,np.log(dmmin),np.log(dmmax),args=args)
+        #pdm,err=sp.integrate.quad(c_code.func_ll,np.log(dmmin),np.log(dmmax),args=args)#(logmean,logsigma))
         #csum += pdm
         mask[i]=pdm
         
