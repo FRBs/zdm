@@ -17,6 +17,8 @@ tmp.npy
 # data files
 *.out
 *.npz
+*.npy
+*.dat
 
 # Distribution / packaging
 .Python

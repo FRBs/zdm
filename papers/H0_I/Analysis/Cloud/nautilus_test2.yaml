@@ -1,9 +1,9 @@
-# Just a test to get things running!
+# Testing CPU and RAM
 #  kubectl exec -it test-pod -- /bin/bash
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: xavier-zdm-test
+  name: xavier-zdm-test2
 spec:
   backoffLimit: 0
   template:
@@ -35,8 +35,8 @@ spec:
             git checkout H0_paper;
             python setup.py develop;
             cd papers/H0_I/Analysis/Cloud;
-            python run_nautilus_test.py -n 5;
-            aws --endpoint http://rook-ceph-rgw-nautiluss3.rook s3 cp Output s3://pypeit/zdm/Test/ --recursive --force;
+            python run_nautilus_test2.py -n 5;
+            aws --endpoint http://rook-ceph-rgw-nautiluss3.rook s3 cp Output s3://pypeit/zdm/Test2/ --recursive --force;
         env:
           - name: "ENDPOINT_URL"
             value: "http://rook-ceph-rgw-nautiluss3.rook"
