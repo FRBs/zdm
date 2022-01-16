@@ -51,8 +51,8 @@ def main(pargs):
     vparams['lC'] = -0.9
 
     # DEBUGGING
-    print("WARNING:  REMOVE THE LINE BELOW WHEN DONE DEBUGGING")
-    vparams['lEmax'] = 40.6
+    #print("WARNING:  REMOVE THE LINE BELOW WHEN DONE DEBUGGING")
+    #vparams['lEmax'] = 40.6
 
     lls = []
     nterms = []  # LL term related to norm (i.e. rates)
