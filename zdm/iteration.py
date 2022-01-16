@@ -102,30 +102,6 @@ def get_names(which=None):
         names=names[which]
     return names
 
-'''
-def set_defaults(grid):
-    # we should make sure each grid does this, do not use "old"!
-#    global oldlEmin
-#    global oldlEmax
-#    global oldalpha
-#    global oldgamma
-#    global oldsfrn
-#    global olddmparams
-    
-    oldlEmin=np.log10(float(grid.Emin))
-    oldlEmax=np.log10(float(grid.Emax))
-    oldalpha=grid.alpha
-    oldgamma=grid.gamma
-    oldsfrn=grid.sfr_n
-    old_smean=grid.smear_mean
-    old_ssigma=grid.smear_sigma
-    C=4.19 # 1 this is NOT a sensible default! #use 4.19 for best fit values to get sensible values
-    H0value=grid.H0value
-    pset=[oldlEmin,oldlEmax,oldalpha,oldgamma,oldsfrn,old_smean,old_ssigma,C,H0value]
-    return pset
-    #added H0 as a param
-'''
-
 def print_pset(pset):
     """ pset defined as:
     [0]:	log10 Emin
