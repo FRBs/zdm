@@ -1,4 +1,4 @@
-# 50 processors!
+# 25 processors!
 #  kubectl exec -it test-pod -- /bin/bash
 apiVersion: batch/v1
 kind: Job
@@ -8,18 +8,27 @@ spec:
   backoffLimit: 0
   template:
     spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/hostname
+                operator: NotIn
+                values:
+                  - k8s-chase-ci-01.noc.ucsb.edu
       containers:
       - name: container
         image: localhost:30081/profxj/zdm_docker:latest  # UPDATE
         imagePullPolicy: Always
         resources:
           requests:
-            cpu: "50"
-            memory: "16Gi"  # 
+            cpu: "25"
+            memory: "8Gi"  # 
             ephemeral-storage: 50Gi  # 
           limits:
-            cpu: "52"
-            memory: "24Gi"
+            cpu: "27"
+            memory: "12Gi"
             ephemeral-storage: 100Gi
             #nvidia.com/gpu:  "1"  # See docs to exlude certain types
         command: ["/bin/bash", "-c"]
@@ -35,7 +44,7 @@ spec:
             git checkout H0_paper;
             python setup.py develop;
             cd papers/H0_I/Analysis/Cloud;
-            python run_nautilus_test2.py -n 50;
+            python run_nautilus_test2.py -n 25;
             aws --endpoint http://rook-ceph-rgw-nautiluss3.rook s3 cp Output s3://pypeit/zdm/Test3/ --recursive --force;
         env:
           - name: "ENDPOINT_URL"
