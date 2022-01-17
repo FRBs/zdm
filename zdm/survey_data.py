@@ -25,32 +25,13 @@ class Frequency(data_class.myDataClass):
                   'Notation': '',
                   })
 
-class SurveyData:
+class SurveyData(data_class.myData):
     """ Initialize the full state for the analysis 
     with the default parameters
 
     Returns:
         dict: [description]
     """
-    def __init__(self):
+    def set_dataclasses(self):
 
         self.frequency = Frequency()
-
-        # Look-up table or convenience
-        self.params = {}
-        for dc_key in self.__dict__.keys():
-            if dc_key == 'params':
-                continue
-            for param in self[dc_key].__dict__.keys():
-                self.params[param] = dc_key
-
-    def __getitem__(self, attrib:str):
-        """Enables dict like access to the state
-
-        Args:
-            attrib (str): [description]
-
-        Returns:
-            [type]: [description]
-        """
-        return getattr(self, attrib)
