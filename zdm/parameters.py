@@ -191,8 +191,6 @@ class State(data_class.myData):
     """ Initialize the full state for the analysis 
     with the default parameters
 
-    Returns:
-        dict: [description]
     """
     def __init__(self):
 
