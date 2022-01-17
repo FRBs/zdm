@@ -6,12 +6,6 @@ from zdm import data_class
 
 @dataclass
 class Frequency(data_class.myDataClass):
-    FBAR: float = field(
-        default=0.,
-        metadata={'help': "Mean Frequency (observed)", 
-                  'unit': 'MHz', 
-                  'Notation': '',
-                  })
     BW: float = field(
         default=0., 
         metadata={'help': "Mean Frequency (observed)", 
@@ -26,11 +20,9 @@ class Frequency(data_class.myDataClass):
                   })
 
 class SurveyData(data_class.myData):
-    """ Initialize the full state for the analysis 
-    with the default parameters
+    """ Hold the SurveyData in a convenient
+    object
 
-    Returns:
-        dict: [description]
     """
     def set_dataclasses(self):
 
