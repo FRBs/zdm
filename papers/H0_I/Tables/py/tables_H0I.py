@@ -4,11 +4,6 @@ import numpy as np
 import os, sys
 import pandas
 
-from frb.galaxies import frbgalaxy
-from frb.galaxies import hosts
-from frb.galaxies import utils
-from frb.galaxies import nebular
-from frb.galaxies import photom as ph
 
 from zdm.craco import loading
 from zdm import survey
@@ -25,7 +20,6 @@ def mktab_model_params(outfile='tab_model_params.tex', sub=False):
     # Load up 
     base_survey='CRAFT_CRACO_MC_base'
     survey, grid = loading.survey_and_grid(survey_name=base_survey)
-    embed(header='27 of tables')
 
     # Open
     tbfil = open(outfile, 'w')
@@ -56,7 +50,10 @@ def mktab_model_params(outfile='tab_model_params.tex', sub=False):
         try:
             slin = f'${getattr(grid.state, item).meta(key)["Notation"]}$'
             # Value
-            slin += f'& {getattr(getattr(grid.state, item),key)}'
+            if key in ['Omega_lambda', 'Omega_b_h2']:
+                slin += f'& {getattr(getattr(grid.state, item),key):.5f}'
+            else:
+                slin += f'& {getattr(getattr(grid.state, item),key)}'
             # Unit
             slin += f'& {getattr(grid.state, item).meta(key)["unit"]}'
             # Descirption
@@ -140,5 +137,5 @@ def mktab_frbs(outfile='tab_frbs.tex', sub=False):
 # Command line execution
 if __name__ == '__main__':
 
-    #mktab_model_params()
-    mktab_frbs()
+    mktab_model_params()
+    #mktab_frbs()
