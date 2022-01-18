@@ -81,12 +81,14 @@ def set_state(alpha_method=1, cosmo=Planck18):
 
 
 def survey_and_grid(survey_name:str='CRAFT/CRACO_1_5000',
+            init_state=None,
             state_dict=None, iFRB:int=0,
                alpha_method=1, NFRB:int=100, lum_func:int=0,sdir=None):
     """ Load up a survey and grid for a CRACO mock dataset
 
     Args:
-        cosmo (str, optional): astropy cosmology. Defaults to 'Planck15'.
+        init_state (State, optional):
+            Initial state
         survey_name (str, optional):  Defaults to 'CRAFT/CRACO_1_5000'.
         NFRB (int, optional): Number of FRBs to analyze. Defaults to 100.
         iFRB (int, optional): Starting index for the FRBs.  Defaults to 0
@@ -102,7 +104,10 @@ def survey_and_grid(survey_name:str='CRAFT/CRACO_1_5000',
         tuple: Survey, Grid objects
     """
     # Init state
-    state = set_state(alpha_method=alpha_method)
+    if init_state is None:
+        state = set_state(alpha_method=alpha_method)
+    else:
+        state = init_state
 
     # Addiitonal updates
     if state_dict is None:
