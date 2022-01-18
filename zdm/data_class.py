@@ -21,11 +21,26 @@ class myData:
 
         self.set_params()
 
+    @classmethod
+    def from_dict(cls, param_dict:dict):
+        slf = cls()
+        # Fill em up
+        slf.update_param_dict(param_dict)
+        #
+        return slf
+
+    @classmethod
+    def from_jsonfile(cls, jfile:str):
+        json_dict = io.process_jfile(jfile)
+        return cls.from_dict(json_dict)
+
     def set_dataclasses(self):
         pass
 
     def set_params(self):
-        # Look-up table or convenience
+        """ Generate a simple dict for parameters
+        """
+        # Look-up dict or convenience
         self.params = {}
         for dc_key in self.__dict__.keys():
             if dc_key == 'params':
@@ -37,10 +52,10 @@ class myData:
         """Enables dict like access to the state
 
         Args:
-            attrib (str): [description]
+            attrib (str): name of the attribute
 
         Returns:
-            [type]: [description]
+            ?:  Value of the attribute requested
         """
         return getattr(self, attrib)
 
@@ -52,14 +67,30 @@ class myData:
                 self.update_param(ikey, params[key][ikey])
 
     def update_params(self, params:dict):
+        """ Update the state parameters using the input dict
+
+        Args:
+            params (dict): New parameters+values
+        """
         for key in params.keys():
             self.update_param(key, params[key])
 
     def update_param(self, param:str, value):
+        """ Update the value of a single parameter
+
+        Args:
+            param (str): name of the parameter
+            value (?): value
+        """
         DC = self.params[param]
         setattr(self[DC], param, value)
 
     def to_dict(self):
+        """ Generate a dict holding all of the object parameters
+
+        Returns:
+            dict: [description]
+        """
         items = []
         for key in self.params.keys():
             items.append(self.params[key])
@@ -71,7 +102,12 @@ class myData:
         # Return
         return state_dict
 
-    def write(self, outfile):
+    def write(self, outfile:str):
+        """ Write the parameters to a JSON file
+
+        Args:
+            outfile (str): name of output file
+        """
         state_dict = self.to_dict()
         io.savejson(outfile, state_dict, overwrite=True, easy_to_read=True)
 
