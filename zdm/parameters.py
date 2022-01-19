@@ -129,13 +129,13 @@ class IGMParams(data_class.myDataClass):
 class HostParams(data_class.myDataClass):
     lmean: float = field(
         default=2.16,
-        metadata={'help': 'log10 mean of DM host contribution in pc cm^-3',
+        metadata={'help': 'log10 mean of DM host contribution in pc cm$^{-3}$',
                   'unit': '',
                   'Notation': '\mu_{\\rm host}',
         })
     lsigma: float = field(
         default=0.51,
-        metadata={'help': 'log10 sigma of DM host contribution in pc cm^-3',
+        metadata={'help': 'log10 sigma of DM host contribution in pc cm$^{-3}$',
                   'unit': '',
                   'Notation': '\sigma_{\\rm host}',
         })
