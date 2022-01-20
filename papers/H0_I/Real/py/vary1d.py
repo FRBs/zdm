@@ -15,7 +15,7 @@ import matplotlib
 from matplotlib import pyplot as plt
 
 from zdm import iteration as it
-from zdm.craco import loading
+import loading
 
 from IPython import embed
 
@@ -38,14 +38,11 @@ matplotlib.rc('font', **font)
 
 def main(pargs):
 
-    isurvey, igrid = loading.survey_and_grid(survey_name=pargs.survey,
-                                      NFRB=pargs.nFRB,
-                                      iFRB=pargs.iFRB,
-                                      lum_func=pargs.lum_func)
-    surveys = [isurvey]                                      
-    grids = [igrid]
+    surveys, grids = loading.surveys_and_grids(
+        lum_func=pargs.lum_func)
 
-    pvals = np.linspace(pargs.min, pargs.max, pargs.nstep)
+    pvals = np.linspace(pargs.min, pargs.max, 
+                        pargs.nstep)
     vparams = {}
     vparams[pargs.param] = None
     vparams['lC'] = -0.9
@@ -54,7 +51,7 @@ def main(pargs):
     #print("WARNING:  REMOVE THE LINE BELOW WHEN DONE DEBUGGING")
     #vparams['lEmax'] = 40.6
 
-    lls = []
+    tot_lls = []
     nterms = []  # LL term related to norm (i.e. rates)
     pvterms = []  # LL term related to norm (i.e. rates)
     pvvals = []  # 
@@ -65,32 +62,52 @@ def main(pargs):
                     vparams,grids,surveys, Verbose=False)
         # Set lC
         vparams['lC']=C
-        igrid.state.FRBdemo.lC = C
-        # Grab final LL
-        lls_final, nterm, pvterm, lpvals, lwz = it.calc_likelihoods_2D(
+        ills = []
+        for isurvey, igrid in zip(surveys, grids):
+            igrid.state.FRBdemo.lC = C
+            # Grab final LL
+            if isurvey.nD==1:
+                lls, alist,expected = it.calc_likelihoods_1D(
+                        igrid, isurvey, norm=True,psnr=True,dolist=1)
+            elif isurvey.nD==2:
+                lls, nterm, pvterm, lpvals, lwz = it.calc_likelihoods_2D(
                     igrid, isurvey, 
-                    norm=True,psnr=True,dolist=4)
+                    norm=True,psnr=True, dolist=4)
+            elif isurvey.nD==3:
+                # mixture of 1 and 2D samples. NEVER calculate Pn twice!
+                llsum1,alist1,expected1 = it.calc_likelihoods_1D(
+                    igrid, isurvey, 
+                    norm=True,psnr=True,dolist=1)
+                llsum2,alist2,expected2 = it.calc_likelihoods_2D(
+                    igrid, isurvey, 
+                    norm=True,psnr=True,dolist=1,Pn=False)
+                lls = llsum1+llsum2
+            else:
+                embed(header='78 of vary1d')
+            if pargs.debug:
+                print(pval, isurvey.name, lls)
+            ills.append(lls)
         # Hold
-        lls.append(lls_final)
-        nterms.append(nterm)
-        pvterms.append(pvterm)
-        pvvals.append(lpvals)
-        wzvals.append(lwz)
-        print(f'{pargs.param}: pval={pval}, C={C}, lltot={lls_final}')
+        tot_lls.append(np.sum(ills))
+        #nterms.append(nterm)
+        #pvterms.append(pvterm)
+        #pvvals.append(lpvals)
+        #wzvals.append(lwz)
+        print(f'{pargs.param}: pval={pval}, C={C}, lltot={tot_lls[-1]}')
 
     # Max
-    imx = np.nanargmax(lls)
+    imx = np.nanargmax(tot_lls)
     print(f"Max LL at {pargs.param}={pvals[imx]}")
 
     # Plot
     plt.clf()
     ax = plt.gca()
-    ax.plot(pvals, lls, 'o')
+    ax.plot(pvals, tot_lls, 'o')
     # Nan
-    bad = np.isnan(lls)
+    bad = np.isnan(tot_lls)
     nbad = np.sum(bad)
     if nbad > 0:
-        ax.plot(pvals[bad], [np.nanmin(lls)]*nbad, 'x', color='r')
+        ax.plot(pvals[bad], [np.nanmin(tot_lls)]*nbad, 'x', color='r')
     ax.set_xlabel(pargs.param)
     ax.set_ylabel('LL')
     # Max
@@ -104,6 +121,7 @@ def main(pargs):
         plt.show()
     plt.close()
 
+    '''
     # Plot nterm
     plt.clf()
     ax = plt.gca()
@@ -121,6 +139,7 @@ def main(pargs):
     ax.set_ylabel('pvterm')
     plt.savefig('pvterms.png')
     plt.close()
+    '''
 
 # command-line arguments here
 parser = argparse.ArgumentParser()
@@ -134,36 +153,15 @@ parser.add_argument('-o','--opfile',type=str,required=False,help="Output file fo
 parser.add_argument('--survey',type=str,default='CRACO_alpha1_Planck18',
                     required=False,help="Survey name")
 parser.add_argument('--lum_func',type=int,default=0, required=False,help="Luminosity function (0=power-law, 1=gamma)")
+parser.add_argument('--debug', default=False, action='store_true',
+                            help='Debug')
 pargs = parser.parse_args()
 
 
 main(pargs)
 
 '''
-# OUT OF DATE TESTS
-python test_with_craco.py sfr_n 0.2 2. --nstep 100 --nFRB 1000 --cosmo Planck15 -o CRACO_1000_sfr_n.png
-python test_with_craco.py gamma -1.5 -0.8 --nstep 30 --nFRB 1000 --cosmo Planck15 -o CRACO_1000_gamma.png
-python test_with_craco.py alpha 0.0 1.0 --nstep 50 --nFRB 1000 --cosmo Planck15 -o CRACO_1000_alpha.png
-python test_with_craco.py lEmax 41. 43. --nstep 50 --nFRB 1000 --cosmo Planck15 -o CRACO_1000_lEmax.png
-python test_with_craco.py H0 60. 80. --nstep 50 --nFRB 1000 --cosmo Planck15 -o CRACO_1000_H0.png
-python test_with_craco.py lmean 1.9 2.5  --nstep 30 --nFRB 1000 --cosmo Planck15 -o CRACO_1000_lmean.png
-# OUT OF DATE TESTS
-#
-python test_with_craco.py alpha 0.0 1.0 --nstep 50 --nFRB 100 --cosmo Planck15 --survey CRAFT/CRACO_1 -o CRACO_100_alpha_anew.png
-python test_with_craco.py H0 60.0 80.0 --nstep 50 --nFRB 100 --cosmo Planck15 --survey CRAFT/CRACO_1 -o CRACO_100_H0_Gamma_new.png --lum_func 1
-python test_with_craco.py lEmax 41. 43. --nstep 50 --nFRB 100 --cosmo Planck15 --survey CRAFT/CRACO_1 -o CRACO_100_Emax_Gamma_new.png --lum_func 1
-python test_with_craco.py H0 60.0 80.0 --nstep 50 --nFRB 100 --cosmo Planck15 --survey CRAFT/CRACO_1 -o CRACO_100_H0_new.png 
-python test_with_craco.py lEmax 41. 43. --nstep 50 --nFRB 100 --cosmo Planck15 --survey CRAFT/CRACO_1 -o CRACO_100_Emax_new.png 
-
 # Newest round
-python testing.py lEmax 41. 43. --nstep 50 --nFRB 100 -o MC_Plots/CRACO_100_Emax_new.png 
-python testing.py H0 60. 80. --nstep 50 --nFRB 100 -o MC_Plots/CRACO_100_H0.png 
+python py/vary1d.py H0 60. 80. --nstep 50 -o Plots/Real_H0.png 
 
-# Gamma
-python testing.py H0 60. 80. --nstep 50 --nFRB 100 --survey CRACO_alpha1_Planck18_Gamma -o MC_Plots/CRACO_100_H0_Gamma.png --lum_func 1
-python testing.py lEmax 41. 43. --nstep 50 --nFRB 100 --survey CRACO_alpha1_Planck18_Gamma -o MC_Plots/CRACO_100_Emax_Gamma.png --lum_func 1
-
-python testing.py alpha 0. 2. --nstep 50 --nFRB 100 --survey CRACO_alpha1_Planck18_Gamma -o MC_Plots/CRACO_100_alpha_Gamma.png --lum_func 1
-python testing.py sfr_n 0. 5. --nstep 100 --nFRB 100 --iFRB 100 --survey CRACO_alpha1_Planck18_Gamma -o MC_Plots/CRACO_100_sfr_Gamma.png --lum_func 1
-#
 '''
