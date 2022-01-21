@@ -147,11 +147,7 @@ parser.add_argument('param',type=str,help="paramter to test on")
 parser.add_argument('min',type=float,help="minimum value")
 parser.add_argument('max',type=float,help="maximum value")
 parser.add_argument('--nstep',type=int,default=10,required=False,help="number of steps")
-parser.add_argument('--nFRB',type=int,default=1000,required=False,help="number of FRBs to analyze")
-parser.add_argument('--iFRB',type=int,default=0,required=False,help="starting number of FRBs to analyze")
 parser.add_argument('-o','--opfile',type=str,required=False,help="Output file for the data")
-parser.add_argument('--survey',type=str,default='CRACO_alpha1_Planck18',
-                    required=False,help="Survey name")
 parser.add_argument('--lum_func',type=int,default=0, required=False,help="Luminosity function (0=power-law, 1=gamma)")
 parser.add_argument('--debug', default=False, action='store_true',
                             help='Debug')
