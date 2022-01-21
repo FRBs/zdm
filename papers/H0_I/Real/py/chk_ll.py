@@ -41,6 +41,7 @@ def main(pargs):
 
     # Load up
     surveys, grids = loading.surveys_and_grids()
+    print(grids[0].state)
 
     vparams = {}
     #vparams[pargs.param] = None
