@@ -1,0 +1,78 @@
+# 25 processors on full; batch 1
+#  kubectl exec -it test-pod -- /bin/bash
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: xavier-zdm-craco-full-1
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/hostname
+                operator: NotIn
+                values:
+                  - k8s-chase-ci-01.noc.ucsb.edu
+                  - ucm-fiona01.ucmerced.edu
+      containers:
+      - name: container
+        image: localhost:30081/profxj/zdm_docker:latest  # UPDATE
+        imagePullPolicy: Always
+        resources:
+          requests:
+            cpu: "25"
+            memory: "8Gi"  # 
+            ephemeral-storage: 50Gi  # 
+          limits:
+            cpu: "27"
+            memory: "12Gi"
+            ephemeral-storage: 100Gi
+            #nvidia.com/gpu:  "1"  # See docs to exlude certain types
+        command: ["/bin/bash", "-c"]
+        args:
+          - cd FRB/FRB;
+            git fetch;
+            git pull;
+            python setup.py develop;
+            cd ../ne2001;
+            python setup.py develop;
+            cd ../zdm;
+            git fetch;
+            git checkout H0_paper;
+            python setup.py develop;
+            cd papers/H0_I/Analysis/Cloud;
+            python run_craco_full.py -n 25 -t 250 -b 1;
+            aws --endpoint http://rook-ceph-rgw-nautiluss3.rook s3 cp Output s3://zdm/Cubes/CRACO/Full/ --recursive --force;
+        env:
+          - name: "ENDPOINT_URL"
+            value: "http://rook-ceph-rgw-nautiluss3.rook"
+          - name: "S3_ENDPOINT"
+            value: "rook-ceph-rgw-nautiluss3.rook"
+        volumeMounts:
+          - name: prp-s3-credentials
+            mountPath: "/root/.aws/credentials"
+            subPath: "credentials"
+          - name: ephemeral
+            mountPath: "/tmp"
+          - name: "dshm"
+            mountPath: "/dev/shm"
+      nodeSelector:
+        nautilus.io/disktype: nvme
+        gpu-type: "1080Ti"  # titan-xp
+      restartPolicy: Never
+      volumes:
+        # Secrets file for nautilus s3 credentials .aws/credentials and .s3cfg
+        - name: prp-s3-credentials
+          secret:
+            secretName: prp-s3-credentials
+        # Shared memory (necessary for Python's multiprocessing.shared_memory module to work)
+        - name: dshm
+          emptyDir:
+            medium: Memory
+        # Ephemeral storage
+        - name: ephemeral
+          emptyDir: {}
