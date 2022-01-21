@@ -72,6 +72,9 @@ def set_state(alpha_method=1, cosmo=Planck18):
         
         vparams['host']['lmean'] = 2.18
         vparams['host']['lsigma'] = 0.48
+
+    # Gamma
+    vparams['energy']['luminosity_function'] = 1
         
     state.update_param_dict(vparams)
     state.set_astropy_cosmo(cosmo)
@@ -80,8 +83,7 @@ def set_state(alpha_method=1, cosmo=Planck18):
     return state
 
 
-def surveys_and_grids(init_state=None, state_dict=None, 
-                      alpha_method=1, lum_func:int=0):
+def surveys_and_grids(init_state=None, alpha_method=1): 
     """ Load up a survey and grid for a CRACO mock dataset
 
     Args:
@@ -105,16 +107,10 @@ def surveys_and_grids(init_state=None, state_dict=None,
     else:
         state = init_state
 
-    # Addiitonal updates
-    if state_dict is None:
-        state_dict = dict(cosmo=dict(fix_Omega_b_h2=True))
-        state.energy.luminosity_function = lum_func
-    state.update_param_dict(state_dict)
-    
     # Cosmology
     cos.set_cosmology(state)
     cos.init_dist_measures()
-    
+
     # get the grid of p(DM|z)
     zDMgrid, zvals,dmvals = misc_functions.get_zdm_grid(
         state, new=True, plot=False, method='analytic',
