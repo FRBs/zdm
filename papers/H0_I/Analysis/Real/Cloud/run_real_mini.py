@@ -90,7 +90,7 @@ def parse_option():
 
 if __name__ == "__main__":
     # get the argument of training.
-    pfile = '../Cubes/craco_full_cube.json'
-    oproot = 'craco_full.out' 
+    pfile = '../Cubes/real_mini_cube.json'
+    oproot = 'real_mini.out' 
     pargs = parse_option()
-    main(pargs, pfile, oproot, NFRB=100, iFRB=100)
+    main(pargs, pfile, oproot)
