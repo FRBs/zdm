@@ -17,7 +17,6 @@ spec:
                 operator: NotIn
                 values:
                   - k8s-chase-ci-01.noc.ucsb.edu
-                  - ucm-fiona01.ucmerced.edu
       containers:
       - name: container
         image: localhost:30081/profxj/zdm_docker:latest  # UPDATE
