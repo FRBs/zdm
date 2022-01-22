@@ -1,4 +1,4 @@
-""" Run a Nautilus test """
+""" Run mini Cube for the Real data in the Cloud """
 
 # It should be possible to remove all the matplotlib calls from this
 # but in the current implementation it is not removed.
