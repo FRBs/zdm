@@ -1,5 +1,4 @@
-""" Build a log-likelihood cube for zdm 
-  -- ONLY WORKS FOR CRACO MC 
+""" Build a log-likelihood cube for zdm for Real FRBs! 
 """
 
 # It should be possible to remove all the matplotlib calls from this
@@ -10,12 +9,13 @@ import os
 
 from zdm import iteration as it
 from zdm import io
-from zdm.craco import loading
+import loading
 
 from IPython import embed
 
 def main(pargs):
     
+
     # Clobber?
     if pargs.clobber and os.path.isfile(pargs.opfile):
         os.remove(pargs.opfile)
@@ -26,17 +26,16 @@ def main(pargs):
     # Deconstruct the input_dict
     state_dict, cube_dict, vparam_dict = it.parse_input_dict(input_dict)
 
+    # State
+    state = loading.set_state()
+    state.update_param_dict(state_dict)
+
     ############## Initialise ##############
-    # ONLY FOR CRACO SO FAR
-    survey, grid = loading.survey_and_grid(
-        state_dict=state_dict,
-        survey_name=pargs.survey,
-        NFRB=pargs.NFRB,
-        iFRB=pargs.iFRB)
+    surveys, grids = loading.surveys_and_grids(init_state=state)
 
     # Write state to disk
     state_file = pargs.pfile.replace('cube.json', 'state.json')
-    grid.state.write(state_file)
+    state.write(state_file)
     
     # Set what portion of the Cube we are generating 
     run=pargs.number
@@ -44,14 +43,14 @@ def main(pargs):
     opfile=pargs.opfile
     
     # checks to see if the file is already there, and how many iterations have been performed
-    starti=it.check_cube_opfile(run,howmany,opfile)
+    starti=it.check_cube_opfile(run, howmany, opfile)
     print("starti is ",starti)
     if starti==howmany:
         print("Done everything!")
         pass
     #
-    it.cube_likelihoods([grid],[survey], vparam_dict, cube_dict,
-                    run,howmany,opfile, starti=starti)
+    it.cube_likelihoods(grids, surveys, vparam_dict, cube_dict,
+                    run, howmany, opfile, starti=starti)
         
 
 def parse_args(options=None):
@@ -60,16 +59,13 @@ def parse_args(options=None):
     parser.add_argument('-n','--number',type=int,required=True,help="nth iteration, beginning at 0")
     parser.add_argument('-m','--howmany',type=int,required=True,help="number m to iterate at once")
     parser.add_argument('-p','--pfile',type=str, required=True,help="File defining parameter ranges")
-    parser.add_argument('-s','--survey',type=str, required=True,help="Name of CRACO MC survey")
     parser.add_argument('-o','--opfile',type=str,required=True,help="Output file for the data")
-    parser.add_argument('--NFRB',type=int,required=False,help="Number of FRBs to analzye")
-    parser.add_argument('--iFRB',type=int,default=0,help="Initial FRB to run from")
     parser.add_argument('--clobber', default=False, action='store_true',
                     help="Clobber output file?")
     args = parser.parse_args()
     return args
 
-def run():
+if __name__ == "__main__":
     pargs = parse_args()
     main(pargs)
 

@@ -14,8 +14,7 @@ from zdm import io
 
 from IPython import embed
 
-def main(pargs, pfile:str, oproot:str, NFRB:int=None, iFRB:int=0,
-         outdir:str='Output'):
+def main(pargs, pfile:str, oproot:str, outdir:str='Output'):
 
     # Generate the folder?
     if not os.path.isdir(outdir):
@@ -45,20 +44,14 @@ def main(pargs, pfile:str, oproot:str, NFRB:int=None, iFRB:int=0,
         iCPU = (batch-1)*pargs.ncpu + kk
         outfile = os.path.join(outdir, oproot.replace('.out', f'{iCPU+1}.out'))
         # Command
-        line = ['zdm_build_cube', 
+        line = ['python', 
+                '../py/build_real_cube.py', 
                 '-n', f'{iCPU+1}',
                 '-m', f'{nper_cpu}', 
                 '-o', f'{outfile}',
-                '-s', f'CRACO_alpha1_Planck18_Gamma', '--clobber',
+                '--clobber',
                 '-p', f'{pfile}']
-        # NFRB?
-        if NFRB is not None:
-            line += [f'--NFRB', f'{NFRB}']
-        # iFRB?
-        if iFRB > 0:
-            line += [f'--iFRB', f'{iFRB}']
         # Finish
-        #line += ' & \n'
         commands.append(line)
 
     # Launch em!
