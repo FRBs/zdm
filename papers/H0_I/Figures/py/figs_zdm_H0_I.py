@@ -30,6 +30,7 @@ from zdm import figures
 from IPython import embed
 
 sys.path.append(os.path.abspath("../Analysis/py"))
+sys.path.append(os.path.abspath("../../Analysis/py"))
 import analy_H0_I
 
 def fig_craco_fiducial(outfile='fig_craco_fiducial.png',
