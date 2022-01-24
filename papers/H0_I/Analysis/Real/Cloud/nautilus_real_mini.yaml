@@ -25,10 +25,10 @@ spec:
         resources:
           requests:
             cpu: "25"
-            memory: "18Gi"  # 
+            memory: "20Gi"  # Using 19Gi
             ephemeral-storage: 50Gi  # 
           limits:
-            cpu: "27"
+            cpu: "30"
             memory: "24Gi"
             ephemeral-storage: 100Gi
             #nvidia.com/gpu:  "1"  # See docs to exlude certain types

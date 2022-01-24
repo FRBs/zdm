@@ -62,7 +62,7 @@ if sfrEmax:
                             'Cubes/craco_sfr_Emax_cube.npz',
                             nsurveys)
 
-alphaEmax = True
+alphaEmax = False
 if alphaEmax:
     # Emax
     input_file = 'Cubes/craco_alpha_Emax_cube.json'
@@ -84,4 +84,4 @@ if full:
     # Run it
     analyze_cube.slurp_cube(input_file, prefix, 
                             'Cubes/craco_full_cube.npz',
-                            nsurveys)
+                            nsurveys, debug=True)
