@@ -3,11 +3,11 @@
 from zdm import analyze_cube
 
 
-Emax = False
+Emax = True
 if Emax:
     # Emax
     input_file = 'Cubes/craco_H0_Emax_cube.json'
-    prefix = 'Cubes/craco_H0_Emax_cube'
+    prefix = 'Cubes/tmp'
     nsurveys = 1
 
     # Run it
@@ -62,7 +62,7 @@ if sfrEmax:
                             'Cubes/craco_sfr_Emax_cube.npz',
                             nsurveys)
 
-alphaEmax = True
+alphaEmax = False
 if alphaEmax:
     # Emax
     input_file = 'Cubes/craco_alpha_Emax_cube.json'
