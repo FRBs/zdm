@@ -11,7 +11,7 @@
         }
     },
     "cube": {
-        "parameter_order": ["lC", "sfr_n", "alpha", "lEmax", "gamma", "H0"]
+        "parameter_order": ["lC", "alpha", "lEmax"]
     },
     "lEmax": {
         "DC": "energy",
@@ -19,11 +19,11 @@
         "max": 42.5, 
         "n": 50
     },
-    "sfr_n": {
-        "DC": "FRBdemo",
-        "min": 0.0, 
+    "alpha": {
+        "DC": "energy",
+        "min": 0.2, 
         "max": 4.0, 
-        "n": 100
+        "n": 50
     },
     "lC": {
         "DC": "FRBdemo",

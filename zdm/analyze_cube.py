@@ -54,7 +54,8 @@ def slurp_cube(input_file:str, prefix:str, outfile:str,
     # Loop on cube output files
     for dfile in files:
         print(f"Loading: {dfile}")
-        df = pandas.read_csv(dfile, header=None, delimiter=r"\s+", names=names)
+        df = pandas.read_csv(dfile, header=None, delimiter=r"\s+", 
+                             names=names)
 
         for index, row in df.iterrows():
             # Unravel
@@ -484,3 +485,17 @@ def do_single_plots(uvals,vectors,wvectors,names,tag=None, fig_exten='.png',
         return results,prior_results
     else:
         return
+
+def gen_vparams(indices:tuple, vparam_dict:dict):
+    new_dict = {}
+    for ss, key in enumerate(vparam_dict.keys()):
+        if vparam_dict[key]['n'] <= 0:
+            continue
+        # 
+        vals = np.linspace(vparam_dict[key]['min'], 
+                           vparam_dict[key]['max'],
+                           vparam_dict[key]['n'])
+        # 
+        new_dict[key] = vals[indices[ss]]
+    # Return
+    return new_dict

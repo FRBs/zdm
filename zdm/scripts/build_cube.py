@@ -1,5 +1,5 @@
 """ Build a log-likelihood cube for zdm 
-  -- ONLY WORKS FOR CRACO MC SO FAR
+  -- ONLY WORKS FOR CRACO MC 
 """
 
 # It should be possible to remove all the matplotlib calls from this
@@ -14,7 +14,7 @@ from zdm.craco import loading
 
 from IPython import embed
 
-def main(pargs, outdir='Cubes'):
+def main(pargs):
     
     # Clobber?
     if pargs.clobber and os.path.isfile(pargs.opfile):
@@ -38,9 +38,6 @@ def main(pargs, outdir='Cubes'):
     state_file = pargs.pfile.replace('cube.json', 'state.json')
     grid.state.write(state_file)
     
-    if not os.path.exists(outdir):
-        os.mkdir(outdir)
-
     # Set what portion of the Cube we are generating 
     run=pargs.number
     howmany=pargs.howmany

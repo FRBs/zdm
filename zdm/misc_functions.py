@@ -1687,10 +1687,11 @@ def plot_1d(pvec,lset,xlabel,savename,showplot=False):
     plt.close()
     
 # generates grid based on Monte Carlo model
-def get_zdm_grid(state:parameters.State, new=True,plot=False,method='analytic',
+def get_zdm_grid(state:parameters.State, new=True,
+                 plot=False,method='analytic',
                  nz=500,zmax=5,ndm=1400,dmmax=7000.,
                  datdir='GridData',tag="", orig=False,
-                 verbose=False):
+                 verbose=False, save=False):
     """Generate a grid of z vs. DM for an assumed F value
     for a specified z range and DM range.
 
@@ -1707,6 +1708,7 @@ def get_zdm_grid(state:parameters.State, new=True,plot=False,method='analytic',
         tag (str, optional): [description]. Defaults to "".
         orig (bool, optional): Use original calculations for 
             things like C0. Defaults to False.
+        save (bool, optional): Save the grid to disk?
 
     Returns:
         tuple: zDMgrid, zvals, dmvals
@@ -1782,11 +1784,12 @@ def get_zdm_grid(state:parameters.State, new=True,plot=False,method='analytic',
             if verbose:
                 print("Done. Took ",dt," seconds")
         
-        np.save(savefile,zDMgrid)
         metadata=np.array([nz,ndm,state.IGM.F])
-        np.save(datfile,metadata)
-        np.save(zfile,zvals)
-        np.save(dmfile,dmvals)
+        if save:
+            np.save(savefile,zDMgrid)
+            np.save(datfile,metadata)
+            np.save(zfile,zvals)
+            np.save(dmfile,dmvals)
     else:
         zDMgrid=np.load(savefile)
         zvals=np.load(zfile)
