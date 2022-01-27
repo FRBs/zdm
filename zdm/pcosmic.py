@@ -90,11 +90,11 @@ def make_C0_grid(zeds,F):
         C0s[i]=iterate_C0(z,F)
     return C0s
 
-def get_mean_DM(zeds, state:parameters.State):
+def get_mean_DM(zeds:np.ndarray, state:parameters.State):
     """ Gets mean average z to which can be applied deltas 
 
     Args:
-        zeds ([type]): [description]
+        zeds (np.ndarray): redshifts
         state (parameters.State): 
 
     Returns:

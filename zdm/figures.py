@@ -1,8 +1,5 @@
 import numpy as np
 
-from matplotlib import pyplot as plt
-
-
 def find_Alevels(pgrid:np.ndarray,
                  Aconts:list, 
                  norm:bool=True,

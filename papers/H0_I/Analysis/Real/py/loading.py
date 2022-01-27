@@ -1,4 +1,4 @@
-""" CRACO FRBs: This may move out of tests someday """
+""" Load up the Real data """
 
 ######
 # first run this to generate surveys and parameter sets, by 
@@ -13,7 +13,7 @@ import numpy as np
 import os
 from pkg_resources import resource_filename
 
-from astropy.cosmology import Planck15, Planck18
+from astropy.cosmology import Planck18
 
 from zdm import survey
 from zdm import parameters
@@ -72,6 +72,9 @@ def set_state(alpha_method=1, cosmo=Planck18):
         
         vparams['host']['lmean'] = 2.18
         vparams['host']['lsigma'] = 0.48
+
+    # Gamma
+    vparams['energy']['luminosity_function'] = 1
         
     state.update_param_dict(vparams)
     state.set_astropy_cosmo(cosmo)
@@ -80,18 +83,13 @@ def set_state(alpha_method=1, cosmo=Planck18):
     return state
 
 
-def survey_and_grid(survey_name:str='CRAFT/CRACO_1_5000',
-            init_state=None,
-            state_dict=None, iFRB:int=0,
-               alpha_method=1, NFRB:int=100, lum_func:int=0,sdir=None):
+def surveys_and_grids(init_state=None, alpha_method=1): 
     """ Load up a survey and grid for a CRACO mock dataset
 
     Args:
         init_state (State, optional):
             Initial state
         survey_name (str, optional):  Defaults to 'CRAFT/CRACO_1_5000'.
-        NFRB (int, optional): Number of FRBs to analyze. Defaults to 100.
-        iFRB (int, optional): Starting index for the FRBs.  Defaults to 0
         lum_func (int, optional): Flag for the luminosity function. 
             0=power-law, 1=gamma.  Defaults to 0.
         state_dict (dict, optional):
@@ -101,7 +99,7 @@ def survey_and_grid(survey_name:str='CRAFT/CRACO_1_5000',
         IOError: [description]
 
     Returns:
-        tuple: Survey, Grid objects
+        tuple: lists of Survey, Grid objects
     """
     # Init state
     if init_state is None:
@@ -109,34 +107,36 @@ def survey_and_grid(survey_name:str='CRAFT/CRACO_1_5000',
     else:
         state = init_state
 
-    # Addiitonal updates
-    if state_dict is None:
-        state_dict = dict(cosmo=dict(fix_Omega_b_h2=True))
-        state.energy.luminosity_function = lum_func
-    state.update_param_dict(state_dict)
-    
     # Cosmology
     cos.set_cosmology(state)
     cos.init_dist_measures()
-    
+
     # get the grid of p(DM|z)
     zDMgrid, zvals,dmvals = misc_functions.get_zdm_grid(
         state, new=True, plot=False, method='analytic',
         datdir=resource_filename('zdm', 'GridData'))
     
     ############## Initialise surveys ##############
-    if sdir is not None:
-        print("Searching for survey in directory ",sdir)
-    else:
-        sdir = os.path.join(resource_filename('zdm', 'craco'), 'MC_Surveys')
-    isurvey = survey.load_survey(survey_name, state, dmvals,
-                                 NFRB=NFRB, sdir=sdir, Nbeams=5,
-                                 iFRB=iFRB)
+    survey_names = ['CRAFT/FE', 
+                    'private_CRAFT_ICS_1632',
+                    'private_CRAFT_ICS_892', 
+                    'private_CRAFT_ICS',
+                    'PKS/Mb']
+    beams = [5,5,5,5,10]
+    surveys = []
+    for nbeam, survey_name in zip(beams, survey_names):
+        surveys.append(survey.load_survey(survey_name, 
+                                          state, dmvals,
+                                          Nbeams=nbeam))
+    print("Initialised surveys")
 
     # generates zdm grid
     grids = misc_functions.initialise_grids(
-        [isurvey], zDMgrid, zvals, dmvals, state, wdist=True)
-    print("Initialised grid")
+        surveys, zDMgrid, zvals, dmvals, state, wdist=True)
+    print("Initialised grids")
 
     # Return Survey and Grid
-    return isurvey, grids[0]
+    return surveys, grids
+ 
+if __name__ == '__main__':
+    surveys, grids = surveys_and_grids()

@@ -22,7 +22,12 @@ from typing import IO
 from zdm import beams, parameters
 from zdm import pcosmic
 class Survey:
-    """A class to hold an FRB survey"""
+    """A class to hold an FRB survey
+
+    Attributes:
+        frbs (dict): Holds the data for the FRBs
+
+    """
     
     
     def __init__(self):
@@ -190,9 +195,12 @@ class Survey:
         self.do_keyword('SNR',which)
         self.do_keyword('DM',which)
         self.do_keyword('WIDTH',which,0.1) # defaults to unresolved width in time
-        self.do_keyword_char('ID',which,None) # obviously we don't need names!
+        self.do_keyword_char('ID',which,None, dtype='str') # obviously we don't need names,!
         self.do_keyword('Gl',which,None) # Galactic latitude
         self.do_keyword('Gb',which,None) # Galactic longitude
+        #
+        self.do_keyword_char('XRa',which,None, dtype='str') # obviously we don't need names,!
+        self.do_keyword_char('XDec',which,None, dtype='str') # obviously we don't need names,!
         
         self.do_keyword('Z',which,None)
         if self.frbs["Z"] is not None:
@@ -301,8 +309,15 @@ class Survey:
                 self.meta[key]=default
                 self.frbs[key]=np.full([self.NFRB],default)
     
-    def do_keyword_char(self,key,which,default=-1):
-        """ This kind of key can either be in the metadata, or the table, not both
+    def do_keyword_char(self,key:str,
+                        which:int,default=-1, 
+                        dtype='float'):
+        """
+        Slurp in a set of keywords
+
+        This kind of key can either be in the metadata, 
+        or the table, not both
+
         IF which ==     1: must be metadata
                 2: must be FRB-by-FRB
                 3: could be either
@@ -310,6 +325,16 @@ class Survey:
         If default ==     None: it is OK to not be present
                 -1: fail if not there
                 Another value: set this as the default
+
+        Args:
+            key (str): [description]
+            which (int): [description]
+            default (int, optional): [description]. Defaults to -1.
+            dtype (str, optional): Data type for the variable. Defaults to 'float'.
+
+        Raises:
+            ValueError: [description]
+            ValueError: [description]
         """
         n=self.keys.count(key)
         if (n > 1): # 
@@ -321,9 +346,15 @@ class Survey:
             
         elif (which != 1) and (self.keylist.count(key)==1): #info varies according to each FRB
             ik=self.keylist.index(key)
-            values=np.zeros([self.NFRB])
-            for i,j in enumerate(self.frblist):
-                values[i]=self.info[j][ik]
+            if dtype == 'str':
+                values = []
+                for i,j in enumerate(self.frblist):
+                    values.append(self.info[j][ik])
+                values = np.array(values)
+            else:
+                values=np.zeros([self.NFRB], dtype=dtype)
+                for i,j in enumerate(self.frblist):
+                    values[i]=self.info[j][ik]
             self.frbs[key] = values
         else:
             if default==None:
@@ -398,6 +429,15 @@ class Survey:
         else:
             print("No beam found to initialise...")
             
+    def __repr__(self):
+        """ Over-ride print representation
+
+        Returns:
+            str: Items of the FURBY
+        """
+        repr = '<{:s}: \n'.format(self.__class__.__name__)
+        repr += f'name={self.name}'
+        return repr
     
 
 # implements something like Mawson's formula for sensitivity
@@ -542,6 +582,10 @@ def load_survey(survey_name:str, state:parameters.State, dmvals:np.ndarray,
     elif survey_name == 'PKS/Mb':
         dfile = 'parkes_mb_class_I_and_II.dat'
         Nbeams = 10
+    elif 'private' in survey_name: 
+        dfile = survey_name+'.dat'
+        if Nbeams is None:
+            raise IOError("You must specify Nbeams with a private survey file")
     else: # Should only be used for MC analysis
         dfile = survey_name+'.dat'
         Nbeams = 5

@@ -21,6 +21,8 @@ import seaborn as sns
 
 import h5py
 
+from frb.figures import utils as fig_utils
+
 from zdm.craco import loading
 from zdm import pcosmic
 from zdm import figures
@@ -28,10 +30,12 @@ from zdm import figures
 from IPython import embed
 
 sys.path.append(os.path.abspath("../Analysis/py"))
+sys.path.append(os.path.abspath("../../Analysis/py"))
 import analy_H0_I
 
 def fig_craco_fiducial(outfile='fig_craco_fiducial.png',
                 zmax=2,DMmax=2000,
+                show_Macquart=False,
                 log=True,
                 label='$\\log_{10} \; p(DM_{\\rm EG},z)$',
                 Aconts=[0.01, 0.1, 0.5],
@@ -73,6 +77,7 @@ def fig_craco_fiducial(outfile='fig_craco_fiducial.png',
     FRBDM=survey.DMEGs
     
     ##### imshow of grid #######
+    fsize = 14.
     plt.figure(figsize=figsize)
     ax1=plt.axes()
     plt.sca(ax1)
@@ -122,17 +127,28 @@ def fig_craco_fiducial(outfile='fig_craco_fiducial.png',
     nz=zvals.size
     #DMbar, zeval = igm.average_DM(zmax, cumul=True, neval=nz+1)
     DM_cosmic = pcosmic.get_mean_DM(zvals, grid.state)
+
     
     #idea is that 1 point is 1, hence...
     zeval = zvals/dz
     DMEG_mean = (DM_cosmic+meanHost)/ddm
     DMEG_median = (DM_cosmic+medianHost)/ddm
-    plt.plot(zeval,DMEG_mean,color='gray',linewidth=2,
-                label='Macquart relation (mean)')
-    plt.plot(zeval,DMEG_median,color='gray',
-                linewidth=2, ls='--',
-                label='Macquart relation (median)')
-    l=plt.legend(loc='lower right',fontsize=12)
+
+    # Check median
+    f_median = scipy.interpolate.interp1d(
+        zvals, DM_cosmic+medianHost, 
+        fill_value='extrapolate')
+    eval_DMEG = f_median(FRBZ)
+    above = FRBDM > eval_DMEG
+    print(f"There are {np.sum(above)/len(FRBZ)} above the median")
+
+    if show_Macquart:
+        plt.plot(zeval,DMEG_mean,color='gray',linewidth=2,
+                    label='Macquart relation (mean)')
+        plt.plot(zeval,DMEG_median,color='gray',
+                    linewidth=2, ls='--',
+                    label='Macquart relation (median)')
+        l=plt.legend(loc='lower right',fontsize=12)
     #l=plt.legend(bbox_to_anchor=(0.2, 0.8),fontsize=8)
     #for text in l.get_texts():
         #	text.set_color("white")
@@ -154,6 +170,9 @@ def fig_craco_fiducial(outfile='fig_craco_fiducial.png',
 
     cbar=plt.colorbar(im,fraction=0.046, shrink=1.2,aspect=15,pad=0.05)
     cbar.set_label(label)
+
+    fig_utils.set_fontsize(ax, fsize)
+    
     plt.tight_layout()
     
     if show:

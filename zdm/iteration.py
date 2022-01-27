@@ -174,6 +174,10 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=False,Pn=True,do
     Norm simply means to normalise likelihoods so that the total comes to unity.
         - Note that the *sum* comes to unity, since each bin in rates is already
             normalised by the volume in the dz bin
+
+    dolist = 2
+        llsum,lllist,expected,longlist
+            longlist holds the LL for each FRB
     
     Pn: Calculate the probability of observing N bursts (Poisson)
     """
@@ -442,8 +446,8 @@ def calc_likelihoods_2D(grid,survey,
     zdm_components
         False: nothing
         True: Also returns p(z|DM), p(DM), p(DM|z), and p(z)
-     """
-    
+    """
+
     ######## Calculates p(DM,z | FRB) ########
     # i.e. the probability of a given z,DM assuming
     # an FRB has been observed. The normalisation

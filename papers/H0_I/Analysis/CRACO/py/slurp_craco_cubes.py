@@ -73,3 +73,18 @@ if alphaEmax:
     analyze_cube.slurp_cube(input_file, prefix, 
                             'Cubes/craco_alpha_Emax_cube.npz',
                             nsurveys)
+#papers/H0_I/Analysis/py/slurp_craco_cubes.py
+
+
+full = True
+if full:
+    # Emax
+    input_file = 'Cubes/craco_full_cube.json'
+    prefix = 'Cubes/craco_full'
+    nsurveys = 1
+
+    # Run it
+    analyze_cube.slurp_cube(input_file, prefix, 
+                            'Cubes/craco_full_cube.npz',
+                            nsurveys)
+#papers/H0_I/Analysis/CRACO/py/slurp_craco_cubes.py

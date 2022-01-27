@@ -54,7 +54,8 @@ def slurp_cube(input_file:str, prefix:str, outfile:str,
     # Loop on cube output files
     for dfile in files:
         print(f"Loading: {dfile}")
-        df = pandas.read_csv(dfile, header=None, delimiter=r"\s+", names=names)
+        df = pandas.read_csv(dfile, header=None, delimiter=r"\s+", 
+                             names=names)
 
         for index, row in df.iterrows():
             # Unravel
