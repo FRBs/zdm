@@ -1,9 +1,9 @@
-# 25 processors on full; batch 7
+# 25 processors on full; batch 8
 #  kubectl exec -it test-pod -- /bin/bash
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: xavier-zdm-craco-full-7
+  name: xavier-zdm-craco-full-8
 spec:
   backoffLimit: 0
   template:
@@ -17,7 +17,6 @@ spec:
                 operator: NotIn
                 values:
                   - k8s-chase-ci-01.noc.ucsb.edu
-                  - ucm-fiona01.ucmerced.edu
       containers:
       - name: container
         image: localhost:30081/profxj/zdm_docker:latest  # UPDATE
@@ -46,8 +45,8 @@ spec:
             python setup.py develop;
             cd papers/H0_I/Analysis/CRACO/Cloud;
             mkdir Output;
-            python run_craco_full.py -n 25 -t 250 -b 7;
-            aws --endpoint http://rook-ceph-rgw-nautiluss3.rook s3 cp Output s3://zdm/Cubes/CRACO/Full/ --recursive --force;
+            python run_craco_mini.py -n 25 -t 25 -b 8;
+            aws --endpoint http://rook-ceph-rgw-nautiluss3.rook s3 cp Output s3://zdm/Cubes/CRACO/Mini/ --recursive --force;
         env:
           - name: "ENDPOINT_URL"
             value: "http://rook-ceph-rgw-nautiluss3.rook"

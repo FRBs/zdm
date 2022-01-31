@@ -163,7 +163,7 @@ def array_cum_gamma(Eth,*params):
     for a given Eth, where Eth is an N-dimensional array
     """
     dims=Eth.shape
-    result=vector_cum_power_law(Eth.flatten(),*params)
+    result=vector_cum_gamma(Eth.flatten(),*params)
     result=result.reshape(dims)
     return result
 
