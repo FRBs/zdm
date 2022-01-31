@@ -46,7 +46,9 @@ class Grid:
 
         self.luminosity_function = self.state.energy.luminosity_function
         self.init_luminosity_functions()
-
+        
+        self.nuObs=survey.meta['FBAR']*1e6 #from MHz to Hz
+        
         # Init the grid
         #   THESE SHOULD BE THE SAME ORDER AS self.update()
         self.pass_grid(zDMgrid.copy(),zvals.copy(),dmvals.copy())  
@@ -60,8 +62,7 @@ class Grid:
             weights=None
         self.calc_thresholds(survey.meta['THRESH'],
                              efficiencies,
-                             weights=weights,
-                             nuObs=survey.meta['FBAR']*1e6)
+                             weights=weights)
         self.calc_pdv()
         self.set_evolution() # sets star-formation rate scaling with z - here, no evoltion...
         self.calc_rates() #includes sfr smearing factors and pdv mult
@@ -244,34 +245,12 @@ class Grid:
             exit()
         
         self.sfr_smear=np.multiply(self.smear_grid.T,self.sfr).T
-            # we do not NEED the following, but it records this info 
-            # for faster computation later
-            #self.sfr_smear_grid=np.multiply(self.smear_grid.T,self.sfr).T
-            #self.pdv_sfr=np.multiply(self.pdv.T,self.sfr)
         
         self.rates=self.pdv*self.sfr_smear
         
-        #try:
-        #    self.smear_grid
-        #except:
-        #    print("WARNING: DM grid has not yet been smeared for DMx!")
-        #    self.pdv_smear=self.pdv*self.grid
-        #else:
-        #    self.pdv_smear=self.pdv*self.sfr_smear
-        #
-        #try:
-        #    self.sfr
-        #except:
-        #    print("WARNING: no evolutionary weight yet applied")
-        #else:
-        #    self.rates=np.multiply(self.pdv_smear.T,self.sfr).T
-            # we do not NEED the following, but it records this info 
-            # for faster computation later
-            #self.sfr_smear_grid=np.multiply(self.smear_grid.T,self.sfr).T
-            #self.pdv_sfr=np.multiply(self.pdv.T,self.sfr)
         
     def calc_thresholds(self, F0:float, eff_table, 
-                        bandwidth=1e9, nuObs=1.3e9, 
+                        bandwidth=1e9, 
                         nuRef=1.3e9, weights=None):
         """ Sets the effective survey threshold on the zdm grid
 
@@ -291,7 +270,6 @@ class Grid:
         """
         # keep the inputs for later use
         self.F0=F0
-        self.nuObs=nuObs
         self.nuRef=nuRef
         
         self.bandwidth=bandwidth
@@ -336,14 +314,10 @@ class Grid:
         
         ls=smear.size
         lz,ldm=self.grid.shape
-        #self.smear_mean=mean
-        #self.smear_sigma=sigma
-        self.smear_grid=np.zeros([lz,ldm])
+        
+        if not hasattr(self, 'smear_grid'):
+            self.smear_grid=np.zeros([lz,ldm])
         self.smear=smear
-        #for j in np.arange(ls,ldm):
-        #    self.smear_grid[:,j]=np.sum(np.multiply(self.grid[:,j-ls:j],smear[::-1]),axis=1)
-        #for j in np.arange(ls):
-        #    self.smear_grid[:,j]=np.sum(np.multiply(self.grid[:,:j+1],np.flip(smear[:j+1])),axis=1)
         
         # this method is O~7 times faster than the 'brute force' above for large arrays
         for i in np.arange(lz):

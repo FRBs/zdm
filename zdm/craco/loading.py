@@ -106,14 +106,13 @@ def survey_and_grid(survey_name:str='CRAFT/CRACO_1_5000',
     # Init state
     if init_state is None:
         state = set_state(alpha_method=alpha_method)
+        # Addiitonal updates
+        if state_dict is None:
+            state_dict = dict(cosmo=dict(fix_Omega_b_h2=True))
+            state.energy.luminosity_function = lum_func
+        state.update_param_dict(state_dict)
     else:
         state = init_state
-
-    # Addiitonal updates
-    if state_dict is None:
-        state_dict = dict(cosmo=dict(fix_Omega_b_h2=True))
-        state.energy.luminosity_function = lum_func
-    state.update_param_dict(state_dict)
     
     # Cosmology
     cos.set_cosmology(state)
