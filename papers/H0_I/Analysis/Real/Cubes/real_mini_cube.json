@@ -17,13 +17,13 @@
         "DC": "energy",
         "min": 40.5, 
         "max": 42.5, 
-        "n": 25
+        "n": 10
     },
     "H0": {
         "DC": "cosmo",
         "min": 55.0, 
         "max": 80.0, 
-        "n": 20
+        "n": 10
     },
     "alpha": {
         "DC": "energy",
@@ -41,7 +41,7 @@
         "DC": "FRBdemo",
         "min": 0.0, 
         "max": 3.0, 
-        "n": 20
+        "n": 10
     },
     "lmean": {
         "DC": "host",
