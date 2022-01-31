@@ -1,9 +1,9 @@
-# 25 processors on mini
+# 25 processors on full; batch 8
 #  kubectl exec -it test-pod -- /bin/bash
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: xavier-zdm-craco-mini
+  name: xavier-zdm-craco-full-8
 spec:
   backoffLimit: 0
   template:
@@ -43,8 +43,9 @@ spec:
             git fetch;
             git checkout H0_paper;
             python setup.py develop;
-            cd papers/H0_I/Analysis/Cloud;
-            python run_craco_full.py -n 25 -t 25 -b 1;
+            cd papers/H0_I/Analysis/CRACO/Cloud;
+            mkdir Output;
+            python run_craco_mini.py -n 25 -t 25 -b 8;
             aws --endpoint http://rook-ceph-rgw-nautiluss3.rook s3 cp Output s3://zdm/Cubes/CRACO/Mini/ --recursive --force;
         env:
           - name: "ENDPOINT_URL"
