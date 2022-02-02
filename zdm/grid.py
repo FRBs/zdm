@@ -1,11 +1,10 @@
 from IPython.terminal.embed import embed
 import numpy as np
 from zdm import cosmology as cos
-from zdm import parameters
 from zdm import misc_functions
-from zdm import zdm
+from zdm import energetics
 from zdm import pcosmic
-import time
+from zdm import io
 
 class Grid:
     """A class to hold a grid of z-dm plots
@@ -69,15 +68,16 @@ class Grid:
 
     def init_luminosity_functions(self):
         if self.luminosity_function==0:  # Power-law
-            self.array_cum_lf=zdm.array_cum_power_law
-            self.vector_cum_lf=zdm.vector_cum_power_law
-            self.array_diff_lf=zdm.array_diff_power_law
-            self.vector_diff_lf=zdm.vector_diff_power_law
+            self.array_cum_lf=energetics.array_cum_power_law
+            self.vector_cum_lf=energetics.vector_cum_power_law
+            self.array_diff_lf=energetics.array_diff_power_law
+            self.vector_diff_lf=energetics.vector_diff_power_law
         elif self.luminosity_function==1:  # Gamma function
-            self.array_cum_lf=zdm.array_cum_gamma
-            self.vector_cum_lf=zdm.vector_cum_gamma
-            self.array_diff_lf=zdm.array_diff_gamma
-            self.vector_diff_lf=zdm.vector_diff_gamma
+            self.array_cum_lf=energetics.array_cum_gamma_spline
+            self.vector_cum_lf=energetics.vector_cum_gamma
+            self.array_diff_lf=energetics.array_diff_gamma
+            self.vector_diff_lf=energetics.vector_diff_gamma
+            # Init
         else:
             raise ValueError("Luminosity function must be 0, not ",self.luminosity_function)
     
@@ -98,9 +98,9 @@ class Grid:
     
     
     def load_grid(self,gridfile,zfile,dmfile):
-        self.grid=zdm.load_data(gridfile)
-        self.zvals=zdm.load_data(zfile)
-        self.dmvals=zdm.load_data(dmfile)
+        self.grid=io.load_data(gridfile)
+        self.zvals=io.load_data(zfile)
+        self.dmvals=io.load_data(dmfile)
         self.check_grid()
         self.volume_grid()
     

@@ -52,3 +52,16 @@ def savejson(filename, obj, overwrite=False, indent=None, easy_to_read=False,
         else:
             with open(filename, 'wt') as fh:
                 json.dump(obj, fh, indent=indent, **kwargs)
+
+######### misc function to load some data - do we ever use it? ##########
+
+def load_data(filename):
+    if filename.endswith('.npy'):
+        data=np.load(filename)
+    elif filename.endswith('.txt') or filename.endswith('.txt'):
+        # assume a simple text file with whitespace separator
+        data=np.loadtxt(filename)
+    else:
+        raise ValueError('unrecognised type on z-dm file ',filename,' cannot read data')
+    return data
+
