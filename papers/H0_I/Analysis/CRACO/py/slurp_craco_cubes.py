@@ -38,7 +38,7 @@ if mini:
                             'Cubes/craco_mini_cube.npz',
                             nsurveys)
 
-submini = False
+submini = True
 if submini:
     # Emax
     input_file = 'Cubes/craco_submini_cube.json'
@@ -74,7 +74,7 @@ if alphaEmax:
                             'Cubes/craco_alpha_Emax_cube.npz',
                             nsurveys)
 
-full = True
+full = False
 if full:
     # Emax
     input_file = 'Cubes/craco_full_cube.json'
