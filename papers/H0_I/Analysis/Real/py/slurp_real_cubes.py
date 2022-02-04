@@ -7,7 +7,7 @@ mini = True
 if mini:
     # Emax
     input_file = 'Cubes/real_mini_cube.json'
-    prefix = 'Cubes/real_mini'
+    prefix = 'Cubes/mini_real'
     nsurveys = 5
 
     # Run it
