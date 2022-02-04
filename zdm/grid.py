@@ -74,7 +74,7 @@ class Grid:
             self.vector_diff_lf=energetics.vector_diff_power_law
         elif self.luminosity_function==1:  # Gamma function
             self.array_cum_lf=energetics.array_cum_gamma_spline
-            self.vector_cum_lf=energetics.vector_cum_gamma
+            self.vector_cum_lf=energetics.vector_cum_gamma_spline
             self.array_diff_lf=energetics.array_diff_gamma
             self.vector_diff_lf=energetics.vector_diff_gamma
             # Init
@@ -377,7 +377,8 @@ class Grid:
         sample=[]
         pwb=None #feeds this back to save time. Lots of time.
         for i in np.arange(NFRB):
-            print(i)
+            if (i % 100) == 0:
+                print(i)
             frb,pwb=self.GenMCFRB(pwb, Emax_boost=Emax_boost)
             sample.append(frb)
         sample=np.array(sample)
