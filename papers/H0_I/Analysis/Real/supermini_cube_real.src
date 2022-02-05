@@ -1,7 +1,7 @@
-python py/build_real_cube.py -n 1 -m 5000 -p Cubes/real_mini_cube.json -o Cubes/mini_real_cube_1.out --clobber
-python py/build_real_cube.py -n 2 -m 5000 -p Cubes/real_mini_cube.json -o Cubes/mini_real_cube_2.out --clobber
-python py/build_real_cube.py -n 3 -m 5000 -p Cubes/real_mini_cube.json -o Cubes/mini_real_cube_3.out --clobber
-python py/build_real_cube.py -n 4 -m 5000 -p Cubes/real_mini_cube.json -o Cubes/mini_real_cube_4.out --clobber
-python py/build_real_cube.py -n 5 -m 5000 -p Cubes/real_mini_cube.json -o Cubes/mini_real_cube_5.out --clobber
+python py/build_real_cube.py -n 1 -m 5000 -p Cubes/real_super_mini_cube.json -o Cubes/real_super_mini_cube_1.out --clobber
+python py/build_real_cube.py -n 2 -m 5000 -p Cubes/real_super_mini_cube.json -o Cubes/real_super_mini_cube_2.out --clobber
+python py/build_real_cube.py -n 3 -m 5000 -p Cubes/real_super_mini_cube.json -o Cubes/real_super_mini_cube_3.out --clobber
+python py/build_real_cube.py -n 4 -m 5000 -p Cubes/real_super_mini_cube.json -o Cubes/real_super_mini_cube_4.out --clobber
+python py/build_real_cube.py -n 5 -m 5000 -p Cubes/real_super_mini_cube.json -o Cubes/real_super_mini_cube_5.out --clobber
 
     
