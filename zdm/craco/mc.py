@@ -8,33 +8,19 @@ This script generates MC samples for CRAFT CRACO.
 from pkg_resources import resource_filename
 import os
 import copy
-import pickle
-import sys
-import scipy as sp
 import numpy as np
 import time
-import argparse
 
-from astropy.cosmology import Planck18
 
-from zdm import cosmology as cos
 from zdm import misc_functions
-from zdm import survey
 from zdm import iteration as it
 from zdm import misc_functions
 from zdm.craco import loading
 
 from IPython import embed
 
-#from zdm import zdm
-#import pcosmic
 import matplotlib.pyplot as plt
-import matplotlib.colors as colors
-import matplotlib.cm as cm
 import matplotlib
-
-from matplotlib.ticker import NullFormatter
-
 
 matplotlib.rcParams['image.interpolation'] = None
 
@@ -291,7 +277,7 @@ def do_basic_sample_plots(sample,opdir='Plots'):
 #    outfile='MC_Surveys/CRACO_alpha1_Planck18.dat',
 #    savefile=None)
 
-# Gamma furnction for energies
+# Gamma function for energies
 generate(alpha_method=1, lum_func=1, Nsamples=5000, do_plots=True,
     outfile='MC_Surveys/CRACO_alpha1_Planck18_Gamma.dat',
     savefile=None)
