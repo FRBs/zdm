@@ -278,6 +278,6 @@ def do_basic_sample_plots(sample,opdir='Plots'):
 #    savefile=None)
 
 # Gamma function for energies
-generate(alpha_method=1, lum_func=1, Nsamples=5000, do_plots=True,
+generate(alpha_method=1, lum_func=2, Nsamples=5000, do_plots=True,
     outfile='MC_Surveys/CRACO_alpha1_Planck18_Gamma.dat',
     savefile=None)
