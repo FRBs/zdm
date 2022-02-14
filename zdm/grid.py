@@ -77,8 +77,11 @@ class Grid:
         elif self.luminosity_function==1:  # Gamma function
             self.array_cum_lf=energetics.array_cum_gamma
             self.vector_cum_lf=energetics.vector_cum_gamma
-            #self.array_cum_lf=energetics.array_cum_gamma_spline
-            #self.vector_cum_lf=energetics.vector_cum_gamma_spline
+            self.array_diff_lf=energetics.array_diff_gamma
+            self.vector_diff_lf=energetics.vector_diff_gamma
+        elif self.luminosity_function==2:  # Spline gamma function
+            self.array_cum_lf=energetics.array_cum_gamma_spline
+            self.vector_cum_lf=energetics.vector_cum_gamma_spline
             self.array_diff_lf=energetics.array_diff_gamma
             self.vector_diff_lf=energetics.vector_diff_gamma
             # Init
