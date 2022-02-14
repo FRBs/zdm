@@ -41,7 +41,7 @@ spec:
             python setup.py develop;
             cd ../zdm;
             git fetch;
-            git checkout debugging_gamma;
+            git checkout run_mini;
             python setup.py develop;
             cd papers/H0_I/Analysis/CRACO/Cloud;
             python run_craco_mini.py -n 25 -t 25 -b 1;
