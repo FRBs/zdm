@@ -36,7 +36,7 @@
         "gamma": -1.01,
         "lEmax": 41.4,
         "lEmin": 30,
-        "luminosity_function": 1
+        "luminosity_function": 2
     },
     "host": {
         "lmean": 2.18,

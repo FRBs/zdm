@@ -122,7 +122,7 @@ def survey_and_grid(survey_name:str='CRAFT/CRACO_1_5000',
     zDMgrid, zvals,dmvals = misc_functions.get_zdm_grid(
         state, new=True, plot=False, method='analytic',
         datdir=resource_filename('zdm', 'GridData'))
-    
+
     ############## Initialise surveys ##############
     if sdir is not None:
         print("Searching for survey in directory ",sdir)
