@@ -1,5 +1,7 @@
 from IPython.terminal.embed import embed
 import numpy as np
+import datetime
+
 from zdm import cosmology as cos
 from zdm import misc_functions
 from zdm import energetics
@@ -210,7 +212,6 @@ class Grid:
         # for some arbitrary reason, we treat the beamshape slightly differently... no need to keep an intermediate product!
         for i,b in enumerate(self.beam_b):
             for j,w in enumerate(self.eff_weights):
-                
                 if j==0:
                     self.b_fractions[:,:,i] = self.beam_o[i]*w*self.array_cum_lf(
                         self.thresholds[j,:,:]/b,Emin,Emax,
