@@ -147,7 +147,7 @@ def vector_cum_gamma(Eth,*params):
     gamma=params[2]
 
     # Calculate
-    norm = Emax*float(mpmath.gammainc(gamma, a=Emin/Emax))
+    norm = float(mpmath.gammainc(gamma, a=Emin/Emax))
     Eth_Emax = Eth/Emax
     # If this is too slow, we can adopt scipy + recurrance
     numer = np.array([float(mpmath.gammainc(
@@ -159,14 +159,22 @@ def vector_cum_gamma(Eth,*params):
     result[low]=1.
     return result
 
-def vector_cum_gamma_spline(Eth, *params):
+def vector_cum_gamma_spline(Eth:np.ndarray, *params):
+    """ Calculate cumulative Gamma function using a spline
+
+    Args:
+        Eth (np.ndarray): [description]
+
+    Returns:
+        np.ndarray: [description]
+    """
     params=np.array(params)
     Emin=params[0]
     Emax=params[1]
     gamma=params[2]
 
     # Calculate
-    norm = Emax*float(mpmath.gammainc(gamma, a=Emin/Emax))
+    norm = float(mpmath.gammainc(gamma, a=Emin/Emax))
     Eth_Emax = Eth/Emax
     if gamma not in igamma_splines.keys():
         init_igamma_splines([gamma])

@@ -123,14 +123,6 @@ def survey_and_grid(survey_name:str='CRAFT/CRACO_1_5000',
         state, new=True, plot=False, method='analytic',
         datdir=resource_filename('zdm', 'GridData'))
 
-
-    zDMgrid, zvals,dmvals = misc_functions.get_zdm_grid(
-        state, new=True, plot=False, method='analytic',
-        nz=100, ndm=1400//5, 
-        datdir=resource_filename('zdm', 'GridData'))
-    # TODO -- REMOVE THE ABOVE!!
-    embed(header='132 of loading')
-    
     ############## Initialise surveys ##############
     if sdir is not None:
         print("Searching for survey in directory ",sdir)
