@@ -193,6 +193,8 @@ def linlognormal_dlin(DM,*args):
 def loglognormal_dlog(logDM,*args):
     '''x values, mean and sigma are already in logspace
     returns p dlogx
+    That is, this function is simply a Gaussian,
+    and the arguments happen to be in log space.
     '''
     logmean=args[0]
     logsigma=args[1]
@@ -218,11 +220,14 @@ def get_dm_mask(dmvals, params, zvals=None, plot=False):
     DMvals: these give local probabilities of p(DM).
     We simply assign lognormal values at the midpoints
     The renormalisation constants then give some idea of the
-    error is this procedure
+    error in this procedure
     This requires parameters to be passed as a vector
-    """
     
-    CSUMCUT=0.999
+    
+    dmvals: numpy array storing the dms over which to calculate the mask
+    
+    params [vector, 2]: mean and sigma of the lognormal (log10) distribution
+    """
     
     if len(params) != 2:
         raise ValueError("Incorrect number of DM parameters!",params," (expected log10mean, log10sigma)")
@@ -246,11 +251,11 @@ def get_dm_mask(dmvals, params, zvals=None, plot=False):
         mask=np.zeros([nz,ndm])
         for j,z in enumerate(zvals):
             # with each redshift, we reduce the effects of a 'host' contribution by (1+z)
-            # this means that we divide the value of logmean by by 1/(1+z)
+            # this means that we divide the value of logmean by 1/(1+z)
             # or equivalently, we multiply the ddm by this factor
-            # here we choose the former, but it is the same
+            # here we choose the latter, but it is the same
             mask[j,:]=integrate_pdm(ddm*(1.+z),ndm,logmean,logsigma)
-            mask[j,:] /= np.sum(mask[j,:])
+            mask[j,:] /= np.sum(mask[j,:]) # the mask must integrate to unity
     else:
         # do this for the z=0 case
         #dmmin=0
@@ -283,26 +288,72 @@ def get_dm_mask(dmvals, params, zvals=None, plot=False):
         plt.close()
     return mask
 
-def integrate_pdm(ddm,ndm,logmean,logsigma,csumcut=0.999):
+def integrate_pdm(ddm,ndm,logmean,logsigma,quick=True,plot=False):
+    '''
+    Assigns probabilities of DM smearing (e.g. due to the host galaxy contribution)
+    to a histogram in dm space.
+    
+    Two methods: quick (use central values of DM bins), and slow (integrate bins)
+    
+    Arguments:
+    
+    ddm (float) [pc/cm3]: spacing of dm bins
+    
+    ndm (int): number of dm bins. Bins assumed to start at 0
+    
+    logmean: natural logarithm of the mean of the DM distribution
+    
+    logsigma: sigma in natural log space of DM distribution
+    
+    quick (bool): True uses the speedup, False takes things slowly
+    
+    plot (bool): If True, compares quick and slow methods, then exits
+        to avoid generating infinite plots.
+    
+    '''
     # do this for the z=0 case
-    mask=np.zeros([ndm])
+    
     norm=(2.*np.pi)**-0.5/logsigma
-    args=(logmean,logsigma,norm)
-    pdm,err=sp.integrate.quad(loglognormal_dlog,np.log(ddm*0.5)-logsigma*10,np.log(ddm*0.5),args=args)
-    #pdm,err=sp.integrate.quad(c_code.func_ll,np.log(ddm*0.5)-logsigma*10,np.log(ddm*0.5),args=args)
-    mask[0]=pdm
+    
     #csum=pdm
     #imax=ndm
-    for i in np.arange(1,ndm):
-        #if csum > CSUMCUT:
-        #    imax=i
-        #    break
-        dmmin=(i-0.5)*ddm
-        dmmax=dmmin+ddm
-        pdm,err=sp.integrate.quad(loglognormal_dlog,np.log(dmmin),np.log(dmmax),args=args)
-        #pdm,err=sp.integrate.quad(c_code.func_ll,np.log(dmmin),np.log(dmmax),args=args)#(logmean,logsigma))
-        #csum += pdm
-        mask[i]=pdm
+    #if quick:
+    if plot or quick:
+        # does not integrate, takes central values, here in linear space- tiny bias
+        dmmeans=np.linspace(ddm/2.,ndm*ddm-ddm/2.,ndm)
+        logdmmeans=np.log(dmmeans)
+        dlogs=ddm/dmmeans
+        m1=loglognormal_dlog(logdmmeans,logmean,logsigma,norm)*dlogs #worst errors in lowest bins
+    #else:
+    if plot or not quick:
+        m2=np.zeros([ndm])
+        args=(logmean,logsigma,norm)
+        pdm,err=sp.integrate.quad(loglognormal_dlog,np.log(ddm*0.5)-logsigma*10,np.log(ddm*0.5),args=args)
+        m2[0]=pdm
         
-    #mask=mask[0:imax]
+        for i in np.arange(1,ndm):
+            #if csum > CSUMCUT:
+            #    imax=i
+            #    break
+            dmmin=(i-0.5)*ddm
+            dmmax=dmmin+ddm
+            pdm,err=sp.integrate.quad(loglognormal_dlog,np.log(dmmin),np.log(dmmax),args=args)
+            m2[i]=pdm
+    if quick:
+        mask=m1
+    else:
+        mask=m2
+    if plot:
+        plt.figure()
+        plt.plot(dmmeans,m2,label='quick')
+        plt.plot(dmmeans,mask,label='slow')
+        plt.xlabel('DM')
+        plt.ylabel('p(DM)')
+        plt.legend()
+        plt.xlim(0,1000)
+        plt.tight_layout()
+        plt.savefig('dm_mask_comparison_plot.pdf')
+        plt.close()
+        print("Generated plot of dm masks, exiting...")
+        exit() #quit to avoid infinite plots
     return mask
