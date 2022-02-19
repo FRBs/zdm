@@ -175,9 +175,10 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=False,Pn=True,do
         - Note that the *sum* comes to unity, since each bin in rates is already
             normalised by the volume in the dz bin
 
-    dolist = 2
-        llsum,lllist,expected,longlist
+    dolist
+        2: llsum,lllist,expected,longlist
             longlist holds the LL for each FRB
+        5: llsum,lllist,expected,[0.,0.,0.,0.]
     
     Pn: Calculate the probability of observing N bursts (Poisson)
     """
@@ -435,7 +436,8 @@ def calc_likelihoods_2D(grid,survey,
         4: return (llsum, -np.log10(norm)*Zobs.size, 
                 np.sum(np.log10(pvals)), 
                 pvals.copy(), wzpsnr.copy())
-        5: returns llsum, log10([Pn,Pzdm,Ps]), <Nfrbs>, np.log10([p(z|DM), p(DM), p(DM|z), p(z)])
+        5: returns llsum, log10([Pn,Pzdm,Ps]), <Nfrbs>, 
+            np.log10([p(z|DM), p(DM), p(DM|z), p(z)])
         else: returns nothing (actually quite useful behaviour!)
     
     norm:
@@ -870,7 +872,7 @@ def cube_likelihoods(grids:list,surveys:list,
     nsets = len(grids)
     lls = np.zeros([nsets])
     
-    f=open(outfile,'a+')
+    #f=open(outfile,'a+')
     
     ### calculates actual values at each point ###
     active=np.zeros([NPARAMS], dtype=int)
@@ -919,6 +921,8 @@ def cube_likelihoods(grids:list,surveys:list,
     for key in vparam_dict.keys():
         vparams[key] = None
 
+    outputs = []
+
     # Run!
     for i in np.arange(howmany):
         
@@ -933,6 +937,8 @@ def cube_likelihoods(grids:list,surveys:list,
             current = r_current[iorder]
             #
             string=str(nth)
+            odict = dict(n=nth)
+            # Time it
             t1=time.process_time()
             # set initial values of parameters - although we could easily do this in  the end loop
             # provided that current is updated properly this does not care about re-ordering
@@ -966,8 +972,9 @@ def cube_likelihoods(grids:list,surveys:list,
             # for the minimised parameters, set the values
             for j,n in enumerate(current):
                 string +=' {:8.2f}'.format(vparams[PARAMS[j]])
+                odict[PARAMS[j]] = vparams[PARAMS[j]]
             
-            
+
             # TODO -- Should we do this?
             # in theory we could save the following step if we have already minimised but oh well. Too annoying!
             ll=0.
@@ -978,12 +985,13 @@ def cube_likelihoods(grids:list,surveys:list,
                 else:
                     grids[j].update(vparams)
                 if s.nD==1:
-                    lls[j],alist,expected = calc_likelihoods_1D(
-                        grids[j],s,norm=norm,psnr=psnr,dolist=1)
+                    lls[j],alist,expected,longlist = calc_likelihoods_1D(
+                        grids[j],s,norm=norm,psnr=psnr,dolist=5)
                 elif s.nD==2:
-                    lls[j],alist,expected = calc_likelihoods_2D(
-                        grids[j],s,norm=norm,psnr=psnr,dolist=1)
+                    lls[j],alist,expected,longlist = calc_likelihoods_2D(
+                        grids[j],s,norm=norm,psnr=psnr,dolist=5)
                 elif s.nD==3:
+                    raise NotImplementedError("Need to deal with dolist=5 here!!")
                     # mixture of 1 and 2D samples. NEVER calculate Pn twice!
                     llsum1,alist1,expected1 = calc_likelihoods_1D(
                         grids[j],s,norm=norm,psnr=psnr,dolist=1)
@@ -999,10 +1007,20 @@ def cube_likelihoods(grids:list,surveys:list,
                 # these are slow operations but negligible in the grand scheme of things
                 
                 string += ' {:9.2f}'.format(lls[j]) # for now, we are recording the individual log likelihoods, but not the components
+                odict['lls'] = lls[j]
                 string += ' {:9.2f}'.format(alist[0]) # DM / z value likelihood
+                odict['Pn'] = alist[0]
                 string += ' {:9.2f}'.format(alist[1]) # N events likelihood
+                odict['Pzdm'] = alist[1]
                 string += ' {:9.2f}'.format(alist[2]) # SNR likelihoods
+                odict['Ps'] = alist[2]
                 string += ' {:9.2f}'.format(expected) # expected number of events
+                odict['N'] = expected
+                # More!!
+                odict['p_zDM'] = longlist[0]
+                odict['p_DM'] = longlist[1]
+                odict['p_DMz'] = longlist[2]
+                odict['p_z'] = longlist[3]
                 
             ll=np.sum(lls)
             string += '{:9.2f}'.format(ll)
@@ -1012,14 +1030,15 @@ def cube_likelihoods(grids:list,surveys:list,
                 print("Iteration ",nth," took ",t2-t1," seconds")
 
             # write output: parameters, likelihoods (and components)
-            f.write(string)
+            #f.write(string)
+            outputs.append(odict)
             
-        
         #t1=time.process_time()
         #print("Loop: ",i+run*howmany," took ", t1-t0," seconds")
         #t0=t1
         
-    f.close()
+    #f.close()
+    return outputs
     
 def my_minimise(vparams:dict,grids,surveys,steps=None,
                 disable=None,Verbose=False,MaxIter=200,psnr=False,
