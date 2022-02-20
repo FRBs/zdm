@@ -686,7 +686,7 @@ def width_test(pset,surveys,grids,names,logmean=2,logsigma=1,plot=True,outdir='P
         #DMvals=grids[i].dmvals
         
         # gets the 'practical' widths for this survey
-        pwidths,pprobs=survey.make_widths(s,logmean,logsigma,NP,scale=scale)
+        pwidths,pprobs=survey.make_widths(s,g.state)
         
         pnorm_probs = pprobs / np.max(pprobs)
         

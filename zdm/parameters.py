@@ -22,19 +22,12 @@ class AnalysisParams(data_class.myDataClass):
 # Beam parameters
 @dataclass
 class BeamParams(data_class.myDataClass):
-    thresh: int = field(
-        default=0,
-        metadata={'help': '??'})
-    method: int = field(
+    Bmethod: int = field(
         default=2,
         metadata={'help': 'Method for calculation. See beams.py:simplify_beam() for options'})
-    Wbins: int = field(
-        default=5,
-        metadata={'help': '???'})
-    Wscale: int = field(
-        default=3.5,
-        metadata={'help': '???'})
-
+    Bthresh: int = field(
+        default=0.0,
+        metadata={'help': 'Minimum value of beam sensitivity to consider'})
     #def __post_init__(self):
     #    self.Nbeams = [5,5,5,10]
 
@@ -143,17 +136,57 @@ class HostParams(data_class.myDataClass):
 # FRB intrinsic width parameters
 @dataclass
 class WidthParams(data_class.myDataClass):
-    logmean: float = field(
+    Wlogmean: float = field(
         default = 1.70267, 
         metadata={'help': 'Intrinsic width log of mean',
                   'unit': 'ms',
                   'Notation': '\mu_{w}',
                   })
-    logsigma: float = field(
+    Wlogsigma: float = field(
         default = 0.899148,
         metadata={'help': 'Intrinsic width log of sigma',
                   'unit': 'ms',
                   'Notation': '\sigma_{w}',
+                  })
+    Wthresh: int = field(
+        default=0.5,
+        metadata={'help': 'Starting fraction of intrinsic width for histogramming'})
+    Wmethod: int = field(
+        default=2,
+        metadata={'help': 'Method of calculating FRB widths; 1 std, 2 includes scattering'})
+    Wbins: int = field(
+        default=5,
+        metadata={'help': 'Number of bins for FRB width distribution'})
+    Wscale: int = field(
+        default=3.5,
+        metadata={'help': 'Log-scaling of bins for width distribution'})
+    
+# FRB intrinsic scattering parameters
+@dataclass
+class ScatParams(data_class.myDataClass):
+    Slogmean: float = field(
+        default = 0.7, 
+        metadata={'help': 'Intrinsic width log of mean',
+                  'unit': 'ms',
+                  'Notation': '\tau_{s}',
+                  })
+    Slogsigma: float = field(
+        default = 1.9,
+        metadata={'help': 'Intrinsic width log of sigma',
+                  'unit': 'ms',
+                  'Notation': '\sigma_{\tau}',
+                  })
+    Sfnorm: float = field(
+        default = 600,
+        metadata={'help': 'Frequency of scattering width',
+                  'unit': 'MHz',
+                  'Notation': '\nu_{\tau}',
+                  })
+    Sfpower: float = field(
+        default = -4.,
+        metadata={'help': 'Power-law scaling with frequency, nu^lambda',
+                  'unit': '',
+                  'Notation': '\lambda',
                   })
 
 # FRB Energetics -- energy
@@ -200,7 +233,7 @@ class State(data_class.myData):
 
 
     def set_dataclasses(self):
-
+        self.scat = ScatParams()
         self.width = WidthParams()
         self.MW = MWParams()
         self.analysis = AnalysisParams()

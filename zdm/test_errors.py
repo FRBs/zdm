@@ -5,6 +5,8 @@ When running, look for do_something=False and do_something=True statements to tu
 Also look for New=True or LOAD=False statements and change these once they have been run; intermediate data
 gets saved to Pickle for massive speedups (e.g. if just fine-tuning plots); but it also takes up space!
 
+This is a legacy file from the original 'method' paper and will likely not be updated.
+
 """
 import cosmology as cos
 import argparse
