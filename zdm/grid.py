@@ -69,12 +69,14 @@ class Grid:
         self.calc_rates() #includes sfr smearing factors and pdv mult
 
     def init_luminosity_functions(self):
+        """ Set the luminsoity function for FRB energetics """
         if self.luminosity_function==0:  # Power-law
             self.array_cum_lf=energetics.array_cum_power_law
             self.vector_cum_lf=energetics.vector_cum_power_law
             self.array_diff_lf=energetics.array_diff_power_law
             self.vector_diff_lf=energetics.vector_diff_power_law
         elif self.luminosity_function==1:  # Gamma function
+            embed(header='79 of grid -- BEST NOT TO USE THIS!!!!')
             self.array_cum_lf=energetics.array_cum_gamma
             self.vector_cum_lf=energetics.vector_cum_gamma
             self.array_diff_lf=energetics.array_diff_gamma
