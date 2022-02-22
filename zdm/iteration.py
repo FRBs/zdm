@@ -991,17 +991,19 @@ def cube_likelihoods(grids:list,surveys:list,
                     lls[j],alist,expected,longlist = calc_likelihoods_2D(
                         grids[j],s,norm=norm,psnr=psnr,dolist=5)
                 elif s.nD==3:
-                    raise NotImplementedError("Need to deal with dolist=5 here!!")
                     # mixture of 1 and 2D samples. NEVER calculate Pn twice!
-                    llsum1,alist1,expected1 = calc_likelihoods_1D(
-                        grids[j],s,norm=norm,psnr=psnr,dolist=1)
-                    llsum2,alist2,expected2 = calc_likelihoods_2D(
-                        grids[j],s,norm=norm,psnr=psnr,dolist=1,Pn=False)
+                    llsum1,alist1,expected1,longlist1 = calc_likelihoods_1D(
+                        grids[j],s,norm=norm,psnr=psnr,dolist=5)
+                    llsum2,alist2,expected2, longlist2 = calc_likelihoods_2D(
+                        grids[j],s,norm=norm,psnr=psnr,dolist=5,Pn=False)
                     lls[j] = llsum1+llsum2
                     # adds log-likelihoods for psnrs, pzdm, pn
                     # however, one of these Pn *must* be zero by setting Pn=False
                     alist = [alist1[0]+alist2[0], alist1[1]+alist2[1], alist1[2]+alist2[2]] #messy!
                     expected = expected1 #expected number of FRBs ignores how many are localsied
+                    longlist = [longlist1[0]+longlist2[0], longlist1[1]+longlist2[1], 
+                                longlist1[2]+longlist2[2],
+                                longlist1[3]+longlist2[3]] #messy!
                 else:
                     raise ValueError("Unknown code ",s.nD," for dimensions of survey")
                 # these are slow operations but negligible in the grand scheme of things
