@@ -67,9 +67,15 @@ def main(pargs):
         vparams['lC']=C
         igrid.state.FRBdemo.lC = C
         # Grab final LL
-        lls_final, nterm, pvterm, lpvals, lwz = it.calc_likelihoods_2D(
+        # TODO -- bring this back
+        #lls_final, nterm, pvterm, lpvals, lwz = it.calc_likelihoods_2D(
+        #            igrid, isurvey, 
+        #            norm=True,psnr=True,dolist=4)
+        # TODO -- remove this
+        items = it.calc_likelihoods_2D(
                     igrid, isurvey, 
-                    norm=True,psnr=True,dolist=4)
+                    norm=True,psnr=True,dolist=5)
+        embed(header='78 of testing')
         # Hold
         lls.append(lls_final)
         nterms.append(nterm)
@@ -160,10 +166,10 @@ python testing.py lEmax 41. 43. --nstep 50 --nFRB 100 -o MC_Plots/CRACO_100_Emax
 python testing.py H0 60. 80. --nstep 50 --nFRB 100 -o MC_Plots/CRACO_100_H0.png 
 
 # Gamma
-python testing.py H0 60. 80. --nstep 50 --nFRB 100 --survey CRACO_alpha1_Planck18_Gamma -o MC_Plots/CRACO_100_H0_Gamma.png --lum_func 1
-python testing.py lEmax 41. 43. --nstep 50 --nFRB 100 --iFRB 100 --survey CRACO_alpha1_Planck18_Gamma -o MC_Plots/CRACO_100_Emax_Gamma.png --lum_func 1
+python testing.py H0 60. 80. --nstep 50 --nFRB 100 --survey CRACO_alpha1_Planck18_Gamma -o MC_Plots/CRACO_100_H0_Gamma.png --lum_func 2
+python testing.py lEmax 41. 43. --nstep 50 --nFRB 100 --iFRB 100 --survey CRACO_alpha1_Planck18_Gamma -o MC_Plots/CRACO_100_Emax_Gamma.png --lum_func 2
 
-python testing.py alpha 0. 2. --nstep 50 --nFRB 100 --survey CRACO_alpha1_Planck18_Gamma -o MC_Plots/CRACO_100_alpha_Gamma.png --lum_func 1
-python testing.py sfr_n 0. 5. --nstep 100 --nFRB 100 --iFRB 100 --survey CRACO_alpha1_Planck18_Gamma -o MC_Plots/CRACO_100_sfr_Gamma.png --lum_func 1
+python testing.py alpha 0. 2. --nstep 50 --nFRB 100 --survey CRACO_alpha1_Planck18_Gamma -o MC_Plots/CRACO_100_alpha_Gamma.png --lum_func 2
+python testing.py sfr_n 0. 5. --nstep 100 --nFRB 100 --iFRB 100 --survey CRACO_alpha1_Planck18_Gamma -o MC_Plots/CRACO_100_sfr_Gamma.png --lum_func 2
 #
 '''

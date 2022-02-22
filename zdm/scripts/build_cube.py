@@ -8,6 +8,8 @@ import argparse
 import numpy as np
 import os
 
+import pandas
+
 from zdm import iteration as it
 from zdm import io
 from zdm.craco import loading
@@ -50,9 +52,12 @@ def main(pargs):
         print("Done everything!")
         pass
     #
-    it.cube_likelihoods([grid],[survey], vparam_dict, cube_dict,
+    outputs = it.cube_likelihoods([grid],[survey], vparam_dict, cube_dict,
                     run,howmany,opfile, starti=starti)
-        
+    # Write
+    df = pandas.DataFrame(outputs)
+    df.to_csv(opfile, index=False)
+    print(f"Wrote: {opfile}")
 
 def parse_args(options=None):
     # test for command-line arguments here
