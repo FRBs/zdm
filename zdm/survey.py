@@ -496,11 +496,11 @@ def geometric_lognormals(lmu1,ls1,lmu2,ls2,bins=None,Nrand=10000,plot=False,Nbin
     This is typically used for two log-normals of intrinsic
     FRB width and scattering time
     
-    lmu1, ls1: log mean and log-sigma of the first distribution
+    lmu1, ls1 (float, float): log mean and log-sigma of the first distribution
     
-    lmu2, ls2: log-mean and log-sigma of the second distribution
+    lmu2, ls2 (float, float): log-mean and log-sigma of the second distribution
     
-    bins: bin edges for resulting plot.
+    bins (np.ndarray([NBINS+1],dtype='float')): bin edges for resulting plot.
     
     Returns:
         hist: histogram of probability within bins
@@ -713,8 +713,7 @@ def load_survey(survey_name:str, state:parameters.State, dmvals:np.ndarray,
     # Do it
     srvy=Survey()
     srvy.name = survey_name
-    path=os.path.join('/Users/cjames/CRAFT/FRB_library/Git/H0paper/zdm/data/Surveys/',dfile)
-    srvy.process_survey_file(path, NFRB=NFRB, iFRB=iFRB)
+    srvy.process_survey_file(os.path.join(sdir, dfile), NFRB=NFRB, iFRB=iFRB)
     #srvy.process_survey_file(os.path.join(sdir, dfile), NFRB=NFRB, iFRB=iFRB)
     srvy.init_DMEG(state.MW.DMhalo)
     srvy.init_beam(nbins=Nbeams, method=state.beam.Bmethod, plot=False,

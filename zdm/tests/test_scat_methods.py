@@ -29,6 +29,8 @@ def main():
     if not os.path.exists(opdir):
         os.mkdir(opdir)
     
+    # set to true to generate plotting
+    op=False
     
     mu1=1
     mu2=2
@@ -61,6 +63,11 @@ def main():
         state_dict=vparam_dict2,
         survey_name=name,NFRB=None) # should be equal to actual number of FRBs, but for this purpose it doesn't matter
     
+    
+    if not op:
+        exit()
+    
+    
     ############# do 2D plots ##########
     misc_functions.plot_grid_2(g1.rates,g1.zvals,g1.dmvals,
         name=opdir+'/CRAFT_ICS892_old_scat.pdf',norm=0,log=True,label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$',
@@ -74,6 +81,7 @@ def main():
     misc_functions.plot_grid_2((g2.rates-g1.rates)/g1.rates,g2.zvals,g2.dmvals,
         name=opdir+'/CRAFT_ICS892_diff_scat.pdf',norm=0,log=False,label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$',
         project=True,FRBDM=s2.DMEGs,FRBZ=s2.frbs["Z"])
+    
     
     ############## examine width explicitly ##########
     plt.figure()
