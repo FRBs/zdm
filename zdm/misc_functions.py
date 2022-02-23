@@ -2197,7 +2197,7 @@ def plot_grid_2(zDMgrid,zvals,dmvals,
     
     # limit to a reasonable range if logscale
     if log:
-        themax=zDMgrid.max()
+        themax=np.nanmax(zDMgrid)
         themin=int(themax-4)
         themax=int(themax)
         plt.clim(themin,themax)

@@ -77,12 +77,12 @@ def main(Nsamples=100,plots=False):
     vparams['FRBdemo']['source_evolution'] = 0
     
     vparams['beam'] = {}
-    vparams['beam']['thresh'] = 0
-    vparams['beam']['method'] = 2
+    vparams['beam']['Bthresh'] = 0
+    vparams['beam']['Bmethod'] = 2
     
     vparams['width'] = {}
-    vparams['width']['logmean'] = 1.70267
-    vparams['width']['logsigma'] = 0.899148
+    vparams['width']['Wlogmean'] = 1.70267
+    vparams['width']['Wlogsigma'] = 0.899148
     vparams['width']['Wbins'] = 10
     vparams['width']['Wscale'] = 2
     

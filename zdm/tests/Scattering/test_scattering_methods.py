@@ -1,5 +1,3 @@
-
-
 #import pytest
 
 #from pkg_resources import resource_filename
@@ -34,33 +32,46 @@ def main():
     s2=1
     #survey.geometric_lognormals(mu1,s1,mu2,s2,plot=True)
     
-    ############## Load up ##############
+    ############## Load up old model ##############
     input_dict=io.process_jfile('scat_test_old.json')
     
     # Deconstruct the input_dict
     state_dict1, cube_dict, vparam_dict1 = it.parse_input_dict(input_dict)
     
-    ############## Initialise survey and grid ##############
+    # Initialise survey and grid 
     # For this purporse, we only need two different surveys
-    name = 'CRAFT/FE'
+    name = 'CRAFT/ICS892'
     s1,g1 = loading.survey_and_grid(
         state_dict=vparam_dict1,
         survey_name=name,NFRB=None) # should be equal to actual number of FRBs, but for this purpose it doesn't matter
     
-    ############## Load up ##############
+    ############## Load up new model ##############
     input_dict=io.process_jfile('scat_test_new.json')
 
     # Deconstruct the input_dict
     state_dict2, cube_dict, vparam_dict2 = it.parse_input_dict(input_dict)
     
-    ############## Initialise survey and grid ##############
-    
-    ##### old model ####
+    # Initialise survey and grid
     # For this purporse, we only need two different surveys
     s2,g2 = loading.survey_and_grid(
         state_dict=vparam_dict2,
         survey_name=name,NFRB=None) # should be equal to actual number of FRBs, but for this purpose it doesn't matter
     
+    ############# do 2D plots ##########
+    misc_functions.plot_grid_2(g1.rates,g1.zvals,g1.dmvals,
+        name='CRAFT_ICS892_old_scat.pdf',norm=0,log=True,label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$',
+        project=True,FRBDM=s1.DMEGs,FRBZ=s1.frbs["Z"],Aconts=[0.01,0.1,0.5])
+    
+    misc_functions.plot_grid_2(g2.rates,g2.zvals,g2.dmvals,
+        name='CRAFT_ICS892_new_scat.pdf',norm=0,log=True,label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$',
+        project=True,FRBDM=s2.DMEGs,FRBZ=s2.frbs["Z"],Aconts=[0.01,0.1,0.5])
+    
+    # second rates are higher. Why?
+    misc_functions.plot_grid_2((g2.rates-g1.rates)/g1.rates,g2.zvals,g2.dmvals,
+        name='CRAFT_ICS892_diff_scat.pdf',norm=0,log=False,label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$',
+        project=True,FRBDM=s2.DMEGs,FRBZ=s2.frbs["Z"])
+    
+    ############## examine width explicitly ##########
     plt.figure()
     plt.xlabel('width [ms]')
     plt.ylabel('p(width) dlogw')
