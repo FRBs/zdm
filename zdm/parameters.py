@@ -24,10 +24,13 @@ class AnalysisParams(data_class.myDataClass):
 class BeamParams(data_class.myDataClass):
     Bmethod: int = field(
         default=2,
-        metadata={'help': 'Method for calculation. See beams.py:simplify_beam() for options'})
-    Bthresh: int = field(
+        metadata={'help': 'Method for calculation. See beams.py:simplify_beam() for options',
+                  'unit': ''})
+    Bthresh: float = field(
         default=0.0,
-        metadata={'help': 'Minimum value of beam sensitivity to consider'})
+        metadata={'help': 'Minimum value of beam sensitivity to consider',
+                  'unit': '',
+                  'Notation': 'B_{\rm min}'})
     #def __post_init__(self):
     #    self.Nbeams = [5,5,5,10]
 
@@ -150,16 +153,21 @@ class WidthParams(data_class.myDataClass):
                   })
     Wthresh: int = field(
         default=0.5,
-        metadata={'help': 'Starting fraction of intrinsic width for histogramming'})
+        metadata={'help': 'Starting fraction of intrinsic width for histogramming',
+                  'unit': '',
+                  'Notation': 'w_{\rm min}'})
     Wmethod: int = field(
         default=2,
-        metadata={'help': 'Method of calculating FRB widths; 1 std, 2 includes scattering'})
+        metadata={'help': 'Method of calculating FRB widths; 1 std, 2 includes scattering',
+                  'unit': ''})
     Wbins: int = field(
         default=5,
-        metadata={'help': 'Number of bins for FRB width distribution'})
+        metadata={'help': 'Number of bins for FRB width distribution',
+                  'unit': ''})
     Wscale: int = field(
         default=3.5,
-        metadata={'help': 'Log-scaling of bins for width distribution'})
+        metadata={'help': 'Log-scaling of bins for width distribution',
+                  'unit': ''})
     
 # FRB intrinsic scattering parameters
 @dataclass
