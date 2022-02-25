@@ -3,7 +3,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: xavier-zdm-craco-mini
+  name: xavier-zdm-craco-mini1
 spec:
   backoffLimit: 0
   template:
@@ -24,11 +24,11 @@ spec:
         resources:
           requests:
             cpu: "25"
-            memory: "16Gi"  # 
+            memory: "12Gi"  # 
             ephemeral-storage: 50Gi  # 
           limits:
             cpu: "27"
-            memory: "24Gi"
+            memory: "20Gi"
             ephemeral-storage: 100Gi
             #nvidia.com/gpu:  "1"  # See docs to exlude certain types
         command: ["/bin/bash", "-c"]
@@ -44,7 +44,7 @@ spec:
             git checkout another_mini;
             python setup.py develop;
             cd papers/H0_I/Analysis/CRACO/Cloud;
-            python run_craco_mini.py -n 25 -t 25 -b 1;
+            python run_craco_mini.py -n 25 -t 50 -b 1;
             aws --endpoint http://rook-ceph-rgw-nautiluss3.rook s3 cp Output s3://zdm/Cubes/CRACO/Mini/ --recursive --force;
         env:
           - name: "ENDPOINT_URL"
