@@ -52,11 +52,12 @@ def main(pargs):
         print("Done everything!")
         pass
     #
-    outputs = it.cube_likelihoods([grid],[survey], vparam_dict, cube_dict,
+    it.cube_likelihoods([grid],[survey], vparam_dict, 
+                                  cube_dict,
                     run,howmany,opfile, starti=starti)
     # Write
-    df = pandas.DataFrame(outputs)
-    df.to_csv(opfile, index=False)
+    #df = pandas.DataFrame(outputs)
+    #df.to_csv(opfile, index=False)
     print(f"Wrote: {opfile}")
 
 def parse_args(options=None):
