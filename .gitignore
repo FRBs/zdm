@@ -19,6 +19,7 @@ tmp.npy
 *.npz
 *.npy
 *.dat
+*.csv
 
 # Distribution / packaging
 .Python
