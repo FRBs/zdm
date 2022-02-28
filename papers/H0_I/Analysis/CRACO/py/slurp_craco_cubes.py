@@ -101,3 +101,5 @@ if __name__ == '__main__':
 
     pargs = parse_option()
     main(pargs)
+
+#  python py/slurp_craco_cubes.py mini

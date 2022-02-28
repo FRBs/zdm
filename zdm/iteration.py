@@ -5,6 +5,7 @@ import time
 from IPython.terminal.embed import embed
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas
 from scipy.optimize import minimize
 # to hold one of these parameters constant, just remove it from the arg set here
 from zdm import cosmology as cos
@@ -921,9 +922,8 @@ def cube_likelihoods(grids:list,surveys:list,
     for key in vparam_dict.keys():
         vparams[key] = None
 
-    outputs = []
-
     # Run!
+    fwrite = True
     for i in np.arange(howmany):
         
         if (i % 100) == 0:
@@ -1008,16 +1008,12 @@ def cube_likelihoods(grids:list,surveys:list,
                     raise ValueError("Unknown code ",s.nD," for dimensions of survey")
                 # these are slow operations but negligible in the grand scheme of things
                 
-                string += ' {:9.2f}'.format(lls[j]) # for now, we are recording the individual log likelihoods, but not the components
                 odict['lls'] = lls[j]
-                string += ' {:9.2f}'.format(alist[0]) # DM / z value likelihood
                 odict['Pn'] = alist[0]
-                string += ' {:9.2f}'.format(alist[1]) # N events likelihood
                 odict['Pzdm'] = alist[1]
-                string += ' {:9.2f}'.format(alist[2]) # SNR likelihoods
                 odict['Ps'] = alist[2]
-                string += ' {:9.2f}'.format(expected) # expected number of events
                 odict['N'] = expected
+
                 # More!!
                 odict['p_zDM'] = longlist[0]
                 odict['p_DM'] = longlist[1]
@@ -1032,15 +1028,14 @@ def cube_likelihoods(grids:list,surveys:list,
                 print("Iteration ",nth," took ",t2-t1," seconds")
 
             # write output: parameters, likelihoods (and components)
-            #f.write(string)
-            outputs.append(odict)
-            
-        #t1=time.process_time()
-        #print("Loop: ",i+run*howmany," took ", t1-t0," seconds")
-        #t0=t1
+            tdf = pandas.DataFrame([odict])
+            if fwrite:
+                tdf.to_csv(outfile, index=False)
+                fwrite = False
+            else:
+                tdf.to_csv(outfile, header=False, mode='a', index=False)
         
-    #f.close()
-    return outputs
+    return
     
 def my_minimise(vparams:dict,grids,surveys,steps=None,
                 disable=None,Verbose=False,MaxIter=200,psnr=False,

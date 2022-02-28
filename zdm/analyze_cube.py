@@ -29,7 +29,7 @@ def slurp_cube(input_file:str, prefix:str, outfile:str,
         debug (int, optional): Debug?
     """
     # Grab em.  The order doesn't matter
-    files = glob.glob(prefix+'*.out') 
+    files = glob.glob(prefix+'*.csv') 
 
     # Init
     input_dict=io.process_jfile(input_file)
@@ -41,9 +41,16 @@ def slurp_cube(input_file:str, prefix:str, outfile:str,
     cube_shape = iteration.set_cube_shape(vparam_dict, order)
 
     param_shape = np.array([0]+cube_shape)[iorder].tolist()[:-1]
+
+    # Outputs
     ll_cube = np.zeros(param_shape)
-    lC_cube = np.zeros(param_shape)
     ll_cube[:] = -9e9
+    lC_cube = np.zeros(param_shape)
+
+    pzDM_cube = np.zeros(param_shape)
+    pDM_cube = np.zeros(param_shape)
+    pDMz_cube = np.zeros(param_shape)
+    pz_cube = np.zeros(param_shape)
 
     survey_items = ['lls', 'DM_z', 'N', 'SNR', 'Nex']
     names = ['icube'] + PARAMS
@@ -54,25 +61,35 @@ def slurp_cube(input_file:str, prefix:str, outfile:str,
     # Loop on cube output files
     for dfile in files:
         print(f"Loading: {dfile}")
-        df = pandas.read_csv(dfile, header=None, delimiter=r"\s+", 
-                             names=names)
+        df = pandas.read_csv(dfile)
 
         for index, row in df.iterrows():
             # Unravel
             r_current = np.array([0]+list(np.unravel_index(
-                        int(row.icube), cube_shape, order='F')))
+                        int(row.n), cube_shape, order='F')))
             current = r_current[iorder][:-1] # Truncate lC
             # Ravel me back
             idx = np.ravel_multi_index(current, ll_cube.shape)
             # Set
-            ll_cube.flat[idx] = row.ll
+            ll_cube.flat[idx] = row.lls
             lC_cube.flat[idx] = row.lC
+            # New ones
+            pzDM_cube.flat[idx] = row.p_zDM
+            pDM_cube.flat[idx] = row.p_DM
+            pDMz_cube.flat[idx] = row.p_DMz
+            pz_cube.flat[idx] = row.p_z
         # Check
         if debug:
             embed(header='69 of analyze')
     
     # Grids
-    out_dict = dict(ll=ll_cube, lC=lC_cube, params=PARAMS[:-1])
+    out_dict = dict(ll=ll_cube, 
+                    lC=lC_cube, 
+                    params=PARAMS[:-1],
+                    pzDM=pzDM_cube,
+                    pDM=pDM_cube,
+                    pDMz=pDMz_cube,
+                    pz=pz_cube)
     # Save the parameter values too
     for name in PARAMS[:-1]:
         out_dict[name] = np.linspace(vparam_dict[name]['min'], 
