@@ -17,7 +17,8 @@ from zdm import iteration
 from IPython import embed
 
 def slurp_cube(input_file:str, prefix:str, outfile:str, 
-               nsurveys, debug:bool=False):
+               nsurveys, debug:bool=False,
+               suffix:str='.csv'):
     """ Slurp the cube ASCII output files and write 
     lC and ll into a numpy savez file
 
@@ -27,9 +28,10 @@ def slurp_cube(input_file:str, prefix:str, outfile:str,
         outfile (str): output file name.  Should have .npz extension
         nsurveys (int): Number of surveys in the analysis. 
         debug (int, optional): Debug?
+        suffix (str, optional): File ending.  Allows for old .out files
     """
     # Grab em.  The order doesn't matter
-    files = glob.glob(prefix+'*.csv') 
+    files = glob.glob(prefix+'*'+suffix)
 
     # Init
     input_dict=io.process_jfile(input_file)
