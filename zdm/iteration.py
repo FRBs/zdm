@@ -177,7 +177,7 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=False,Pn=True,do
             normalised by the volume in the dz bin
 
     dolist
-        2: llsum,lllist,expected,longlist
+        2: llsum,lllist [Pzdm,Pn,Ps],expected,longlist
             longlist holds the LL for each FRB
         5: llsum,lllist,expected,[0.,0.,0.,0.]
     
@@ -429,7 +429,7 @@ def calc_likelihoods_2D(grid,survey,
     
     dolist:
         0: returns total log10 likelihood llsum only [float]
-        1: returns llsum, log10([Pn,Pzdm,Ps]), <Nfrbs>
+        1: returns llsum, log10([Pzdm,Pn,Ps]), <Nfrbs>
         2: as above, plus a 'long list' giving log10(likelihood)
             for each FRB individually
         3: return (llsum, -np.log10(norm)*Zobs.size, 
@@ -437,7 +437,7 @@ def calc_likelihoods_2D(grid,survey,
         4: return (llsum, -np.log10(norm)*Zobs.size, 
                 np.sum(np.log10(pvals)), 
                 pvals.copy(), wzpsnr.copy())
-        5: returns llsum, log10([Pn,Pzdm,Ps]), <Nfrbs>, 
+        5: returns llsum, log10([Pzdm,Pn,Ps]), <Nfrbs>, 
             np.log10([p(z|DM), p(DM), p(DM|z), p(z)])
         else: returns nothing (actually quite useful behaviour!)
     
@@ -936,7 +936,6 @@ def cube_likelihoods(grids:list,surveys:list,
                 nth, cube_shape, order='F')))
             current = r_current[iorder]
             #
-            string=str(nth)
             odict = dict(n=nth)
             # Time it
             t1=time.process_time()
@@ -971,13 +970,14 @@ def cube_likelihoods(grids:list,surveys:list,
             
             # for the minimised parameters, set the values
             for j,n in enumerate(current):
-                string +=' {:8.2f}'.format(vparams[PARAMS[j]])
                 odict[PARAMS[j]] = vparams[PARAMS[j]]
             
 
             # TODO -- Should we do this?
             # in theory we could save the following step if we have already minimised but oh well. Too annoying!
             ll=0.
+            longlistsum=np.array([0.,0.,0.,0.])
+            alistsum=np.array([0.,0.,0.])
             for j,s in enumerate(surveys):
                 if clone is not None and clone[j] > 0:
                     embed(header='1047 of it -- this wont work')
@@ -1008,21 +1008,30 @@ def cube_likelihoods(grids:list,surveys:list,
                     raise ValueError("Unknown code ",s.nD," for dimensions of survey")
                 # these are slow operations but negligible in the grand scheme of things
                 
-                odict['lls'] = lls[j]
-                odict['Pn'] = alist[0]
-                odict['Pzdm'] = alist[1]
-                odict['Ps'] = alist[2]
-                odict['N'] = expected
-
-                # More!!
-                odict['p_zDM'] = longlist[0]
-                odict['p_DM'] = longlist[1]
-                odict['p_DMz'] = longlist[2]
-                odict['p_z'] = longlist[3]
+                # accumulate the 'alist' of pn,s,zdm and 'long list' of pzdm factors over multiple surveys
+                longlistsum += np.array(longlist)
+                alistsum += np.array(alist)
                 
+                # save information for individual surveys
+                odict['lls'+str(j)] = lls[j]
+                odict['P_zDM'+str(j)] = alist[0]
+                odict['P_n'+str(j)] = alist[1]
+                odict['P_s'+str(j)] = alist[2]
+                odict['N'+str(j)] = expected
+            
+            # save accumulated information
             ll=np.sum(lls)
-            string += '{:9.2f}'.format(ll)
-            string += '\n'
+            odict['lls'] = ll
+            odict['P_zDM'] = alistsum[0]
+            odict['P_n'] = alistsum[1]
+            odict['P_s'] = alistsum[2]
+            
+            # More!!
+            odict['p_zgDM'] = longlistsum[0]
+            odict['p_DM'] = longlistsum[1]
+            odict['p_DMgz'] = longlistsum[2]
+            odict['p_z'] = longlistsum[3]
+            
             t2=time.process_time()
             if Verbose:
                 print("Iteration ",nth," took ",t2-t1," seconds")
