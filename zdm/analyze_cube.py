@@ -120,10 +120,25 @@ def get_bayesian_data(lls:np.ndarray,
             One item per parameter in the cube
     """
     NDIMS= len(lls.shape)
-            
-    origlls=lls
+    
+    # multiplies all log-likelihoods by the maximum value
+    # ensures no floating point problems
+    global_max = np.nanmax(lls)
+    lls -= global_max
+    
+    #eventually remove this line
     if plls is None:
         plls = lls
+    
+    origlls=lls
+    
+    if plls is not None:
+        w_global_max = np.nanmax(plls)
+        plls = plls - w_global_max
+    
+           
+    
+    
     uvals=[]
     
     for i in np.arange(NDIMS):
@@ -149,7 +164,7 @@ def get_bayesian_data(lls:np.ndarray,
             #set1=np.where(data[:,idim]==ivv) #selects for a set of values
             #lls=data[set1,llindex]
             lls=origlls[tuple(big_slice)].flatten()
-            wlls=plls[tuple(big_slice)].flatten()
+            
             
             # selects all fits that are close to the peak (i.e. percentage within 0.1%)
             try:
@@ -160,18 +175,28 @@ def get_bayesian_data(lls:np.ndarray,
                 wvector[iv]=0.
                 continue
             
-            wthemax=np.nanmax(wlls)
             OKlls=np.isfinite(lls) & (lls > themax-3)
-            OKwlls=np.isfinite(wlls) & (wlls > wthemax-3)
-            
             vector[iv]=np.sum(10**lls[OKlls])
-            wvector[iv]=np.sum(10**wlls[OKwlls])
+            
+            if plls is not None:
+                wlls=plls[tuple(big_slice)].flatten()
+                wthemax=np.nanmax(wlls)
+                OKwlls=np.isfinite(wlls) & (wlls > wthemax-3)
+                wvector[iv]=np.sum(10**wlls[OKwlls])
+            
             #import pdb; pdb.set_trace()
         # Check
         vector *= 1./np.sum(vector)
-        wvector *= 1./np.sum(wvector)	
         vectors.append(vector)
-        wvectors.append(wvector)
+        if plls is not None:
+            wvector *= 1./np.sum(wvector)
+            wvectors.append(wvector)	
+        
+    
+    # now makes correction
+    lls += global_max
+    if plls is not None:
+        plls += w_global_max
     
     # Pickle?
     if pklfile is not None:
@@ -207,10 +232,20 @@ def get_2D_bayesian_data(lls:np.ndarray,
             
     """
     NDIMS= len(lls.shape)
-            
-    origlls=lls
+    
+    # multiplies all log-likelihoods by the maximum value
+    global_max = np.nanmax(lls)
+    lls -= global_max
+    
+    #eventually remove this line
     if plls is None:
         plls = lls
+    
+    if plls is not None:
+        w_global_max = np.nanmax(plls)
+        plls = plls - w_global_max
+    
+    origlls=lls
     uvals=[]
     
     for i in np.arange(NDIMS):
@@ -245,8 +280,7 @@ def get_2D_bayesian_data(lls:np.ndarray,
                 
                     #lls=data[set1,llindex]
                     lls=origlls[tuple(big_slice)].flatten()
-                    wlls=plls[tuple(big_slice)].flatten()
-            
+                    
                     try:
                         themax=np.nanmax(lls)
                     except:
@@ -254,20 +288,29 @@ def get_2D_bayesian_data(lls:np.ndarray,
                         arrays[iv,jv]=0.
                         warrays[iv,jv]=0.
                         continue
-            
-                    wthemax=np.nanmax(wlls)
+                    
                     OKlls=np.isfinite(lls) & (lls > themax-3)
-                    OKwlls=np.isfinite(wlls) & (wlls > wthemax-3)
-            
                     array[iv,jv]=np.sum(10**lls[OKlls])
-                    warray[iv,jv]=np.sum(10**wlls[OKwlls])
+                    
+                    if plls is not None:
+                        wlls=plls[tuple(big_slice)].flatten()
+                        wthemax=np.nanmax(wlls)
+                        OKwlls=np.isfinite(wlls) & (wlls > wthemax-3)
+                        warray[iv,jv]=np.sum(10**wlls[OKwlls])
+                    
                     
             #normalisation over the parameter space to unity
             array *= 1./np.sum(array)
-            warray *= 1./np.sum(warray)	
             arrays.append(array)
-            warrays.append(warray)
+            if plls is not None:
+                warray *= 1./np.sum(warray)
+                warrays.append(warray)
+            
             ijs.append([i,j])
+    
+    lls += global_max
+    if plls is not None:
+        plls += w_global_max
     
     # Pickle?
     if pklfile is not None:
@@ -275,8 +318,8 @@ def get_2D_bayesian_data(lls:np.ndarray,
             pickle.dump(uvals, output, pickle.HIGHEST_PROTOCOL)
             pickle.dump(vectors, output, pickle.HIGHEST_PROTOCOL)
             pickle.dump(wvectors, output, pickle.HIGHEST_PROTOCOL)
-        
-    # result is just the total probability, normalised to unit, when summed over the parameter space
+       
+    # result is just the total probability, normalised to unity, when summed over the parameter space
     # technically needs to be divided by the x-increment in bins.
     return uvals,ijs,arrays,warrays
 
