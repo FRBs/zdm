@@ -43,7 +43,7 @@ spec:
             git fetch;
             git checkout full_craco;
             python setup.py develop;
-            cd papers/H0_I/Analysis/Cloud;
+            cd papers/H0_I/Analysis/CRACO/Cloud;
             python run_craco_full.py -n 25 -t 250 -b 1;
             aws --endpoint http://rook-ceph-rgw-nautiluss3.rook s3 cp Output s3://zdm/Cubes/CRACO/Full/ --recursive --force;
         env:
