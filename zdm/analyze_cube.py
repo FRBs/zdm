@@ -54,32 +54,55 @@ def slurp_cube(input_file:str, prefix:str, outfile:str,
     pDMz_cube = np.zeros(param_shape)
     pz_cube = np.zeros(param_shape)
 
-    survey_items = ['lls', 'DM_z', 'N', 'SNR', 'Nex']
+    survey_items = ['lls', 'P_zDM', 'P_n', 'P_s', 'N']
     names = ['icube'] + PARAMS
     for ss in range (nsurveys):
         names += [item+f'_{ss}' for item in survey_items]
     names += ['ll']
     
     # Loop on cube output files
-    for dfile in files:
+    survey_arrays = {}
+    nsurvey = 0
+    for ss, dfile in enumerate(files):
+
         print(f"Loading: {dfile}")
         df = pandas.read_csv(dfile)
 
-        for index, row in df.iterrows():
-            # Unravel
+        # Generate survey arrays
+        if ss == 0:
+            # Count the surveys
+            for key in df.keys():
+                if 'P_zDM' in key and len(key) > len('P_zDM'): 
+                    # Generate them
+                    for item in survey_items:
+                        survey_arrays[item+key[-1]] = np.zeros(param_shape)
+                    nsurvey += 1
+
+        # Get indices
+        indices = []
+        ns = df.n
+
+        for n in ns:
             r_current = np.array([0]+list(np.unravel_index(
-                        int(row.n), cube_shape, order='F')))
+                        int(n), cube_shape, order='F')))
             current = r_current[iorder][:-1] # Truncate lC
             # Ravel me back
             idx = np.ravel_multi_index(current, ll_cube.shape)
-            # Set
-            ll_cube.flat[idx] = row.lls
-            lC_cube.flat[idx] = row.lC
-            # New ones
-            pzDM_cube.flat[idx] = row.p_zDM
-            pDM_cube.flat[idx] = row.p_DM
-            pDMz_cube.flat[idx] = row.p_DMz
-            pz_cube.flat[idx] = row.p_z
+            indices.append(idx)
+
+        # Set
+        ll_cube.flat[indices] = df.lls
+        lC_cube.flat[indices] = df.lC
+        # New ones
+        pzDM_cube.flat[indices] = df.p_zgDM
+        pDM_cube.flat[indices] = df.p_DM
+        pDMz_cube.flat[indices] = df.p_DMgz
+        pz_cube.flat[indices] = df.p_z
+
+        # Survey items
+        for key in survey_arrays.keys():
+            survey_arrays[key].flat[indices] = getattr(df, key)
+
         # Check
         if debug:
             embed(header='69 of analyze')
@@ -97,6 +120,10 @@ def slurp_cube(input_file:str, prefix:str, outfile:str,
         out_dict[name] = np.linspace(vparam_dict[name]['min'], 
                                vparam_dict[name]['max'],
                                vparam_dict[name]['n'])
+    # Survey items
+    for key in survey_arrays.keys():
+        out_dict[key] = survey_arrays[key]
+
     # Write
     np.savez(outfile, **out_dict) #ll=ll_cube, lC=lC_cube, params=PARAMS[-1])
     print(f"Wrote: {outfile}")
