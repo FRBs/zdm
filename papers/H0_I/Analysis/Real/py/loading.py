@@ -75,7 +75,7 @@ def set_state(alpha_method=1, cosmo=Planck18):
         vparams['host']['lsigma'] = 0.48
 
     # Gamma
-    vparams['energy']['luminosity_function'] = 1
+    vparams['energy']['luminosity_function'] = 2
         
     state.update_param_dict(vparams)
     state.set_astropy_cosmo(cosmo)

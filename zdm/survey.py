@@ -699,6 +699,9 @@ def load_survey(survey_name:str, state:parameters.State, dmvals:np.ndarray,
     elif survey_name == 'CRAFT/ICS892':
         dfile = 'CRAFT_ICS_892.dat'
         Nbeams = 5
+    elif survey_name == 'CRAFT/ICS1632':
+        dfile = 'CRAFT_ICS_1632.dat'
+        Nbeams = 5
     elif survey_name == 'PKS/Mb':
         dfile = 'parkes_mb_class_I_and_II.dat'
         Nbeams = 10

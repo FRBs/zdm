@@ -84,6 +84,6 @@ def parse_option():
 if __name__ == "__main__":
     # get the argument of training.
     pfile = '../Cubes/real_mini_cube.json'
-    oproot = 'real_mini.out' 
+    oproot = 'real_mini.csv' 
     pargs = parse_option()
     main(pargs, pfile, oproot)
