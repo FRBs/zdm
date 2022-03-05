@@ -1,23 +1,13 @@
-#import pytest
+"""
+File to test that cubing produces the expected output
+"""
 
-#from pkg_resources import resource_filename
 import os
-#import copy
-#import pickle
 
-#from astropy.cosmology import Planck18
-
-#from zdm import cosmology as cos
-#from zdm import misc_functions
 from zdm import parameters
-#from zdm import survey
-#from zdm import pcosmic
 from zdm import iteration as it
 from zdm.craco import loading
 from zdm import io
-
-
-#from IPython import embed
 
 import numpy as np
 from zdm import survey
