@@ -16,7 +16,7 @@ from matplotlib import pyplot as plt
 import pandas
 
 from zdm import iteration as it
-import loading
+from zdm import real_loading
 
 from IPython import embed
 
@@ -40,7 +40,7 @@ matplotlib.rc('font', **font)
 def main(pargs):
 
     # Load up
-    surveys, grids = loading.surveys_and_grids()
+    surveys, grids = real_loading.surveys_and_grids()
     print(grids[0].state)
 
     vparams = {}

@@ -15,7 +15,7 @@ import matplotlib
 from matplotlib import pyplot as plt
 
 from zdm import iteration as it
-import loading
+from zdm import real_loading
 
 from IPython import embed
 
@@ -38,7 +38,7 @@ matplotlib.rc('font', **font)
 
 def main(pargs):
 
-    surveys, grids = loading.surveys_and_grids()
+    surveys, grids = real_loading.surveys_and_grids()
 
     pvals = np.linspace(pargs.min, pargs.max, 
                         pargs.nstep)
