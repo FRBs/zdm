@@ -504,6 +504,7 @@ def geometric_lognormals(lmu1,ls1,lmu2,ls2,bins=None,Nrand=10000,plot=False,Nbin
     
     Returns:
         hist: histogram of probability within bins
+        chist: cumulative histogram of probability within bins
         bins: bin edges for histogram
     
     '''
@@ -516,9 +517,13 @@ def geometric_lognormals(lmu1,ls1,lmu2,ls2,bins=None,Nrand=10000,plot=False,Nbin
     if bins is None:
         #bins=np.linspace(0,np.max(ys)/4.,Nbins)
         delta=1e-3
-        bins=np.logspace(np.log10(np.min(ys))-delta,np.log10(np.max(ys))+delta,Nbins)
+        # ensures the first bin begins at 0
+        bins=np.zeros([Nbins+1])
+        bins[1:]=np.logspace(np.log10(np.min(ys))-delta,np.log10(np.max(ys))+delta,Nbins)
     hist,bins=np.histogram(ys,bins)
-    chist=np.cumsum(hist)
+    chist=np.zeros([Nbins+1])
+    chist[1:]=np.cumsum(hist)
+    chist /= chist[-1]
     
     if plot:
         plt.figure()
@@ -531,8 +536,8 @@ def geometric_lognormals(lmu1,ls1,lmu2,ls2,bins=None,Nrand=10000,plot=False,Nbin
     
     # renomalises - total will be less than unity, assuming some large
     # values fall off the largest bin
-    hist = hist/Nrand
-    return hist,bins
+    #hist = hist/Nrand
+    return hist,chist,bins
     
 def make_widths(s:Survey,state):
     """
@@ -583,7 +588,6 @@ def make_widths(s:Survey,state):
     # initialise min/max of width bins
     wmax=wequality*thresh
     wmin=wmax*np.exp(-3.*wlogsigma)
-    
     # keeps track of numerical normalisation to ensure it ends up at unity
     wsum=0.
     
@@ -612,9 +616,10 @@ def make_widths(s:Survey,state):
         slogmean = slogmean + sfpower*np.log(s.meta['FBAR']/sfnorm)
         
         #gets cumulative hist and bin edges
-        dist,cbins=geometric_lognormals(wlogmean,wlogsigma,slogmean,slogsigma)
-        cdist=np.cumsum(dist)
+        dist,cdist,cbins=geometric_lognormals(wlogmean,wlogsigma,slogmean,slogsigma)
         
+        # In the below, imin1 and imin2 are the two indices bracketing the minimum
+        # bin, while imax1 and imax2 bracket the upper max bin
         imin1=0
         kmin=0.
         imin2=1
@@ -640,8 +645,6 @@ def make_widths(s:Survey,state):
                 weight=cmax #forces integration from zero
             else:
                 weight=cmax-cmin #integrates from bin min to bin max
-            
-            
             # upper bins becomes lower bins
             imin1=imax1
             imin2=imax2
@@ -660,6 +663,10 @@ def make_widths(s:Survey,state):
     weights[-1] += 1.-wsum #adds defecit here
     weights=np.array(weights)
     widths=np.array(widths)
+    # removes unneccesary bins
+    keep=np.where(weights>0.)[0]
+    weights=weights[keep]
+    widths=widths[keep]
     return widths,weights
 
 

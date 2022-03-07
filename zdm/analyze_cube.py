@@ -350,6 +350,221 @@ def get_2D_bayesian_data(lls:np.ndarray,
     # technically needs to be divided by the x-increment in bins.
     return uvals,ijs,arrays,warrays
 
+def get_maxl_data(lls:np.ndarray, 
+                      plls:np.ndarray=None, 
+                      pklfile=None):
+    """ Method to perform simple Bayesian analysis
+    on the Log-likelihood cube
+
+    Args:
+        lls (np.ndarray): Log-likelood cube
+        plls (np.ndarray, optional): Log-likelihood cube corrected for priors (e.g. alpha). Defaults to None.
+        pklfile (str, optional): If given, write
+            the output to this pickle file. Defaults to None.
+
+    Returns:
+        tuple: uvals,vectors,wvectors
+            lists of np.ndarray's of LL analysis
+            One item per parameter in the cube
+    """
+    NDIMS= len(lls.shape)
+    
+    # multiplies all log-likelihoods by the maximum value
+    # ensures no floating point problems
+    global_max = np.nanmax(lls)
+    lls -= global_max
+    
+    #eventually remove this line
+    if plls is None:
+        plls = lls
+    
+    origlls=lls
+    
+    if plls is not None:
+        w_global_max = np.nanmax(plls)
+        plls = plls - w_global_max
+    
+           
+    
+    
+    uvals=[]
+    
+    for i in np.arange(NDIMS):
+        unique = np.arange(lls.shape[i])
+        uvals.append(unique)
+
+    # we now have a list of unique values for each dimension
+    vectors=[] # this will contain the best values for 1d plots
+    wvectors=[] # holds same as above, but including spectral penalty factor from ASKAP obs
+    
+    # loop over the DIMS
+    for i in np.arange(NDIMS):
+        
+        # does 1D values
+        vector=np.zeros([len(uvals[i])])
+        wvector=np.zeros([len(uvals[i])])
+
+        # selects for lls a subset corresponding only to that particular value of a variables
+        for iv, ivv in enumerate(uvals[i]):
+            big_slice = [slice(None,None,None)]*NDIMS
+            # Construct the slice
+            big_slice[i] = ivv
+            #set1=np.where(data[:,idim]==ivv) #selects for a set of values
+            #lls=data[set1,llindex]
+            lls=origlls[tuple(big_slice)].flatten()
+            
+            
+            # selects all fits that are close to the peak (i.e. percentage within 0.1%)
+            try:
+                themax=np.nanmax(lls)
+            except:
+                # all nans, probability =0. Easy!
+                vector[iv]=0.
+                wvector[iv]=0.
+                continue
+            
+            vector[iv]=themax
+            
+            if plls is not None:
+                wlls=plls[tuple(big_slice)].flatten()
+                wthemax=np.nanmax(wlls)
+                wvector[iv]=wthemax
+            
+            #import pdb; pdb.set_trace()
+        # Check
+        vectors.append(vector)
+        if plls is not None:
+            wvectors.append(wvector)	
+        
+    
+    # now makes correction
+    lls += global_max
+    if plls is not None:
+        plls += w_global_max
+    
+    # Pickle?
+    if pklfile is not None:
+        with open(pklfile, 'wb') as output:
+            pickle.dump(uvals, output, pickle.HIGHEST_PROTOCOL)
+            pickle.dump(vectors, output, pickle.HIGHEST_PROTOCOL)
+            pickle.dump(wvectors, output, pickle.HIGHEST_PROTOCOL)
+        
+    # result is just the total probability, normalised to unit, when summed over the parameter space
+    # technically needs to be divided by the x-increment in bins.
+    return uvals,vectors,wvectors
+
+
+def get_2D_maxl_data(lls:np.ndarray, 
+                      plls:np.ndarray=None, 
+                      pklfile=None):
+    """ Method to perform simple Bayesian analysis
+    on the Log-likelihood cube
+
+    Args:
+        lls (np.ndarray): Log-likelood cube
+        plls (np.ndarray, optional): Log-likelihood cube corrected for priors (e.g. alpha). Defaults to None.
+        pklfile (str, optional): If given, write
+            the output to this pickle file. Defaults to None.
+
+    Returns:
+        tuple: uvals,ijs,arrays,warrays,
+            uvals: values of each array, in form
+            ijs: order of which parameters are combined in the arrays (e.g. [2,4])
+            arrays: lists of 2D np.ndarray's of LL analysis
+            warrays: weighted with prior on alpha
+            ijs, arrays, and warrays have Nitems = Nparams*(Nparams-1)/2
+            
+    """
+    NDIMS= len(lls.shape)
+    
+    # multiplies all log-likelihoods by the maximum value
+    global_max = np.nanmax(lls)
+    lls -= global_max
+    
+    #eventually remove this line
+    if plls is None:
+        plls = lls
+    
+    if plls is not None:
+        w_global_max = np.nanmax(plls)
+        plls = plls - w_global_max
+    
+    origlls=lls
+    uvals=[]
+    
+    for i in np.arange(NDIMS):
+        unique = np.arange(lls.shape[i])
+        uvals.append(unique)
+
+    # we now have a list of unique values for each dimension
+    arrays=[] # this will contain the best values for 1d plots
+    warrays=[] # holds same as above, but including spectral penalty factor from ASKAP obs
+    ijs=[]
+    
+    # loop over the first dimensional combination
+    for i in np.arange(NDIMS):
+        
+        # loops over the second dimension
+        for j in (np.arange(NDIMS-i-1)+i+1):
+                
+            # does 1D values
+            array=np.zeros([len(uvals[i]),len(uvals[j])])
+            warray=np.zeros([len(uvals[i]),len(uvals[j])])
+            
+            # selects for lls a subset corresponding only to that particular value of a variables
+            for iv, ivv in enumerate(uvals[i]):
+                big_slice = [slice(None,None,None)]*NDIMS
+                # Construct the slice
+                big_slice[i] = ivv
+                
+                for jv, jvv in enumerate(uvals[j]):
+                    # Construct the slice
+                    big_slice[j] = jvv
+                
+                
+                    #lls=data[set1,llindex]
+                    lls=origlls[tuple(big_slice)].flatten()
+                    
+                    try:
+                        themax=np.nanmax(lls)
+                    except:
+                        # all nans, probability =0. Easy!
+                        arrays[iv,jv]=0.
+                        warrays[iv,jv]=0.
+                        continue
+                    
+                    array[iv,jv]=themax
+                    
+                    if plls is not None:
+                        wlls=plls[tuple(big_slice)].flatten()
+                        wthemax=np.nanmax(wlls)
+                        warray[iv,jv]=wthemax
+                    
+                    
+            #normalisation over the parameter space to unity
+            arrays.append(array)
+            if plls is not None:
+                warray *= 1./np.sum(warray)
+                warrays.append(warray)
+            
+            ijs.append([i,j])
+    
+    lls += global_max
+    if plls is not None:
+        plls += w_global_max
+    
+    # Pickle?
+    if pklfile is not None:
+        with open(pklfile, 'wb') as output:
+            pickle.dump(uvals, output, pickle.HIGHEST_PROTOCOL)
+            pickle.dump(vectors, output, pickle.HIGHEST_PROTOCOL)
+            pickle.dump(wvectors, output, pickle.HIGHEST_PROTOCOL)
+       
+    # result is just the total probability, normalised to unity, when summed over the parameter space
+    # technically needs to be divided by the x-increment in bins.
+    return uvals,ijs,arrays,warrays
+
+
 def do_single_plots(uvals,vectors,wvectors,names,tag=None, fig_exten='.png',
                     dolevels=False,log=True,outdir='SingleFigs/',
                     vparams_dict=None, prefix=''):
