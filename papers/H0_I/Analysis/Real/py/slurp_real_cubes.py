@@ -13,7 +13,7 @@ if mini:
     # Run it
     analyze_cube.slurp_cube(input_file, prefix, 
                             'Cubes/real_mini_cube.npz',
-                            nsurveys, suffix='.out')
+                            nsurveys)
     
 super_mini = False
 if super_mini:
