@@ -9,7 +9,7 @@ import os
 
 from zdm import iteration as it
 from zdm import io
-import loading
+from zdm import real_loading
 
 from IPython import embed
 
@@ -27,11 +27,11 @@ def main(pargs):
     state_dict, cube_dict, vparam_dict = it.parse_input_dict(input_dict)
 
     # State
-    state = loading.set_state()
+    state = real_loading.set_state()
     state.update_param_dict(state_dict)
 
     ############## Initialise ##############
-    surveys, grids = loading.surveys_and_grids(init_state=state)
+    surveys, grids = real_loading.surveys_and_grids(init_state=state)
 
     # Write state to disk
     state_file = pargs.pfile.replace('cube.json', 'state.json')
