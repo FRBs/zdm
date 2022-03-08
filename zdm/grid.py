@@ -658,7 +658,8 @@ class Grid:
             if prev_grid is None:
                 zDMgrid, zvals,dmvals=misc_functions.get_zdm_grid(
                     self.state, new=True,plot=False,method='analytic',
-                    save=False)
+                    save=False,nz=self.zvals.size,zmax=self.zvals[-1],
+                    ndm=self.dmvals.size,dmmax=self.dmvals[-1])
                 self.pass_grid(zDMgrid,zvals,dmvals)
             else:
                 # Pass a copy (just to be safe)
