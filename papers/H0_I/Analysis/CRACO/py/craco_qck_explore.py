@@ -9,14 +9,13 @@ from zdm import io
 from zdm.craco import loading
 
 
-sys.path.append(os.path.abspath("../../Figures/py"))
-import figs_zdm_H0_I
+#sys.path.append(os.path.abspath("../../Figures/py"))
 
 scube = 'mini'
 outdir = 'Mini/'
 
 # Load
-npdict = np.load(f'Cubes/real_{scube}_cube.npz')
+npdict = np.load(f'Cubes/craco_{scube}_cube.npz')
 
 ll_cube = npdict['ll']
 lC_cube = npdict['lC']
@@ -27,7 +26,7 @@ params = npdict['params']
 
 # Cube parameters
 ############## Load up ##############
-pfile = f'Cubes/real_{scube}_cube.json'
+pfile = f'Cubes/craco_{scube}_cube.json'
 input_dict=io.process_jfile(pfile)
 
 # Deconstruct the input_dict
