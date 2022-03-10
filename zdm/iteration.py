@@ -267,17 +267,16 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=False,Pn=True,do
         beam_norm=np.sum(survey.beam_o)
         #in theory, we might want to normalise by the sum of the omeba_b weights, although it does not matter here
         
-        
         for i,b in enumerate(survey.beam_b):
             #iterate over the grid of weights
             bEths=Eths/b #this is the only bit that depends on j, but OK also!
             #now wbEths is the same 2D grid
             #wbEths=bEths #this is the only bit that depends on j, but OK also!
-            bEobs=bEths*survey.Ss[survey.nozlist] #should correctky multiply the last dimensions
+            bEobs=bEths*survey.Ss[survey.nozlist] #should correctly multiply the last dimensions
             for j,w in enumerate(grid.eff_weights):
                 temp=(grid.array_diff_lf(bEobs[j,:,:],Emin,Emax,gamma).T*grid.FtoE).T
                 zpsnr += temp*survey.beam_o[i]*w #weights this be beam solid angle and efficiency
-        
+                
         
         # we have now effectively calculated the local probabilities in the source-counts histogram for a given DM
         # we have to weight this by the sfr_smear factors, and the volumetric probabilities

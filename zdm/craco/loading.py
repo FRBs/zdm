@@ -130,7 +130,8 @@ def survey_and_grid(survey_name:str='CRAFT/CRACO_1_5000',
     # get the grid of p(DM|z)
     zDMgrid, zvals,dmvals = misc_functions.get_zdm_grid(
         state, new=True, plot=False, method='analytic',
-        datdir=resource_filename('zdm', 'GridData'))
+        datdir=resource_filename('zdm', 'GridData'),
+        zlog=False,nz=500)
 
     ############## Initialise surveys ##############
     if sdir is not None:
@@ -140,7 +141,7 @@ def survey_and_grid(survey_name:str='CRAFT/CRACO_1_5000',
     isurvey = survey.load_survey(survey_name, state, dmvals,
                                  NFRB=NFRB, sdir=sdir, Nbeams=5,
                                  iFRB=iFRB)
-
+    
     # generates zdm grid
     grids = misc_functions.initialise_grids(
         [isurvey], zDMgrid, zvals, dmvals, state, wdist=True)

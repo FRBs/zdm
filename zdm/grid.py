@@ -49,10 +49,9 @@ class Grid:
         self.init_luminosity_functions()
         
         self.nuObs=survey.meta['FBAR']*1e6 #from MHz to Hz
-        
         # Init the grid
         #   THESE SHOULD BE THE SAME ORDER AS self.update()
-        self.pass_grid(zDMgrid.copy(),zvals.copy(),dmvals.copy())  
+        self.parse_grid(zDMgrid.copy(),zvals.copy(),dmvals.copy())  
         self.calc_dV()
         self.smear_dm(smear_mask.copy())
         if wdist:
@@ -90,7 +89,7 @@ class Grid:
         else:
             raise ValueError("Luminosity function must be 0, not ",self.luminosity_function)
     
-    def pass_grid(self,zDMgrid,zvals,dmvals):
+    def parse_grid(self,zDMgrid,zvals,dmvals):
         self.grid=zDMgrid
         self.zvals=zvals
         self.dmvals=dmvals
@@ -118,7 +117,17 @@ class Grid:
         
         self.nz=self.zvals.size
         self.ndm=self.dmvals.size
-        self.dz=self.zvals[1]-self.zvals[0]
+        
+        # check to see if these are log-spaced
+        if (self.zvals[-1]-self.zvals[-2])/(self.zvals[1]-self.zvals[0]) > 1.01:
+            if np.abs(self.zvals[-1]*self.zvals[0] - self.zvals[-2]*self.zvals[1]) > 0.01:
+                raise ValueError("Cannot determine scaling of zvals, exiting...")
+            self.zlog=True
+            self.dz=np.log(self.zvals[1]/self.zvals[0])
+        else:
+            self.zlog=False
+            self.dz=self.zvals[1]-self.zvals[0]
+        
         self.ddm=self.dmvals[1]-self.dmvals[0]
         shape=self.grid.shape
         if shape[0] != self.nz:
@@ -134,8 +143,12 @@ class Grid:
             else:
                 raise ValueError("wrong shape of grid for zvals and dm vals")
         
+        
         #checks that the grid is approximately linear to high precision
-        expectation=self.dz*np.arange(0,self.nz)+self.zvals[0]
+        if self.zlog:
+            expectation=np.exp(np.arange(0,self.nz)*self.dz)*self.zvals[0]
+        else:
+            expectation=self.dz*np.arange(0,self.nz)+self.zvals[0]
         diff=self.zvals-expectation
         maxoff=np.max(diff**2)
         if maxoff > 1e-6*self.dz:
@@ -153,10 +166,15 @@ class Grid:
         
         Does this only in the z-dimension (for obvious reasons!)
         """
+        
         if (cos.INIT is False) or reINIT:
             #print('WARNING: cosmology not yet initiated, using default parameters.')
             cos.init_dist_measures()
-        self.dV=cos.dvdtau(self.zvals)*self.dz
+        if self.zlog:
+            # if zlog, dz is actually .dlogz. And dlogz/dz=1/z, i.e. dz= z dlogz
+            self.dV=cos.dvdtau(self.zvals)*self.dz*self.zvals
+        else:
+            self.dV=cos.dvdtau(self.zvals)*self.dz
         
     
     def EF(self,alpha=0,bandwidth=1e9):
@@ -297,7 +315,6 @@ class Grid:
             self.eff_table=eff_table
         Eff_thresh=F0/self.eff_table
         
-        
         self.EF(self.state.energy.alpha, bandwidth) #sets FtoE values - could have been done *WAY* earlier
         
         self.thresholds=np.zeros([self.nthresh,self.zvals.size,self.dmvals.size])
@@ -308,6 +325,7 @@ class Grid:
         # We loop over nthesh and generate a NDM x Nz array for each
         for i in np.arange(self.nthresh):
             self.thresholds[i,:,:]=np.outer(self.FtoE,Eff_thresh[i,:])
+        
         
         
     def smear_dm(self,smear:np.ndarray):#,mean:float,sigma:float):
@@ -659,11 +677,11 @@ class Grid:
                 zDMgrid, zvals,dmvals=misc_functions.get_zdm_grid(
                     self.state, new=True,plot=False,method='analytic',
                     save=False,nz=self.zvals.size,zmax=self.zvals[-1],
-                    ndm=self.dmvals.size,dmmax=self.dmvals[-1])
-                self.pass_grid(zDMgrid,zvals,dmvals)
+                    ndm=self.dmvals.size,dmmax=self.dmvals[-1],zlog=self.zlog)
+                self.parse_grid(zDMgrid,zvals,dmvals)
             else:
                 # Pass a copy (just to be safe)
-                self.pass_grid(prev_grid.grid.copy(),
+                self.parse_grid(prev_grid.grid.copy(),
                                prev_grid.zvals.copy(),
                                prev_grid.dmvals.copy())
 

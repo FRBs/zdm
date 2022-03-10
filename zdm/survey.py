@@ -512,6 +512,7 @@ def geometric_lognormals(lmu1,ls1,lmu2,ls2,bins=None,Nrand=10000,plot=False,Nbin
     #draw from both distributions
     x1s=np.random.normal(lmu1,ls1,Nrand)
     x2s=np.random.normal(lmu2,ls2,Nrand)
+    
     ys=(np.exp(x1s*2)+np.exp(x2s*2))**0.5
     
     if bins is None:
@@ -520,7 +521,7 @@ def geometric_lognormals(lmu1,ls1,lmu2,ls2,bins=None,Nrand=10000,plot=False,Nbin
         # ensures the first bin begins at 0
         bins=np.zeros([Nbins+1])
         bins[1:]=np.logspace(np.log10(np.min(ys))-delta,np.log10(np.max(ys))+delta,Nbins)
-    hist,bins=np.histogram(ys,bins)
+    hist,bins=np.histogram(ys,bins=bins)
     chist=np.zeros([Nbins+1])
     chist[1:]=np.cumsum(hist)
     chist /= chist[-1]
@@ -533,6 +534,15 @@ def geometric_lognormals(lmu1,ls1,lmu2,ls2,bins=None,Nrand=10000,plot=False,Nbin
         plt.tight_layout()
         plt.savefig('adding_lognormals.pdf')
         plt.close()
+        
+        lbins=np.linspace(-3.,5.,81)
+        plt.figure()
+        plt.xlabel('$log y, Y=\\sqrt{X_1^2+X_2^2}$')
+        plt.ylabel('$P(logY=logy)$')
+        plt.hist(np.log(ys),bins=lbins)
+        plt.savefig('log_adding_lognormals.pdf')
+        plt.close()
+        
     
     # renomalises - total will be less than unity, assuming some large
     # values fall off the largest bin
@@ -650,23 +660,24 @@ def make_widths(s:Survey,state):
             imin2=imax2
             kmin=kmax
             
-            # updates widths of bin mins and maxes
-            wmin = wmax
-            wmax *= scale
-            
             width=(wmin*wmax)**0.5
             widths.append(width)
             weights.append(weight)
             wsum += weight
+            
+            # updates widths of bin mins and maxes
+            wmin = wmax
+            wmax *= scale
     else:
         raise ValueError("Width method in make_widths must be 1 or 2, not ",width_method)
     weights[-1] += 1.-wsum #adds defecit here
     weights=np.array(weights)
     widths=np.array(widths)
     # removes unneccesary bins
-    keep=np.where(weights>0.)[0]
+    keep=np.where(weights>1e-4)[0]
     weights=weights[keep]
     widths=widths[keep]
+    
     return widths,weights
 
 
