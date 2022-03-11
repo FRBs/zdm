@@ -84,7 +84,7 @@ def set_state(alpha_method=1, cosmo=Planck18):
     return state
 
 
-def surveys_and_grids(init_state=None, alpha_method=1): 
+def surveys_and_grids(init_state=None, alpha_method=2): 
     """ Load up a survey and grid for a CRACO mock dataset
 
     Args:
@@ -92,7 +92,7 @@ def surveys_and_grids(init_state=None, alpha_method=1):
             Initial state
         survey_name (str, optional):  Defaults to 'CRAFT/CRACO_1_5000'.
         lum_func (int, optional): Flag for the luminosity function. 
-            0=power-law, 1=gamma.  Defaults to 0.
+            0=power-law, 1=gamma [slow!!], 2=gamma [fast!].  Defaults to 0.
         state_dict (dict, optional):
             Used to init state instead of alpha_method, lum_func parameters
 
