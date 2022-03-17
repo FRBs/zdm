@@ -94,7 +94,7 @@ def get_mean_DM(zeds:np.ndarray, state:parameters.State):
     """ Gets mean average z to which can be applied deltas 
 
     Args:
-        zeds (np.ndarray): redshifts
+        zeds (np.ndarray): redshifts (must be linearly spaced)
         state (parameters.State): 
 
     Returns:
@@ -109,12 +109,37 @@ def get_mean_DM(zeds:np.ndarray, state:parameters.State):
     nz=zeds.size
     DMbar, zeval = igm.average_DM(
         zmax, cosmo=cosmo, cumul=True, neval=nz+1)
-
+    
     # Check
     assert np.allclose(zeds, zeval[1:])
                                                               #wrong dimension
     return DMbar[1:].value
-    
+ 
+def get_log_mean_DM(zeds:np.ndarray, state:parameters.State):
+    """ Gets mean average z to which can be applied deltas
+        Does NOT assume that the zeds are linearly spaced. 
+
+    Args:
+        zeds (np.ndarray): redshifts (any order/spacing).
+        state (parameters.State): 
+
+    Returns:
+        np.ndarray: DM_cosmic
+    """
+    # Generate the cosmology
+    cosmo = FlatLambdaCDM(H0=state.cosmo.H0, 
+                          Ob0=state.cosmo.Omega_b, 
+                          Om0=state.cosmo.Omega_m)
+    #
+    nz=zeds.size
+    dms=np.zeros([nz])
+    for i,z in enumerate(zeds):
+        # neval probably should be a function of max z
+        DMbar, zeval = igm.average_DM(
+            z, cosmo=cosmo, cumul=True, neval=nz+1)#
+        dms[i]=DMbar[-1].value
+                                                         #wrong dimension
+    return dms  
 
 def get_C0(z,F,zgrid,Fgrid,C0grid):
     """ Takes a pre-generated table of C0 values,
@@ -141,26 +166,39 @@ def get_C0(z,F,zgrid,Fgrid,C0grid):
     return C0
     
     
-def get_pDM(z,F,DMgrid,zgrid,Fgrid,C0grid):
-    """ Gets pDM for an arbitrary z value """
+def get_pDM(z,F,DMgrid,zgrid,Fgrid,C0grid,zlog=False):
+    """ Gets pDM for an arbitrary z value 
+    
+    zlog (bool): True if zs are log-spaced
+                     False if linearly spaced
+    """
     C0=get_C0(z,F,zgrid,Fgrid,C0grid)
-    DMbar=get_mean_DM(z)
-    deltas=DMgrid/DMbar
+    if zlog:
+        DMbar=get_mean_DM(z)
+    else:
+        DMbar=get_log_mean_DM(z)
+    deltas=DMgrid/DMbar #in units of fractional DM
     pDM=pcosmic(deltas,z,F,C0)
     return pDM
 
 
-def get_pDM_grid(state:parameters.State, DMgrid,zgrid,C0s, verbose=False):
+def get_pDM_grid(state:parameters.State, DMgrid,zgrid,C0s, verbose=False, zlog=False):
     """ Gets pDM when the zvals are the same as the zgrid
     state
     C0grid: C0 values obtained by convergence
     DMgrid: range of DMs for which we are generating a histogram
-    zgrid: redshifts
+    zgrid: redshifts. These do not have to be in any particular
+        order or spacing.
+    zlog (bool): True if zs are log-spaced
+                 False if linearly spaced
     
     
     """
     #added H0 dependency
-    DMbars=get_mean_DM(zgrid, state)
+    if zlog:
+        DMbars=get_log_mean_DM(zgrid, state)
+    else:
+        DMbars=get_mean_DM(zgrid, state)
     
     pDMgrid=np.zeros([zgrid.size,DMgrid.size])
     if verbose:
@@ -168,7 +206,7 @@ def get_pDM_grid(state:parameters.State, DMgrid,zgrid,C0s, verbose=False):
     # iterates over zgrid to calculate p_delta_DM
     for i,z in enumerate(zgrid):
         deltas=DMgrid/DMbars[i] # since pDM is defined such that the mean is 1
-        #print("l147",i,z,F,COs[i],deltas)
+        
         pDMgrid[i,:]=pcosmic(deltas,z,state.IGM.F,C0s[i])
         pDMgrid[i,:] /= np.sum(pDMgrid[i,:]) #normalisation
     return pDMgrid
@@ -310,6 +348,8 @@ def integrate_pdm(ddm,ndm,logmean,logsigma,quick=True,plot=False):
     plot (bool): If True, compares quick and slow methods, then exits
         to avoid generating infinite plots.
     
+    Returns:
+        mask (np.ndarray)
     '''
     # do this for the z=0 case
     

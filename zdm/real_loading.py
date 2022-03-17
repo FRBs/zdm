@@ -91,8 +91,6 @@ def surveys_and_grids(init_state=None, alpha_method=1):
         init_state (State, optional):
             Initial state
         survey_name (str, optional):  Defaults to 'CRAFT/CRACO_1_5000'.
-        lum_func (int, optional): Flag for the luminosity function. 
-            0=power-law, 1=gamma.  Defaults to 0.
         state_dict (dict, optional):
             Used to init state instead of alpha_method, lum_func parameters
 
