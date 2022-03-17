@@ -348,6 +348,8 @@ def integrate_pdm(ddm,ndm,logmean,logsigma,quick=True,plot=False):
     plot (bool): If True, compares quick and slow methods, then exits
         to avoid generating infinite plots.
     
+    Returns:
+        mask (np.ndarray)
     '''
     # do this for the z=0 case
     

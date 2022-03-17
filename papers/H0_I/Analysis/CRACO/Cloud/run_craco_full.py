@@ -43,7 +43,9 @@ def main(pargs, pfile:str, oproot:str, NFRB:int=None, iFRB:int=0,
         line = []
         # Which CPU is running out of the total?
         iCPU = (batch-1)*pargs.ncpu + kk
-        outfile = os.path.join(outdir, oproot.replace('.csv', f'{iCPU+1}.csv'))
+        outfile = os.path.join(
+            outdir, oproot.replace('.csv', 
+                                   f'{iCPU+1}.csv'))
         # Command
         line = ['zdm_build_cube', 
                 '-n', f'{iCPU+1}',
