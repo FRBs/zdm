@@ -18,6 +18,10 @@ spec:
                 values:
                   - k8s-chase-ci-01.noc.ucsb.edu
                   - ucm-fiona01.ucmerced.edu
+              - key: nvidia.com/gpu.product
+                operator: In
+                values:
+                  - NVIDIA-GeForce-GTX-1080-Ti
       containers:
       - name: container
         image: localhost:30081/profxj/zdm_docker:latest  # UPDATE
@@ -65,7 +69,6 @@ spec:
             mountPath: "/dev/shm"
       nodeSelector:
         nautilus.io/disktype: nvme
-        gpu-type: "1080Ti"  # titan-xp
       restartPolicy: Never
       volumes:
         # Secrets file for nautilus s3 credentials .aws/credentials and .s3cfg
