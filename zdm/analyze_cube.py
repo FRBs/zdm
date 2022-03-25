@@ -129,6 +129,36 @@ def slurp_cube(input_file:str, prefix:str, outfile:str,
     print(f"Wrote: {outfile}")
 
 
+def apply_gaussian_prior(lls:np.ndarray,
+                    iparam:int,
+                    values:np.ndarray,
+                    mean:float,
+                    sigma:float):
+    """
+    Applies a prior to parameter iparam
+    with mean mean and deviation sigma.
+    
+    Returns a vector of length lls modified
+    by that prior.
+    """
+    NDIMS= len(lls.shape)
+    if iparam < 0 or iparam >= NDIMS:
+        raise ValueError("Data only has ",NDIMS," dimensions.",
+            "Please select iparam between 0 and ",NDIMS-1," not ",iparam)
+    
+    wlls = np.copy(lls)
+    
+    for iv,val in enumerate(values):
+        # select ivth value from iparam dimension
+        big_slice = [slice(None,None,None)]*NDIMS
+        big_slice[iparam] = iv
+        
+        #calculate weights. Yes I know this is silly.
+        weight = np.exp(-0.5*((val-mean)/sigma)**2)
+        weight = np.log10(weight)
+        wlls[tuple(big_slice)] += weight
+    return wlls
+    
 def get_bayesian_data(lls:np.ndarray, 
                       plls:np.ndarray=None, 
                       pklfile=None):
@@ -162,9 +192,6 @@ def get_bayesian_data(lls:np.ndarray,
     if plls is not None:
         w_global_max = np.nanmax(plls)
         plls = plls - w_global_max
-    
-           
-    
     
     uvals=[]
     
@@ -571,9 +598,15 @@ def do_single_plots(uvals,vectors,wvectors,names,tag=None, fig_exten='.png',
     """ Generate a series of 1D plots of the cube parameters
 
     Args:
-        uvals (np.ndarray): [description]
-        vectors (): [description]
-        wvectors ([type]): [description]
+        uvals (list): List, each element containing a
+            np.ndarray giving the parameter values
+            for each parameter. Total length nparams.
+        vectors (list): [For each parameter, contains
+            an unweighted vector giving
+            1D probabilities for that value of the parameter]
+        wvectors ([list]): [For each parameter, contains
+            a weighted (with prior) vector giving
+            1D probabilities for that value of the parameter]
         names ([type]): [description]
         tag ([type], optional): [description]. Defaults to None.
         fig_exten (str, optional): [description]. Defaults to '.png'.
