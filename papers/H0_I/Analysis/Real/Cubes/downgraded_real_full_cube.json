@@ -23,7 +23,7 @@
         "DC": "cosmo",
         "min": 55.0, 
         "max": 85.0, 
-        "n": 31
+        "n": 16
     },
     "alpha": {
         "DC": "energy",
