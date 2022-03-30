@@ -31,17 +31,17 @@ def main():
     # Initialise surveys and grids
     
     # The below is for private, unpublished FRBs. You will NOT see this in the repository!
-    #names = ['private_CRAFT_ICS','private_CRAFT_ICS_892','private_CRAFT_ICS_1632']
+    names = ['private_CRAFT_ICS','private_CRAFT_ICS_892','private_CRAFT_ICS_1632']
     
     # Public CRAFT FRBs
-    names = ['CRAFT_ICS','CRAFT_ICS_892','CRAFT_ICS_1632']
+    #names = ['CRAFT_ICS','CRAFT_ICS_892','CRAFT_ICS_1632']
     
     #Examples for other FRB surveys
     #names = ['FAST','Arecibo','parkes_mb_class_I_and_II']
     
     # if True, this generates a summed histogram of all the surveys, weighted by
     # the observation time
-    sumit=False
+    sumit=True
     
     
     zvals=[]
@@ -55,23 +55,29 @@ def main():
         surveys.append(s)
         
         if i==0:
+            iz=np.where(g.zvals > 1.)[0][0]
+            idm=np.where(g.dmvals > 1200.)[0][0]
+            E=g.FtoE[iz]*4.4*3.17
+            print("Thresholds are ",g.thresholds[:,iz,idm])
+        
+        if i==0:
             rtot = np.copy(g.rates)*s.TOBS
         else:
-            if name=='Arecibo':
-                # remove high DM vals from rates as per ALFA survey limit
-                delete=np.where(g.dmvals > 2038)[0]
-                g.rates[:,delete]=0.
             rtot += g.rates*s.TOBS
+        if name=='Arecibo':
+            # remove high DM vals from rates as per ALFA survey limit
+            delete=np.where(g.dmvals > 2038)[0]
+            g.rates[:,delete]=0.
         
         print(i,name,s.frbs["Z"])
         for iFRB in s.zlist:
             zvals.append(s.Zs[iFRB])
             dmvals.append(s.DMEGs[iFRB])
-        
+        print("About to plot")
         ############# do 2D plots ##########
         misc_functions.plot_grid_2(g.rates,g.zvals,g.dmvals,
             name=opdir+name+'.pdf',norm=0,log=True,label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$',
-            project=False,FRBDM=s.DMEGs,FRBZ=s.frbs["Z"],Aconts=[0.01,0.1,0.5],zmax=4,DMmax=4000)
+            project=False,FRBDM=s.DMEGs,FRBZ=s.frbs["Z"],Aconts=[0.01,0.1,0.5],zmax=1.5,DMmax=1500)
     
     if sumit:
         # does the final plot of all data
@@ -81,7 +87,7 @@ def main():
         misc_functions.plot_grid_2(g.rates,g.zvals,g.dmvals,
             name=opdir+'combined_localised_FRBs.pdf',norm=0,log=True,
             label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$',
-            project=False,FRBDM=frbdmvals,FRBZ=frbzvals,Aconts=[0.01,0.1,0.5])
+            project=False,FRBDM=frbdmvals,FRBZ=frbzvals,Aconts=[0.01,0.1,0.5],zmax=1.5,DMmax=1500)
     
     
 main()

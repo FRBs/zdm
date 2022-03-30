@@ -129,6 +129,36 @@ def slurp_cube(input_file:str, prefix:str, outfile:str,
     print(f"Wrote: {outfile}")
 
 
+def apply_gaussian_prior(lls:np.ndarray,
+                    iparam:int,
+                    values:np.ndarray,
+                    mean:float,
+                    sigma:float):
+    """
+    Applies a prior to parameter iparam
+    with mean mean and deviation sigma.
+    
+    Returns a vector of length lls modified
+    by that prior.
+    """
+    NDIMS= len(lls.shape)
+    if iparam < 0 or iparam >= NDIMS:
+        raise ValueError("Data only has ",NDIMS," dimensions.",
+            "Please select iparam between 0 and ",NDIMS-1," not ",iparam)
+    
+    wlls = np.copy(lls)
+    
+    for iv,val in enumerate(values):
+        # select ivth value from iparam dimension
+        big_slice = [slice(None,None,None)]*NDIMS
+        big_slice[iparam] = iv
+        
+        #calculate weights. Yes I know this is silly.
+        weight = np.exp(-0.5*((val-mean)/sigma)**2)
+        weight = np.log10(weight)
+        wlls[tuple(big_slice)] += weight
+    return wlls
+    
 def get_bayesian_data(lls:np.ndarray, 
                       plls:np.ndarray=None, 
                       pklfile=None):
@@ -162,9 +192,6 @@ def get_bayesian_data(lls:np.ndarray,
     if plls is not None:
         w_global_max = np.nanmax(plls)
         plls = plls - w_global_max
-    
-           
-    
     
     uvals=[]
     
@@ -567,13 +594,19 @@ def get_2D_maxl_data(lls:np.ndarray,
 
 def do_single_plots(uvals,vectors,wvectors,names,tag=None, fig_exten='.png',
                     dolevels=False,log=True,outdir='SingleFigs/',
-                    vparams_dict=None, prefix=''):
+                    vparams_dict=None, prefix='',truth=None,latexnames=None):
     """ Generate a series of 1D plots of the cube parameters
 
     Args:
-        uvals (np.ndarray): [description]
-        vectors (): [description]
-        wvectors ([type]): [description]
+        uvals (list): List, each element containing a
+            np.ndarray giving the parameter values
+            for each parameter. Total length nparams.
+        vectors (list): [For each parameter, contains
+            an unweighted vector giving
+            1D probabilities for that value of the parameter]
+        wvectors ([list]): [For each parameter, contains
+            a weighted (with prior) vector giving
+            1D probabilities for that value of the parameter]
         names ([type]): [description]
         tag ([type], optional): [description]. Defaults to None.
         fig_exten (str, optional): [description]. Defaults to '.png'.
@@ -624,27 +657,19 @@ def do_single_plots(uvals,vectors,wvectors,names,tag=None, fig_exten='.png',
         
         # get raw ylimits
         ymax=np.max(vectors[i])
-        temp=np.where(wvectors[i] > -900)
+        temp=np.where(vectors[i] > -900)
         
         # set to integers and get range
         ymax=math.ceil(ymax)
         
         ymin=0.
         
-        ####### annoying special by-hand crap #######
-        #if i==1:
-        #    plt.xlim(-2.5,1)
-        #if i==3:
-        #    plt.xlim(0,4)
-        
-        # set limits and ticks
-        #plt.ylim(ymin,ymax)
-        #plt.yticks(yvals)
-        
         #### does unweighted plotting ####
         x=np.linspace(vals[temp][0],vals[temp][-1],400)
-        f=scipy.interpolate.interp1d(vals[temp],vectors[i][temp], kind=kind)
-        y=f(x)
+        
+        # does interpolation in log-space
+        f=scipy.interpolate.interp1d(vals[temp],np.log(vectors[i][temp]), kind=kind)
+        y=np.exp(f(x))
         y[np.where(y < 0.)]=0.
         
         norm=np.sum(y)*(x[1]-x[0]) # integral y dx ~ sum y delta x
@@ -655,27 +680,32 @@ def do_single_plots(uvals,vectors,wvectors,names,tag=None, fig_exten='.png',
         plt.plot(vals[temp],vectors[i][temp],color='blue',linestyle='',marker='s')
         
         # weighted plotting
-        wf=scipy.interpolate.interp1d(vals[temp],wvectors[i][temp],
+        if wvectors is not None:
+            wf=scipy.interpolate.interp1d(vals[temp],np.log(wvectors[i][temp]),
                                       kind=kind)
 
-        wy=wf(x)
-        wy[np.where(wy < 0.)]=0.
-        wnorm=np.sum(wy)*(x[1]-x[0])
-        wnorm = np.abs(wnorm)
-        wvectors[i][temp] /= wnorm
-        wy /= wnorm
-        plt.plot(x,wy,label='Gauss',color='orange',linewidth=lw,linestyle='--')
+            wy=np.exp(wf(x))
+            wy[np.where(wy < 0.)]=0.
+            wnorm=np.sum(wy)*(x[1]-x[0])
+            wnorm = np.abs(wnorm)
+        
+            wvectors[i][temp] /= wnorm
+            wy /= wnorm
+            plt.plot(x,wy,label='Gauss',color='orange',linewidth=lw,linestyle='--')
         
         ax=plt.gca()
         ax.xaxis.set_ticks_position('both')
         #ax.Xaxis.set_ticks_position('both')
-        ymax=np.max([np.max(wy),np.max(y)])
+        if wvectors is not None:
+            ymax=np.max([np.max(wy),np.max(y)])
+        else:
+            ymax=np.max(y)
         
         ymax=(np.ceil(ymax*5.))/5.
         
         
         if dolevels==True:# and i != 1:
-            limvals=np.array([0.015,0.025,0.05,0.16])
+            limvals=np.array([0.0015,0.025,0.05,0.16])
             labels=['99.7%','95%','90%','68%']
             styles=['--',':','-.','-']
             upper=np.max(vectors[i])
@@ -734,144 +764,131 @@ def do_single_plots(uvals,vectors,wvectors,names,tag=None, fig_exten='.png',
                 string += "}$ "
                 results[i,2*iav+1]=v0-xmax
                 results[i,2*iav+2]=v1-xmax
-                # version 1
-                #plt.plot([x[ik1],x[ik2]],[av,av],color='orange',linestyle='-')
-                #if iav==0:
-                #	xbar=(x[ik1]+x[ik2])/2.
-                #plt.text(xbar,av+0.1,labels[iav])
-                #if i==1: #do not plot
-                #	continue
-                # version 2
+                
                 hl=0.03
                 doff=(x[-1]-x[0])/100.
                 ybar=(av+ymax)/2.
                 xbar=(x[ik1]+x[ik2])/2.
-                if ik1 != 0:
-                    if iav==3 and i==4:
-                        ybar -= 0.8
-                    #plt.arrow(x[ik1]+hl,ybar,x[ik2]-x[ik1]-2*hl,0.,color='orange',head_width=0.05,head_length=hl)
-                    plt.plot([x[ik1],x[ik1]],[ymax,y[ik1]],color='blue',linestyle=styles[iav],alpha=0.5)
-                    if i==1:
-                        t=plt.text(x[ik1]+doff*0.5,(ymax)+(-3.6+iav)*0.2*ymax,labels[iav],rotation=90,fontsize=12)
-                        t.set_bbox(dict(facecolor='white', alpha=0.7, edgecolor='white',pad=-1))
-                    
-                if ik2 != wy.size-1:
-                    plt.plot([x[ik2],x[ik2]],[ymax,y[ik2]],color='blue',linestyle=styles[iav],alpha=0.5)
-                    if i != 1:
-                        t=plt.text(x[ik2]-doff*3,(ymax)+(-3.6+iav)*0.2*ymax,labels[iav],rotation=90,fontsize=12)
-                        t.set_bbox(dict(facecolor='white', alpha=0.7, edgecolor='white',pad=-1))
+                
+                # need to separate the plots
+                if wvectors is not None:
+                    if ik1 != 0:
+                        if iav==3 and i==4:
+                            ybar -= 0.8
+                        plt.plot([x[ik1],x[ik1]],[ymax,y[ik1]],color='blue',linestyle=styles[iav],alpha=0.5)
+                        if i==1:
+                            t=plt.text(x[ik1]+doff*0.5,(ymax)+(-3.6+iav)*0.2*ymax,labels[iav],rotation=90,fontsize=12)
+                            t.set_bbox(dict(facecolor='white', alpha=0.7, edgecolor='white',pad=-1))
+                    if ik2 != wy.size-1:
+                        plt.plot([x[ik2],x[ik2]],[ymax,y[ik2]],color='blue',linestyle=styles[iav],alpha=0.5)
+                        if i != 1:
+                            t=plt.text(x[ik2]-doff*3,(ymax)+(-3.6+iav)*0.2*ymax,labels[iav],rotation=90,fontsize=12)
+                            t.set_bbox(dict(facecolor='white', alpha=0.7, edgecolor='white',pad=-1))
+                else:
+                    plt.plot([x[ik1],x[ik1]],[0,y[ik1]],color='red',linestyle=styles[iav])
+                    plt.plot([x[ik2],x[ik2]],[0,y[ik2]],color='red',linestyle=styles[iav])
+                    Dx=x[-1]-x[0]
+                    plt.text(x[ik1]-0.03*Dx,y[ik1]+ymax*0.03,labels[iav],color='red',rotation=90)
+                    plt.text(x[ik2]+0.01*Dx,y[ik2]+ymax*0.03,labels[iav],color='red',rotation=90)
+                    #print("For parameter ",i," CI ",iav, " is ",x[ik1]," to ",x[ik2])
             string += " & "
             
-            
-        
-        plt.plot(vals[temp],wvectors[i][temp],color='orange',linestyle='',marker='o')
-        if dolevels==True:
-            limvals=np.array([0.015,0.025,0.05,0.16])
-            labels=['99.7%','95%','90%','68%']
-            styles=['--',':','-.','-']
-            upper=np.max(wvectors[i])
-            
-            besty=np.max(wy)
-            imax=np.argmax(wy)
-            xmax=x[imax]
-            prior_results[i,0]=xmax
-            string+=" {0:4.2f}".format(xmax)
-            for iav,av in enumerate(limvals):
-                # sets intervals according to highest likelihood
-                if True:
-                    
-                    # this sorts from lowest to highest
-                    sy=np.sort(wy)
-                    # highest to lowest
-                    sy=sy[::-1]
-                    # now 0 to 1
-                    csy=np.cumsum(sy)
-                    csy /= csy[-1]
-                    
-                    # this is the likelihood we cut on
-                    cut=np.where(csy < 1.-2.*av)[0] # allowed values in interval
-                    
-                    cut=cut[-1] # last allowed value
-                    cut=sy[cut]
-                    OK=np.where(wy > cut)[0]
-                    ik1=OK[0]
-                    ik2=OK[-1]
-                    
-                    v0=x[ik1]
-                    v1=x[ik2]
-                if False:
-                    cy=np.cumsum(wy)
-                    cy /= cy[-1] # ignores normalisation in dx direction
-                    
-                    # gets lower value
-                    inside=np.where(cy > av)[0]
-                    ik1=inside[0]
-                    v0=x[ik1]
-                    
-                    # gets upper value
-                    inside=np.where(cy > 1.-av)[0]
-                    ik2=inside[0]
-                    v1=x[ik2]
+        #could just ignore the weightings   
+        if wvectors is not None:
+            plt.plot(vals[temp],wvectors[i][temp],color='orange',linestyle='',marker='o')
+            if dolevels==True:
+                limvals=np.array([0.0015,0.025,0.05,0.16])
+                labels=['99.7%','95%','90%','68%']
+                styles=['--',':','-.','-']
+                upper=np.max(wvectors[i])
                 
-                
-                string += " & $_{"
-                string += "{0:4.2f}".format(v0-xmax)
-                string += "}^{+"
-                string += "{0:4.2f}".format(v1-xmax)
-                string += "}$ "
-                prior_results[i,2*iav+1]=v0-xmax
-                prior_results[i,2*iav+2]=v1-xmax
-                #0:4.2f}^{1:4.2f}$ ".format(v0-xmax,v1-xmax)
-                #print("Parameter ",i," level ",labels[iav]," interval is ",v0,v1)
-                # version 1
-                #plt.plot([x[ik1],x[ik2]],[av,av],color='orange',linestyle='-')
-                #if iav==0:
-                #	xbar=(x[ik1]+x[ik2])/2.
-                #plt.text(xbar,av+0.1,labels[iav])
-                
-                # version 2
-                hl=0.03
-                
-                doff=(x[-1]-x[0])/100.
-                if i==1:
-                    doff=0.001
-                ybar=(av+ymin)/2.
-                xbar=(x[ik1]+x[ik2])/2.
-                if ik1 != 0:
-                    #plt.arrow(x[ik1]+hl,ybar,x[ik2]-x[ik1]-2*hl,0.,color='orange',head_width=0.05,head_length=hl)
-                    plt.plot([x[ik1],x[ik1]],[ymin,wy[ik1]],color='orange',linestyle=styles[iav])
-                    if i ==1:
-                        t=plt.text(x[ik1]+doff*0.5,wy[ik1]/2.2,labels[iav],rotation=90,fontsize=12)
-                        t.set_bbox(dict(facecolor='white', alpha=0.7, edgecolor='white',pad=-1))
+                besty=np.max(wy)
+                imax=np.argmax(wy)
+                xmax=x[imax]
+                prior_results[i,0]=xmax
+                string+=" {0:4.2f}".format(xmax)
+                for iav,av in enumerate(limvals):
+                    # sets intervals according to highest likelihood
+                    if True:
+                        
+                        # this sorts from lowest to highest
+                        sy=np.sort(wy)
+                        # highest to lowest
+                        sy=sy[::-1]
+                        # now 0 to 1
+                        csy=np.cumsum(sy)
+                        csy /= csy[-1]
+                        
+                        # this is the likelihood we cut on
+                        cut=np.where(csy < 1.-2.*av)[0] # allowed values in interval
+                        
+                        cut=cut[-1] # last allowed value
+                        cut=sy[cut]
+                        OK=np.where(wy > cut)[0]
+                        ik1=OK[0]
+                        ik2=OK[-1]
+                        
+                        v0=x[ik1]
+                        v1=x[ik2]
+                    if False:
+                        cy=np.cumsum(wy)
+                        cy /= cy[-1] # ignores normalisation in dx direction
+                        
+                        # gets lower value
+                        inside=np.where(cy > av)[0]
+                        ik1=inside[0]
+                        v0=x[ik1]
+                        
+                        # gets upper value
+                        inside=np.where(cy > 1.-av)[0]
+                        ik2=inside[0]
+                        v1=x[ik2]
                     
-                if ik2 != wy.size-1:
+                    string += " & $_{"
+                    string += "{0:4.2f}".format(v0-xmax)
+                    string += "}^{+"
+                    string += "{0:4.2f}".format(v1-xmax)
+                    string += "}$ "
+                    prior_results[i,2*iav+1]=v0-xmax
+                    prior_results[i,2*iav+2]=v1-xmax
                     
-                    plt.plot([x[ik2],x[ik2]],[ymin,wy[ik2]],color='orange',linestyle=styles[iav])
-                    if i != 1:
-                        t=plt.text(x[ik2]-doff*3,wy[ik2]/2.2,labels[iav],rotation=90,fontsize=12)
-                        t.set_bbox(dict(facecolor='white', alpha=0.7, edgecolor='white',pad=-1))
+                    # version 2
+                    hl=0.03
                     
-                    #plt.arrow(x[ik2]-hl,ybar,-1*(x[ik2]-x[ik1]-2*hl),0.,color='orange',head_width=0.05,head_length=hl)
-                #else:
-                #	plt.plot([x[ik1],x[ik1]],[ymin,av],color='orange',linestyle=styles[iav])
-                #	plt.plot([x[ik2],x[ik2]],[ymin,av],color='orange',linestyle=styles[iav])
-                #	plt.text(x[ik1]+0.01,ybar-0.05,labels[iav],rotation=90)
-                #	plt.text(x[ik2]-0.04,ybar-0.05,labels[iav],rotation=90)
-                    #plt.text([x[ik2]-0.05,ybar-0.05,labels[iav],rotation=90)
-                    
-                    #plt.arrow(xbar,ybar,(x[ik2]-x[ik1]-2*hl)/2,0.,color='orange',head_width=0.05,head_length=hl)
-                    #plt.arrow(xbar,ybar,(x[ik2]-x[ik1]-2*hl)/-2,0.,color='orange',head_width=0.05,head_length=hl)
-                
-                
-                #plt.text(xbar-0.05,ybar+0.05,labels[iav])
-            string += "\\\\"
-            if log:
-                logfile.write(string+'\n')
-            else:
-                print(string)
+                    doff=(x[-1]-x[0])/100.
+                    if i==1:
+                        doff=0.001
+                    ybar=(av+ymin)/2.
+                    xbar=(x[ik1]+x[ik2])/2.
+                    if ik1 != 0:
+                        plt.plot([x[ik1],x[ik1]],[ymin,wy[ik1]],color='orange',linestyle=styles[iav])
+                        if i ==1:
+                            t=plt.text(x[ik1]+doff*0.5,wy[ik1]/2.2,labels[iav],rotation=90,fontsize=12)
+                            t.set_bbox(dict(facecolor='white', alpha=0.7, edgecolor='white',pad=-1))
+                        
+                    if ik2 != wy.size-1:
+                        
+                        plt.plot([x[ik2],x[ik2]],[ymin,wy[ik2]],color='orange',linestyle=styles[iav])
+                        if i != 1:
+                            t=plt.text(x[ik2]-doff*3,wy[ik2]/2.2,labels[iav],rotation=90,fontsize=12)
+                            t.set_bbox(dict(facecolor='white', alpha=0.7, edgecolor='white',pad=-1))
+                string += "\\\\"
+                if log:
+                    logfile.write(string+'\n')
+                else:
+                    print(string)
         plt.ylim(0.,ymax)
-        plt.xlabel(names[i])
-        plt.ylabel('p('+names[i]+')')
+        if truth is not None:
+            plt.plot([truth[i],truth[i]],plt.gca().get_ylim(),color='black',linestyle=':')
+            Dx=x[-1]-x[0]
+            plt.text(truth[i]+0.01*Dx,ymax*0.4,'simulated truth',rotation=90)
+        
+        if latexnames is not None:
+            plt.xlabel(latexnames[i])
+            plt.ylabel('$p($'+latexnames[i]+'$)$')
+        else:
+            plt.xlabel(names[i])
+            plt.ylabel('p('+names[i]+')')
         if i==4:
             plt.legend(loc='upper left',title='Prior on $\\alpha$')
         
