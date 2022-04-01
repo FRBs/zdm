@@ -52,7 +52,7 @@ spec:
             aws --endpoint http://rook-ceph-rgw-nautiluss3.rook s3 cp s3://zdm/Surveys . --recursive --force;
             cd ../../..;
             cd papers/H0_I/Analysis/Real/Cloud;
-            python run_real_full.py -n 30 -t 300 -b 1;
+            python run_real_full.py -n 30 -t 900 -b 1;
             aws --endpoint http://rook-ceph-rgw-nautiluss3.rook s3 cp Output s3://zdm/Cubes/Real/ --recursive --force;
         env:
           - name: "ENDPOINT_URL"
