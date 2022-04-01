@@ -83,7 +83,7 @@ def parse_option():
 
 if __name__ == "__main__":
     # get the argument of training.
-    pfile = '../Cubes/real_full_cube.json'
-    oproot = 'real_full.csv' 
+    pfile = '../Cubes/downgraded_real_full_cube.json'
+    oproot = 'real_down_full.csv' 
     pargs = parse_option()
     main(pargs, pfile, oproot)
