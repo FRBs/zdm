@@ -219,6 +219,9 @@ def get_bayesian_data(lls:np.ndarray,
             #lls=data[set1,llindex]
             lls=origlls[tuple(big_slice)].flatten()
             
+            # ignores all values of 0, which is what missing data is
+            ignore=np.where(lls == 0.)[0]
+            lls[ignore]=-99999
             
             # selects all fits that are close to the peak (i.e. percentage within 0.1%)
             try:
