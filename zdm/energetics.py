@@ -1,9 +1,23 @@
 import numpy as np
-from zdm import cosmology as cos
-import time
+from scipy import interpolate
 import mpmath
 
+from IPython import embed
+
+igamma_splines = {}
+
 ############## this section defines different luminosity functions ##########
+
+def init_igamma_splines(gammas, reinit=False):
+    for gamma in gammas:
+        if gamma not in igamma_splines.keys() or reinit:
+            print(f"Initializing igamma_spline for gamma={gamma}")
+            # values
+            avals = 10**np.linspace(-6, 6., 1000)
+            numer = np.array([float(mpmath.gammainc(
+                gamma, a=iEE)) for iEE in avals])
+            # iGamma
+            igamma_splines[gamma] = interpolate.splrep(avals, numer)
 
 def template_array_cumulative_luminosity_function(Eth,*params):
     """
@@ -133,7 +147,7 @@ def vector_cum_gamma(Eth,*params):
     gamma=params[2]
 
     # Calculate
-    norm = Emax*float(mpmath.gammainc(gamma, a=Emin/Emax))
+    norm = float(mpmath.gammainc(gamma, a=Emin/Emax))
     Eth_Emax = Eth/Emax
     # If this is too slow, we can adopt scipy + recurrance
     numer = np.array([float(mpmath.gammainc(
@@ -143,9 +157,33 @@ def vector_cum_gamma(Eth,*params):
     # Low end
     low= Eth < Emin
     result[low]=1.
-    #high=np.where(Eth > Emax)[0]
-    #if len(high)>0:
-    #    result[high]=0.
+    return result
+
+def vector_cum_gamma_spline(Eth:np.ndarray, *params):
+    """ Calculate cumulative Gamma function using a spline
+
+    Args:
+        Eth (np.ndarray): [description]
+
+    Returns:
+        np.ndarray: [description]
+    """
+    params=np.array(params)
+    Emin=params[0]
+    Emax=params[1]
+    gamma=params[2]
+
+    # Calculate
+    norm = float(mpmath.gammainc(gamma, a=Emin/Emax))
+    Eth_Emax = Eth/Emax
+    if gamma not in igamma_splines.keys():
+        init_igamma_splines([gamma])
+    numer = interpolate.splev(Eth_Emax, igamma_splines[gamma])
+    result=numer/norm
+
+    # Low end
+    low= Eth < Emin
+    result[low]=1.
     return result
 
 def array_diff_gamma(Eth,*params):
@@ -163,7 +201,16 @@ def array_cum_gamma(Eth,*params):
     for a given Eth, where Eth is an N-dimensional array
     """
     dims=Eth.shape
-    result=vector_cum_power_law(Eth.flatten(),*params)
+    result=vector_cum_gamma(Eth.flatten(),*params)
+    result=result.reshape(dims)
+    return result
+
+def array_cum_gamma_spline(Eth,*params):
+    """ Calculates the fraction of bursts above a certain gamma function
+    for a given Eth, where Eth is an N-dimensional array
+    """
+    dims=Eth.shape
+    result=vector_cum_gamma_spline(Eth.flatten(),*params)
     result=result.reshape(dims)
     return result
 
@@ -181,17 +228,3 @@ def vector_diff_gamma(Eth,*params):
     result[low]=1.  # This was 0 and I think it was wrong
     
     return result
-
-######### misc function to load some data - do we ever use it? ##########
-
-def load_data(filename):
-    if filename.endswith('.npy'):
-        data=np.load(filename)
-    elif filename.endswith('.txt') or filename.endswith('.txt'):
-        # assume a simple text file with whitespace separator
-        data=np.loadtxt(filename)
-    else:
-        raise ValueError('unrecognised type on z-dm file ',filename,' cannot read data')
-    return data
-
-

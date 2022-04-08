@@ -16,6 +16,8 @@ from zdm import iteration as it
 
 from IPython import embed
 
+import numpy as np
+
 def make_grids():
 
     ############## Initialise parameters ##############
@@ -31,7 +33,8 @@ def make_grids():
 
     # Update state
     state.update_param_dict(vparams)
-
+    
+    
     ############## Initialise cosmology ##############
     cos.set_cosmology(state)
     cos.init_dist_measures()
@@ -40,7 +43,7 @@ def make_grids():
     # set new to False once this is already initialised
     zDMgrid, zvals,dmvals = misc_functions.get_zdm_grid(
         state, new=True, plot=False, method='analytic')
-
+    
     surveys = []
     names = ['CRAFT/FE', 'CRAFT/ICS', 'CRAFT/ICS892', 'PKS/Mb']
     for survey_name in names:
@@ -53,6 +56,10 @@ def make_grids():
         gprefix='Std_best'
     else:
         raise ValueError("Bad beam method!")
+        
+    
+    filename = "Pickle/"+gprefix+"grids.pkl"
+    os.makedirs(os.path.dirname(filename), exist_ok=True)
     
     if state.analysis.NewGrids:
         print("Generating new grids, set NewGrids=False to save time later")
@@ -68,8 +75,10 @@ def make_grids():
     gICS=grids[1]
     gICS892=grids[2]
     gpks=grids[3]
-    print("Initialised grids")
-
+    print("Initialised grids - printing relative expected detection rates (arbitrary units)")
+    for g in grids:
+        print("Relative detection rate is",np.sum(g.rates)*1e6)
+    
     # Let's update H0 (barely) and find the constant for fun too as part of the test
     vparams = {}
     vparams['lC'] = -0.9

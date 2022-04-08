@@ -1,0 +1,10 @@
+python py/craco_H0_Emax_cube.py -n 1 -m 250 -o Cubes/craco_H0_Emax_cube1.out --clobber &
+python py/craco_H0_Emax_cube.py -n 2 -m 250 -o Cubes/craco_H0_Emax_cube2.out --clobber &
+python py/craco_H0_Emax_cube.py -n 3 -m 250 -o Cubes/craco_H0_Emax_cube3.out --clobber &
+python py/craco_H0_Emax_cube.py -n 4 -m 250 -o Cubes/craco_H0_Emax_cube4.out --clobber &
+python py/craco_H0_Emax_cube.py -n 5 -m 250 -o Cubes/craco_H0_Emax_cube5.out --clobber &
+python py/craco_H0_Emax_cube.py -n 6 -m 250 -o Cubes/craco_H0_Emax_cube6.out --clobber &
+python py/craco_H0_Emax_cube.py -n 7 -m 250 -o Cubes/craco_H0_Emax_cube7.out --clobber &
+python py/craco_H0_Emax_cube.py -n 8 -m 250 -o Cubes/craco_H0_Emax_cube8.out --clobber &
+python py/craco_H0_Emax_cube.py -n 9 -m 250 -o Cubes/craco_H0_Emax_cube9.out --clobber &
+python py/craco_H0_Emax_cube.py -n 10 -m 250 -o Cubes/craco_H0_Emax_cube10.out --clobber &

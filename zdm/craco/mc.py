@@ -8,33 +8,19 @@ This script generates MC samples for CRAFT CRACO.
 from pkg_resources import resource_filename
 import os
 import copy
-import pickle
-import sys
-import scipy as sp
 import numpy as np
 import time
-import argparse
 
-from astropy.cosmology import Planck18
 
-from zdm import cosmology as cos
 from zdm import misc_functions
-from zdm import survey
 from zdm import iteration as it
 from zdm import misc_functions
 from zdm.craco import loading
 
 from IPython import embed
 
-#from zdm import zdm
-#import pcosmic
 import matplotlib.pyplot as plt
-import matplotlib.colors as colors
-import matplotlib.cm as cm
 import matplotlib
-
-from matplotlib.ticker import NullFormatter
-
 
 matplotlib.rcParams['image.interpolation'] = None
 
@@ -50,51 +36,6 @@ def generate(alpha_method=1, Nsamples=10000, do_plots=True,
     outfile='FRBs.txt',
     savefile=None): 
 
-    '''
-    state = load.set_state(alpha_method=alpha_method)
-        
-    ############## Initialise cosmology ##############
-    cos.set_cosmology(state)
-    cos.init_dist_measures()
-    
-    # get the grid of p(DM|z). See function for default values.
-    # set new to False once this is already initialised
-    zDMgrid, zvals,dmvals = misc_functions.get_zdm_grid(
-        state, new=True, plot=False, method='analytic')
-    
-    ############## Initialise surveys ##############
-    
-    
-    NewSurveys=True
-    sprefix='craco_alpha' # faster - fine for max likelihood calculations, not as pretty
-    
-    if NewSurveys:
-        surveys=[survey.load_survey('CRAFT_CRACO_MC_frbs_alpha1', 
-                                    state, dmvals)]
-        
-        if not os.path.isdir('Pickle'):
-            os.mkdir('Pickle')
-        with open('Pickle/'+sprefix+'surveys.pkl', 'wb') as output:
-            pickle.dump(surveys, output, pickle.HIGHEST_PROTOCOL)
-    else:
-        with open('Pickle/'+sprefix+'surveys.pkl', 'rb') as infile:
-            surveys=pickle.load(infile)
-    craco=surveys[0]
-    
-    gprefix=sprefix
-    NewGrids=False
-    
-    if NewGrids:
-        print("Generating new grids, set NewGrids=False to save time later")
-        grids=misc_functions.initialise_grids(
-            surveys,zDMgrid, zvals, dmvals, state, wdist=True)#, source_evolution=source_evolution, alpha_method=alpha_method)
-        with open('Pickle/'+gprefix+'grids.pkl', 'wb') as output:
-            pickle.dump(grids, output, pickle.HIGHEST_PROTOCOL)
-    else:
-        print("Loading grid ",'Pickle/'+gprefix+'grids.pkl')
-        with open('Pickle/'+gprefix+'grids.pkl', 'rb') as infile:
-            grids=pickle.load(infile)
-    '''
     craco, grid = loading.survey_and_grid(alpha_method=alpha_method,
         survey_name=base_survey, lum_func=lum_func)
     
@@ -336,7 +277,7 @@ def do_basic_sample_plots(sample,opdir='Plots'):
 #    outfile='MC_Surveys/CRACO_alpha1_Planck18.dat',
 #    savefile=None)
 
-# Gamma furnction for energies
-generate(alpha_method=1, lum_func=1, Nsamples=5000, do_plots=True,
+# Gamma function for energies
+generate(alpha_method=1, lum_func=2, Nsamples=5000, do_plots=True,
     outfile='MC_Surveys/CRACO_alpha1_Planck18_Gamma.dat',
     savefile=None)

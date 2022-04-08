@@ -21,8 +21,16 @@ from typing import IO
 
 from zdm import beams, parameters
 from zdm import pcosmic
+
+import matplotlib.pyplot as plt
+
 class Survey:
-    """A class to hold an FRB survey"""
+    """A class to hold an FRB survey
+
+    Attributes:
+        frbs (dict): Holds the data for the FRBs
+
+    """
     
     
     def __init__(self):
@@ -54,14 +62,38 @@ class Survey:
         self.mean_efficiencies=mean_efficiencies
         return efficiencies
     
-    def get_efficiency_from_wlist(self,DMlist,wlist,plist,model="Quadrature"):
+    def get_efficiency_from_wlist(self,DMlist,wlist,plist,model="Quadrature",addGalacticDM=True):
         """ Gets efficiency to FRBs
         Returns a list of relative efficiencies
         as a function of dispersion measure for each width given in wlist
+        
+        
+        DMlist:
+            - list of dispersion measures (pc/cm3) at which to calculate efficiency
+        
+        wlist:
+            list of intrinsic FRB widths
+        
+        plist:
+            list of relative probabilities for FRBs to have widths of wlist
+        
+        model: method of estimating efficiency as function of width, DM, and time resolution
+            Takes values of "Quadrature" or "Sammons" (from Mawson Sammons summer project)
+        
+        addGalacticDM:
+            - True: this routine adds in contributions from the MW Halo and ISM, i.e.
+                it acts like DMlist is an extragalactic DM
+            - False: just used the supplied DMlist
+        
         """
         efficiencies=np.zeros([wlist.size,DMlist.size])
+        if addGalacticDM:
+            toAdd = self.DMhalo + np.mean(self.DMGs)
+        else:
+            toAdd = 0.
+        
         for i,w in enumerate(wlist):
-            efficiencies[i,:]=calc_relative_sensitivity(None,DMlist,w,self.meta["FBAR"],self.meta["TRES"],self.meta["FRES"],model=model,dsmear=False)
+            efficiencies[i,:]=calc_relative_sensitivity(None,DMlist+toAdd,w,self.meta["FBAR"],self.meta["TRES"],self.meta["FRES"],model=model,dsmear=False)
         # keep an internal record of this
         self.efficiencies=efficiencies
         self.wplist=plist
@@ -71,7 +103,8 @@ class Survey:
         self.mean_efficiencies=mean_efficiencies #be careful here!!! This may not be what we want!
         return efficiencies
     
-    def process_survey_file(self,filename:str, NFRB:int=None):
+    def process_survey_file(self,filename:str, NFRB:int=None,
+                            iFRB:int=0):
         """ Loads a survey file, then creates 
         dictionaries of the loaded variables 
 
@@ -79,6 +112,9 @@ class Survey:
             filename (str): Survey filename
             NFRB (int, optional): Use only a subset of the FRBs in the Survey file.
                 Mainly used for Monte Carlo analysis
+            iFRB (int, optional): Start grabbing FRBs at this index
+                Mainly used for Monte Carlo analysis
+                Requires that NFRB be set
         """
         info=[]
         keys=[]
@@ -120,6 +156,8 @@ class Survey:
         if self.NFRB==0:
             raise ValueError('No FRBs found in file '+filename) #change this?
 
+        self.iFRB = iFRB
+
 
         self.meta['NFRB']=self.NFRB
         
@@ -128,7 +166,7 @@ class Survey:
 
         if NFRB is not None:
             # Take the first set
-            self.frblist=self.frblist[0:NFRB]
+            self.frblist=self.frblist[iFRB:NFRB+iFRB]
         
         ### first check for the key list to interpret the FRB table
         iKEY=self.do_metakey('KEY')
@@ -160,17 +198,37 @@ class Survey:
         self.do_keyword('SNR',which)
         self.do_keyword('DM',which)
         self.do_keyword('WIDTH',which,0.1) # defaults to unresolved width in time
-        self.do_keyword_char('ID',which,None) # obviously we don't need names!
+        self.do_keyword_char('ID',which,None, dtype='str') # obviously we don't need names,!
         self.do_keyword('Gl',which,None) # Galactic latitude
         self.do_keyword('Gb',which,None) # Galactic longitude
+        #
+        self.do_keyword_char('XRa',which,None, dtype='str') # obviously we don't need names,!
+        self.do_keyword_char('XDec',which,None, dtype='str') # obviously we don't need names,!
         
         self.do_keyword('Z',which,None)
         if self.frbs["Z"] is not None:
-            self.nD=2
+            
             self.Zs=self.frbs["Z"]
+            # checks for any redhsifts identically equal to zero
+            #exactly zero can be bad... only happens in MC generation
+            # 0.001 is chosen as smallest redshift in original fit
+            zeroz = np.where(self.Zs == 0.)[0]
+            if len(zeroz) >0:
+                self.Zs[zeroz]=0.001
+            
+            # checks to see if there are any FRBs which are localised
+            self.zlist = np.where(self.Zs > 0.)[0]
+            if len(self.zlist) < self.NFRB:
+                self.nozlist = np.where(self.Zs < 0.)[0]
+                self.nD=3 # code for both
+            else:
+                self.nozlist = None
+                self.nD=2
         else:
             self.nD=1
             self.Zs=None
+            self.nozlist=np.arange(self.NFRB)
+            self.zlist=None
         
         ### processes galactic contributions
         self.process_dmg()
@@ -198,10 +256,11 @@ class Survey:
         self.NBEAMS=1
         
         self.init=True
-        print("FRB survey succeffully initialised with ",self.NFRB," FRBs")
+        print("FRB survey sucessfully initialised with ",self.NFRB," FRBs starting from", self.iFRB)
         
     def init_DMEG(self,DMhalo):
         """ Calculates extragalactic DMs assuming halo DM """
+        self.DMhalo=DMhalo
         self.DMEGs=self.DMs-self.DMGs-DMhalo
     
     def do_metakey(self,key):
@@ -252,8 +311,15 @@ class Survey:
                 self.meta[key]=default
                 self.frbs[key]=np.full([self.NFRB],default)
     
-    def do_keyword_char(self,key,which,default=-1):
-        """ This kind of key can either be in the metadata, or the table, not both
+    def do_keyword_char(self,key:str,
+                        which:int,default=-1, 
+                        dtype='float'):
+        """
+        Slurp in a set of keywords
+
+        This kind of key can either be in the metadata, 
+        or the table, not both
+
         IF which ==     1: must be metadata
                 2: must be FRB-by-FRB
                 3: could be either
@@ -261,6 +327,16 @@ class Survey:
         If default ==     None: it is OK to not be present
                 -1: fail if not there
                 Another value: set this as the default
+
+        Args:
+            key (str): [description]
+            which (int): [description]
+            default (int, optional): [description]. Defaults to -1.
+            dtype (str, optional): Data type for the variable. Defaults to 'float'.
+
+        Raises:
+            ValueError: [description]
+            ValueError: [description]
         """
         n=self.keys.count(key)
         if (n > 1): # 
@@ -272,9 +348,15 @@ class Survey:
             
         elif (which != 1) and (self.keylist.count(key)==1): #info varies according to each FRB
             ik=self.keylist.index(key)
-            values=np.zeros([self.NFRB])
-            for i,j in enumerate(self.frblist):
-                values[i]=self.info[j][ik]
+            if dtype == 'str':
+                values = []
+                for i,j in enumerate(self.frblist):
+                    values.append(self.info[j][ik])
+                values = np.array(values)
+            else:
+                values=np.zeros([self.NFRB], dtype=dtype)
+                for i,j in enumerate(self.frblist):
+                    values[i]=self.info[j][ik]
             self.frbs[key] = values
         else:
             if default==None:
@@ -315,11 +397,10 @@ class Survey:
             return [i for i, x in enumerate(lst) if x==val]
     
     def get_key(self,key):
-        print(self.keys)
-        print(self.keylist)
-        exit()
-        #if key in self.keys:
-        #    return self.keys
+        #print(self.keys)
+        #print(self.keylist)
+        if key in self.keys:
+            return self.keys
     
     def init_beam(self,nbins=10,plot=False,method=1,thresh=1e-3,Gauss=False):
         """ Initialises the beam """
@@ -349,6 +430,15 @@ class Survey:
         else:
             print("No beam found to initialise...")
             
+    def __repr__(self):
+        """ Over-ride print representation
+
+        Returns:
+            str: Items of the FURBY
+        """
+        repr = '<{:s}: \n'.format(self.__class__.__name__)
+        repr += f'name={self.name}'
+        return repr
     
 
 # implements something like Mawson's formula for sensitivity
@@ -377,7 +467,7 @@ def calc_relative_sensitivity(DM_frb,DM,w,fbar,t_res,nu_res,model='Quadrature',d
     # for this we use the *true* DM at which the FRB was observed
     if dsmear==True:
         measured_dm_smearing=2*(nu_res/1.e3)*k_DM*DM_frb/(fbar/1e3)**3 #smearing factor of FRB in the band
-        uw=w**2-measured_dm_smearing**2-t_res**2
+        uw=w**2-measured_dm_smearing**2-t_res**2 # uses the quadrature model to calculate intrinsic width uw
         if uw < 0:
             uw=0
         else:
@@ -389,7 +479,8 @@ def calc_relative_sensitivity(DM_frb,DM,w,fbar,t_res,nu_res,model='Quadrature',d
         sensitivity=(uw**2+dm_smearing**2+t_res**2)**-0.5
     elif model=='Sammons':
         sensitivity=0.75*(0.93*dm_smearing + uw + 0.35*t_res)**-0.5
-    
+    else:
+        raise ValueError(model," is an unknown DM smearing model --- use Sammons or Quadrature")
     # calculates relative sensitivity to bursts as a function of DM
     return sensitivity
     
@@ -397,7 +488,68 @@ def calc_relative_sensitivity(DM_frb,DM,w,fbar,t_res,nu_res,model='Quadrature',d
     Probably should make this a 'self' function.... oh well, for the future!
     """
 
-def make_widths(s:Survey,wlogmean,wlogsigma,nbins,scale=2,thresh=0.5):
+def geometric_lognormals(lmu1,ls1,lmu2,ls2,bins=None,Nrand=10000,plot=False,Nbins=101):
+    '''
+    Numerically evaluates the resulting distribution of y=\sqrt{x1^2+x2^2},
+    where logx1~normal and logx2~normal with log-mean lmu and 
+    log-sigma ls.
+    This is typically used for two log-normals of intrinsic
+    FRB width and scattering time
+    
+    lmu1, ls1 (float, float): log mean and log-sigma of the first distribution
+    
+    lmu2, ls2 (float, float): log-mean and log-sigma of the second distribution
+    
+    bins (np.ndarray([NBINS+1],dtype='float')): bin edges for resulting plot.
+    
+    Returns:
+        hist: histogram of probability within bins
+        chist: cumulative histogram of probability within bins
+        bins: bin edges for histogram
+    
+    '''
+    
+    #draw from both distributions
+    x1s=np.random.normal(lmu1,ls1,Nrand)
+    x2s=np.random.normal(lmu2,ls2,Nrand)
+    
+    ys=(np.exp(x1s*2)+np.exp(x2s*2))**0.5
+    
+    if bins is None:
+        #bins=np.linspace(0,np.max(ys)/4.,Nbins)
+        delta=1e-3
+        # ensures the first bin begins at 0
+        bins=np.zeros([Nbins+1])
+        bins[1:]=np.logspace(np.log10(np.min(ys))-delta,np.log10(np.max(ys))+delta,Nbins)
+    hist,bins=np.histogram(ys,bins=bins)
+    chist=np.zeros([Nbins+1])
+    chist[1:]=np.cumsum(hist)
+    chist /= chist[-1]
+    
+    if plot:
+        plt.figure()
+        plt.hist(ys,bins=bins)
+        plt.xlabel('$y, Y=\\sqrt{X_1^2+X_2^2}$')
+        plt.ylabel('$P(Y=y)$')
+        plt.tight_layout()
+        plt.savefig('adding_lognormals.pdf')
+        plt.close()
+        
+        lbins=np.linspace(-3.,5.,81)
+        plt.figure()
+        plt.xlabel('$log y, Y=\\sqrt{X_1^2+X_2^2}$')
+        plt.ylabel('$P(logY=logy)$')
+        plt.hist(np.log(ys),bins=lbins)
+        plt.savefig('log_adding_lognormals.pdf')
+        plt.close()
+        
+    
+    # renomalises - total will be less than unity, assuming some large
+    # values fall off the largest bin
+    #hist = hist/Nrand
+    return hist,chist,bins
+    
+def make_widths(s:Survey,state):
     """
 
     Args:
@@ -411,9 +563,19 @@ def make_widths(s:Survey,wlogmean,wlogsigma,nbins,scale=2,thresh=0.5):
     Returns:
         [type]: [description]
     """
-
-
-
+    # just extracting for now toget thrings straight
+    nbins=state.width.Wbins
+    scale=state.width.Wscale
+    thresh=state.width.Wthresh
+    width_method=state.width.Wmethod
+    wlogmean=state.width.Wlogmean
+    wlogsigma=state.width.Wlogsigma
+    
+    slogmean=state.scat.Slogmean
+    slogsigma=state.scat.Slogsigma
+    sfnorm=state.scat.Sfnorm
+    sfpower=state.scat.Sfpower
+    
     
     # constant of DM
     k_DM=4.149 #ms GHz^2 pc^-1 cm^3
@@ -422,39 +584,105 @@ def make_widths(s:Survey,wlogmean,wlogsigma,nbins,scale=2,thresh=0.5):
     nu_res=s.meta['FRES']
     fbar=s.meta['FBAR']
     
+    ###### calculate a characteristic scaling pulse width ########
+    
     # estimates this for a DM of 100
     DM=100
     
     # total smearing factor within a channel
     dm_smearing=2*(nu_res/1.e3)*k_DM*DM/(fbar/1e3)**3 #smearing factor of FRB in the band
     
+    # inevitable width due to dm and time resolution
     wequality=(dm_smearing**2 + tres**2)**0.5
     
-    weights=[]
-    widths=[]
-    norm=(2.*np.pi)**-0.5/wlogsigma
-    args=(wlogmean,wlogsigma,norm)
+    # initialise min/max of width bins
     wmax=wequality*thresh
     wmin=wmax*np.exp(-3.*wlogsigma)
+    # keeps track of numerical normalisation to ensure it ends up at unity
     wsum=0.
-    #print("Initialised wmin, wmax at ",wmin,wmax," from ",logmean,logsigma,wequality,thresh)
-    for i in np.arange(nbins):
-        weight,err=quad(pcosmic.loglognormal_dlog,np.log(wmin),np.log(wmax),args=args)
-        width=(wmin*wmax)**0.5
-        widths.append(width)
-        weights.append(weight)
-        wsum += weight
-        wmin = wmax
-        wmax *= scale
-        #print("After iteration ",i," wmin, max are ",wmin,wmax)
+    
+    ######## generate width distribution ######
+    # arrays to hold widths and weights
+    weights=[]
+    widths=[]
+    
+    if width_method==1:
+        # take intrinsic lognrmal width distribution only
+        # normalisation of a log-normal
+        norm=(2.*np.pi)**-0.5/wlogsigma
+        args=(wlogmean,wlogsigma,norm)
+        
+        for i in np.arange(nbins):
+            weight,err=quad(pcosmic.loglognormal_dlog,np.log(wmin),np.log(wmax),args=args)
+            width=(wmin*wmax)**0.5
+            widths.append(width)
+            weights.append(weight)
+            wsum += weight
+            wmin = wmax
+            wmax *= scale
+    elif width_method==2:
+        # include scattering distribution
+        # scale scattering time according to frequency in logspace
+        slogmean = slogmean + sfpower*np.log(s.meta['FBAR']/sfnorm)
+        
+        #gets cumulative hist and bin edges
+        dist,cdist,cbins=geometric_lognormals(wlogmean,wlogsigma,slogmean,slogsigma)
+        
+        # In the below, imin1 and imin2 are the two indices bracketing the minimum
+        # bin, while imax1 and imax2 bracket the upper max bin
+        imin1=0
+        kmin=0.
+        imin2=1
+        maxbins=cdist.size
+        for i in np.arange(nbins):
+            if i==nbins-1 or wmax >= cbins[-1]:
+                imax2=maxbins-1
+            else:
+                imax2=np.where(cbins > wmax)[0][0]
+                if imax2 >= maxbins:
+                    imax2=maxbins-1
+            
+            imax1=imax2-1
+            
+            # interpolating max bin. kmax applies to imax2, 1-kmax to imax1
+            kmax=(wmax-cbins[imax1])/(cbins[imax2]-cbins[imax1])
+            
+            #these are cumulative bins
+            # the area in the middle is just cmax-cmin
+            cmin=kmin*cdist[imin2]+(1-kmin)*cdist[imin1]
+            cmax=kmax*cdist[imax2]+(1-kmax)*cdist[imax1]
+            if i==0:
+                weight=cmax #forces integration from zero
+            else:
+                weight=cmax-cmin #integrates from bin min to bin max
+            # upper bins becomes lower bins
+            imin1=imax1
+            imin2=imax2
+            kmin=kmax
+            
+            width=(wmin*wmax)**0.5
+            widths.append(width)
+            weights.append(weight)
+            wsum += weight
+            
+            # updates widths of bin mins and maxes
+            wmin = wmax
+            wmax *= scale
+    else:
+        raise ValueError("Width method in make_widths must be 1 or 2, not ",width_method)
     weights[-1] += 1.-wsum #adds defecit here
     weights=np.array(weights)
     widths=np.array(widths)
+    # removes unneccesary bins
+    keep=np.where(weights>1e-4)[0]
+    weights=weights[keep]
+    widths=widths[keep]
+    
     return widths,weights
 
 
 def load_survey(survey_name:str, state:parameters.State, dmvals:np.ndarray,
-                sdir:str=None, NFRB:int=None, Nbeams=None):
+                sdir:str=None, NFRB:int=None, Nbeams=None, iFRB:int=0):
     """Load a survey
 
     Args:
@@ -465,6 +693,9 @@ def load_survey(survey_name:str, state:parameters.State, dmvals:np.ndarray,
         sdir (str, optional): Path to survey files. Defaults to None.
         NFRB (int, optional): Cut the total survey down to a random
             subset [useful for testing]
+        iFRB (int, optional): Start grabbing FRBs at this index
+            Mainly used for Monte Carlo analysis
+            Requires that NFRB be set
 
     Raises:
         IOError: [description]
@@ -486,24 +717,29 @@ def load_survey(survey_name:str, state:parameters.State, dmvals:np.ndarray,
     elif survey_name == 'CRAFT/ICS892':
         dfile = 'CRAFT_ICS_892.dat'
         Nbeams = 5
+    elif survey_name == 'CRAFT/ICS1632':
+        dfile = 'CRAFT_ICS_1632.dat'
+        Nbeams = 5
     elif survey_name == 'PKS/Mb':
         dfile = 'parkes_mb_class_I_and_II.dat'
         Nbeams = 10
+    elif 'private' in survey_name: 
+        dfile = survey_name+'.dat'
+        if Nbeams is None:
+            raise IOError("You must specify Nbeams with a private survey file")
     else: # Should only be used for MC analysis
         dfile = survey_name+'.dat'
+        Nbeams = 5
 
     # Do it
     srvy=Survey()
     srvy.name = survey_name
-    srvy.process_survey_file(os.path.join(sdir, dfile), NFRB=NFRB)
+    srvy.process_survey_file(os.path.join(sdir, dfile), NFRB=NFRB, iFRB=iFRB)
+    #srvy.process_survey_file(os.path.join(sdir, dfile), NFRB=NFRB, iFRB=iFRB)
     srvy.init_DMEG(state.MW.DMhalo)
-    srvy.init_beam(nbins=Nbeams, method=state.beam.method, plot=False,
-                thresh=state.beam.thresh) # tells the survey to use the beam file
-    pwidths,pprobs=make_widths(srvy, 
-                                    state.width.logmean,
-                                    state.width.logsigma,
-                                    state.beam.Wbins,
-                                    scale=state.beam.Wscale)
+    srvy.init_beam(nbins=Nbeams, method=state.beam.Bmethod, plot=False,
+                thresh=state.beam.Bthresh) # tells the survey to use the beam file
+    pwidths,pprobs=make_widths(srvy,state)
     _ = srvy.get_efficiency_from_wlist(dmvals,pwidths,pprobs)
 
     return srvy

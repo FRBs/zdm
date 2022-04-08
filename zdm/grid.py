@@ -1,11 +1,12 @@
 from IPython.terminal.embed import embed
 import numpy as np
+import datetime
+
 from zdm import cosmology as cos
-from zdm import parameters
 from zdm import misc_functions
-from zdm import zdm
+from zdm import energetics
 from zdm import pcosmic
-import time
+from zdm import io
 
 class Grid:
     """A class to hold a grid of z-dm plots
@@ -46,10 +47,11 @@ class Grid:
 
         self.luminosity_function = self.state.energy.luminosity_function
         self.init_luminosity_functions()
-
+        
+        self.nuObs=survey.meta['FBAR']*1e6 #from MHz to Hz
         # Init the grid
         #   THESE SHOULD BE THE SAME ORDER AS self.update()
-        self.pass_grid(zDMgrid.copy(),zvals.copy(),dmvals.copy())  
+        self.parse_grid(zDMgrid.copy(),zvals.copy(),dmvals.copy())  
         self.calc_dV()
         self.smear_dm(smear_mask.copy())
         if wdist:
@@ -60,27 +62,34 @@ class Grid:
             weights=None
         self.calc_thresholds(survey.meta['THRESH'],
                              efficiencies,
-                             weights=weights,
-                             nuObs=survey.meta['FBAR']*1e6)
+                             weights=weights)
         self.calc_pdv()
         self.set_evolution() # sets star-formation rate scaling with z - here, no evoltion...
         self.calc_rates() #includes sfr smearing factors and pdv mult
 
     def init_luminosity_functions(self):
+        """ Set the luminsoity function for FRB energetics """
         if self.luminosity_function==0:  # Power-law
-            self.array_cum_lf=zdm.array_cum_power_law
-            self.vector_cum_lf=zdm.vector_cum_power_law
-            self.array_diff_lf=zdm.array_diff_power_law
-            self.vector_diff_lf=zdm.vector_diff_power_law
+            self.array_cum_lf=energetics.array_cum_power_law
+            self.vector_cum_lf=energetics.vector_cum_power_law
+            self.array_diff_lf=energetics.array_diff_power_law
+            self.vector_diff_lf=energetics.vector_diff_power_law
         elif self.luminosity_function==1:  # Gamma function
-            self.array_cum_lf=zdm.array_cum_gamma
-            self.vector_cum_lf=zdm.vector_cum_gamma
-            self.array_diff_lf=zdm.array_diff_gamma
-            self.vector_diff_lf=zdm.vector_diff_gamma
+            embed(header='79 of grid -- BEST NOT TO USE THIS!!!!')
+            self.array_cum_lf=energetics.array_cum_gamma
+            self.vector_cum_lf=energetics.vector_cum_gamma
+            self.array_diff_lf=energetics.array_diff_gamma
+            self.vector_diff_lf=energetics.vector_diff_gamma
+        elif self.luminosity_function==2:  # Spline gamma function
+            self.array_cum_lf=energetics.array_cum_gamma_spline
+            self.vector_cum_lf=energetics.vector_cum_gamma_spline
+            self.array_diff_lf=energetics.array_diff_gamma
+            self.vector_diff_lf=energetics.vector_diff_gamma
+            # Init
         else:
             raise ValueError("Luminosity function must be 0, not ",self.luminosity_function)
     
-    def pass_grid(self,zDMgrid,zvals,dmvals):
+    def parse_grid(self,zDMgrid,zvals,dmvals):
         self.grid=zDMgrid
         self.zvals=zvals
         self.dmvals=dmvals
@@ -97,9 +106,9 @@ class Grid:
     
     
     def load_grid(self,gridfile,zfile,dmfile):
-        self.grid=zdm.load_data(gridfile)
-        self.zvals=zdm.load_data(zfile)
-        self.dmvals=zdm.load_data(dmfile)
+        self.grid=io.load_data(gridfile)
+        self.zvals=io.load_data(zfile)
+        self.dmvals=io.load_data(dmfile)
         self.check_grid()
         self.volume_grid()
     
@@ -108,7 +117,17 @@ class Grid:
         
         self.nz=self.zvals.size
         self.ndm=self.dmvals.size
-        self.dz=self.zvals[1]-self.zvals[0]
+        
+        # check to see if these are log-spaced
+        if (self.zvals[-1]-self.zvals[-2])/(self.zvals[1]-self.zvals[0]) > 1.01:
+            if np.abs(self.zvals[-1]*self.zvals[0] - self.zvals[-2]*self.zvals[1]) > 0.01:
+                raise ValueError("Cannot determine scaling of zvals, exiting...")
+            self.zlog=True
+            self.dz=np.log(self.zvals[1]/self.zvals[0])
+        else:
+            self.zlog=False
+            self.dz=self.zvals[1]-self.zvals[0]
+        
         self.ddm=self.dmvals[1]-self.dmvals[0]
         shape=self.grid.shape
         if shape[0] != self.nz:
@@ -124,8 +143,12 @@ class Grid:
             else:
                 raise ValueError("wrong shape of grid for zvals and dm vals")
         
+        
         #checks that the grid is approximately linear to high precision
-        expectation=self.dz*np.arange(0,self.nz)+self.zvals[0]
+        if self.zlog:
+            expectation=np.exp(np.arange(0,self.nz)*self.dz)*self.zvals[0]
+        else:
+            expectation=self.dz*np.arange(0,self.nz)+self.zvals[0]
         diff=self.zvals-expectation
         maxoff=np.max(diff**2)
         if maxoff > 1e-6*self.dz:
@@ -143,10 +166,15 @@ class Grid:
         
         Does this only in the z-dimension (for obvious reasons!)
         """
+        
         if (cos.INIT is False) or reINIT:
             #print('WARNING: cosmology not yet initiated, using default parameters.')
             cos.init_dist_measures()
-        self.dV=cos.dvdtau(self.zvals)*self.dz
+        if self.zlog:
+            # if zlog, dz is actually .dlogz. And dlogz/dz=1/z, i.e. dz= z dlogz
+            self.dV=cos.dvdtau(self.zvals)*self.dz*self.zvals
+        else:
+            self.dV=cos.dvdtau(self.zvals)*self.dz
         
     
     def EF(self,alpha=0,bandwidth=1e9):
@@ -207,7 +235,6 @@ class Grid:
         # for some arbitrary reason, we treat the beamshape slightly differently... no need to keep an intermediate product!
         for i,b in enumerate(self.beam_b):
             for j,w in enumerate(self.eff_weights):
-                
                 if j==0:
                     self.b_fractions[:,:,i] = self.beam_o[i]*w*self.array_cum_lf(
                         self.thresholds[j,:,:]/b,Emin,Emax,
@@ -216,6 +243,7 @@ class Grid:
                     self.b_fractions[:,:,i] += self.beam_o[i]*w*self.array_cum_lf(
                         self.thresholds[j,:,:]/b,Emin,Emax,
                         self.state.energy.gamma)
+                
                 
         # here, b-fractions are unweighted according to the value of b.
         self.fractions=np.sum(self.b_fractions,axis=2) # sums over b-axis [ we could ignore this step?]
@@ -244,34 +272,12 @@ class Grid:
             exit()
         
         self.sfr_smear=np.multiply(self.smear_grid.T,self.sfr).T
-            # we do not NEED the following, but it records this info 
-            # for faster computation later
-            #self.sfr_smear_grid=np.multiply(self.smear_grid.T,self.sfr).T
-            #self.pdv_sfr=np.multiply(self.pdv.T,self.sfr)
         
         self.rates=self.pdv*self.sfr_smear
         
-        #try:
-        #    self.smear_grid
-        #except:
-        #    print("WARNING: DM grid has not yet been smeared for DMx!")
-        #    self.pdv_smear=self.pdv*self.grid
-        #else:
-        #    self.pdv_smear=self.pdv*self.sfr_smear
-        #
-        #try:
-        #    self.sfr
-        #except:
-        #    print("WARNING: no evolutionary weight yet applied")
-        #else:
-        #    self.rates=np.multiply(self.pdv_smear.T,self.sfr).T
-            # we do not NEED the following, but it records this info 
-            # for faster computation later
-            #self.sfr_smear_grid=np.multiply(self.smear_grid.T,self.sfr).T
-            #self.pdv_sfr=np.multiply(self.pdv.T,self.sfr)
         
     def calc_thresholds(self, F0:float, eff_table, 
-                        bandwidth=1e9, nuObs=1.3e9, 
+                        bandwidth=1e9, 
                         nuRef=1.3e9, weights=None):
         """ Sets the effective survey threshold on the zdm grid
 
@@ -291,7 +297,6 @@ class Grid:
         """
         # keep the inputs for later use
         self.F0=F0
-        self.nuObs=nuObs
         self.nuRef=nuRef
         
         self.bandwidth=bandwidth
@@ -310,7 +315,6 @@ class Grid:
             self.eff_table=eff_table
         Eff_thresh=F0/self.eff_table
         
-        
         self.EF(self.state.energy.alpha, bandwidth) #sets FtoE values - could have been done *WAY* earlier
         
         self.thresholds=np.zeros([self.nthresh,self.zvals.size,self.dmvals.size])
@@ -321,6 +325,7 @@ class Grid:
         # We loop over nthesh and generate a NDM x Nz array for each
         for i in np.arange(self.nthresh):
             self.thresholds[i,:,:]=np.outer(self.FtoE,Eff_thresh[i,:])
+        
         
         
     def smear_dm(self,smear:np.ndarray):#,mean:float,sigma:float):
@@ -336,14 +341,10 @@ class Grid:
         
         ls=smear.size
         lz,ldm=self.grid.shape
-        #self.smear_mean=mean
-        #self.smear_sigma=sigma
-        self.smear_grid=np.zeros([lz,ldm])
+        
+        if not hasattr(self, 'smear_grid'):
+            self.smear_grid=np.zeros([lz,ldm])
         self.smear=smear
-        #for j in np.arange(ls,ldm):
-        #    self.smear_grid[:,j]=np.sum(np.multiply(self.grid[:,j-ls:j],smear[::-1]),axis=1)
-        #for j in np.arange(ls):
-        #    self.smear_grid[:,j]=np.sum(np.multiply(self.grid[:,:j+1],np.flip(smear[:j+1])),axis=1)
         
         # this method is O~7 times faster than the 'brute force' above for large arrays
         for i in np.arange(lz):
@@ -390,7 +391,7 @@ class Grid:
         
         """
         # Boost?
-        if self.state.energy.luminosity_function == 1:
+        if self.state.energy.luminosity_function in [1,2]:
             Emax_boost = 2.
         else:
             Emax_boost = 0.
@@ -403,7 +404,8 @@ class Grid:
         sample=[]
         pwb=None #feeds this back to save time. Lots of time.
         for i in np.arange(NFRB):
-            print(i)
+            if (i % 100) == 0:
+                print(i)
             frb,pwb=self.GenMCFRB(pwb, Emax_boost=Emax_boost)
             sample.append(frb)
         sample=np.array(sample)
@@ -552,6 +554,8 @@ class Grid:
         FRBparams=[MCz,MCDM,MCb,j,MCs]
         return FRBparams,pwb
         
+    def build_sz(self):
+        pass
 
     def update(self, vparams:dict, ALL=False, prev_grid=None):
         """Update the grid based on a set of input
@@ -619,6 +623,15 @@ class Grid:
             set_evol = True
             new_sfr_smear = True
 
+        # IGM
+        if self.chk_upd_param('F', vparams, update=True):
+            get_zdm = True
+            smear_dm = True
+            calc_thresh = True
+            calc_pdv = True
+            set_evol = True
+            new_sfr_smear = True
+
         # Mask?
         # IT IS IMPORTANT TO USE np.any so that each item is executed!!
         if np.any([self.chk_upd_param('lmean', vparams, update=True), 
@@ -626,7 +639,6 @@ class Grid:
             smear_mask = True
             smear_dm = True
             new_sfr_smear=True
-
 
         # SFR?
         if self.chk_upd_param('sfr_n', vparams, update=True):
@@ -663,11 +675,13 @@ class Grid:
         if get_zdm or ALL:
             if prev_grid is None:
                 zDMgrid, zvals,dmvals=misc_functions.get_zdm_grid(
-                    self.state, new=True,plot=False,method='analytic')
-                self.pass_grid(zDMgrid,zvals,dmvals)
+                    self.state, new=True,plot=False,method='analytic',
+                    save=False,nz=self.zvals.size,zmax=self.zvals[-1],
+                    ndm=self.dmvals.size,dmmax=self.dmvals[-1],zlog=self.zlog)
+                self.parse_grid(zDMgrid,zvals,dmvals)
             else:
                 # Pass a copy (just to be safe)
-                self.pass_grid(prev_grid.grid.copy(),
+                self.parse_grid(prev_grid.grid.copy(),
                                prev_grid.zvals.copy(),
                                prev_grid.dmvals.copy())
 

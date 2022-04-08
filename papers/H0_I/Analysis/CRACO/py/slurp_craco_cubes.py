@@ -1,0 +1,105 @@
+""" Simple script to slurp """
+
+from zdm import analyze_cube
+
+
+def main(pargs):
+
+    if pargs.run == 'Emax':
+        # Emax
+        input_file = 'Cubes/craco_H0_Emax_cube.json'
+        prefix = 'Cubes/tmp'
+        nsurveys = 1
+
+        # Run it
+        analyze_cube.slurp_cube(input_file, prefix, 'Cubes/craco_H0_Emax_cube.npz',
+                                nsurveys)
+
+    elif pargs.run == 'F':
+        # Emax
+        input_file = 'Cubes/craco_H0_F_cube.json'
+        prefix = 'Cubes/craco_H0_F_cube'
+        nsurveys = 1
+
+        # Run it
+        analyze_cube.slurp_cube(input_file, prefix, 
+                                'Cubes/craco_H0_F_cube.npz',
+                                nsurveys)
+    elif pargs.run == 'mini':
+        # Emax
+        input_file = 'Cubes/craco_mini_cube.json'
+        prefix = 'Cubes/craco_mini'
+        nsurveys = 1
+
+        # Run it
+        analyze_cube.slurp_cube(input_file, prefix, 
+                                'Cubes/craco_mini_cube.npz',
+                                nsurveys)
+    elif pargs.run == 'submini':
+        # Emax
+        input_file = 'Cubes/craco_submini_cube.json'
+        prefix = 'Cubes/craco_submini_cube'
+        nsurveys = 1
+
+        # Run it
+        analyze_cube.slurp_cube(input_file, prefix, 
+                                'Cubes/craco_submini_cube.npz',
+                                nsurveys)
+
+    elif pargs.run == 'sfrEmax':
+        # Emax
+        input_file = 'Cubes/craco_sfr_Emax_cube.json'
+        prefix = 'Cubes/craco_sfr_Emax_cube'
+        nsurveys = 1
+
+        # Run it
+        analyze_cube.slurp_cube(input_file, prefix, 
+                                'Cubes/craco_sfr_Emax_cube.npz',
+                                nsurveys)
+
+    elif pargs.run == 'alphaEmax':
+        # Emax
+        input_file = 'Cubes/craco_alpha_Emax_cube.json'
+        prefix = 'Cubes/craco_alpha_Emax_cube'
+        nsurveys = 1
+
+        # Run it
+        analyze_cube.slurp_cube(input_file, prefix, 
+                                'Cubes/craco_alpha_Emax_cube.npz',
+                                nsurveys)
+    elif pargs.run == 'full':
+        # Emax
+        input_file = 'Cubes/craco_full_cube.json'
+        prefix = 'Cubes/craco_full'
+        nsurveys = 1
+
+        # Run it
+        analyze_cube.slurp_cube(input_file, prefix, 
+                                'Cubes/craco_full_cube.npz',
+                                nsurveys)
+
+
+def parse_option():
+    """
+    This is a function used to parse the arguments in the training.
+    
+    Returns:
+        args: (dict) dictionary of the arguments.
+    """
+    import argparse
+
+    parser = argparse.ArgumentParser("Slurping the cubes")
+    parser.add_argument("run", type=str, help="Run to slurp")
+    #parser.add_argument('--debug', default=False, action='store_true',
+    #                    help='Debug?')
+    args = parser.parse_args()
+    
+    return args
+
+# Command line execution
+if __name__ == '__main__':
+
+    pargs = parse_option()
+    main(pargs)
+
+#  python py/slurp_craco_cubes.py mini

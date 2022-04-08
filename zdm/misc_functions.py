@@ -686,7 +686,7 @@ def width_test(pset,surveys,grids,names,logmean=2,logsigma=1,plot=True,outdir='P
         #DMvals=grids[i].dmvals
         
         # gets the 'practical' widths for this survey
-        pwidths,pprobs=survey.make_widths(s,logmean,logsigma,NP,scale=scale)
+        pwidths,pprobs=survey.make_widths(s,g.state)
         
         pnorm_probs = pprobs / np.max(pprobs)
         
@@ -1556,12 +1556,6 @@ def initialise_grids(surveys: list, zDMgrid: np.ndarray,
     if not isinstance(surveys,list):
         surveys=[surveys]
     
-    # get parameter values
-    #lEmin,lEmax,alpha,gamma,sfr_n,logmean,logsigma,lC,H0=pset
-    #lEmin,lEmax,alpha,gamma,sfr_n,logmean,logsigma,lC,H0=parameters.unpack_pset(params)
-    #Emin=10**lEmin
-    #Emax=10**lEmax
-    
     # generates a DM mask
     # creates a mask of values in DM space to convolve with the DM grid
     mask=pcosmic.get_dm_mask(
@@ -1687,26 +1681,36 @@ def plot_1d(pvec,lset,xlabel,savename,showplot=False):
     plt.close()
     
 # generates grid based on Monte Carlo model
-def get_zdm_grid(state:parameters.State, new=True,plot=False,method='analytic',
-                 nz=500,zmax=5,ndm=1400,dmmax=7000.,
+def get_zdm_grid(state:parameters.State, new=True,
+                 plot=False,method='analytic',
+                 nz=500,zmin=0.01,zmax=5,ndm=1400,dmmax=7000.,
                  datdir='GridData',tag="", orig=False,
-                 verbose=False):
+                 verbose=False, save=False, zlog=False):
     """Generate a grid of z vs. DM for an assumed F value
     for a specified z range and DM range.
 
     Args:
         state (parameters.State): Object holding all the key parameters for the analysis
-        new (bool, optional): [description]. Defaults to True.
-        plot (bool, optional): [description]. Defaults to False.
-        method (str, optional): [description]. Defaults to 'analytic'.
+        new (bool, optional):
+            True (default): generate a new grid
+            False: load from file.
+        plot (bool, optional):
+            True: Make a2D plot of the zdm distribution.
+            False (default): do nothing.
+        method (str, optional): Method of generating p(DM|z).
+            Analytic (default): use pcosic make_c0_grid
+            MC: generate via Monte Carlo using dlas.monte_dm
         nz (int, optional): Size of grid in redshift. Defaults to 500.
-        zmax (int, optional): [description]. Defaults to 5.
+        zmin (float,optional): Minimum z. Used only for log-spaced grids.
+        zmax (float, optional): Maximum z. Defaults to 5.
         ndm (int, optional): Size of grid in DM.  Defaults to 1400.
         dmmax ([type], optional): Maximum DM of grid. Defaults to 7000..
-        datdir (str, optional): [description]. Defaults to 'GridData'.
-        tag (str, optional): [description]. Defaults to "".
+        datdir (str, optional): Directory to load/save grid data. Defaults to 'GridData'.
+        tag (str, optional): Label for grids (unique identifier). Defaults to "".
         orig (bool, optional): Use original calculations for 
             things like C0. Defaults to False.
+        save (bool, optional): Save the grid to disk?
+        zlog (bool, optional): Use a log-spaced redshift grid? Defaults to False.
 
     Returns:
         tuple: zDMgrid, zvals, dmvals
@@ -1730,15 +1734,17 @@ def get_zdm_grid(state:parameters.State, new=True,plot=False,method='analytic',
     #labelled pickled files with H0
     if new:
         
-        #nz=500
-        #zmax=5
-        dz=zmax/nz
-        
-        #ndm=1400
-        #dmmax=7000.
         ddm=dmmax/ndm
         
-        zvals=(np.arange(nz)+1)*dz
+        if zlog:
+            # generates a pseudo-log spacing
+            # grid values increase with \sqrt(log)
+            lzmax=np.log10(zmax)
+            lzmin=np.log10(zmin)
+            zvals=np.logspace(lzmin,lzmax,nz)
+        else:
+            dz=zmax/nz
+            zvals=(np.arange(nz)+1)*dz
         dmvals=(np.arange(ndm)+1)*ddm
         
         dmmeans=dmvals[1:] - (dmvals[1]-dmvals[0])/2.
@@ -1754,15 +1760,11 @@ def get_zdm_grid(state:parameters.State, new=True,plot=False,method='analytic',
             #DMs *= 200000 #seems to be a good fit...
             t1=time.process_time()
             dt=t1-t0
-            print("Done. Took ",dt," seconds")
             hists=[]
             for i,z in enumerate(zvals):
-                print("first 10 DM list for z=",z," is ",DMs[0:10,i])
                 hist,bins=np.histogram(DMs[:,i],bins=dmvals)
                 hists.append(hist)
             all_hists=np.array(hists)
-            #all_hists /= float(nfrb)
-            print(all_hists.shape)
         elif method=='analytic':
             if verbose:
                 print("Generating the zdm analytic grid")
@@ -1775,18 +1777,14 @@ def get_zdm_grid(state:parameters.State, new=True,plot=False,method='analytic',
                 sigma = state.IGM.F / np.sqrt(zvals)
                 C0s = f_C0_3(sigma)
             # generate pDM grid using those COs
-            #zDMgrid=pcosmic.get_pDM_grid(H0,F,dmvals,zvals,C0s)
-            zDMgrid=pcosmic.get_pDM_grid(state,dmvals,zvals,C0s)
-            t1=time.process_time()
-            dt=t1-t0
-            if verbose:
-                print("Done. Took ",dt," seconds")
+            zDMgrid=pcosmic.get_pDM_grid(state,dmvals,zvals,C0s,zlog=zlog)
         
-        np.save(savefile,zDMgrid)
         metadata=np.array([nz,ndm,state.IGM.F])
-        np.save(datfile,metadata)
-        np.save(zfile,zvals)
-        np.save(dmfile,dmvals)
+        if save:
+            np.save(savefile,zDMgrid)
+            np.save(datfile,metadata)
+            np.save(zfile,zvals)
+            np.save(dmfile,dmvals)
     else:
         zDMgrid=np.load(savefile)
         zvals=np.load(zfile)
@@ -1807,7 +1805,7 @@ def get_zdm_grid(state:parameters.State, new=True,plot=False,method='analytic',
         plt.tight_layout()
         plt.savefig('p_dm_slices.pdf')
         plt.close()
-
+    
     return zDMgrid, zvals,dmvals
 
 def plot_zdm_basic_paper(zDMgrid,zvals,dmvals,zmax=1,DMmax=1000,
@@ -2027,7 +2025,7 @@ def plot_grid_2(zDMgrid,zvals,dmvals,
     
     plt.xlabel('z')
     plt.ylabel('${\\rm DM}_{\\rm EG}$')
-    plt.title(title+str(H0))
+    #plt.title(title+str(H0)) # I have removed this default title, use a file naming convention instead
     
     nz,ndm=zDMgrid.shape
     
@@ -2194,7 +2192,7 @@ def plot_grid_2(zDMgrid,zvals,dmvals,
     
     # limit to a reasonable range if logscale
     if log:
-        themax=zDMgrid.max()
+        themax=np.nanmax(zDMgrid)
         themin=int(themax-4)
         themax=int(themax)
         plt.clim(themin,themax)
@@ -2203,7 +2201,8 @@ def plot_grid_2(zDMgrid,zvals,dmvals,
     if FRBZ is not None:
         iDMs=FRBDM/ddm
         iZ=FRBZ/dz
-        plt.plot(iZ,iDMs,'ro',linestyle="")
+        OK = np.where(FRBZ>0)[0]
+        plt.plot(iZ[OK],iDMs[OK],'ro',linestyle="")
         
     # do 1-D projected plots
     if project:
@@ -2233,10 +2232,11 @@ def plot_grid_2(zDMgrid,zvals,dmvals,
                         tick.label.set_fontsize(6)
             
         if FRBZ is not None:
-            hvals=np.zeros(FRBZ.size)
-            for i,Z in enumerate(FRBZ):
+            OK = np.where(FRBZ>0)[0]
+            hvals=np.zeros(FRBZ[OK].size)
+            for i,Z in enumerate(FRBZ[OK]):
                 hvals[i]=xonly[np.where(zvals > Z)[0][0]]
-            axx.plot(FRBZ,hvals,'ro',linestyle="")
+            axx.plot(FRBZ[OK],hvals,'ro',linestyle="")
             for tick in axx.xaxis.get_major_ticks():
                         tick.label.set_fontsize(6)
     else:

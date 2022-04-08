@@ -35,14 +35,22 @@ def set_state(alpha_method=1, cosmo=Planck18):
     vparams['FRBdemo']['source_evolution'] = 0
     
     vparams['beam'] = {}
-    vparams['beam']['thresh'] = 0
-    vparams['beam']['method'] = 2
+    vparams['beam']['Bthresh'] = 0
+    vparams['beam']['Bmethod'] = 2
     
     vparams['width'] = {}
-    vparams['width']['logmean'] = 1.70267
-    vparams['width']['logsigma'] = 0.899148
+    vparams['width']['Wlogmean'] = 1.70267
+    vparams['width']['Wlogsigma'] = 0.899148
     vparams['width']['Wbins'] = 10
     vparams['width']['Wscale'] = 2
+    vparams['width']['Wthresh'] = 0.5
+    vparams['width']['Wmethod'] = 2
+    
+    vparams['scat'] = {}
+    vparams['scat']['Slogmean'] = 0.7
+    vparams['scat']['Slogsigma'] = 1.9
+    vparams['scat']['Sfnorm'] = 600
+    vparams['scat']['Sfpower'] = -4.
     
      # constants of intrinsic width distribution
     vparams['MW']={}
@@ -81,15 +89,22 @@ def set_state(alpha_method=1, cosmo=Planck18):
 
 
 def survey_and_grid(survey_name:str='CRAFT/CRACO_1_5000',
-               alpha_method=1, NFRB:int=100, lum_func:int=0):
+            init_state=None,
+            state_dict=None, iFRB:int=0,
+               alpha_method=1, NFRB:int=100, 
+               lum_func:int=0,sdir=None):
     """ Load up a survey and grid for a CRACO mock dataset
 
     Args:
-        cosmo (str, optional): astropy cosmology. Defaults to 'Planck15'.
+        init_state (State, optional):
+            Initial state
         survey_name (str, optional):  Defaults to 'CRAFT/CRACO_1_5000'.
         NFRB (int, optional): Number of FRBs to analyze. Defaults to 100.
+        iFRB (int, optional): Starting index for the FRBs.  Defaults to 0
         lum_func (int, optional): Flag for the luminosity function. 
             0=power-law, 1=gamma.  Defaults to 0.
+        state_dict (dict, optional):
+            Used to init state instead of alpha_method, lum_func parameters
 
     Raises:
         IOError: [description]
@@ -98,12 +113,15 @@ def survey_and_grid(survey_name:str='CRAFT/CRACO_1_5000',
         tuple: Survey, Grid objects
     """
     # Init state
-    state = set_state(alpha_method=alpha_method)
-
-    # Addiitonal updates
-    state_dict = dict(cosmo=dict(fix_Omega_b_h2=True))
-    state.energy.luminosity_function = lum_func
-    state.update_param_dict(state_dict)
+    if init_state is None:
+        state = set_state(alpha_method=alpha_method)
+        # Addiitonal updates
+        if state_dict is None:
+            state_dict = dict(cosmo=dict(fix_Omega_b_h2=True))
+            state.energy.luminosity_function = lum_func
+        state.update_param_dict(state_dict)
+    else:
+        state = init_state
     
     # Cosmology
     cos.set_cosmology(state)
@@ -112,13 +130,18 @@ def survey_and_grid(survey_name:str='CRAFT/CRACO_1_5000',
     # get the grid of p(DM|z)
     zDMgrid, zvals,dmvals = misc_functions.get_zdm_grid(
         state, new=True, plot=False, method='analytic',
-        datdir=resource_filename('zdm', 'GridData'))
-    
-    ############## Initialise surveys ##############
-    sdir = os.path.join(resource_filename('zdm', 'craco'), 'MC_Surveys')
-    isurvey = survey.load_survey(survey_name, state, dmvals,
-                                 NFRB=NFRB, sdir=sdir, Nbeams=5)
+        datdir=resource_filename('zdm', 'GridData'),
+        zlog=False,nz=500)
 
+    ############## Initialise surveys ##############
+    if sdir is not None:
+        print("Searching for survey in directory ",sdir)
+    else:
+        sdir = os.path.join(resource_filename('zdm', 'craco'), 'MC_Surveys')
+    isurvey = survey.load_survey(survey_name, state, dmvals,
+                                 NFRB=NFRB, sdir=sdir, Nbeams=5,
+                                 iFRB=iFRB)
+    
     # generates zdm grid
     grids = misc_functions.initialise_grids(
         [isurvey], zDMgrid, zvals, dmvals, state, wdist=True)
