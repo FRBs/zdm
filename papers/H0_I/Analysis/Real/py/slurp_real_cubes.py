@@ -27,7 +27,7 @@ if super_mini:
                             'Cubes/real_super_mini_cube.npz',
                             nsurveys)
 
-full = True
+full = False
 if full:
     # Emax
     input_file = 'Cubes/real_full_cube.json'
@@ -37,5 +37,17 @@ if full:
     # Run it
     analyze_cube.slurp_cube(input_file, prefix, 
                             'Cubes/real_full_cube.npz',
+                            nsurveys)
+    
+down_full = True
+if down_full:
+    # Emax
+    input_file = 'Cubes/downgraded_real_full_cube.json'
+    prefix = 'Cubes/real_down_full'
+    nsurveys = 5
+
+    # Run it
+    analyze_cube.slurp_cube(input_file, prefix, 
+                            'Cubes/real_down_full_cube.npz',
                             nsurveys)
     
