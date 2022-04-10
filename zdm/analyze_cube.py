@@ -45,14 +45,14 @@ def slurp_cube(input_file:str, prefix:str, outfile:str,
     param_shape = np.array([0]+cube_shape)[iorder].tolist()[:-1]
 
     # Outputs
-    ll_cube = np.zeros(param_shape)
+    ll_cube = np.zeros(param_shape, dtype=np.float32)
     ll_cube[:] = -9e9
-    lC_cube = np.zeros(param_shape)
+    lC_cube = np.zeros(param_shape, dtype=np.float32)
 
-    pzDM_cube = np.zeros(param_shape)
-    pDM_cube = np.zeros(param_shape)
-    pDMz_cube = np.zeros(param_shape)
-    pz_cube = np.zeros(param_shape)
+    pzDM_cube = np.zeros(param_shape, dtype=np.float32)
+    pDM_cube = np.zeros(param_shape, dtype=np.float32)
+    pDMz_cube = np.zeros(param_shape, dtype=np.float32)
+    pz_cube = np.zeros(param_shape, dtype=np.float32)
 
     survey_items = ['lls', 'P_zDM', 'P_n', 'P_s', 'N']
     names = ['icube'] + PARAMS
