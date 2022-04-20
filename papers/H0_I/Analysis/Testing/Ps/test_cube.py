@@ -36,7 +36,6 @@ import numpy as np
 # this based off the file 
 def main(likelihoods=True,detail=0,verbose=True):
     
-    
     ############## Load up ##############
     pfile = 'gamma_hnot_slice.json'
     input_dict=io.process_jfile(pfile)
