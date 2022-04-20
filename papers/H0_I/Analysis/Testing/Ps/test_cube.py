@@ -12,27 +12,12 @@ It tackles the following questions:
 
 """
 
-import pytest
-
-from pkg_resources import resource_filename
-import os
-import copy
-import pickle
-
-from astropy.cosmology import Planck18
 from zdm import real_loading
-from zdm import cosmology as cos
-from zdm import misc_functions
-from zdm import parameters
-from zdm import survey
 from zdm import iteration as it
-from zdm.craco import loading
 from zdm import io
 
 from IPython import embed
 
-import time
-import numpy as np
 # this based off the file 
 def main(likelihoods=True,detail=0,verbose=True):
     
