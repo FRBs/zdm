@@ -21,6 +21,9 @@ from typing import IO
 
 from zdm import beams, parameters
 from zdm import pcosmic
+
+import matplotlib.pyplot as plt
+
 class Survey:
     """A class to hold an FRB survey
 
@@ -394,11 +397,10 @@ class Survey:
             return [i for i, x in enumerate(lst) if x==val]
     
     def get_key(self,key):
-        print(self.keys)
-        print(self.keylist)
-        exit()
-        #if key in self.keys:
-        #    return self.keys
+        #print(self.keys)
+        #print(self.keylist)
+        if key in self.keys:
+            return self.keys
     
     def init_beam(self,nbins=10,plot=False,method=1,thresh=1e-3,Gauss=False):
         """ Initialises the beam """
@@ -486,7 +488,68 @@ def calc_relative_sensitivity(DM_frb,DM,w,fbar,t_res,nu_res,model='Quadrature',d
     Probably should make this a 'self' function.... oh well, for the future!
     """
 
-def make_widths(s:Survey,wlogmean,wlogsigma,nbins,scale=2,thresh=0.5):
+def geometric_lognormals(lmu1,ls1,lmu2,ls2,bins=None,Nrand=10000,plot=False,Nbins=101):
+    '''
+    Numerically evaluates the resulting distribution of y=\sqrt{x1^2+x2^2},
+    where logx1~normal and logx2~normal with log-mean lmu and 
+    log-sigma ls.
+    This is typically used for two log-normals of intrinsic
+    FRB width and scattering time
+    
+    lmu1, ls1 (float, float): log mean and log-sigma of the first distribution
+    
+    lmu2, ls2 (float, float): log-mean and log-sigma of the second distribution
+    
+    bins (np.ndarray([NBINS+1],dtype='float')): bin edges for resulting plot.
+    
+    Returns:
+        hist: histogram of probability within bins
+        chist: cumulative histogram of probability within bins
+        bins: bin edges for histogram
+    
+    '''
+    
+    #draw from both distributions
+    x1s=np.random.normal(lmu1,ls1,Nrand)
+    x2s=np.random.normal(lmu2,ls2,Nrand)
+    
+    ys=(np.exp(x1s*2)+np.exp(x2s*2))**0.5
+    
+    if bins is None:
+        #bins=np.linspace(0,np.max(ys)/4.,Nbins)
+        delta=1e-3
+        # ensures the first bin begins at 0
+        bins=np.zeros([Nbins+1])
+        bins[1:]=np.logspace(np.log10(np.min(ys))-delta,np.log10(np.max(ys))+delta,Nbins)
+    hist,bins=np.histogram(ys,bins=bins)
+    chist=np.zeros([Nbins+1])
+    chist[1:]=np.cumsum(hist)
+    chist /= chist[-1]
+    
+    if plot:
+        plt.figure()
+        plt.hist(ys,bins=bins)
+        plt.xlabel('$y, Y=\\sqrt{X_1^2+X_2^2}$')
+        plt.ylabel('$P(Y=y)$')
+        plt.tight_layout()
+        plt.savefig('adding_lognormals.pdf')
+        plt.close()
+        
+        lbins=np.linspace(-3.,5.,81)
+        plt.figure()
+        plt.xlabel('$log y, Y=\\sqrt{X_1^2+X_2^2}$')
+        plt.ylabel('$P(logY=logy)$')
+        plt.hist(np.log(ys),bins=lbins)
+        plt.savefig('log_adding_lognormals.pdf')
+        plt.close()
+        
+    
+    # renomalises - total will be less than unity, assuming some large
+    # values fall off the largest bin
+    #hist = hist/Nrand
+    return hist,chist,bins
+    
+def make_widths(s:Survey,state):
     """
 
     Args:
@@ -500,9 +563,19 @@ def make_widths(s:Survey,wlogmean,wlogsigma,nbins,scale=2,thresh=0.5):
     Returns:
         [type]: [description]
     """
-
-
-
+    # just extracting for now toget thrings straight
+    nbins=state.width.Wbins
+    scale=state.width.Wscale
+    thresh=state.width.Wthresh
+    width_method=state.width.Wmethod
+    wlogmean=state.width.Wlogmean
+    wlogsigma=state.width.Wlogsigma
+    
+    slogmean=state.scat.Slogmean
+    slogsigma=state.scat.Slogsigma
+    sfnorm=state.scat.Sfnorm
+    sfpower=state.scat.Sfpower
+    
     
     # constant of DM
     k_DM=4.149 #ms GHz^2 pc^-1 cm^3
@@ -511,34 +584,100 @@ def make_widths(s:Survey,wlogmean,wlogsigma,nbins,scale=2,thresh=0.5):
     nu_res=s.meta['FRES']
     fbar=s.meta['FBAR']
     
+    ###### calculate a characteristic scaling pulse width ########
+    
     # estimates this for a DM of 100
     DM=100
     
     # total smearing factor within a channel
     dm_smearing=2*(nu_res/1.e3)*k_DM*DM/(fbar/1e3)**3 #smearing factor of FRB in the band
     
+    # inevitable width due to dm and time resolution
     wequality=(dm_smearing**2 + tres**2)**0.5
     
-    weights=[]
-    widths=[]
-    norm=(2.*np.pi)**-0.5/wlogsigma
-    args=(wlogmean,wlogsigma,norm)
+    # initialise min/max of width bins
     wmax=wequality*thresh
     wmin=wmax*np.exp(-3.*wlogsigma)
+    # keeps track of numerical normalisation to ensure it ends up at unity
     wsum=0.
-    #print("Initialised wmin, wmax at ",wmin,wmax," from ",logmean,logsigma,wequality,thresh)
-    for i in np.arange(nbins):
-        weight,err=quad(pcosmic.loglognormal_dlog,np.log(wmin),np.log(wmax),args=args)
-        width=(wmin*wmax)**0.5
-        widths.append(width)
-        weights.append(weight)
-        wsum += weight
-        wmin = wmax
-        wmax *= scale
-        #print("After iteration ",i," wmin, max are ",wmin,wmax)
+    
+    ######## generate width distribution ######
+    # arrays to hold widths and weights
+    weights=[]
+    widths=[]
+    
+    if width_method==1:
+        # take intrinsic lognrmal width distribution only
+        # normalisation of a log-normal
+        norm=(2.*np.pi)**-0.5/wlogsigma
+        args=(wlogmean,wlogsigma,norm)
+        
+        for i in np.arange(nbins):
+            weight,err=quad(pcosmic.loglognormal_dlog,np.log(wmin),np.log(wmax),args=args)
+            width=(wmin*wmax)**0.5
+            widths.append(width)
+            weights.append(weight)
+            wsum += weight
+            wmin = wmax
+            wmax *= scale
+    elif width_method==2:
+        # include scattering distribution
+        # scale scattering time according to frequency in logspace
+        slogmean = slogmean + sfpower*np.log(s.meta['FBAR']/sfnorm)
+        
+        #gets cumulative hist and bin edges
+        dist,cdist,cbins=geometric_lognormals(wlogmean,wlogsigma,slogmean,slogsigma)
+        
+        # In the below, imin1 and imin2 are the two indices bracketing the minimum
+        # bin, while imax1 and imax2 bracket the upper max bin
+        imin1=0
+        kmin=0.
+        imin2=1
+        maxbins=cdist.size
+        for i in np.arange(nbins):
+            if i==nbins-1 or wmax >= cbins[-1]:
+                imax2=maxbins-1
+            else:
+                imax2=np.where(cbins > wmax)[0][0]
+                if imax2 >= maxbins:
+                    imax2=maxbins-1
+            
+            imax1=imax2-1
+            
+            # interpolating max bin. kmax applies to imax2, 1-kmax to imax1
+            kmax=(wmax-cbins[imax1])/(cbins[imax2]-cbins[imax1])
+            
+            #these are cumulative bins
+            # the area in the middle is just cmax-cmin
+            cmin=kmin*cdist[imin2]+(1-kmin)*cdist[imin1]
+            cmax=kmax*cdist[imax2]+(1-kmax)*cdist[imax1]
+            if i==0:
+                weight=cmax #forces integration from zero
+            else:
+                weight=cmax-cmin #integrates from bin min to bin max
+            # upper bins becomes lower bins
+            imin1=imax1
+            imin2=imax2
+            kmin=kmax
+            
+            width=(wmin*wmax)**0.5
+            widths.append(width)
+            weights.append(weight)
+            wsum += weight
+            
+            # updates widths of bin mins and maxes
+            wmin = wmax
+            wmax *= scale
+    else:
+        raise ValueError("Width method in make_widths must be 1 or 2, not ",width_method)
     weights[-1] += 1.-wsum #adds defecit here
     weights=np.array(weights)
     widths=np.array(widths)
+    # removes unneccesary bins
+    keep=np.where(weights>1e-4)[0]
+    weights=weights[keep]
+    widths=widths[keep]
+    
     return widths,weights
 
 
@@ -578,6 +717,9 @@ def load_survey(survey_name:str, state:parameters.State, dmvals:np.ndarray,
     elif survey_name == 'CRAFT/ICS892':
         dfile = 'CRAFT_ICS_892.dat'
         Nbeams = 5
+    elif survey_name == 'CRAFT/ICS1632':
+        dfile = 'CRAFT_ICS_1632.dat'
+        Nbeams = 5
     elif survey_name == 'PKS/Mb':
         dfile = 'parkes_mb_class_I_and_II.dat'
         Nbeams = 10
@@ -593,14 +735,11 @@ def load_survey(survey_name:str, state:parameters.State, dmvals:np.ndarray,
     srvy=Survey()
     srvy.name = survey_name
     srvy.process_survey_file(os.path.join(sdir, dfile), NFRB=NFRB, iFRB=iFRB)
+    #srvy.process_survey_file(os.path.join(sdir, dfile), NFRB=NFRB, iFRB=iFRB)
     srvy.init_DMEG(state.MW.DMhalo)
-    srvy.init_beam(nbins=Nbeams, method=state.beam.method, plot=False,
-                thresh=state.beam.thresh) # tells the survey to use the beam file
-    pwidths,pprobs=make_widths(srvy, 
-                                    state.width.logmean,
-                                    state.width.logsigma,
-                                    state.beam.Wbins,
-                                    scale=state.beam.Wscale)
+    srvy.init_beam(nbins=Nbeams, method=state.beam.Bmethod, plot=False,
+                thresh=state.beam.Bthresh) # tells the survey to use the beam file
+    pwidths,pprobs=make_widths(srvy,state)
     _ = srvy.get_efficiency_from_wlist(dmvals,pwidths,pprobs)
 
     return srvy

@@ -35,14 +35,22 @@ def set_state(alpha_method=1, cosmo=Planck18):
     vparams['FRBdemo']['source_evolution'] = 0
     
     vparams['beam'] = {}
-    vparams['beam']['thresh'] = 0
-    vparams['beam']['method'] = 2
+    vparams['beam']['Bthresh'] = 0
+    vparams['beam']['Bmethod'] = 2
     
     vparams['width'] = {}
-    vparams['width']['logmean'] = 1.70267
-    vparams['width']['logsigma'] = 0.899148
+    vparams['width']['Wlogmean'] = 1.70267
+    vparams['width']['Wlogsigma'] = 0.899148
     vparams['width']['Wbins'] = 10
     vparams['width']['Wscale'] = 2
+    vparams['width']['Wthresh'] = 0.5
+    vparams['width']['Wmethod'] = 2
+    
+    vparams['scat'] = {}
+    vparams['scat']['Slogmean'] = 0.7
+    vparams['scat']['Slogsigma'] = 1.9
+    vparams['scat']['Sfnorm'] = 600
+    vparams['scat']['Sfpower'] = -4.
     
      # constants of intrinsic width distribution
     vparams['MW']={}
@@ -122,7 +130,8 @@ def survey_and_grid(survey_name:str='CRAFT/CRACO_1_5000',
     # get the grid of p(DM|z)
     zDMgrid, zvals,dmvals = misc_functions.get_zdm_grid(
         state, new=True, plot=False, method='analytic',
-        datdir=resource_filename('zdm', 'GridData'))
+        datdir=resource_filename('zdm', 'GridData'),
+        zlog=False,nz=500)
 
     ############## Initialise surveys ##############
     if sdir is not None:
@@ -132,7 +141,7 @@ def survey_and_grid(survey_name:str='CRAFT/CRACO_1_5000',
     isurvey = survey.load_survey(survey_name, state, dmvals,
                                  NFRB=NFRB, sdir=sdir, Nbeams=5,
                                  iFRB=iFRB)
-
+    
     # generates zdm grid
     grids = misc_functions.initialise_grids(
         [isurvey], zDMgrid, zvals, dmvals, state, wdist=True)

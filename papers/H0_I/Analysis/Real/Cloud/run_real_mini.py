@@ -42,7 +42,7 @@ def main(pargs, pfile:str, oproot:str, outdir:str='Output'):
         line = []
         # Which CPU is running out of the total?
         iCPU = (batch-1)*pargs.ncpu + kk
-        outfile = os.path.join(outdir, oproot.replace('.out', f'{iCPU+1}.out'))
+        outfile = os.path.join(outdir, oproot.replace('.csv', f'{iCPU+1}.csv'))
         # Command
         line = ['python', 
                 '../py/build_real_cube.py', 
@@ -84,6 +84,6 @@ def parse_option():
 if __name__ == "__main__":
     # get the argument of training.
     pfile = '../Cubes/real_mini_cube.json'
-    oproot = 'real_mini.out' 
+    oproot = 'real_mini.csv' 
     pargs = parse_option()
     main(pargs, pfile, oproot)

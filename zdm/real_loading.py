@@ -1,12 +1,5 @@
 """ Load up the Real data """
 
-######
-# first run this to generate surveys and parameter sets, by 
-# setting NewSurveys=True NewGrids=True
-# Then set these to False and run with command line arguments
-# to generate *many* outputs
-#####
-
 # It should be possible to remove all the matplotlib calls from this
 # but in the current implementation it is not removed.
 import numpy as np
@@ -35,14 +28,22 @@ def set_state(alpha_method=1, cosmo=Planck18):
     vparams['FRBdemo']['source_evolution'] = 0
     
     vparams['beam'] = {}
-    vparams['beam']['thresh'] = 0
-    vparams['beam']['method'] = 2
+    vparams['beam']['Bthresh'] = 0
+    vparams['beam']['Bmethod'] = 2
     
     vparams['width'] = {}
-    vparams['width']['logmean'] = 1.70267
-    vparams['width']['logsigma'] = 0.899148
+    vparams['width']['Wlogmean'] = 1.70267
+    vparams['width']['Wlogsigma'] = 0.899148
     vparams['width']['Wbins'] = 10
     vparams['width']['Wscale'] = 2
+    vparams['width']['Wthresh'] = 0.5
+    vparams['width']['Wmethod'] = 2
+    
+    vparams['scat'] = {}
+    vparams['scat']['Slogmean'] = 0.7
+    vparams['scat']['Slogsigma'] = 1.9
+    vparams['scat']['Sfnorm'] = 600
+    vparams['scat']['Sfpower'] = -4.
     
      # constants of intrinsic width distribution
     vparams['MW']={}
@@ -74,7 +75,7 @@ def set_state(alpha_method=1, cosmo=Planck18):
         vparams['host']['lsigma'] = 0.48
 
     # Gamma
-    vparams['energy']['luminosity_function'] = 1
+    vparams['energy']['luminosity_function'] = 2
         
     state.update_param_dict(vparams)
     state.set_astropy_cosmo(cosmo)
@@ -90,8 +91,6 @@ def surveys_and_grids(init_state=None, alpha_method=1):
         init_state (State, optional):
             Initial state
         survey_name (str, optional):  Defaults to 'CRAFT/CRACO_1_5000'.
-        lum_func (int, optional): Flag for the luminosity function. 
-            0=power-law, 1=gamma.  Defaults to 0.
         state_dict (dict, optional):
             Used to init state instead of alpha_method, lum_func parameters
 

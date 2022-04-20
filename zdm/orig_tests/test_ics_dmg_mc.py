@@ -297,8 +297,8 @@ def survey_and_grid(survey_name:str='CRAFT/CRACO_1_5000',
     # reset survey Galactic DM values
     if DMG is not None:
         pwidths,pprobs=survey.make_widths(isurvey, 
-                                    state.width.logmean,
-                                    state.width.logsigma,
+                                    state.width.Wlogmean,
+                                    state.width.Wlogsigma,
                                     state.beam.Wbins,
                                     scale=state.beam.Wscale)
         isurvey.DMGs[:]=DMG

@@ -1,4 +1,4 @@
-# 25 processors on full; batch 4
+# 25 processors on full; batch 1
 #  kubectl exec -it test-pod -- /bin/bash
 apiVersion: batch/v1
 kind: Job
@@ -41,7 +41,7 @@ spec:
             python setup.py develop;
             cd ../zdm;
             git fetch;
-            git checkout H0_paper;
+            git checkout full_craco;
             python setup.py develop;
             cd papers/H0_I/Analysis/CRACO/Cloud;
             python run_craco_full.py -n 25 -t 250 -b 4;

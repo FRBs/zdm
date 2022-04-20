@@ -43,7 +43,9 @@ def main(pargs, pfile:str, oproot:str, NFRB:int=None, iFRB:int=0,
         line = []
         # Which CPU is running out of the total?
         iCPU = (batch-1)*pargs.ncpu + kk
-        outfile = os.path.join(outdir, oproot.replace('.out', f'{iCPU+1}.out'))
+        outfile = os.path.join(
+            outdir, oproot.replace('.csv', 
+                                   f'{iCPU+1}.csv'))
         # Command
         line = ['zdm_build_cube', 
                 '-n', f'{iCPU+1}',
@@ -91,6 +93,6 @@ def parse_option():
 if __name__ == "__main__":
     # get the argument of training.
     pfile = '../Cubes/craco_full_cube.json'
-    oproot = 'craco_full.out' 
+    oproot = 'craco_full.csv' 
     pargs = parse_option()
     main(pargs, pfile, oproot, NFRB=100, iFRB=100)

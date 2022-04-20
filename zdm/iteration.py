@@ -5,6 +5,7 @@ import time
 from IPython.terminal.embed import embed
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas
 from scipy.optimize import minimize
 # to hold one of these parameters constant, just remove it from the arg set here
 from zdm import cosmology as cos
@@ -175,9 +176,10 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=False,Pn=True,do
         - Note that the *sum* comes to unity, since each bin in rates is already
             normalised by the volume in the dz bin
 
-    dolist = 2
-        llsum,lllist,expected,longlist
+    dolist
+        2: llsum,lllist [Pzdm,Pn,Ps],expected,longlist
             longlist holds the LL for each FRB
+        5: llsum,lllist,expected,[0.,0.,0.,0.]
     
     Pn: Calculate the probability of observing N bursts (Poisson)
     """
@@ -265,17 +267,16 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=False,Pn=True,do
         beam_norm=np.sum(survey.beam_o)
         #in theory, we might want to normalise by the sum of the omeba_b weights, although it does not matter here
         
-        
         for i,b in enumerate(survey.beam_b):
             #iterate over the grid of weights
             bEths=Eths/b #this is the only bit that depends on j, but OK also!
             #now wbEths is the same 2D grid
             #wbEths=bEths #this is the only bit that depends on j, but OK also!
-            bEobs=bEths*survey.Ss[survey.nozlist] #should correctky multiply the last dimensions
+            bEobs=bEths*survey.Ss[survey.nozlist] #should correctly multiply the last dimensions
             for j,w in enumerate(grid.eff_weights):
                 temp=(grid.array_diff_lf(bEobs[j,:,:],Emin,Emax,gamma).T*grid.FtoE).T
                 zpsnr += temp*survey.beam_o[i]*w #weights this be beam solid angle and efficiency
-        
+                
         
         # we have now effectively calculated the local probabilities in the source-counts histogram for a given DM
         # we have to weight this by the sfr_smear factors, and the volumetric probabilities
@@ -427,7 +428,7 @@ def calc_likelihoods_2D(grid,survey,
     
     dolist:
         0: returns total log10 likelihood llsum only [float]
-        1: returns llsum, log10([Pn,Pzdm,Ps]), <Nfrbs>
+        1: returns llsum, log10([Pzdm,Pn,Ps]), <Nfrbs>
         2: as above, plus a 'long list' giving log10(likelihood)
             for each FRB individually
         3: return (llsum, -np.log10(norm)*Zobs.size, 
@@ -435,7 +436,8 @@ def calc_likelihoods_2D(grid,survey,
         4: return (llsum, -np.log10(norm)*Zobs.size, 
                 np.sum(np.log10(pvals)), 
                 pvals.copy(), wzpsnr.copy())
-        5: returns llsum, log10([Pn,Pzdm,Ps]), <Nfrbs>, np.log10([p(z|DM), p(DM), p(DM|z), p(z)])
+        5: returns llsum, log10([Pzdm,Pn,Ps]), <Nfrbs>, 
+            np.log10([p(z|DM), p(DM), p(DM|z), p(z)])
         else: returns nothing (actually quite useful behaviour!)
     
     norm:
@@ -777,7 +779,7 @@ def missing_cube_likelihoods(grids,surveys,todo,outfile,norm=True,psnr=True,star
         
         ### calculates actual values at each point ###
         
-        C,llC,lltot=minimise_const_only(pset,grids,surveys)
+        C,llC=minimise_const_only(pset,grids,surveys)
         pset[7]=C
         
         # for the minimised parameters, set the values
@@ -870,7 +872,7 @@ def cube_likelihoods(grids:list,surveys:list,
     nsets = len(grids)
     lls = np.zeros([nsets])
     
-    f=open(outfile,'a+')
+    #f=open(outfile,'a+')
     
     ### calculates actual values at each point ###
     active=np.zeros([NPARAMS], dtype=int)
@@ -920,6 +922,7 @@ def cube_likelihoods(grids:list,surveys:list,
         vparams[key] = None
 
     # Run!
+    fwrite = True
     for i in np.arange(howmany):
         
         if (i % 100) == 0:
@@ -932,7 +935,8 @@ def cube_likelihoods(grids:list,surveys:list,
                 nth, cube_shape, order='F')))
             current = r_current[iorder]
             #
-            string=str(nth)
+            odict = dict(n=nth)
+            # Time it
             t1=time.process_time()
             # set initial values of parameters - although we could easily do this in  the end loop
             # provided that current is updated properly this does not care about re-ordering
@@ -958,19 +962,21 @@ def cube_likelihoods(grids:list,surveys:list,
                 #    pset[s]=C_p[s]
             
             if const_only:
-                C,llC,lltot=minimise_const_only(
+                C,llC=minimise_const_only(
                     vparams,grids,surveys)
                 vparams['lC']=C
 
             
             # for the minimised parameters, set the values
             for j,n in enumerate(current):
-                string +=' {:8.2f}'.format(vparams[PARAMS[j]])
+                odict[PARAMS[j]] = vparams[PARAMS[j]]
             
-            
+
             # TODO -- Should we do this?
             # in theory we could save the following step if we have already minimised but oh well. Too annoying!
             ll=0.
+            longlistsum=np.array([0.,0.,0.,0.])
+            alistsum=np.array([0.,0.,0.])
             for j,s in enumerate(surveys):
                 if clone is not None and clone[j] > 0:
                     embed(header='1047 of it -- this wont work')
@@ -978,48 +984,66 @@ def cube_likelihoods(grids:list,surveys:list,
                 else:
                     grids[j].update(vparams)
                 if s.nD==1:
-                    lls[j],alist,expected = calc_likelihoods_1D(
-                        grids[j],s,norm=norm,psnr=psnr,dolist=1)
+                    lls[j],alist,expected,longlist = calc_likelihoods_1D(
+                        grids[j],s,norm=norm,psnr=psnr,dolist=5)
                 elif s.nD==2:
-                    lls[j],alist,expected = calc_likelihoods_2D(
-                        grids[j],s,norm=norm,psnr=psnr,dolist=1)
+                    lls[j],alist,expected,longlist = calc_likelihoods_2D(
+                        grids[j],s,norm=norm,psnr=psnr,dolist=5)
                 elif s.nD==3:
                     # mixture of 1 and 2D samples. NEVER calculate Pn twice!
-                    llsum1,alist1,expected1 = calc_likelihoods_1D(
-                        grids[j],s,norm=norm,psnr=psnr,dolist=1)
-                    llsum2,alist2,expected2 = calc_likelihoods_2D(
-                        grids[j],s,norm=norm,psnr=psnr,dolist=1,Pn=False)
+                    llsum1,alist1,expected1,longlist1 = calc_likelihoods_1D(
+                        grids[j],s,norm=norm,psnr=psnr,dolist=5)
+                    llsum2,alist2,expected2, longlist2 = calc_likelihoods_2D(
+                        grids[j],s,norm=norm,psnr=psnr,dolist=5,Pn=False)
                     lls[j] = llsum1+llsum2
                     # adds log-likelihoods for psnrs, pzdm, pn
                     # however, one of these Pn *must* be zero by setting Pn=False
                     alist = [alist1[0]+alist2[0], alist1[1]+alist2[1], alist1[2]+alist2[2]] #messy!
                     expected = expected1 #expected number of FRBs ignores how many are localsied
+                    longlist = [longlist1[0]+longlist2[0], longlist1[1]+longlist2[1], 
+                                longlist1[2]+longlist2[2],
+                                longlist1[3]+longlist2[3]] #messy!
                 else:
                     raise ValueError("Unknown code ",s.nD," for dimensions of survey")
                 # these are slow operations but negligible in the grand scheme of things
                 
-                string += ' {:9.2f}'.format(lls[j]) # for now, we are recording the individual log likelihoods, but not the components
-                string += ' {:9.2f}'.format(alist[0]) # DM / z value likelihood
-                string += ' {:9.2f}'.format(alist[1]) # N events likelihood
-                string += ' {:9.2f}'.format(alist[2]) # SNR likelihoods
-                string += ' {:9.2f}'.format(expected) # expected number of events
+                # accumulate the 'alist' of pn,s,zdm and 'long list' of pzdm factors over multiple surveys
+                longlistsum += np.array(longlist)
+                alistsum += np.array(alist)
                 
+                # save information for individual surveys
+                odict['lls'+str(j)] = lls[j]
+                odict['P_zDM'+str(j)] = alist[0]
+                odict['P_n'+str(j)] = alist[1]
+                odict['P_s'+str(j)] = alist[2]
+                odict['N'+str(j)] = expected
+            
+            # save accumulated information
             ll=np.sum(lls)
-            string += '{:9.2f}'.format(ll)
-            string += '\n'
+            odict['lls'] = ll
+            odict['P_zDM'] = alistsum[0]
+            odict['P_n'] = alistsum[1]
+            odict['P_s'] = alistsum[2]
+            
+            # More!!
+            odict['p_zgDM'] = longlistsum[0]
+            odict['p_DM'] = longlistsum[1]
+            odict['p_DMgz'] = longlistsum[2]
+            odict['p_z'] = longlistsum[3]
+            
             t2=time.process_time()
             if Verbose:
                 print("Iteration ",nth," took ",t2-t1," seconds")
 
             # write output: parameters, likelihoods (and components)
-            f.write(string)
-            
+            tdf = pandas.DataFrame([odict])
+            if fwrite:
+                tdf.to_csv(outfile, index=False)
+                fwrite = False
+            else:
+                tdf.to_csv(outfile, header=False, mode='a', index=False)
         
-        #t1=time.process_time()
-        #print("Loop: ",i+run*howmany," took ", t1-t0," seconds")
-        #t0=t1
-        
-    f.close()
+    return
     
 def my_minimise(vparams:dict,grids,surveys,steps=None,
                 disable=None,Verbose=False,MaxIter=200,psnr=False,
@@ -1798,24 +1822,6 @@ def minimise_const_only(vparams:dict,grids:list,surveys:list,
             grids[j].update(vparams, 
                         prev_grid=grids[j-1] if (
                             j > 0 and use_prev_grid) else None)
-        # Calculate
-        if s.nD==1:
-            lls[j] = calc_likelihoods_1D(grids[j],s,
-                    norm=True,psnr=True,Pn=False) #excludes Pn term
-        elif s.nD==2:
-            lls[j] = calc_likelihoods_2D(grids[j],s,
-                    norm=True,psnr=True,Pn=False, verbose=Verbose) #excludes Pn term
-        elif s.nD==3: # mixture of localised and un-localised
-            lls[j] = calc_likelihoods_1D(grids[j],s,
-                    norm=True,psnr=True,Pn=False) #excludes Pn term
-            lls[j] += calc_likelihoods_2D(grids[j],s,
-                    norm=True,psnr=True,Pn=False) #excludes Pn term
-        else:
-            raise ValueError("Unknown code ",s.nD," for dimensions of survey")
-        
-        if Verbose:
-            print(f"survey={grids[j].survey.name}, lls={lls[j]}")
-        
         ### Assesses total number of FRBs ###
         if s.TOBS is not None:
             r=np.sum(grids[j].rates)*s.TOBS
@@ -1823,8 +1829,7 @@ def minimise_const_only(vparams:dict,grids:list,surveys:list,
             o=s.NORM_FRB
             rs.append(r)
             os.append(o)
-    if Verbose:
-        print("Total sum of ll w/o const is ",np.sum(lls[j]))
+    
     data=np.array([rs,os])
     ratios=np.log10(data[1,:]/data[0,:])
     bounds=(np.min(ratios),np.max(ratios))
@@ -1839,9 +1844,7 @@ def minimise_const_only(vparams:dict,grids:list,surveys:list,
     #newC=vparams['lC']+float(dC)
     newC = grids[j].state.FRBdemo.lC + float(dC)
     llC=-minus_poisson_ps(dC,data)
-    lltot=llC+np.sum(lls)
-    #embed(header='1840 of it')
-    return newC,llC,lltot
+    return newC,llC
     
     
 def set_orders(parameter_order:list, PARAMS:list):

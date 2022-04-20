@@ -1,7 +1,7 @@
 {
     "state": {
         "energy": {
-            "luminosity_function": 1
+            "luminosity_function": 2
         },
         "FRBdemo": {
             "alpha_method": 1
@@ -11,7 +11,7 @@
         }
     },
     "cube": {
-        "parameter_order": ["lC", "sfr_n", "alpha", "lEmax", "gamma", "lmean", "lsigma", "H0"]
+        "parameter_order": ["lC", "sfr_n", "alpha", "lmean", "lsigma", "lEmax", "gamma", "H0"]
     },
     "lEmax": {
         "DC": "energy",
