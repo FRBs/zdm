@@ -35,7 +35,6 @@ def main(likelihoods=True,detail=0,verbose=True):
     
     ############## Initialise ##############
     surveys, grids = real_loading.surveys_and_grids(init_state=state)
-    embed(header='38 of test_cube')
 
     # Exploring
     # grids[-1]
@@ -59,12 +58,13 @@ def main(likelihoods=True,detail=0,verbose=True):
     # After fixing the randomness in weights
     # In [1]: self.b_fractions[0,0,0]
     # Out[1]: 2.223242035802155e-16
+    # In [1]: self.pdv[0, 0]
+    # Out[1]: 3.1927664906019354e-06
+    # In [1]: grids[-1].rates[0]
+    # array([1.05235519e-12, 1.25606645e-09, 1.05937945e-08, ...,
+    #    6.44549795e-13, 6.42316377e-13, 6.40091946e-13])
 
 
-
-
-
-    
     # does EVERYTHING
     run=1
     opfile="local_cube_test.dat"
