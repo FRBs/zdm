@@ -740,6 +740,8 @@ def load_survey(survey_name:str, state:parameters.State, dmvals:np.ndarray,
     srvy.init_beam(nbins=Nbeams, method=state.beam.Bmethod, plot=False,
                 thresh=state.beam.Bthresh) # tells the survey to use the beam file
     pwidths,pprobs=make_widths(srvy,state)
+    if srvy.name == 'parkes_mb_class_I_and_II':
+        embed(header='744 of survey')
     _ = srvy.get_efficiency_from_wlist(dmvals,pwidths,pprobs)
 
     return srvy
