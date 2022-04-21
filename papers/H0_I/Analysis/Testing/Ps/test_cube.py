@@ -35,6 +35,7 @@ def main(likelihoods=True,detail=0,verbose=True):
     
     ############## Initialise ##############
     surveys, grids = real_loading.surveys_and_grids(init_state=state)
+    embed(header='38 of test_cube')
     
     # does EVERYTHING
     run=1
