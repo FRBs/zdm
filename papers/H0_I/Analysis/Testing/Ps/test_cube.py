@@ -56,6 +56,10 @@ def main(likelihoods=True,detail=0,verbose=True):
     # Out[17]: 3.3853247269297123e-07
     # In [19]: grids[-1].thresholds[0,0,0]
     # Out[19]: 4.0384026613336495e+35
+    # After fixing the randomness in weights
+    # In [1]: self.b_fractions[0,0,0]
+    # Out[1]: 2.223242035802155e-16
+
 
 
 

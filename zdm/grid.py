@@ -243,13 +243,13 @@ class Grid:
                     self.b_fractions[:,:,i] += self.beam_o[i]*w*self.array_cum_lf(
                         self.thresholds[j,:,:]/b,Emin,Emax,
                         self.state.energy.gamma)
-                if self.survey.name == 'parkes_mb_class_I_and_II':
-                    embed(header='246 of grid.py')
                 
                 
         # here, b-fractions are unweighted according to the value of b.
         self.fractions=np.sum(self.b_fractions,axis=2) # sums over b-axis [ we could ignore this step?]
         self.pdv=np.multiply(self.fractions.T,self.dV).T
+        if self.survey.name == 'parkes_mb_class_I_and_II':
+            embed(header='246 of grid.py')
 
     def calc_rates(self):
         """ multiplies the rate per cell with the appropriate pdm plot """
