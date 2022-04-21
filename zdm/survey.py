@@ -677,6 +677,8 @@ def make_widths(s:Survey,state):
     keep=np.where(weights>1e-4)[0]
     weights=weights[keep]
     widths=widths[keep]
+    if s.name == 'parkes_mb_class_I_and_II':
+        embed(header='680 of survey')
     
     return widths,weights
 
