@@ -29,11 +29,11 @@ spec:
         resources:
           requests:
             cpu: "1"
-            memory: "2Gi"  # 
+            memory: "1Gi"  # 
             ephemeral-storage: 20Gi  # 
           limits:
             cpu: "2"
-            memory: "4Gi"
+            memory: "2Gi"
             ephemeral-storage: 100Gi
             #nvidia.com/gpu:  "1"  # See docs to exlude certain types
         command: ["/bin/bash", "-c"]
