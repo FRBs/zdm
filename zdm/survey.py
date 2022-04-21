@@ -488,7 +488,8 @@ def calc_relative_sensitivity(DM_frb,DM,w,fbar,t_res,nu_res,model='Quadrature',d
     Probably should make this a 'self' function.... oh well, for the future!
     """
 
-def geometric_lognormals(lmu1,ls1,lmu2,ls2,bins=None,Nrand=10000,plot=False,Nbins=101):
+def geometric_lognormals(lmu1,ls1,lmu2,ls2,bins=None,
+                         Nrand=10000,plot=False,Nbins=101):
     '''
     Numerically evaluates the resulting distribution of y=\sqrt{x1^2+x2^2},
     where logx1~normal and logx2~normal with log-mean lmu and 
@@ -510,6 +511,7 @@ def geometric_lognormals(lmu1,ls1,lmu2,ls2,bins=None,Nrand=10000,plot=False,Nbin
     '''
     
     #draw from both distributions
+    np.random.seed(1234)
     x1s=np.random.normal(lmu1,ls1,Nrand)
     x2s=np.random.normal(lmu2,ls2,Nrand)
     
@@ -626,7 +628,10 @@ def make_widths(s:Survey,state):
         slogmean = slogmean + sfpower*np.log(s.meta['FBAR']/sfnorm)
         
         #gets cumulative hist and bin edges
-        dist,cdist,cbins=geometric_lognormals(wlogmean,wlogsigma,slogmean,slogsigma)
+        dist,cdist,cbins=geometric_lognormals(wlogmean,
+                                              wlogsigma,
+                                              slogmean,
+                                              slogsigma)
         
         # In the below, imin1 and imin2 are the two indices bracketing the minimum
         # bin, while imax1 and imax2 bracket the upper max bin
