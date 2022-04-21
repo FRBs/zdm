@@ -36,6 +36,30 @@ def main(likelihoods=True,detail=0,verbose=True):
     ############## Initialise ##############
     surveys, grids = real_loading.surveys_and_grids(init_state=state)
     embed(header='38 of test_cube')
+
+    # Exploring
+    # grids[-1]
+    # These are identical!
+    #
+    # DIFFERENT
+    # In [7]: grids[-1].rates[0][0]
+    # Out[7]: 1.0728471869760847e-12
+    # In [10]: grids[-1].pdv[0][0]
+    # Out[10]: 3.2549376652150038e-06
+    # Dialing back further
+    # IDENTICAL
+    # In [13]: grids[-1].dV[0]
+    # Out[13]: 85602.6085381501
+    # In [15]: grids[-1].smear[0][0]
+    # Out[15]: 0.0007586531824186714
+    # In [17]: grids[-1].smear_grid[0][0]
+    # Out[17]: 3.3853247269297123e-07
+    # In [19]: grids[-1].thresholds[0,0,0]
+    # Out[19]: 4.0384026613336495e+35
+
+
+
+
     
     # does EVERYTHING
     run=1
