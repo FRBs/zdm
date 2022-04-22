@@ -65,7 +65,6 @@ spec:
             mountPath: "/dev/shm"
       nodeSelector:
         nautilus.io/disktype: nvme
-        gpu-type: "1080Ti"  # titan-xp
       restartPolicy: Never
       volumes:
         # Secrets file for nautilus s3 credentials .aws/credentials and .s3cfg
