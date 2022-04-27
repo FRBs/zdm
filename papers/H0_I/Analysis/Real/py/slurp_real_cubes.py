@@ -3,7 +3,7 @@
 from zdm import analyze_cube
 
 
-mini = True
+mini = False
 if mini:
     # Emax
     input_file = 'Cubes/real_mini_cube.json'
@@ -39,7 +39,7 @@ if full:
                             'Cubes/real_full_cube.npz',
                             nsurveys)
     
-down_full = False
+down_full = True
 if down_full:
     # Emax
     input_file = 'Cubes/downgraded_real_full_cube.json'
