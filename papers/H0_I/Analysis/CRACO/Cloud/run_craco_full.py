@@ -91,8 +91,12 @@ def parse_option():
 
 
 if __name__ == "__main__":
+    pargs = parse_option()
     # get the argument of training.
     pfile = '../Cubes/craco_full_cube.json'
-    oproot = 'craco_full.csv' 
-    pargs = parse_option()
-    main(pargs, pfile, oproot, NFRB=100, iFRB=100)
+
+    #oproot = 'craco_full.csv' 
+    #main(pargs, pfile, oproot, NFRB=100, iFRB=100)
+
+    oproot = 'craco_400_full.csv' 
+    main(pargs, pfile, oproot, NFRB=100, iFRB=400)
