@@ -3,7 +3,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: xavier-zdm-craco-full-8
+  name: xavier-zdm-craco-full-400-8
 spec:
   backoffLimit: 0
   template:
@@ -17,6 +17,10 @@ spec:
                 operator: NotIn
                 values:
                   - k8s-chase-ci-01.noc.ucsb.edu
+              - key: nvidia.com/gpu.product
+                operator: In
+                values:
+                  - NVIDIA-GeForce-GTX-1080-Ti
       containers:
       - name: container
         image: localhost:30081/profxj/zdm_docker:latest  # UPDATE
@@ -41,7 +45,7 @@ spec:
             python setup.py develop;
             cd ../zdm;
             git fetch;
-            git checkout full_craco;
+            git checkout another_craco_100;
             python setup.py develop;
             cd papers/H0_I/Analysis/CRACO/Cloud;
             python run_craco_full.py -n 25 -t 250 -b 8;
@@ -61,7 +65,6 @@ spec:
             mountPath: "/dev/shm"
       nodeSelector:
         nautilus.io/disktype: nvme
-        gpu-type: "1080Ti"  # titan-xp
       restartPolicy: Never
       volumes:
         # Secrets file for nautilus s3 credentials .aws/credentials and .s3cfg
