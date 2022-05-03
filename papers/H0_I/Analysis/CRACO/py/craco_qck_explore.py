@@ -12,12 +12,21 @@ from zdm.craco import loading
 #sys.path.append(os.path.abspath("../../Figures/py"))
 
 def main(pargs):
+    jroot = None
     if pargs.run == 'mini':
         scube = 'mini' 
         outdir = 'Mini/'
     elif pargs.run == 'full':
         scube = 'full' 
         outdir = 'Full/'
+    elif pargs.run == 'full400':
+        scube = '400_full' 
+        jroot = 'full' 
+        outdir = 'Full400/'
+
+    if jroot is None:
+        jroot = scube
+
 
     # Load
     npdict = np.load(f'Cubes/craco_{scube}_cube.npz')
@@ -30,7 +39,7 @@ def main(pargs):
 
     # Cube parameters
     ############## Load up ##############
-    pfile = f'Cubes/craco_{scube}_cube.json'
+    pfile = f'Cubes/craco_{jroot}_cube.json'
     input_dict=io.process_jfile(pfile)
 
     # Deconstruct the input_dict
