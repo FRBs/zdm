@@ -3,7 +3,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: xavier-zdm-craco-full-400-1
+  name: xavier-zdm-craco-full-3rd-1
 spec:
   backoffLimit: 0
   template:
