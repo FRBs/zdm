@@ -45,14 +45,14 @@ def slurp_cube(input_file:str, prefix:str, outfile:str,
     param_shape = np.array([0]+cube_shape)[iorder].tolist()[:-1]
 
     # Outputs
-    ll_cube = np.zeros(param_shape)
+    ll_cube = np.zeros(param_shape, dtype=np.float32)
     ll_cube[:] = -9e9
-    lC_cube = np.zeros(param_shape)
+    lC_cube = np.zeros(param_shape, dtype=np.float32)
 
-    pzDM_cube = np.zeros(param_shape)
-    pDM_cube = np.zeros(param_shape)
-    pDMz_cube = np.zeros(param_shape)
-    pz_cube = np.zeros(param_shape)
+    pzDM_cube = np.zeros(param_shape, dtype=np.float32)
+    pDM_cube = np.zeros(param_shape, dtype=np.float32)
+    pDMz_cube = np.zeros(param_shape, dtype=np.float32)
+    pz_cube = np.zeros(param_shape, dtype=np.float32)
 
     survey_items = ['lls', 'P_zDM', 'P_n', 'P_s', 'N']
     names = ['icube'] + PARAMS
@@ -343,6 +343,9 @@ def get_bayesian_data(lls:np.ndarray,
             #lls=data[set1,llindex]
             lls=origlls[tuple(big_slice)].flatten()
             
+            # ignores all values of 0, which is what missing data is
+            ignore=np.where(lls == 0.)[0]
+            lls[ignore]=-99999
             
             # selects all fits that are close to the peak (i.e. percentage within 0.1%)
             try:
@@ -461,6 +464,10 @@ def get_2D_bayesian_data(lls:np.ndarray,
                     #lls=data[set1,llindex]
                     lls=origlls[tuple(big_slice)].flatten()
                     
+                    # ignores all values of 0, which is what missing data is
+                    ignore=np.where(lls == 0.)[0]
+                    lls[ignore]=-99999
+                    
                     try:
                         themax=np.nanmax(lls)
                     except:
@@ -566,6 +573,9 @@ def get_maxl_data(lls:np.ndarray,
             #lls=data[set1,llindex]
             lls=origlls[tuple(big_slice)].flatten()
             
+            # ignores all values of 0, which is what missing data is
+            ignore=np.where(lls == 0.)[0]
+            lls[ignore]=-99999
             
             # selects all fits that are close to the peak (i.e. percentage within 0.1%)
             try:
@@ -673,10 +683,11 @@ def get_2D_maxl_data(lls:np.ndarray,
                 for jv, jvv in enumerate(uvals[j]):
                     # Construct the slice
                     big_slice[j] = jvv
-                
-                
-                    #lls=data[set1,llindex]
                     lls=origlls[tuple(big_slice)].flatten()
+                    
+                    # ignores all values of 0, which is what missing data is
+                    ignore=np.where(lls == 0.)[0]
+                    lls[ignore]=-99999
                     
                     try:
                         themax=np.nanmax(lls)
@@ -1046,6 +1057,68 @@ def do_single_plots(uvals,vectors,wvectors,names,tag=None, fig_exten='.png',
         return results,prior_results
     else:
         return
+
+def make_1d_plots_by_contribution(data,contributions,labels,prefix="",
+    fig_exten='.png',log=False,splines=True):
+    """
+    contributions: list of vectors giving various likelihood terms
+    Labels: lists labels stating what these are
+    """
+    ######################### 1D plots, split by terms ################
+    all_uvals=[]
+    all_vectors=[]
+    all_wvectors=[]
+    
+    combined=data["pzDM"]+data["pDM"]
+    
+    # gets 1D Bayesian curves for each contribution
+    for datatype in contributions:
+        uvals,vectors,wvectors=get_bayesian_data(datatype)
+        all_uvals.append(uvals)
+        all_vectors.append(vectors)
+        all_wvectors.append(wvectors)
+    
+    params=data["params"]
+    
+    # gets unique values for each axis
+    param_vals=[]
+    param_list=[data["lEmax"],data["H0"],data["alpha"],data["gamma"],data["sfr_n"],data["lmean"],data["lsigma"]]
+    xlatexnames=['\\log_{10} E_{\\rm max} {\\rm [erg]}','H_0 {\\rm [km\,s^{-1}\,Mpc^{-1}]}','\\alpha','\\gamma','n_{\\rm sfr}','\\mu_{\\rm host} {\\rm [pc\,cm^{-3}]}','\\sigma_{\\rm host}']
+    ylatexnames=['\\log_{10} E_{\\rm max}','H_0','\\alpha','\\gamma','n_{\\rm sfr}','\\mu_{\\rm host}','\\sigma_{\\rm host}']
+    
+    for col in param_list:
+        unique=np.unique(col)
+        param_vals.append(unique)
+    
+    # assigns different plotting styles to help distinguish curves
+    linestyles=['-','--','-.',':','-','--','-.',':','-','--','-.',':']
+    for which in np.arange(len(param_list)):
+        plt.figure()
+        plt.xlabel('$'+xlatexnames[which]+'$')
+        plt.ylabel('$p('+ylatexnames[which]+')$')
+        xvals=param_vals[which]
+        #print("Doing this for parameter ",params[which])
+        
+        for idata,vectors in enumerate(all_vectors):
+            if splines:
+                xdata=np.linspace(xvals[0],xvals[-1],100)
+                f=scipy.interpolate.interp1d(xvals,np.log(vectors[which]),
+                                      kind='cubic')
+                ydata=np.exp(f(xdata))
+                plt.plot(xdata,ydata,label=labels[idata],linestyle=linestyles[idata])
+                plt.scatter(xvals,vectors[which],color=plt.gca().lines[-1].get_color())
+            else:
+                ydata=vectors[which]
+                xdata=xvals
+                #print(labels[idata]," has values ",vector)
+                plt.plot(xdata,ydata,label=labels[idata],linestyle=linestyles[idata])
+        
+        if log:
+            plt.yscale('log')
+            #plt.ylim(np.max(vector)*1e-3,np.max(vector)) #improve this
+        plt.legend()
+        plt.savefig(prefix+params[which]+fig_exten)
+        plt.close()
 
 def gen_vparams(indices:tuple, vparam_dict:dict):
     new_dict = {}
