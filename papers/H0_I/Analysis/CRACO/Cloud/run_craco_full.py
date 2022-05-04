@@ -51,8 +51,10 @@ def main(pargs, pfile:str, oproot:str, NFRB:int=None, iFRB:int=0,
                 '-n', f'{iCPU+1}',
                 '-m', f'{nper_cpu}', 
                 '-o', f'{outfile}',
-                '-s', f'CRACO_alpha1_Planck18_Gamma', '--clobber',
-                '-p', f'{pfile}']
+                '-s', f'CRACO_std_May2022', 
+                '-p', f'{pfile}',
+                '--clobber']
+                #'-s', f'CRACO_alpha1_Planck18_Gamma', '--clobber',
         # NFRB?
         if NFRB is not None:
             line += [f'--NFRB', f'{NFRB}']
@@ -95,8 +97,14 @@ if __name__ == "__main__":
     # get the argument of training.
     pfile = '../Cubes/craco_full_cube.json'
 
+    # 1st full run
     #oproot = 'craco_full.csv' 
     #main(pargs, pfile, oproot, NFRB=100, iFRB=100)
 
-    oproot = 'craco_400_full.csv' 
-    main(pargs, pfile, oproot, NFRB=100, iFRB=400)
+    # 2nd full run
+    #oproot = 'craco_400_full.csv' 
+    #main(pargs, pfile, oproot, NFRB=100, iFRB=400)
+
+    # 3rd full run, using May2022 file
+    oproot = 'craco_3rd_full.csv' 
+    main(pargs, pfile, oproot, NFRB=100, iFRB=100)
