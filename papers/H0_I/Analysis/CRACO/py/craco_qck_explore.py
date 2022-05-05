@@ -23,6 +23,10 @@ def main(pargs):
         scube = '400_full' 
         jroot = 'full' 
         outdir = 'Full400/'
+    elif pargs.run == 'full3rd':
+        scube = '3rd_full' 
+        jroot = 'full' 
+        outdir = 'Full3rd/'
 
     if jroot is None:
         jroot = scube
