@@ -3,7 +3,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: xavier-zdm-real-full-2
+  name: xavier-zdm-real-full-12
 spec:
   backoffLimit: 0
   template:
@@ -52,7 +52,7 @@ spec:
             aws --endpoint http://rook-ceph-rgw-nautiluss3.rook s3 cp s3://zdm/Surveys . --recursive --force;
             cd ../../..;
             cd papers/H0_I/Analysis/Real/Cloud;
-            python run_real_full.py -n 30 -t 240 -b 2;
+            python run_real_full.py -n 30 -t 420 -b 12;
             aws --endpoint http://rook-ceph-rgw-nautiluss3.rook s3 cp Output s3://zdm/Cubes/Real/ --recursive --force;
         env:
           - name: "ENDPOINT_URL"
