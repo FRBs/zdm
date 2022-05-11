@@ -34,7 +34,7 @@ sys.path.append(os.path.abspath("../../Analysis/py"))
 import analy_H0_I
 
 def fig_craco_fiducial(outfile='fig_craco_fiducial.png',
-                zmax=2,DMmax=2000,
+                zmax=2.5,DMmax=2500,
                 show_Macquart=False,
                 log=True,
                 label='$\\log_{10} \; p(DM_{\\rm EG},z)$',
@@ -67,9 +67,7 @@ def fig_craco_fiducial(outfile='fig_craco_fiducial.png',
     """
     # Generate the grid
     if grid is None or survey is None:
-        survey, grid = loading.survey_and_grid(
-            survey_name=analy_H0_I.fiducial_survey,
-            NFRB=100, lum_func=1)
+        survey, grid = analy_H0_I.craco_mc_survey_grid()
 
     # Unpack
     full_zDMgrid, zvals, dmvals = grid.rates, grid.zvals, grid.dmvals
@@ -184,13 +182,25 @@ def fig_craco_fiducial(outfile='fig_craco_fiducial.png',
 
 
 def fig_craco_varyH0_zDM(outfile,
-                zmax=2,DMmax=1500,
+                zmax=2.3,DMmax=1500,
                 norm=2, other_param='Emax',
-                Aconts=[0.05]):
+                Aconts=[0.05], fuss_with_ticks:bool=False):
+    """_summary_
+
+    Args:
+        outfile (_type_): _description_
+        zmax (float, optional): _description_. Defaults to 2.3.
+        DMmax (int, optional): _description_. Defaults to 1500.
+        norm (int, optional): _description_. Defaults to 2.
+        other_param (str, optional): _description_. Defaults to 'Emax'.
+        Aconts (list, optional): _description_. Defaults to [0.05].
+        fuss_with_ticks (bool, optional): _description_. Defaults to False.
+    """
     # Generate the grid
-    survey, grid = loading.survey_and_grid(
-        survey_name='CRACO_alpha1_Planck18_Gamma',
-        NFRB=100, lum_func=1)
+    survey, grid = analy_H0_I.craco_mc_survey_grid()
+    #survey, grid = loading.survey_and_grid(
+    #    survey_name='CRACO_alpha1_Planck18_Gamma',
+    #    NFRB=100, lum_func=2)
     fiducial_Emax = grid.state.energy.lEmax
     fiducial_F = grid.state.IGM.F
 
@@ -207,10 +217,13 @@ def fig_craco_varyH0_zDM(outfile,
         H0_values = [60., 70., 80., 80.]
         other_values = [0., 0., 0., -0.1]
         lstyles = ['-', '-', '-', ':']
+        xlim = (0., zmax)
+        ylim = (0., DMmax)
     elif other_param == 'F':
         H0_values = [60., 70., 80., 60.]
         other_values = [fiducial_F, fiducial_F, fiducial_F, 0.5]
         lstyle = '-'
+        xlim, ylim = None, None
 
     # Loop on grids
     legend_lines = []
@@ -247,6 +260,7 @@ def fig_craco_varyH0_zDM(outfile,
         alevels = figures.find_Alevels(full_zDMgrid, Aconts)
         
         # sets the x and y tics	
+        embed(header='263 of figs')
         tvals, ticks = figures.ticks_pgrid(zvals)# , fmt='str4')
         plt.xticks(tvals, ticks)
         tvals, ticks = figures.ticks_pgrid(dmvals, fmt='int')# , fmt='str4')
@@ -269,17 +283,28 @@ def fig_craco_varyH0_zDM(outfile,
     ax=plt.gca()
     ax.legend(legend_lines, labels, loc='lower right')
 
+    # Fontsize
+    fig_utils.set_fontsize(ax, 16.)
+
+    # Axis limits
+    #if xlim is not None:
+    #    ax.set_xlim(xlim[0], xlim[1])
+    #if ylim is not None:
+    #    ax.set_ylim(ylim[0], ylim[1])
+
     # Ticks
-    labels = [item.get_text() for item in ax.get_xticklabels()]
-    for i in np.arange(len(labels)):
-        labels[i]=labels[i][0:4]
-    ax.set_xticklabels(labels)
-    labels = [item.get_text() for item in ax.get_yticklabels()]
-    for i in np.arange(len(labels)):
-        if '.' in labels[i]:
-            labels[i]=labels[i].split('.')[0]
-    ax.set_yticklabels(labels)
-    ax.yaxis.labelpad = 0
+    if fuss_with_ticks:
+        labels = [item.get_text() for item in ax.get_xticklabels()]
+        for i in np.arange(len(labels)):
+            labels[i]=labels[i][0:4]
+        ax.set_xticklabels(labels)
+        labels = [item.get_text() for item in ax.get_yticklabels()]
+        for i in np.arange(len(labels)):
+            if '.' in labels[i]:
+                labels[i]=labels[i].split('.')[0]
+        ax.set_yticklabels(labels)
+        ax.yaxis.labelpad = 0
+
         
 
     # Finish

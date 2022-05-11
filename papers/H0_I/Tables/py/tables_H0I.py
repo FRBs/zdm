@@ -16,7 +16,7 @@ from IPython import embed
 
 # Local
 sys.path.append(os.path.abspath("../Analysis/py"))
-#import HST_defs
+import analy_H0_I
 
 def mktab_model_params(outfile='tab_model_params.tex', sub=False):
     # Load up 
@@ -140,6 +140,7 @@ def mktab_MC(outfile='tab_MC.tex', sub=False):
     if sub:
         outfile = 'tab_MC_sub.tex'
 
+    '''
     # Load 
     input_dict=io.process_jfile('../Analysis/Cubes/craco_sfr_Emax_cube.json')
 
@@ -152,6 +153,9 @@ def mktab_MC(outfile='tab_MC.tex', sub=False):
         survey_name='CRACO_alpha1_Planck18_Gamma',
         NFRB=100,
         iFRB=100)
+    '''
+
+    isurvey, grid = analy_H0_I.craco_mc_survey_grid()
 
     # Open
     tbfil = open(outfile, 'w')
@@ -199,5 +203,5 @@ if __name__ == '__main__':
 
     #mktab_model_params()
     #mktab_frbs()
-    #mktab_MC()
+    mktab_MC()
     mktab_MC(sub=True)
