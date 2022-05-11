@@ -260,11 +260,14 @@ def fig_craco_varyH0_zDM(outfile,
         alevels = figures.find_Alevels(full_zDMgrid, Aconts)
         
         # sets the x and y tics	
+        # JXP fussing here!!
         embed(header='263 of figs')
+        '''
         tvals, ticks = figures.ticks_pgrid(zvals)# , fmt='str4')
         plt.xticks(tvals, ticks)
         tvals, ticks = figures.ticks_pgrid(dmvals, fmt='int')# , fmt='str4')
         plt.yticks(tvals, ticks)
+        '''
 
         ax=plt.gca()
         cs=ax.contour(zDMgrid.T,levels=alevels,
