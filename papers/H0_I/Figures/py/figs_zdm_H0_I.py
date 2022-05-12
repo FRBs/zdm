@@ -217,13 +217,13 @@ def fig_craco_varyH0_zDM(outfile,
         H0_values = [60., 70., 80., 80.]
         other_values = [0., 0., 0., -0.1]
         lstyles = ['-', '-', '-', ':']
-        xlim = (0., zmax)
+        zticks = [0.5, 1.0, 1.5, 2.]
         ylim = (0., DMmax)
     elif other_param == 'F':
         H0_values = [60., 70., 80., 60.]
         other_values = [fiducial_F, fiducial_F, fiducial_F, 0.5]
         lstyle = '-'
-        xlim, ylim = None, None
+        zticks, ylim = None, None
 
     # Loop on grids
     legend_lines = []
@@ -261,13 +261,10 @@ def fig_craco_varyH0_zDM(outfile,
         
         # sets the x and y tics	
         # JXP fussing here!!
-        embed(header='263 of figs')
-        '''
-        tvals, ticks = figures.ticks_pgrid(zvals)# , fmt='str4')
+        tvals, ticks = figures.ticks_pgrid(zvals, these_vals=zticks)# , fmt='str4')
         plt.xticks(tvals, ticks)
         tvals, ticks = figures.ticks_pgrid(dmvals, fmt='int')# , fmt='str4')
         plt.yticks(tvals, ticks)
-        '''
 
         ax=plt.gca()
         cs=ax.contour(zDMgrid.T,levels=alevels,
