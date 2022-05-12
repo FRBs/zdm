@@ -66,7 +66,7 @@ class CosmoParams(data_class.myDataClass):
                   })
     Omega_b_h2: float = field(
         default=Planck18.Ob0 * (Planck18.H0.value/100.)**2,
-        metadata={'help': 'Baryon density weighted by $h_{100}^2$',
+        metadata={'help': 'baryon density weighted by $h_{100}^2$',
                   'unit': '',
                   'Notation': '\Omega_b h^2',
                   })

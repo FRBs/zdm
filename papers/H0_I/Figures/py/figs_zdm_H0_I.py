@@ -316,7 +316,7 @@ def fig_craco_varyH0_zDM(outfile,
 
 def fig_craco_varyH0_other(outfile, params,
                 zmax=2,DMmax=1500,
-                smax=25., 
+                smax=25.*9, 
                 other_param='Emax',
                 Aconts=[0.05], debug:bool=False):
 
@@ -338,7 +338,8 @@ def fig_craco_varyH0_other(outfile, params,
         plt.xlabel(r'DM$_{\rm EG}$')
     else:
         plt.xlabel(r'$z$')
-    plt.ylabel(r'$s$')
+    #plt.ylabel(r'$s$')
+    plt.ylabel(r'SNR')
 
     # Loop on grids
     legend_lines = []
@@ -369,7 +370,7 @@ def fig_craco_varyH0_other(outfile, params,
                 dmvals, (0, DMmax))
         else:
             snrs, zvals, cut_pgrid = figures.proc_pgrid(full_pgrid, 
-                snrs[0:-1], (0, smax),
+                9*snrs[0:-1], (0, smax),
                 zvals, (0, zmax))
 
         # Contours
@@ -423,6 +424,7 @@ def fig_craco_varyH0_other(outfile, params,
     ax.set_yticklabels(labels)
     ax.yaxis.labelpad = 0
         
+    fig_utils.set_fontsize(ax, 15.)
 
     # Finish
     plt.tight_layout()

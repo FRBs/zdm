@@ -20,8 +20,9 @@ import analy_H0_I
 
 def mktab_model_params(outfile='tab_model_params.tex', sub=False):
     # Load up 
-    base_survey='CRAFT_CRACO_MC_base'
-    survey, grid = loading.survey_and_grid(survey_name=base_survey)
+    #base_survey='CRAFT_CRACO_MC_base'
+    #survey, grid = loading.survey_and_grid(survey_name=base_survey)
+    isurvey, grid = analy_H0_I.craco_mc_survey_grid()
 
     # Open
     tbfil = open(outfile, 'w')
@@ -31,7 +32,7 @@ def mktab_model_params(outfile='tab_model_params.tex', sub=False):
     tbfil.write('\\begin{table*}\n')
     tbfil.write('\\centering\n')
     tbfil.write('\\begin{minipage}{170mm} \n')
-    tbfil.write('\\caption{Model Parameters\\label{tab:param}}\n')
+    tbfil.write('\\caption{Fiducial Set of Model Parameters\\label{tab:param}}\n')
     tbfil.write('\\begin{tabular}{cccl}\n')
     tbfil.write('\\hline \n')
     tbfil.write('Parameter & Fiducial Value & Unit & Description \n')
@@ -42,11 +43,11 @@ def mktab_model_params(outfile='tab_model_params.tex', sub=False):
         # Ones to skip
         if key in ['ISM', 'luminosity_function', 'Omega_k',
                    'fix_Omega_b_h2', 'alpha_method', 'lC',
-                   'source_evolution']:
+                   'source_evolution', 'Wmethod', 'Wbins', 'Wscale']: 
             continue
         # Include these
         if item not in ['energy', 'host', 'width', 'MW', 'IGM',
-                        'FRBdemo', 'cosmo']: 
+                        'FRBdemo', 'cosmo']:
             continue
         # Name
         try:
@@ -201,7 +202,7 @@ def mktab_MC(outfile='tab_MC.tex', sub=False):
 # Command line execution
 if __name__ == '__main__':
 
-    #mktab_model_params()
+    mktab_model_params()
     #mktab_frbs()
-    mktab_MC()
-    mktab_MC(sub=True)
+    #mktab_MC()
+    #mktab_MC(sub=True)

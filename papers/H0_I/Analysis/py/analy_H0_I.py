@@ -21,9 +21,10 @@ def generate_grids(params, ns=100, logsmax=2.5):
     snrs=np.logspace(0,logsmax,ns)
 
     # Load
-    survey, grid = loading.survey_and_grid(
-        survey_name=fiducial_survey,
-        NFRB=100, lum_func=1)
+    #survey, grid = loading.survey_and_grid(
+    #    survey_name=fiducial_survey,
+    #    NFRB=100, lum_func=1)
+    survey, grid = craco_mc_survey_grid()
 
     for H0, lEmax, in zip(H0_values, lEmax_values):
 
