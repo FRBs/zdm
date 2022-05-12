@@ -808,11 +808,11 @@ def extract_limits(x,y,p,method=1):
         ik2=inside[0]
         v1=x[ik2]
     return v0,v1,ik1,ik2
-    
+
 def do_single_plots(uvals,vectors,wvectors,names,tag=None, fig_exten='.png',
                     dolevels=False,log=True,outdir='SingleFigs/',
                     vparams_dict=None, prefix='',truth=None,latexnames=None,
-                    logspline=True, others=None):
+                    units=None,logspline=True, others=None):
     """ Generate a series of 1D plots of the cube parameters
 
     Args:
@@ -833,6 +833,8 @@ def do_single_plots(uvals,vectors,wvectors,names,tag=None, fig_exten='.png',
         outdir (str, optional): [description]. Defaults to 'SingleFigs/'.
         vparams_dict (dict, optional): parameter dict -- used to set x-values. Defaults to None.
         prefix (str, optional): [description]. Defaults to ''.
+        latexnames: latex of axis names
+        units: latex of units to attach to x-axis only
         logspline(bool): do spline fitting in logspace?
         others(list of arrays): list of other plots to add to data
 
@@ -912,7 +914,7 @@ def do_single_plots(uvals,vectors,wvectors,names,tag=None, fig_exten='.png',
         
         
         if dolevels==True:# and i != 1:
-            limvals=np.array([0.0015,0.025,0.05,0.16])
+            limvals=np.array([0.00135,0.0228,0.05,0.15866])
             labels=['99.7%','95%','90%','68%']
             styles=['--',':','-.','-']
             upper=np.max(vectors[i])
@@ -1040,7 +1042,10 @@ def do_single_plots(uvals,vectors,wvectors,names,tag=None, fig_exten='.png',
             plt.text(truth[i]+0.01*Dx,ymax*0.4,'simulated truth',rotation=90)
         
         if latexnames is not None:
-            plt.xlabel(latexnames[i])
+            if units is not None:
+                plt.xlabel(latexnames[i]+" "+units[i])
+            else:
+                plt.xlabel(latexnames[i])
             plt.ylabel('$p($'+latexnames[i]+'$)$')
         else:
             plt.xlabel(names[i])
@@ -1059,16 +1064,19 @@ def do_single_plots(uvals,vectors,wvectors,names,tag=None, fig_exten='.png',
         return
 
 def make_1d_plots_by_contribution(data,contributions,labels,prefix="",
-    fig_exten='.png',log=False,splines=True):
+    fig_exten='.png',log=False,splines=True,latexnames=None,units=None):
     """
     contributions: list of vectors giving various likelihood terms
-    Labels: lists labels stating what these are
+    args:
+        splines (bool): draw cubic splines
+        Labels: lists labels stating what these are
+        latexnames: latex for x and p(X)
+        units: appends units to x axis but not p(X)
     """
     ######################### 1D plots, split by terms ################
     all_uvals=[]
     all_vectors=[]
     all_wvectors=[]
-    
     combined=data["pzDM"]+data["pDM"]
     
     # gets 1D Bayesian curves for each contribution
@@ -1077,7 +1085,6 @@ def make_1d_plots_by_contribution(data,contributions,labels,prefix="",
         all_uvals.append(uvals)
         all_vectors.append(vectors)
         all_wvectors.append(wvectors)
-    
     params=data["params"]
     
     # gets unique values for each axis
@@ -1089,7 +1096,6 @@ def make_1d_plots_by_contribution(data,contributions,labels,prefix="",
     for col in param_list:
         unique=np.unique(col)
         param_vals.append(unique)
-    
     # assigns different plotting styles to help distinguish curves
     linestyles=['-','--','-.',':','-','--','-.',':','-','--','-.',':']
     for which in np.arange(len(param_list)):
@@ -1097,7 +1103,6 @@ def make_1d_plots_by_contribution(data,contributions,labels,prefix="",
         plt.xlabel('$'+xlatexnames[which]+'$')
         plt.ylabel('$p('+ylatexnames[which]+')$')
         xvals=param_vals[which]
-        #print("Doing this for parameter ",params[which])
         
         for idata,vectors in enumerate(all_vectors):
             if splines:
@@ -1119,7 +1124,7 @@ def make_1d_plots_by_contribution(data,contributions,labels,prefix="",
         plt.legend()
         plt.savefig(prefix+params[which]+fig_exten)
         plt.close()
-
+    
 def gen_vparams(indices:tuple, vparam_dict:dict):
     new_dict = {}
     for ss, key in enumerate(vparam_dict.keys()):
@@ -1191,72 +1196,3 @@ def make_2d_plot(array,xlabel,ylabel,xvals,yvals,savename=None,norm=None):
     plt.savefig(savename)
     plt.close()
 
-
-def make_1d_plots_by_contribution(data,contributions,labels,prefix="",
-    fig_exten='.png',log=False,truth=None, spline=True):
-    """
-    data: full npz array output by a cube
-    
-    contributions: list of vectors giving various likelihood terms
-        (extracted as columns from data)
-        
-    Labels (array of strings): lists labels stating what these are, used as legend in plot
-    
-    prefix (string): string to place before output files
-    
-    fig_exten (string): type of picture file produced, used in savefig
-    
-    log (bool): make the y-axis in log-space or not
-    
-    truth (vector of floats): None, or else a vector of true parameter values to also plot
-    
-    spline (bool): fit a cubic spline in log space
-    """
-    ######################### 1D plots, split by terms ################
-    all_uvals=[]
-    all_vectors=[]
-    all_wvectors=[]
-    
-    combined=data["pzDM"]+data["pDM"]
-    
-    # gets 1D Bayesian curves for each contribution
-    for datatype in contributions:
-        uvals,vectors,wvectors=get_bayesian_data(datatype)
-        all_uvals.append(uvals)
-        all_vectors.append(vectors)
-        all_wvectors.append(wvectors)
-    
-    params=data["params"]
-    
-    # gets unique values for each axis
-    param_vals=[]
-    param_list=[data["lEmax"],data["H0"],data["alpha"],data["gamma"],data["sfr_n"],data["lmean"],data["lsigma"]]
-    for col in [data["lEmax"],data["H0"],data["alpha"],data["gamma"],data["sfr_n"],data["lmean"],data["lsigma"]]:
-        unique=np.unique(col)
-        param_vals.append(unique)
-    
-    # assigns different plotting styles to help distinguish curves
-    linestyles=['-','--','-.',':','-','--','-.',':','-','--','-.',':']
-    for which in np.arange(len(param_list)):
-        plt.figure()
-        plt.xlabel(params[which])
-        plt.ylabel('p('+params[which]+')')
-        xvals=param_vals[which]
-        
-        for idata,vectors in enumerate(all_vectors):
-            vector=vectors[which]
-            
-            # fits a spline
-            if spline:
-                x=np.linspace(xvals[0],xvals[-1],400)
-                f=scipy.interpolate.interp1d(xvals,np.log(vector), kind='cubic')
-                y=np.exp(f(x))
-            else:
-                x=xvals
-                y=vector
-            plt.plot(x,y,label=labels[idata],linestyle=linestyles[idata])
-            plt.scatter(xvals,vector,color=plt.gca().lines[-1].get_color())
-        plt.legend()
-        plt.savefig(prefix+params[which]+fig_exten)
-        plt.close()
-    
