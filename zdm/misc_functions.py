@@ -1955,10 +1955,11 @@ def plot_zdm_basic_paper(zDMgrid,zvals,dmvals,zmax=1,DMmax=1000,
     plt.close()	
 
 def plot_grid_2(zDMgrid,zvals,dmvals,
-                zmax=1,DMmax=1000,norm=0,log=True,name='temp.pdf',label='$\\log_{10}p(DM_{\\rm EG},z)$',project=False,conts=False,
+                zmax=1,DMmax=1000,norm=0,log=True,name='temp.pdf',
+                label='$\\log_{10}p(DM_{\\rm EG},z)$',project=False,conts=False,
                 FRBZ=None,FRBDM=None,Aconts=False,
                 Macquart=None,title="Plot",
-                H0=None,showplot=False):
+                H0=None,showplot=False,DMlines=None):
     """
     Very complicated routine for plotting 2D zdm grids 
 
@@ -2036,6 +2037,23 @@ def plot_grid_2(zDMgrid,zvals,dmvals,
         nz=zvals.size
         zDMgrid=zDMgrid[:ixmax[0],:]
     
+    
+    # currently this is "per cell" - now to change to "per DM"
+    # normalises the grid by the bin width, i.e. probability per bin, not probability density
+    ddm=dmvals[1]-dmvals[0]
+    dz=zvals[1]-zvals[0]
+    if norm==1:
+        zDMgrid /= ddm
+        if Aconts:
+            alevels /= ddm
+    elif norm==2:
+        xnorm=np.sum(zDMgrid)
+        zDMgrid /= xnorm
+        if Aconts:
+            alevels /= xnorm
+    elif norm==3:
+        zDMgrid /= np.max(zDMgrid)
+    
     # sets contours according to norm
     if Aconts:
         slist=np.sort(zDMgrid.flatten())
@@ -2091,20 +2109,6 @@ def plot_grid_2(zDMgrid,zvals,dmvals,
         zDMgrid=zDMgrid[:,:iymax[0]]
         ndm=dmvals.size
     
-    # currently this is "per cell" - now to change to "per DM"
-    # normalises the grid by the bin width, i.e. probability per bin, not probability density
-    ddm=dmvals[1]-dmvals[0]
-    dz=zvals[1]-zvals[0]
-    if norm==1:
-        zDMgrid /= ddm
-        if Aconts:
-            alevels /= ddm
-    if norm==2:
-        xnorm=np.sum(zDMgrid)
-        zDMgrid /= xnorm
-        if Aconts:
-            alevels /= xnorm
-    
     if log:
         # checks against zeros for a log-plot
         orig=np.copy(zDMgrid)
@@ -2151,6 +2155,33 @@ def plot_grid_2(zDMgrid,zvals,dmvals,
     ax.set_yticklabels(labels)
     ax.yaxis.labelpad = 0
     
+    # draw horizontal lines for a fixed DM
+    if DMlines is not None:
+        if log:
+            tempgrid=np.copy(zDMgrid)
+            tempgrid = zDMgrid - np.max(zDMgrid)
+            tempgrid = 10.**zDMgrid
+        else:
+            tempgrid=zDMgrid
+        for DM in DMlines:
+            if DM>np.max(dmvals):
+                print("Cannot draw DM line ",DM," - range ",np.max(dmvals)," too small...")
+                continue
+            # determines how far to draw line
+            iDM2=np.where(dmvals > DM)[0][0] # lowest value
+            iDM1=iDM2-1
+            kDM=(DM-dmvals[iDM1])/(dmvals[iDM2]-dmvals[iDM1])
+            cDM1=np.cumsum(tempgrid[:,iDM1])
+            cDM1 /= cDM1[-1]
+            cDM2=np.cumsum(tempgrid[:,iDM2])
+            cDM2 /= cDM2[-1]
+            stop1=np.where(cDM1 < 0.99)[0][-1]
+            stop2=np.where(cDM2 < 0.99)[0][-1]
+            zstop = kDM*zvals[stop2] + (1.-kDM)*zvals[stop1]
+            zstop /= (zvals[1]-zvals[0])
+            DM /= (dmvals[1]-dmvals[0])
+            plt.plot([0,zstop],[DM,DM],color='red',linestyle=':')
+            
     # plots contours i there
     if conts:
         plt.ylim(0,ndm-1)
