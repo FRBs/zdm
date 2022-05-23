@@ -22,6 +22,7 @@ import seaborn as sns
 import h5py
 
 from frb.figures import utils as fig_utils
+from frb.dm import igm as figm
 
 from zdm.craco import loading
 from zdm import pcosmic
@@ -499,6 +500,27 @@ def fig_craco_H0vsF(outfile='fig_craco_H0vsF.png'):
     plt.savefig(outfile, dpi=200)
     print(f"Wrote: {outfile}")
 
+def fig_fd_vs_z(outfile='fig_fd_vs_z.png'):
+
+    # Redshifts
+    z = np.linspace(0., 2., 20)
+    f_d = figm.f_diffuse(z)
+
+    # Plot
+    plt.clf()
+    ax = plt.gca()
+
+    ax.plot(z, f_d, 'k')
+
+    #
+    ax.set_ylim(0., 1.)
+    ax.set_xlabel(r'$z$')
+    ax.set_ylabel(r'$f_d(z)$')
+    ax.xaxis.set_major_locator(plt.MultipleLocator(0.5))
+    fig_utils.set_fontsize(ax, 17.)
+    plt.savefig(outfile, dpi=200)
+    print(f"Wrote: {outfile}")
+
 #### ########################## #########################
 def main(pargs):
 
@@ -532,6 +554,10 @@ def main(pargs):
     if pargs.figure == 'H0vsF':
         fig_craco_H0vsF()
 
+    # f_d vs. z
+    if pargs.figure == 'fd_vs_z':
+        fig_fd_vs_z()
+
 
 def parse_option():
     """
@@ -564,3 +590,4 @@ if __name__ == '__main__':
 # python py/figs_zdm_H0_I.py varyH0F
 # python py/figs_zdm_H0_I.py varyH0E_sz
 # python py/figs_zdm_H0_I.py varyH0E_sDM
+# python py/figs_zdm_H0_I.py fd_vs_z
