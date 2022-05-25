@@ -526,7 +526,7 @@ def main(pargs):
 
     # Fiducial CRACO
     if pargs.figure == 'fiducial':
-        fig_craco_fiducial()
+        fig_craco_fiducial(cmap='cubehelix')
 
     # Vary H0, Emax
     if pargs.figure == 'varyH0E_zDM':
