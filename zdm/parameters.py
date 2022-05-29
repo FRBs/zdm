@@ -98,6 +98,35 @@ class FRBDemoParams(data_class.myDataClass):
         default = 4.19,
         metadata={'help': 'log10 constant in number per Gpc^-3 yr^-1 at z=0'})
 
+
+# FRB Demographics -- repeaters
+@dataclass
+class FRBrepeaters(data_class.myDataClass):
+    Rmin: float = field(
+        default=1e-3,
+        metadata={'help': 'Minimum repeater rate',
+                  'unit': 'day^-1',
+                  'Notation': '$R_{\rm min}$',
+                  })
+    Rmax: float = field(
+        default=1,
+        metadata={'help': 'Maximum repeater rate',
+                  'unit': 'day^-1',
+                  'Notation': '$R_{\rm max}$',
+                  })
+    Rgamma: float = field(
+        default = -2,
+        metadata={'help': 'differential index of repeater density',
+                  'unit': '',
+                  'Notation': '$\gamma_r$',
+                  })
+    RC: float = field(
+        default = 1e-2,
+        metadata={'help': 'Constant repeater density',
+                  'unit': 'Repeaters day / Gpc^-3',
+                  'Notation': '$C_R$',
+                  })
+
 # Galactic parameters
 @dataclass
 class MWParams(data_class.myDataClass):
