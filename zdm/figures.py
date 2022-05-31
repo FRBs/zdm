@@ -65,15 +65,36 @@ def proc_pgrid(pgrid:np.ndarray,
     # Return
     return cut_ivals, cut_jvals, proc_grid
 
-def ticks_pgrid(vals, everyn=5, fmt=None):
-    tvals=np.arange(vals.size)
-    everx=int(vals.size/5)
-    if fmt is None:
-        ticks = vals[everx-1::everx]
-    elif fmt[0:3] == 'str':
-        ticks = [str(item)[0:int(fmt[3:])] for item in vals[everx-1::everx]]
-    elif fmt == 'int':
-        ticks = [int(item) for item in vals[everx-1::everx]]
+def ticks_pgrid(vals, everyn=5, fmt=None, these_vals=None):
+    """ Generate ticks for one of the P(x,x,x) grids
 
+    Args:
+        vals (_type_): _description_
+        everyn (int, optional): _description_. Defaults to 5.
+        fmt (_type_, optional): _description_. Defaults to None.
+        these_vals (list or np.ndarray, optional): Values to place
+            the ticks at
+
+    Returns:
+        np.ndarray, np.ndarray:  Tick locations, values
+    """
+    if these_vals is None:
+        tvals=np.arange(vals.size)
+        everx=int(vals.size/everyn)
+        tvals = tvals[everx-1::everx]
+        ticks = vals[everx-1::everx]
+    else:
+        ticks = these_vals
+        tvals = []
+        for val in ticks:
+            idx = np.argmin(np.abs(val-vals))
+            tvals.append(idx)
+
+    if fmt is None:
+        pass
+    elif fmt[0:3] == 'str':
+        ticks = [str(item)[0:int(fmt[3:])] for item in ticks]
+    elif fmt == 'int':
+        ticks = [int(item) for item in ticks]
     # Return
-    return tvals[everx-1::everx], ticks
+    return tvals, ticks

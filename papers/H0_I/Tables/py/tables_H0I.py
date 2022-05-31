@@ -16,12 +16,13 @@ from IPython import embed
 
 # Local
 sys.path.append(os.path.abspath("../Analysis/py"))
-#import HST_defs
+import analy_H0_I
 
 def mktab_model_params(outfile='tab_model_params.tex', sub=False):
     # Load up 
-    base_survey='CRAFT_CRACO_MC_base'
-    survey, grid = loading.survey_and_grid(survey_name=base_survey)
+    #base_survey='CRAFT_CRACO_MC_base'
+    #survey, grid = loading.survey_and_grid(survey_name=base_survey)
+    isurvey, grid = analy_H0_I.craco_mc_survey_grid()
 
     # Open
     tbfil = open(outfile, 'w')
@@ -31,26 +32,35 @@ def mktab_model_params(outfile='tab_model_params.tex', sub=False):
     tbfil.write('\\begin{table*}\n')
     tbfil.write('\\centering\n')
     tbfil.write('\\begin{minipage}{170mm} \n')
-    tbfil.write('\\caption{Model Parameters\\label{tab:param}}\n')
+    tbfil.write('\\caption{Fiducial Set of Model Parameters. ')
+    tbfil.write('Parameters labelled with a * are re-fit as part of this work. \n') 
+    tbfil.write('\\label{tab:param}}\n')
     tbfil.write('\\begin{tabular}{cccl}\n')
     tbfil.write('\\hline \n')
     tbfil.write('Parameter & Fiducial Value & Unit & Description \n')
     tbfil.write('\\\\ \n')
     tbfil.write('\\hline \n')
 
+    add_star = ['lmean', 'lsigma', 'sfr_n', 'lEmax', 'alpha', 'gamma', 'H0']
+
     for key, item in grid.state.params.items():
         # Ones to skip
         if key in ['ISM', 'luminosity_function', 'Omega_k',
                    'fix_Omega_b_h2', 'alpha_method', 'lC',
-                   'source_evolution']:
+                   'source_evolution', 'Wthresh', 'Wmethod', 'Wbins', 'Wscale',
+                   'Sfpower', 'Sfnorm']: 
             continue
-        # Include these
+        # Include these dicts
         if item not in ['energy', 'host', 'width', 'MW', 'IGM',
-                        'FRBdemo', 'cosmo']: 
+                        'FRBdemo', 'cosmo', 'scat']:
             continue
         # Name
+        if key in add_star:
+            add_not = '^*'
+        else:
+            add_not = ''
         try:
-            slin = f'${getattr(grid.state, item).meta(key)["Notation"]}$'
+            slin = f'${getattr(grid.state, item).meta(key)["Notation"]}{add_not}$'
             # Value
             if key in ['Omega_lambda', 'Omega_b_h2']:
                 slin += f'& {getattr(getattr(grid.state, item),key):.5f}'
@@ -62,6 +72,12 @@ def mktab_model_params(outfile='tab_model_params.tex', sub=False):
             slin += f'& {getattr(grid.state, item).meta(key)["help"]}'
         except:
             print(f"Failed on key={key}, item={item}.  Fix it!")
+            embed(header='69 of tables')
+        # Add extras
+        if key == 'DMhalo':
+            tbfil.write('DM$_{\\rm ISM} & NE2001 & \\dmunits & DM for the Milky Way Interstellar Medium \\\\ \n')
+        elif key == 'F':
+            tbfil.write('$f_d(z=0)$ & 0.844 & & fraction of baryons that are diffuse and ionized at $z=0$ \\\\ \n')
         tbfil.write(slin)
         tbfil.write('\\\\ \n')
 
@@ -140,6 +156,7 @@ def mktab_MC(outfile='tab_MC.tex', sub=False):
     if sub:
         outfile = 'tab_MC_sub.tex'
 
+    '''
     # Load 
     input_dict=io.process_jfile('../Analysis/Cubes/craco_sfr_Emax_cube.json')
 
@@ -152,6 +169,9 @@ def mktab_MC(outfile='tab_MC.tex', sub=False):
         survey_name='CRACO_alpha1_Planck18_Gamma',
         NFRB=100,
         iFRB=100)
+    '''
+
+    isurvey, grid = analy_H0_I.craco_mc_survey_grid()
 
     # Open
     tbfil = open(outfile, 'w')
@@ -197,7 +217,7 @@ def mktab_MC(outfile='tab_MC.tex', sub=False):
 # Command line execution
 if __name__ == '__main__':
 
-    #mktab_model_params()
+    mktab_model_params()
     #mktab_frbs()
     #mktab_MC()
-    mktab_MC(sub=True)
+    #mktab_MC(sub=True)

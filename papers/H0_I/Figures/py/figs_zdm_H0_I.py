@@ -22,6 +22,7 @@ import seaborn as sns
 import h5py
 
 from frb.figures import utils as fig_utils
+from frb.dm import igm as figm
 
 from zdm.craco import loading
 from zdm import pcosmic
@@ -34,7 +35,7 @@ sys.path.append(os.path.abspath("../../Analysis/py"))
 import analy_H0_I
 
 def fig_craco_fiducial(outfile='fig_craco_fiducial.png',
-                zmax=2,DMmax=2000,
+                zmax=2.5,DMmax=2500,
                 show_Macquart=False,
                 log=True,
                 label='$\\log_{10} \; p(DM_{\\rm EG},z)$',
@@ -67,9 +68,7 @@ def fig_craco_fiducial(outfile='fig_craco_fiducial.png',
     """
     # Generate the grid
     if grid is None or survey is None:
-        survey, grid = loading.survey_and_grid(
-            survey_name=analy_H0_I.fiducial_survey,
-            NFRB=100, lum_func=1)
+        survey, grid = analy_H0_I.craco_mc_survey_grid()
 
     # Unpack
     full_zDMgrid, zvals, dmvals = grid.rates, grid.zvals, grid.dmvals
@@ -184,13 +183,25 @@ def fig_craco_fiducial(outfile='fig_craco_fiducial.png',
 
 
 def fig_craco_varyH0_zDM(outfile,
-                zmax=2,DMmax=1500,
+                zmax=2.3,DMmax=1500,
                 norm=2, other_param='Emax',
-                Aconts=[0.05]):
+                Aconts=[0.05], fuss_with_ticks:bool=False):
+    """_summary_
+
+    Args:
+        outfile (_type_): _description_
+        zmax (float, optional): _description_. Defaults to 2.3.
+        DMmax (int, optional): _description_. Defaults to 1500.
+        norm (int, optional): _description_. Defaults to 2.
+        other_param (str, optional): _description_. Defaults to 'Emax'.
+        Aconts (list, optional): _description_. Defaults to [0.05].
+        fuss_with_ticks (bool, optional): _description_. Defaults to False.
+    """
     # Generate the grid
-    survey, grid = loading.survey_and_grid(
-        survey_name='CRACO_alpha1_Planck18_Gamma',
-        NFRB=100, lum_func=1)
+    survey, grid = analy_H0_I.craco_mc_survey_grid()
+    #survey, grid = loading.survey_and_grid(
+    #    survey_name='CRACO_alpha1_Planck18_Gamma',
+    #    NFRB=100, lum_func=2)
     fiducial_Emax = grid.state.energy.lEmax
     fiducial_F = grid.state.IGM.F
 
@@ -207,10 +218,13 @@ def fig_craco_varyH0_zDM(outfile,
         H0_values = [60., 70., 80., 80.]
         other_values = [0., 0., 0., -0.1]
         lstyles = ['-', '-', '-', ':']
+        zticks = [0.5, 1.0, 1.5, 2.]
+        ylim = (0., DMmax)
     elif other_param == 'F':
         H0_values = [60., 70., 80., 60.]
         other_values = [fiducial_F, fiducial_F, fiducial_F, 0.5]
         lstyle = '-'
+        zticks, ylim = None, None
 
     # Loop on grids
     legend_lines = []
@@ -247,7 +261,8 @@ def fig_craco_varyH0_zDM(outfile,
         alevels = figures.find_Alevels(full_zDMgrid, Aconts)
         
         # sets the x and y tics	
-        tvals, ticks = figures.ticks_pgrid(zvals)# , fmt='str4')
+        # JXP fussing here!!
+        tvals, ticks = figures.ticks_pgrid(zvals, these_vals=zticks)# , fmt='str4')
         plt.xticks(tvals, ticks)
         tvals, ticks = figures.ticks_pgrid(dmvals, fmt='int')# , fmt='str4')
         plt.yticks(tvals, ticks)
@@ -269,17 +284,28 @@ def fig_craco_varyH0_zDM(outfile,
     ax=plt.gca()
     ax.legend(legend_lines, labels, loc='lower right')
 
+    # Fontsize
+    fig_utils.set_fontsize(ax, 16.)
+
+    # Axis limits
+    #if xlim is not None:
+    #    ax.set_xlim(xlim[0], xlim[1])
+    #if ylim is not None:
+    #    ax.set_ylim(ylim[0], ylim[1])
+
     # Ticks
-    labels = [item.get_text() for item in ax.get_xticklabels()]
-    for i in np.arange(len(labels)):
-        labels[i]=labels[i][0:4]
-    ax.set_xticklabels(labels)
-    labels = [item.get_text() for item in ax.get_yticklabels()]
-    for i in np.arange(len(labels)):
-        if '.' in labels[i]:
-            labels[i]=labels[i].split('.')[0]
-    ax.set_yticklabels(labels)
-    ax.yaxis.labelpad = 0
+    if fuss_with_ticks:
+        labels = [item.get_text() for item in ax.get_xticklabels()]
+        for i in np.arange(len(labels)):
+            labels[i]=labels[i][0:4]
+        ax.set_xticklabels(labels)
+        labels = [item.get_text() for item in ax.get_yticklabels()]
+        for i in np.arange(len(labels)):
+            if '.' in labels[i]:
+                labels[i]=labels[i].split('.')[0]
+        ax.set_yticklabels(labels)
+        ax.yaxis.labelpad = 0
+
         
 
     # Finish
@@ -291,7 +317,7 @@ def fig_craco_varyH0_zDM(outfile,
 
 def fig_craco_varyH0_other(outfile, params,
                 zmax=2,DMmax=1500,
-                smax=25., 
+                smax=25.*9, 
                 other_param='Emax',
                 Aconts=[0.05], debug:bool=False):
 
@@ -313,7 +339,8 @@ def fig_craco_varyH0_other(outfile, params,
         plt.xlabel(r'DM$_{\rm EG}$')
     else:
         plt.xlabel(r'$z$')
-    plt.ylabel(r'$s$')
+    #plt.ylabel(r'$s$')
+    plt.ylabel(r'SNR')
 
     # Loop on grids
     legend_lines = []
@@ -344,7 +371,7 @@ def fig_craco_varyH0_other(outfile, params,
                 dmvals, (0, DMmax))
         else:
             snrs, zvals, cut_pgrid = figures.proc_pgrid(full_pgrid, 
-                snrs[0:-1], (0, smax),
+                9*snrs[0:-1], (0, smax),
                 zvals, (0, zmax))
 
         # Contours
@@ -398,6 +425,7 @@ def fig_craco_varyH0_other(outfile, params,
     ax.set_yticklabels(labels)
     ax.yaxis.labelpad = 0
         
+    fig_utils.set_fontsize(ax, 15.)
 
     # Finish
     plt.tight_layout()
@@ -472,12 +500,33 @@ def fig_craco_H0vsF(outfile='fig_craco_H0vsF.png'):
     plt.savefig(outfile, dpi=200)
     print(f"Wrote: {outfile}")
 
+def fig_fd_vs_z(outfile='fig_fd_vs_z.png'):
+
+    # Redshifts
+    z = np.linspace(0., 2., 20)
+    f_d = figm.f_diffuse(z)
+
+    # Plot
+    plt.clf()
+    ax = plt.gca()
+
+    ax.plot(z, f_d, 'k')
+
+    #
+    ax.set_ylim(0., 1.)
+    ax.set_xlabel(r'$z$')
+    ax.set_ylabel(r'$f_d(z)$')
+    ax.xaxis.set_major_locator(plt.MultipleLocator(0.5))
+    fig_utils.set_fontsize(ax, 17.)
+    plt.savefig(outfile, dpi=200)
+    print(f"Wrote: {outfile}")
+
 #### ########################## #########################
 def main(pargs):
 
     # Fiducial CRACO
     if pargs.figure == 'fiducial':
-        fig_craco_fiducial()
+        fig_craco_fiducial(cmap='cubehelix')
 
     # Vary H0, Emax
     if pargs.figure == 'varyH0E_zDM':
@@ -504,6 +553,10 @@ def main(pargs):
     # H0 vs. F
     if pargs.figure == 'H0vsF':
         fig_craco_H0vsF()
+
+    # f_d vs. z
+    if pargs.figure == 'fd_vs_z':
+        fig_fd_vs_z()
 
 
 def parse_option():
@@ -537,3 +590,4 @@ if __name__ == '__main__':
 # python py/figs_zdm_H0_I.py varyH0F
 # python py/figs_zdm_H0_I.py varyH0E_sz
 # python py/figs_zdm_H0_I.py varyH0E_sDM
+# python py/figs_zdm_H0_I.py fd_vs_z
