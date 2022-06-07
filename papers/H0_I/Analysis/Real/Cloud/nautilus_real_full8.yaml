@@ -1,9 +1,9 @@
-# 25 processors on full; batch 1
+# 25 processors for mini Real
 #  kubectl exec -it test-pod -- /bin/bash
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: xavier-zdm-craco-full-3rd-3
+  name: xavier-zdm-real-full-8
 spec:
   backoffLimit: 0
   template:
@@ -17,6 +17,7 @@ spec:
                 operator: NotIn
                 values:
                   - k8s-chase-ci-01.noc.ucsb.edu
+                  - ucm-fiona01.ucmerced.edu
               - key: nvidia.com/gpu.product
                 operator: In
                 values:
@@ -27,12 +28,12 @@ spec:
         imagePullPolicy: Always
         resources:
           requests:
-            cpu: "25"
-            memory: "8Gi"  # 
+            cpu: "30"
+            memory: "24Gi"  # Using 19Gi
             ephemeral-storage: 50Gi  # 
           limits:
-            cpu: "27"
-            memory: "12Gi"
+            cpu: "32"
+            memory: "28Gi"
             ephemeral-storage: 100Gi
             #nvidia.com/gpu:  "1"  # See docs to exlude certain types
         command: ["/bin/bash", "-c"]
@@ -45,11 +46,14 @@ spec:
             python setup.py develop;
             cd ../zdm;
             git fetch;
-            git checkout another_craco_100;
+            git checkout new_full_real;
             python setup.py develop;
-            cd papers/H0_I/Analysis/CRACO/Cloud;
-            python run_craco_full.py -n 25 -t 250 -b 3;
-            aws --endpoint http://rook-ceph-rgw-nautiluss3.rook s3 cp Output s3://zdm/Cubes/CRACO/Full/ --recursive --force;
+            cd zdm/data/Surveys;
+            aws --endpoint http://rook-ceph-rgw-nautiluss3.rook s3 cp s3://zdm/Surveys . --recursive --force;
+            cd ../../..;
+            cd papers/H0_I/Analysis/Real/Cloud;
+            python run_real_full.py -n 30 -t 240 -b 8;
+            aws --endpoint http://rook-ceph-rgw-nautiluss3.rook s3 cp Output s3://zdm/Cubes/Real/ --recursive --force;
         env:
           - name: "ENDPOINT_URL"
             value: "http://rook-ceph-rgw-nautiluss3.rook"

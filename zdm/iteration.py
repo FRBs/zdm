@@ -779,7 +779,7 @@ def missing_cube_likelihoods(grids,surveys,todo,outfile,norm=True,psnr=True,star
         
         ### calculates actual values at each point ###
         
-        C,llC,lltot=minimise_const_only(pset,grids,surveys)
+        C,llC=minimise_const_only(pset,grids,surveys)
         pset[7]=C
         
         # for the minimised parameters, set the values
@@ -962,7 +962,7 @@ def cube_likelihoods(grids:list,surveys:list,
                 #    pset[s]=C_p[s]
             
             if const_only:
-                C,llC,lltot=minimise_const_only(
+                C,llC=minimise_const_only(
                     vparams,grids,surveys)
                 vparams['lC']=C
 
@@ -1822,24 +1822,6 @@ def minimise_const_only(vparams:dict,grids:list,surveys:list,
             grids[j].update(vparams, 
                         prev_grid=grids[j-1] if (
                             j > 0 and use_prev_grid) else None)
-        # Calculate
-        if s.nD==1:
-            lls[j] = calc_likelihoods_1D(grids[j],s,
-                    norm=True,psnr=True,Pn=False) #excludes Pn term
-        elif s.nD==2:
-            lls[j] = calc_likelihoods_2D(grids[j],s,
-                    norm=True,psnr=True,Pn=False, verbose=Verbose) #excludes Pn term
-        elif s.nD==3: # mixture of localised and un-localised
-            lls[j] = calc_likelihoods_1D(grids[j],s,
-                    norm=True,psnr=True,Pn=False) #excludes Pn term
-            lls[j] += calc_likelihoods_2D(grids[j],s,
-                    norm=True,psnr=True,Pn=False) #excludes Pn term
-        else:
-            raise ValueError("Unknown code ",s.nD," for dimensions of survey")
-        
-        if Verbose:
-            print(f"survey={grids[j].survey.name}, lls={lls[j]}")
-        
         ### Assesses total number of FRBs ###
         if s.TOBS is not None:
             r=np.sum(grids[j].rates)*s.TOBS
@@ -1847,8 +1829,7 @@ def minimise_const_only(vparams:dict,grids:list,surveys:list,
             o=s.NORM_FRB
             rs.append(r)
             os.append(o)
-    if Verbose:
-        print("Total sum of ll w/o const is ",np.sum(lls[j]))
+    
     data=np.array([rs,os])
     ratios=np.log10(data[1,:]/data[0,:])
     bounds=(np.min(ratios),np.max(ratios))
@@ -1863,9 +1844,7 @@ def minimise_const_only(vparams:dict,grids:list,surveys:list,
     #newC=vparams['lC']+float(dC)
     newC = grids[j].state.FRBdemo.lC + float(dC)
     llC=-minus_poisson_ps(dC,data)
-    lltot=llC+np.sum(lls)
-    #embed(header='1840 of it')
-    return newC,llC,lltot
+    return newC,llC
     
     
 def set_orders(parameter_order:list, PARAMS:list):

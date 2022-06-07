@@ -36,8 +36,10 @@ def generate(alpha_method=1, Nsamples=10000, do_plots=True,
     outfile='FRBs.txt',
     savefile=None): 
 
-    craco, grid = loading.survey_and_grid(alpha_method=alpha_method,
-        survey_name=base_survey, lum_func=lum_func)
+    craco, grid = loading.survey_and_grid(
+        alpha_method=alpha_method,
+        survey_name=base_survey, 
+        lum_func=lum_func)
     
     print("Generating ",Nsamples," samples from CRACO survey/grid ")
     sample=grid.GenMCSample(Nsamples)
@@ -67,7 +69,8 @@ def generate(alpha_method=1, Nsamples=10000, do_plots=True,
     do_basic_sample_plots(sample,opdir='MC_Plots')
 
     # Read base
-    sdir = os.path.join(resource_filename('zdm', 'craco'), 'MC_Surveys')
+    sdir = os.path.join(resource_filename('zdm', 'craco'), 
+                        'MC_Surveys')
     basefile = os.path.join(sdir, base_survey+'.dat')
     with open(basefile, 'r') as f:
         base_lines = f.readlines()
@@ -277,7 +280,15 @@ def do_basic_sample_plots(sample,opdir='Plots'):
 #    outfile='MC_Surveys/CRACO_alpha1_Planck18.dat',
 #    savefile=None)
 
+'''  Run in February 2022
 # Gamma function for energies
 generate(alpha_method=1, lum_func=2, Nsamples=5000, do_plots=True,
     outfile='MC_Surveys/CRACO_alpha1_Planck18_Gamma.dat',
     savefile=None)
+'''
+
+# Made in May 2022
+generate(alpha_method=1, lum_func=2, 
+         Nsamples=5000, do_plots=True, 
+         outfile='MC_Surveys/CRACO_std_May2022.dat', 
+         savefile=None)

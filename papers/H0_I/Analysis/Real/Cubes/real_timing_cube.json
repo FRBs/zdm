@@ -11,7 +11,7 @@
         }
     },
     "cube": {
-        "parameter_order": ["lC", "sfr_n", "alpha", "lEmax", "gamma", "lmean", "lsigma", "H0"]
+        "parameter_order": ["lC", "sfr_n", "alpha", "lmean", "lsigma", "lEmax", "gamma", "H0"]
     },
     "lEmax": {
         "DC": "energy",

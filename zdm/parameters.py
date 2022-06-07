@@ -66,7 +66,7 @@ class CosmoParams(data_class.myDataClass):
                   })
     Omega_b_h2: float = field(
         default=Planck18.Ob0 * (Planck18.H0.value/100.)**2,
-        metadata={'help': 'Baryon density weighted by $h_{100}^2$',
+        metadata={'help': 'baryon density weighted by $h_{100}^2$',
                   'unit': '',
                   'Notation': '\Omega_b h^2',
                   })
@@ -90,9 +90,9 @@ class FRBDemoParams(data_class.myDataClass):
                  'options': [0,1]})
     sfr_n: float = field(
         default = 1.77,
-        metadata={'help': 'scaling with star-formation rate',
+        metadata={'help': 'scaling of FRB rate density with star-formation rate',
                   'unit': '',
-                  'Notation': 'n',
+                  'Notation': 'n_{\\rm sfr}',
                   })
     lC: float = field(
         default = 4.19,
@@ -110,6 +110,23 @@ class MWParams(data_class.myDataClass):
                   'unit': 'pc cm$^{-3}$',
                   'Notation': '{\\rm DM}_{\\rm halo}',
         })
+
+# Host parameters -- host
+@dataclass
+class HostParams(data_class.myDataClass):
+    lmean: float = field(
+        default=2.16,
+        metadata={'help': '$\log_{10}$ mean of DM host contribution in pc cm$^{-3}$',
+                  'unit': '',
+                  'Notation': '\mu_{\\rm host}',
+        })
+    lsigma: float = field(
+        default=0.51,
+        metadata={'help': '$\log_{10}$ sigma of DM host contribution in pc cm$^{-3}$',
+                  'unit': '',
+                  'Notation': '\sigma_{\\rm host}',
+        })
+
 # IGM parameters
 @dataclass
 class IGMParams(data_class.myDataClass):
@@ -120,34 +137,19 @@ class IGMParams(data_class.myDataClass):
                   'Notation': 'F',
         })
 
-# Host parameters -- host
-@dataclass
-class HostParams(data_class.myDataClass):
-    lmean: float = field(
-        default=2.16,
-        metadata={'help': 'log10 mean of DM host contribution in pc cm$^{-3}$',
-                  'unit': '',
-                  'Notation': '\mu_{\\rm host}',
-        })
-    lsigma: float = field(
-        default=0.51,
-        metadata={'help': 'log10 sigma of DM host contribution in pc cm$^{-3}$',
-                  'unit': '',
-                  'Notation': '\sigma_{\\rm host}',
-        })
 
 # FRB intrinsic width parameters
 @dataclass
 class WidthParams(data_class.myDataClass):
     Wlogmean: float = field(
         default = 1.70267, 
-        metadata={'help': 'Intrinsic width log of mean',
+        metadata={'help': '$\log_{10}$ mean of intrinsic width distribution in ms',
                   'unit': 'ms',
                   'Notation': '\mu_{w}',
                   })
     Wlogsigma: float = field(
         default = 0.899148,
-        metadata={'help': 'Intrinsic width log of sigma',
+        metadata={'help': '$\log_{10}$ sigma of intrinsic width distribution in ms',
                   'unit': 'ms',
                   'Notation': '\sigma_{w}',
                   })
@@ -155,7 +157,7 @@ class WidthParams(data_class.myDataClass):
         default=0.5,
         metadata={'help': 'Starting fraction of intrinsic width for histogramming',
                   'unit': '',
-                  'Notation': 'w_{\rm min}'})
+                  'Notation': 'w_{\\rm min}'})
     Wmethod: int = field(
         default=2,
         metadata={'help': 'Method of calculating FRB widths; 1 std, 2 includes scattering',
@@ -174,21 +176,21 @@ class WidthParams(data_class.myDataClass):
 class ScatParams(data_class.myDataClass):
     Slogmean: float = field(
         default = 0.7, 
-        metadata={'help': 'Intrinsic width log of mean',
+        metadata={'help': 'Mean of log-scattering distribution at 600\,Mhz',
                   'unit': 'ms',
-                  'Notation': '\tau_{s}',
+                  'Notation': '\log \mu_{s}',
                   })
     Slogsigma: float = field(
         default = 1.9,
-        metadata={'help': 'Intrinsic width log of sigma',
+        metadata={'help': ' Standard deviation of log-scattering distribution at 600\,MHz ',
                   'unit': 'ms',
-                  'Notation': '\sigma_{\tau}',
+                  'Notation': '\log \sigma_{s}',
                   })
     Sfnorm: float = field(
         default = 600,
         metadata={'help': 'Frequency of scattering width',
                   'unit': 'MHz',
-                  'Notation': '\nu_{\tau}',
+                  'Notation': '\\nu_{\\tau}',
                   })
     Sfpower: float = field(
         default = -4.,
@@ -202,19 +204,19 @@ class ScatParams(data_class.myDataClass):
 class EnergeticsParams(data_class.myDataClass):
     lEmin: float = field(
         default = 30.,
-        metadata={'help': 'log10 of minimum energy ',
+        metadata={'help': '$\log_{10}$ of minimum FRB energy ',
                   'unit': 'erg',
-                  'Notation': 'E_{\\rm min}',
+                  'Notation': '\\log_{10} E_{\\rm min}',
                   })
     lEmax: float = field(
         default = 41.84,
-        metadata={'help': 'log 10 of maximum energy',
+        metadata={'help': '$\log_{10}$ of maximum FRB energy',
                   'unit': 'erg',
-                  'Notation': 'E_{\\rm max}',
+                  'Notation': '\\log_{10} E_{\\rm max}',
                   })
     alpha: float = field(
         default = 1.54,
-        metadata={'help': 'spectral index',
+        metadata={'help': 'power-law index of frequency dependent FRB rate, $R \sim \\nu^\\alpha$',
                   'unit': '',
                   'Notation': '\\alpha',
                   })
@@ -226,7 +228,7 @@ class EnergeticsParams(data_class.myDataClass):
                   })
     luminosity_function: int = field(
         default = 0,
-        metadata={'help': 'luminosity function applied (0=power-law, 1=gamma)'})
+        metadata={'help': 'luminosity function applied (0=power-law, 1=gamma, 2=spline+gamma)'})
 
 class State(data_class.myData):
     """ Initialize the full state for the analysis 

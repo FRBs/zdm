@@ -102,7 +102,7 @@ def survey_and_grid(survey_name:str='CRAFT/CRACO_1_5000',
         NFRB (int, optional): Number of FRBs to analyze. Defaults to 100.
         iFRB (int, optional): Starting index for the FRBs.  Defaults to 0
         lum_func (int, optional): Flag for the luminosity function. 
-            0=power-law, 1=gamma.  Defaults to 0.
+            0=power-law, 1=gamma, 2=gamma+spline.  Defaults to 0.
         state_dict (dict, optional):
             Used to init state instead of alpha_method, lum_func parameters
 

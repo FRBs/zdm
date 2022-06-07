@@ -1,4 +1,4 @@
-""" Run a Nautilus test """
+""" Run full Cube for the Real data in the Cloud """
 
 # It should be possible to remove all the matplotlib calls from this
 # but in the current implementation it is not removed.
@@ -14,8 +14,7 @@ from zdm import io
 
 from IPython import embed
 
-def main(pargs, pfile:str, oproot:str, NFRB:int=None, iFRB:int=0,
-         outdir:str='Output'):
+def main(pargs, pfile:str, oproot:str, outdir:str='Output'):
 
     # Generate the folder?
     if not os.path.isdir(outdir):
@@ -43,26 +42,16 @@ def main(pargs, pfile:str, oproot:str, NFRB:int=None, iFRB:int=0,
         line = []
         # Which CPU is running out of the total?
         iCPU = (batch-1)*pargs.ncpu + kk
-        outfile = os.path.join(
-            outdir, oproot.replace('.csv', 
-                                   f'{iCPU+1}.csv'))
+        outfile = os.path.join(outdir, oproot.replace('.csv', f'{iCPU+1}.csv'))
         # Command
-        line = ['zdm_build_cube', 
+        line = ['python', 
+                '../py/build_real_cube.py', 
                 '-n', f'{iCPU+1}',
                 '-m', f'{nper_cpu}', 
                 '-o', f'{outfile}',
-                '-s', f'CRACO_std_May2022', 
-                '-p', f'{pfile}',
-                '--clobber']
-                #'-s', f'CRACO_alpha1_Planck18_Gamma', '--clobber',
-        # NFRB?
-        if NFRB is not None:
-            line += [f'--NFRB', f'{NFRB}']
-        # iFRB?
-        if iFRB > 0:
-            line += [f'--iFRB', f'{iFRB}']
+                '--clobber',
+                '-p', f'{pfile}']
         # Finish
-        #line += ' & \n'
         commands.append(line)
 
     # Launch em!
@@ -93,18 +82,8 @@ def parse_option():
 
 
 if __name__ == "__main__":
-    pargs = parse_option()
     # get the argument of training.
-    pfile = '../Cubes/craco_full_cube.json'
-
-    # 1st full run
-    #oproot = 'craco_full.csv' 
-    #main(pargs, pfile, oproot, NFRB=100, iFRB=100)
-
-    # 2nd full run
-    #oproot = 'craco_400_full.csv' 
-    #main(pargs, pfile, oproot, NFRB=100, iFRB=400)
-
-    # 3rd full run, using May2022 file
-    oproot = 'craco_3rd_full.csv' 
-    main(pargs, pfile, oproot, NFRB=100, iFRB=100)
+    pfile = '../Cubes/downgraded_real_full_cube.json'
+    oproot = 'real_down_full.csv' 
+    pargs = parse_option()
+    main(pargs, pfile, oproot)
