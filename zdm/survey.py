@@ -729,7 +729,10 @@ def load_survey(survey_name:str, state:parameters.State, dmvals:np.ndarray,
             raise IOError("You must specify Nbeams with a private survey file")
     else: # Should only be used for MC analysis
         dfile = survey_name+'.dat'
-        Nbeams = 5
+        if Nbeams is None:
+            Nbeams = 5
+        else:
+            Nbeams=Nbeams
 
     # Do it
     srvy=Survey()
