@@ -59,7 +59,6 @@ def main(pargs):
     pvterms = []  # LL term related to norm (i.e. rates)
     pvvals = []  # 
     wzvals = []  # 
-    embed(header='62 of testing')
     for tt, pval in enumerate(pvals):
         vparams[pargs.param] = pval
         C,llC=it.minimise_const_only(
@@ -67,6 +66,7 @@ def main(pargs):
         # Set lC
         vparams['lC']=C
         igrid.state.FRBdemo.lC = C
+
         # Grab final LL
         lls_final, nterm, pvterm, lpvals, lwz = it.calc_likelihoods_2D(
                     igrid, isurvey, 
