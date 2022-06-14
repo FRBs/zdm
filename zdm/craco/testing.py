@@ -61,21 +61,20 @@ def main(pargs):
     wzvals = []  # 
     for tt, pval in enumerate(pvals):
         vparams[pargs.param] = pval
-        C,llC,lltot=it.minimise_const_only(
+        C,llC=it.minimise_const_only(
                     vparams,grids,surveys, Verbose=False)
         # Set lC
         vparams['lC']=C
         igrid.state.FRBdemo.lC = C
         # Grab final LL
-        # TODO -- bring this back
-        #lls_final, nterm, pvterm, lpvals, lwz = it.calc_likelihoods_2D(
-        #            igrid, isurvey, 
-        #            norm=True,psnr=True,dolist=4)
-        # TODO -- remove this
-        items = it.calc_likelihoods_2D(
+        lls_final, nterm, pvterm, lpvals, lwz = it.calc_likelihoods_2D(
                     igrid, isurvey, 
-                    norm=True,psnr=True,dolist=5)
-        embed(header='78 of testing')
+                    norm=True,psnr=True,dolist=4)
+        # TODO -- remove this
+        #items = it.calc_likelihoods_2D(
+        #            igrid, isurvey, 
+        #            norm=True,psnr=True,dolist=5)
+        #embed(header='78 of testing')
         # Hold
         lls.append(lls_final)
         nterms.append(nterm)

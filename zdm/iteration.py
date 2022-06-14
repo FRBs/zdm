@@ -1793,7 +1793,7 @@ def minimise_const_only(vparams:dict,grids:list,surveys:list,
         ValueError: [description]
 
     Returns:
-        tuple: newC,llC,lltot
+        tuple: newC,llC
     """
 
     '''
