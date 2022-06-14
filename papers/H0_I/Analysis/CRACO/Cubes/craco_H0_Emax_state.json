@@ -17,10 +17,8 @@
         "sprefix": "Std"
     },
     "beam": {
-        "Wbins": 10,
-        "Wscale": 2,
-        "method": 2,
-        "thresh": 0
+        "Bmethod": 2,
+        "Bthresh": 0
     },
     "cosmo": {
         "H0": 67.66,
@@ -36,14 +34,24 @@
         "gamma": -1.01,
         "lEmax": 41.4,
         "lEmin": 30,
-        "luminosity_function": 1
+        "luminosity_function": 2
     },
     "host": {
         "lmean": 2.18,
         "lsigma": 0.48
     },
+    "scat": {
+        "Sfnorm": 600,
+        "Sfpower": -4.0,
+        "Slogmean": 0.7,
+        "Slogsigma": 1.9
+    },
     "width": {
-        "logmean": 1.70267,
-        "logsigma": 0.899148
+        "Wbins": 10,
+        "Wlogmean": 1.70267,
+        "Wlogsigma": 0.899148,
+        "Wmethod": 2,
+        "Wscale": 2,
+        "Wthresh": 0.5
     }
 }

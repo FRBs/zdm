@@ -59,6 +59,7 @@ def main(pargs):
     pvterms = []  # LL term related to norm (i.e. rates)
     pvvals = []  # 
     wzvals = []  # 
+    embed(header='62 of testing')
     for tt, pval in enumerate(pvals):
         vparams[pargs.param] = pval
         C,llC=it.minimise_const_only(
@@ -136,9 +137,9 @@ parser.add_argument('--nstep',type=int,default=10,required=False,help="number of
 parser.add_argument('--nFRB',type=int,default=1000,required=False,help="number of FRBs to analyze")
 parser.add_argument('--iFRB',type=int,default=0,required=False,help="starting number of FRBs to analyze")
 parser.add_argument('-o','--opfile',type=str,required=False,help="Output file for the data")
-parser.add_argument('--survey',type=str,default='CRACO_alpha1_Planck18',
+parser.add_argument('--survey',type=str,default='CRACO_std_May2022',
                     required=False,help="Survey name")
-parser.add_argument('--lum_func',type=int,default=0, required=False,help="Luminosity function (0=power-law, 1=gamma)")
+parser.add_argument('--lum_func',type=int,default=2, required=False,help="Luminosity function (0=power-law, 1=gamma, 2=spline)")
 pargs = parser.parse_args()
 
 

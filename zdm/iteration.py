@@ -965,6 +965,7 @@ def cube_likelihoods(grids:list,surveys:list,
                 C,llC=minimise_const_only(
                     vparams,grids,surveys)
                 vparams['lC']=C
+                embed(header='926 of iteration')
 
             
             # for the minimised parameters, set the values
@@ -1836,6 +1837,7 @@ def minimise_const_only(vparams:dict,grids:list,surveys:list,
     startlog10C=(bounds[0]+bounds[1])/2.
     bounds=[bounds]
     t0=time.process_time()
+    # Stop me here
     result=minimize(minus_poisson_ps,startlog10C,
                     args=data,bounds=bounds)
     t1=time.process_time()
@@ -1844,6 +1846,7 @@ def minimise_const_only(vparams:dict,grids:list,surveys:list,
     #newC=vparams['lC']+float(dC)
     newC = grids[j].state.FRBdemo.lC + float(dC)
     llC=-minus_poisson_ps(dC,data)
+
     return newC,llC
     
     
