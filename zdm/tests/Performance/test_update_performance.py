@@ -149,8 +149,8 @@ def main(likelihoods=True,detail=0,verbose=True):
                 psnr=True
                 
                 # these two options should give identical answers
-                C1,llC,lltot=it.minimise_const_only(None,grids,surveys,use_prev_grid=True)
-                C2,llC,lltot=it.minimise_const_only(vparams,grids,surveys,use_prev_grid=True)
+                C1,llC=it.minimise_const_only(None,grids,surveys,use_prev_grid=True)
+                C2,llC=it.minimise_const_only(vparams,grids,surveys,use_prev_grid=True)
                 if np.abs((C2-C1)/(C2+C1)) > 1e-3:
                     print("Two minimisations give different values of the constant! ",C1," and ",C2)
                 t3=time.time() #times the minimisation routine
