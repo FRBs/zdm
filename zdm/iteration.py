@@ -1830,6 +1830,7 @@ def minimise_const_only(vparams:dict,grids:list,surveys:list,
             o=s.NORM_FRB
             rs.append(r)
             os.append(o)
+
     
     data=np.array([rs,os])
     ratios=np.log10(data[1,:]/data[0,:])
@@ -1837,11 +1838,14 @@ def minimise_const_only(vparams:dict,grids:list,surveys:list,
     startlog10C=(bounds[0]+bounds[1])/2.
     bounds=[bounds]
     t0=time.process_time()
-    # Stop me here
-    result=minimize(minus_poisson_ps,startlog10C,
+    # If only 1 survey, the answer is trivial
+    if len(surveys) == 1:
+        dC = startlog10C
+    else:
+        result=minimize(minus_poisson_ps,startlog10C,
                     args=data,bounds=bounds)
+        dC=result.x
     t1=time.process_time()
-    dC=result.x
     #newC=pset[7]+dC
     #newC=vparams['lC']+float(dC)
     newC = grids[j].state.FRBdemo.lC + float(dC)
