@@ -79,4 +79,4 @@ jobs:
         python -m pip install pycodestyle
     - name: Check for runtime errors using pycodestyle
       run: |
-        pycodestyle frb --count --select=E9
+        pycodestyle zdm --count --select=E9
