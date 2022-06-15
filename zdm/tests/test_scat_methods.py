@@ -1,20 +1,19 @@
 #import pytest
 
-#from pkg_resources import resource_filename
+from pkg_resources import resource_filename
 import os
 #import copy
 #import pickle
 
 #from astropy.cosmology import Planck18
 
-from zdm import cosmology as cos
 from zdm import misc_functions
-from zdm import parameters
 from zdm import survey
 from zdm import pcosmic
 from zdm import iteration as it
 from zdm.craco import loading
 from zdm import io
+from zdm.tests import tstutils
 
 #from IPython import embed
 
@@ -22,10 +21,10 @@ import numpy as np
 from zdm import survey
 from matplotlib import pyplot as plt
 
-def main():
+def test_scat_methods():
     
     # in case you wish to switch to another output directory
-    opdir='Scattering'
+    opdir= tstutils.data_path('Scattering')
     if not os.path.exists(opdir):
         os.mkdir(opdir)
     
@@ -39,20 +38,22 @@ def main():
     #survey.geometric_lognormals(mu1,s1,mu2,s2,plot=True)
     
     ############## Load up old model ##############
-    input_dict=io.process_jfile('Scattering/scat_test_old.json')
+    input_dict=io.process_jfile(tstutils.data_path('scat_test_old.json'))
     
     # Deconstruct the input_dict
     state_dict1, cube_dict, vparam_dict1 = it.parse_input_dict(input_dict)
     
     # Initialise survey and grid 
     # For this purporse, we only need two different surveys
+    sdir = os.path.join(resource_filename('zdm', 'data'), 'Surveys')
     name = 'CRAFT/ICS892'
     s1,g1 = loading.survey_and_grid(
         state_dict=vparam_dict1,
+        sdir=sdir,
         survey_name=name,NFRB=None) # should be equal to actual number of FRBs, but for this purpose it doesn't matter
     
     ############## Load up new model ##############
-    input_dict=io.process_jfile('Scattering/scat_test_new.json')
+    input_dict=io.process_jfile(tstutils.data_path('scat_test_new.json'))
 
     # Deconstruct the input_dict
     state_dict2, cube_dict, vparam_dict2 = it.parse_input_dict(input_dict)
@@ -61,11 +62,12 @@ def main():
     # For this purporse, we only need two different surveys
     s2,g2 = loading.survey_and_grid(
         state_dict=vparam_dict2,
+        sdir=sdir,
         survey_name=name,NFRB=None) # should be equal to actual number of FRBs, but for this purpose it doesn't matter
     
-    
+    # Plots?
     if not op:
-        exit()
+        return
     
     
     ############# do 2D plots ##########
@@ -144,5 +146,3 @@ def main():
     plt.tight_layout()
     plt.savefig(opdir+'/model_comparison.pdf')
     plt.close()
-    
-main()
