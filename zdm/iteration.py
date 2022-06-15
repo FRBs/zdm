@@ -903,11 +903,8 @@ def cube_likelihoods(grids:list,surveys:list,
     else:
         const_only=False
     
-    start=(run-1)*howmany
-
     ####### counters for each dimensions ######
     parameter_order = cube_dict['parameter_order']
-
     order, iorder = set_orders(parameter_order, PARAMS)
 
     # Shape of the grid (ignoring the constant, lC)
