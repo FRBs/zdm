@@ -19,6 +19,8 @@ from zdm.craco import loading
 
 from IPython import embed
 
+import time
+
 matplotlib.rcParams['image.interpolation'] = None
 
 defaultsize=14
@@ -37,7 +39,7 @@ font = {'family' : 'normal',
 matplotlib.rc('font', **font)
 
 def main(pargs):
-
+    mainStartTime = time.time_ns()
     isurvey, igrid = loading.survey_and_grid(survey_name=pargs.survey,
                                       NFRB=pargs.nFRB,
                                       iFRB=pargs.iFRB,
@@ -61,21 +63,30 @@ def main(pargs):
     wzvals = []  # 
     for tt, pval in enumerate(pvals):
         vparams[pargs.param] = pval
+
+        minimiseStartTime = time.time_ns()
+
         C,llC=it.minimise_const_only(
                     vparams,grids,surveys, Verbose=False)
+        minimiseTotalTime = time.time_ns() - minimiseStartTime
+        print("[minimise_const_only]", minimiseTotalTime/1000000000, " (seconds)")
         # Set lC
         vparams['lC']=C
         igrid.state.FRBdemo.lC = C
 
         # Grab final LL
+        calc_likelihoods_2DStartTime = time.time_ns()
         lls_final, nterm, pvterm, lpvals, lwz = it.calc_likelihoods_2D(
                     igrid, isurvey, 
                     norm=True,psnr=True,dolist=4)
+        calc_likelihoods_2DTotalTime = time.time_ns() - calc_likelihoods_2DStartTime
+        print("[calc_likelihoods_2D]", calc_likelihoods_2DTotalTime/1000000000, " (seconds)")
+
         # TODO -- remove this
         #items = it.calc_likelihoods_2D(
         #            igrid, isurvey, 
         #            norm=True,psnr=True,dolist=5)
-        #embed(header='78 of testing')
+        #embed(header='78 of testing')``
         # Hold
         lls.append(lls_final)
         nterms.append(nterm)
@@ -128,6 +139,9 @@ def main(pargs):
     plt.savefig('pvterms.png')
     plt.close()
 
+    mainTotalTime = time.time_ns() - mainStartTime
+    print(f'TOTAL TIME ELAPSED: {mainTotalTime} ({mainTotalTime/1000000000} seconds)')
+
 # command-line arguments here
 parser = argparse.ArgumentParser()
 parser.add_argument('param',type=str,help="paramter to test on")
@@ -173,3 +187,23 @@ python testing.py alpha 0. 2. --nstep 50 --nFRB 100 --survey CRACO_alpha1_Planck
 python testing.py sfr_n 0. 5. --nstep 100 --nFRB 100 --iFRB 100 --survey CRACO_alpha1_Planck18_Gamma -o MC_Plots/CRACO_100_sfr_Gamma.png --lum_func 2
 #
 '''
+
+
+# TIMESTAMPING FUNCTION
+
+def timeStamp(func):
+    def _timeStamp(*args, **kwargs):
+        start = time.time_ns()
+
+        func(*args, **kwargs)
+
+        total = time.time_ns() - start
+
+        return total
+    return _timeStamp
+
+def function():
+    print('huh')
+
+
+timeStamp(function)
