@@ -16,28 +16,89 @@ import pytest
 
 from pkg_resources import resource_filename
 import os
-import copy
-import pickle
 
-from astropy.cosmology import Planck18
 
-from zdm import cosmology as cos
-from zdm import misc_functions
-from zdm import parameters
-from zdm import survey
 from zdm import iteration as it
 from zdm.craco import loading
 from zdm import io
+from zdm.tests import tstutils
 
 from IPython import embed
 
 import time
 import numpy as np
 
-def main(likelihoods=True,detail=0,verbose=True):
+def do_test_update(grids,names,sdir,detail=1):
+    """
+    Compares the grids to fresh grids made using their state parameters
+    
+    grids:
+        list of grid objects
+    
+    names:
+        names of surveys the grids are loaded from
+    
+    detail:
+        int: level of detail to report information
+    """
+    # create new grids directly from updates state parameters in grid   
+    newgrids=[]
+    newsurveys=[]
+    for name in names:
+        s,g = loading.survey_and_grid(
+            init_state=grids[0].state, sdir=sdir,
+            survey_name=name,NFRB=None) # should be equal to actual number of FRBs, but for this purpose it doesn't matter
+        newsurveys.append(s)
+        newgrids.append(g)
+    
+    
+    # test that the resulting rates are sufficiently similar
+    for i,g in enumerate(grids):
+        newg=newgrids[i]
+        diff=g.rates-newg.rates
+        #rel_diff=0.5*diff/(g.rates+newg.rates)
+        print("    For grid ",i," max diff of rates is ",np.max(diff)," from maxes of ",np.max(newg.rates))
+        #print("Max relative differences that's not NAN is ",np.nanmax(rel_diff)
+        
+        if detail==1:
+            pass
+        diff=g.pdv-newg.pdv
+        print("    For grid ",i," max diff of pdv is ",np.max(diff)," from maxes of ",np.max(newg.pdv))
+        
+        diff=g.dV-newg.dV
+        print("    For grid ",i," max diff of dv is ",np.max(diff)," from maxes of ",np.max(newg.dV))
+        
+        diff=g.fractions-newg.fractions
+        print("    For grid ",i," max diff of fractions is ",np.max(diff)," from maxes of ",np.max(newg.fractions))
+        
+        # widths might be different shapes
+        wmin=min(g.thresholds.shape[0],newg.thresholds.shape[0])
+        diff=g.thresholds[-wmin:,:,:]-newg.thresholds[-wmin:,:,:]
+        print("    For grid ",i," max diff of thresholds is ",np.max(diff)," from maxes of ",np.max(newg.thresholds))
+        
+        diff=g.sfr_smear-newg.sfr_smear
+        print("    For grid ",i," max diff of sfr_smear is ",np.max(diff)," from maxes of ",np.max(newg.sfr_smear))
+        
+        diff=g.sfr-newg.sfr
+        print("    For grid ",i," max diff of sfr is ",np.max(diff)," from maxes of ",np.max(newg.sfr))
+        
+        diff=g.smear_grid-newg.smear_grid
+        print("    For grid ",i," max diff of smear_grid is ",np.max(diff)," from maxes of ",np.max(newg.smear_grid))
+        if detail==2:
+            pass
+        for k,ig in enumerate([g,newg]):
+            print("Info for grid ",k)
+            print(ig.state.energy.alpha)
+            print(ig.nuObs)
+            print(ig.nuRef)
+            print(ig.state.FRBdemo.alpha_method)
+            print(ig.state.FRBdemo.sfr_n)
+        
+
+def test_performance(likelihoods=True,detail=0,verbose=True):
     
     ############## Load up ##############
-    input_dict=io.process_jfile('../../../papers/H0_I/Analysis/CRACO/Cubes/craco_H0_Emax_state.json')
+    input_dict=io.process_jfile(tstutils.data_path("craco_H0_Emax_state.json"))
 
     # Deconstruct the input_dict
     state_dict, cube_dict, vparam_dict = it.parse_input_dict(input_dict)
@@ -49,7 +110,7 @@ def main(likelihoods=True,detail=0,verbose=True):
     #sdir=None # use this to direct to a different survey directory
     
     #names=['CRAFT/FE', 'PKS/Mb','private_CRAFT_ICS','private_CRAFT_ICS_892','private_CRAFT_ICS_1632']
-    sdir='../../data/Surveys/'
+    sdir = os.path.join(resource_filename('zdm', 'data'), 'Surveys')
     
     print("Performing calculations for ",names)
     
@@ -185,80 +246,12 @@ def main(likelihoods=True,detail=0,verbose=True):
             print("        The minimisation of C took an additional",tmin," s")
             print("        The likelihood calculation took an additional",tlik," s")
         if detail > 0:
-            test_update(grids,names,detail)
+            do_test_update(grids,names,detail)
         # now generates a new parameter set, and checks that the result is equal
         # to the updated one
     
-    ####### Check with a fresh frid ######
+    ####### Check with a fresh grid ######
     if detail == 0:
         print("Checking update accuracy")
-        test_update(grids,names,sdir,detail=1)
+        do_test_update(grids,names,sdir,detail=1)
     
-def test_update(grids,names,sdir,detail=1):
-    """
-    Compares the grids to fresh grids made using their state parameters
-    
-    grids:
-        list of grid objects
-    
-    names:
-        names of surveys the grids are loaded from
-    
-    detail:
-        int: level of detail to report information
-    """
-    # create new grids directly from updates state parameters in grid   
-    newgrids=[]
-    newsurveys=[]
-    for name in names:
-        s,g = loading.survey_and_grid(
-            init_state=grids[0].state, sdir=sdir,
-            survey_name=name,NFRB=None) # should be equal to actual number of FRBs, but for this purpose it doesn't matter
-        newsurveys.append(s)
-        newgrids.append(g)
-    
-    
-    # test that the resulting rates are sufficiently similar
-    for i,g in enumerate(grids):
-        newg=newgrids[i]
-        diff=g.rates-newg.rates
-        #rel_diff=0.5*diff/(g.rates+newg.rates)
-        print("    For grid ",i," max diff of rates is ",np.max(diff)," from maxes of ",np.max(newg.rates))
-        #print("Max relative differences that's not NAN is ",np.nanmax(rel_diff)
-        
-        if detail==1:
-            pass
-        diff=g.pdv-newg.pdv
-        print("    For grid ",i," max diff of pdv is ",np.max(diff)," from maxes of ",np.max(newg.pdv))
-        
-        diff=g.dV-newg.dV
-        print("    For grid ",i," max diff of dv is ",np.max(diff)," from maxes of ",np.max(newg.dV))
-        
-        diff=g.fractions-newg.fractions
-        print("    For grid ",i," max diff of fractions is ",np.max(diff)," from maxes of ",np.max(newg.fractions))
-        
-        # widths might be different shapes
-        wmin=min(g.thresholds.shape[0],newg.thresholds.shape[0])
-        diff=g.thresholds[-wmin:,:,:]-newg.thresholds[-wmin:,:,:]
-        print("    For grid ",i," max diff of thresholds is ",np.max(diff)," from maxes of ",np.max(newg.thresholds))
-        
-        diff=g.sfr_smear-newg.sfr_smear
-        print("    For grid ",i," max diff of sfr_smear is ",np.max(diff)," from maxes of ",np.max(newg.sfr_smear))
-        
-        diff=g.sfr-newg.sfr
-        print("    For grid ",i," max diff of sfr is ",np.max(diff)," from maxes of ",np.max(newg.sfr))
-        
-        diff=g.smear_grid-newg.smear_grid
-        print("    For grid ",i," max diff of smear_grid is ",np.max(diff)," from maxes of ",np.max(newg.smear_grid))
-        if detail==2:
-            pass
-        for k,ig in enumerate([g,newg]):
-            print("Info for grid ",k)
-            print(ig.state.energy.alpha)
-            print(ig.nuObs)
-            print(ig.nuRef)
-            print(ig.state.FRBdemo.alpha_method)
-            print(ig.state.FRBdemo.sfr_n)
-        
-    
-main()        
