@@ -2,6 +2,7 @@
 
 #from pkg_resources import resource_filename
 import os
+import pytest
 #import copy
 #import pickle
 
@@ -15,6 +16,7 @@ from zdm import pcosmic
 from zdm import iteration as it
 from zdm.craco import loading
 from zdm import io
+from zdm.tests import tstutils
 
 #from IPython import embed
 
