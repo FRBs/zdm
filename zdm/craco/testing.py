@@ -10,6 +10,7 @@
 # It should be possible to remove all the matplotlib calls from this
 # but in the current implementation it is not removed.
 import argparse
+from sqlite3 import Timestamp
 import numpy as np
 import matplotlib
 from matplotlib import pyplot as plt
@@ -20,6 +21,9 @@ from zdm.craco import loading
 from IPython import embed
 
 import time
+import cProfile
+import pstats
+import io
 
 matplotlib.rcParams['image.interpolation'] = None
 
@@ -156,8 +160,19 @@ parser.add_argument('--survey',type=str,default='CRACO_std_May2022',
 parser.add_argument('--lum_func',type=int,default=2, required=False,help="Luminosity function (0=power-law, 1=gamma, 2=spline)")
 pargs = parser.parse_args()
 
+pr = cProfile.Profile()
+pr.enable()
 
 main(pargs)
+
+pr.disable()
+s = io.StringIO()
+ps = pstats.Stats(pr, stream=s).sort_stats('tottime')
+ps.print_stats()
+
+with open('test.txt', 'w+') as f:
+    f.write(s.getvalue())
+# main(pargs)
 
 '''
 # OUT OF DATE TESTS
@@ -191,6 +206,9 @@ python testing.py sfr_n 0. 5. --nstep 100 --nFRB 100 --iFRB 100 --survey CRACO_a
 
 # TIMESTAMPING FUNCTION
 
+def _log(hmm):
+    print("bruh")
+
 def timeStamp(func):
     def _timeStamp(*args, **kwargs):
         start = time.time_ns()
@@ -198,12 +216,10 @@ def timeStamp(func):
         func(*args, **kwargs)
 
         total = time.time_ns() - start
-
+        print(func.__name__, total)
         return total
     return _timeStamp
 
-def function():
-    print('huh')
 
-
-timeStamp(function)
+def function(check):
+    print(check)
