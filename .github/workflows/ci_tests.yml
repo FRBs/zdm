@@ -3,8 +3,7 @@ name: CI Tests
 on:
   push:
     branches:
-    - master
-    tags:
+    - main
   pull_request:
 
 env:
