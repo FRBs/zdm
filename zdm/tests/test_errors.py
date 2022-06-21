@@ -8,7 +8,7 @@ gets saved to Pickle for massive speedups (e.g. if just fine-tuning plots); but 
 This is a legacy file from the original 'method' paper and will likely not be updated.
 
 """
-import cosmology as cos
+from zdm import cosmology as cos
 import argparse
 
 import numpy as np
