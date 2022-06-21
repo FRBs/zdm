@@ -1,5 +1,4 @@
 """ Run tests with CRACO FRBs """
-
 ######
 # first run this to generate surveys and parameter sets, by 
 # setting NewSurveys=True NewGrids=True
@@ -21,7 +20,7 @@ from zdm.craco import loading
 from IPython import embed
 
 import time
-import cProfile
+#import cProfile
 import pstats
 import io
 
@@ -160,18 +159,18 @@ parser.add_argument('--survey',type=str,default='CRACO_std_May2022',
 parser.add_argument('--lum_func',type=int,default=2, required=False,help="Luminosity function (0=power-law, 1=gamma, 2=spline)")
 pargs = parser.parse_args()
 
-pr = cProfile.Profile()
-pr.enable()
+# pr = cProfile.Profile()
+# pr.enable()
 
-main(pargs)
+# main(pargs)
 
-pr.disable()
-s = io.StringIO()
-ps = pstats.Stats(pr, stream=s).sort_stats('cumtime')
-ps.print_stats()
+# pr.disable()
+# s = io.StringIO()
+# ps = pstats.Stats(pr, stream=s).sort_stats('cumtime')
+# ps.print_stats()
 
-with open('test.txt', 'w+') as f:
-    f.write(s.getvalue())
+# with open('test.txt', 'w+') as f:
+#     f.write(s.getvalue())
 # main(pargs)
 
 '''
