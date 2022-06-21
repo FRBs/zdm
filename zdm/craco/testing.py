@@ -69,7 +69,7 @@ def main(pargs):
         vparams[pargs.param] = pval
 
         minimiseStartTime = time.time_ns()
-
+    
         C,llC=it.minimise_const_only(
                     vparams,grids,surveys, Verbose=False)
         minimiseTotalTime = time.time_ns() - minimiseStartTime
@@ -167,7 +167,7 @@ main(pargs)
 
 pr.disable()
 s = io.StringIO()
-ps = pstats.Stats(pr, stream=s).sort_stats('tottime')
+ps = pstats.Stats(pr, stream=s).sort_stats('cumtime')
 ps.print_stats()
 
 with open('test.txt', 'w+') as f:
