@@ -29,8 +29,6 @@ isurvey, igrid = loading.survey_and_grid(survey_name=psurvey,
                                     NFRB=pnFRB,
                                     iFRB=piFRB,
                                     lum_func=plum_func)
-surveys = [isurvey]                                      
-grids = [igrid]
 
 #pvals = np.linspace(pargs.min, pargs.max, pargs.nstep)
 vparams = {}
@@ -39,5 +37,7 @@ vparams['lC'] = -0.9
 
 vparams[pparam] = pval
 
-# PROFILE HERE PLEASE
-C,llC=it.minimise_const_only(vparams,grids,surveys, Verbose=False)
+#C,llC=it.minimise_const_only(vparams,grids,surveys, Verbose=False)
+
+embed(header='44 of time_profile')
+igrid.update(vparams) 
