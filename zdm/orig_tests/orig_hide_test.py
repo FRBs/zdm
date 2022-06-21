@@ -12,24 +12,16 @@ This file is almost certainly outdated.
 import argparse
 
 import numpy as np
-from zdm import zdm
-#import pcosmic
-import matplotlib.pyplot as plt
-import matplotlib.colors as colors
-import matplotlib.cm as cm
 import matplotlib
 from pkg_resources import resource_filename
 import os
-import sys
 
-import scipy as sp
 import time
 from matplotlib.ticker import NullFormatter
 from zdm import iteration as it
 
 from zdm import survey
 from zdm import cosmology as cos
-from zdm import beams
 
 import pickle
 
