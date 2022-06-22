@@ -61,21 +61,15 @@ def main(pargs):
     wzvals = []  # 
     for tt, pval in enumerate(pvals):
         vparams[pargs.param] = pval
-        C,llC,lltot=it.minimise_const_only(
+        C,llC=it.minimise_const_only(
                     vparams,grids,surveys, Verbose=False)
         # Set lC
         vparams['lC']=C
         igrid.state.FRBdemo.lC = C
         # Grab final LL
-        # TODO -- bring this back
-        #lls_final, nterm, pvterm, lpvals, lwz = it.calc_likelihoods_2D(
-        #            igrid, isurvey, 
-        #            norm=True,psnr=True,dolist=4)
-        # TODO -- remove this
-        items = it.calc_likelihoods_2D(
+        lls_final, nterm, pvterm, lpvals, lwz = it.calc_likelihoods_2D(
                     igrid, isurvey, 
-                    norm=True,psnr=True,dolist=5)
-        embed(header='78 of testing')
+                    norm=True,psnr=True,dolist=4)
         # Hold
         lls.append(lls_final)
         nterms.append(nterm)
@@ -137,7 +131,7 @@ parser.add_argument('--nstep',type=int,default=10,required=False,help="number of
 parser.add_argument('--nFRB',type=int,default=1000,required=False,help="number of FRBs to analyze")
 parser.add_argument('--iFRB',type=int,default=0,required=False,help="starting number of FRBs to analyze")
 parser.add_argument('-o','--opfile',type=str,required=False,help="Output file for the data")
-parser.add_argument('--survey',type=str,default='CRACO_alpha1_Planck18',
+parser.add_argument('--survey',type=str,default='CRACO_std_May2022',
                     required=False,help="Survey name")
 parser.add_argument('--lum_func',type=int,default=0, required=False,help="Luminosity function (0=power-law, 1=gamma)")
 pargs = parser.parse_args()
@@ -163,7 +157,6 @@ python test_with_craco.py lEmax 41. 43. --nstep 50 --nFRB 100 --cosmo Planck15 -
 
 # Newest round
 python testing.py lEmax 41. 43. --nstep 50 --nFRB 100 -o MC_Plots/CRACO_100_Emax_new.png 
-python testing.py H0 60. 80. --nstep 50 --nFRB 100 -o MC_Plots/CRACO_100_H0.png 
 
 # Gamma
 python testing.py H0 60. 80. --nstep 50 --nFRB 100 --survey CRACO_alpha1_Planck18_Gamma -o MC_Plots/CRACO_100_H0_Gamma.png --lum_func 2
@@ -172,4 +165,6 @@ python testing.py lEmax 41. 43. --nstep 50 --nFRB 100 --iFRB 100 --survey CRACO_
 python testing.py alpha 0. 2. --nstep 50 --nFRB 100 --survey CRACO_alpha1_Planck18_Gamma -o MC_Plots/CRACO_100_alpha_Gamma.png --lum_func 2
 python testing.py sfr_n 0. 5. --nstep 100 --nFRB 100 --iFRB 100 --survey CRACO_alpha1_Planck18_Gamma -o MC_Plots/CRACO_100_sfr_Gamma.png --lum_func 2
 #
+
+python testing.py H0 60. 80. --nstep 50 --nFRB 100 -o MC_Plots/CRACO_100_H0.png --lum_func 2
 '''
