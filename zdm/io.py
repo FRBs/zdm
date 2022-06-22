@@ -1,6 +1,7 @@
 import os
 import gzip
 import json
+import numpy as np
 
 def process_jfile(jfile:str):
     """Load up a JSON file
