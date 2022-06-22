@@ -1,5 +1,4 @@
 """ Run tests with CRACO FRBs """
-
 ######
 # first run this to generate surveys and parameter sets, by 
 # setting NewSurveys=True NewGrids=True
@@ -10,6 +9,7 @@
 # It should be possible to remove all the matplotlib calls from this
 # but in the current implementation it is not removed.
 import argparse
+from sqlite3 import Timestamp
 import numpy as np
 import matplotlib
 from matplotlib import pyplot as plt
@@ -18,6 +18,11 @@ from zdm import iteration as it
 from zdm.craco import loading
 
 from IPython import embed
+
+import time
+#import cProfile
+import pstats
+import io
 
 matplotlib.rcParams['image.interpolation'] = None
 
@@ -37,7 +42,7 @@ font = {'family' : 'normal',
 matplotlib.rc('font', **font)
 
 def main(pargs):
-
+    mainStartTime = time.time_ns()
     isurvey, igrid = loading.survey_and_grid(survey_name=pargs.survey,
                                       NFRB=pargs.nFRB,
                                       iFRB=pargs.iFRB,
@@ -61,21 +66,30 @@ def main(pargs):
     wzvals = []  # 
     for tt, pval in enumerate(pvals):
         vparams[pargs.param] = pval
+
+        minimiseStartTime = time.time_ns()
+    
         C,llC=it.minimise_const_only(
                     vparams,grids,surveys, Verbose=False)
+        minimiseTotalTime = time.time_ns() - minimiseStartTime
+        print("[minimise_const_only]", minimiseTotalTime/1000000000, " (seconds)")
         # Set lC
         vparams['lC']=C
         igrid.state.FRBdemo.lC = C
 
         # Grab final LL
+        calc_likelihoods_2DStartTime = time.time_ns()
         lls_final, nterm, pvterm, lpvals, lwz = it.calc_likelihoods_2D(
                     igrid, isurvey, 
                     norm=True,psnr=True,dolist=4)
+        calc_likelihoods_2DTotalTime = time.time_ns() - calc_likelihoods_2DStartTime
+        print("[calc_likelihoods_2D]", calc_likelihoods_2DTotalTime/1000000000, " (seconds)")
+
         # TODO -- remove this
         #items = it.calc_likelihoods_2D(
         #            igrid, isurvey, 
         #            norm=True,psnr=True,dolist=5)
-        #embed(header='78 of testing')
+        #embed(header='78 of testing')``
         # Hold
         lls.append(lls_final)
         nterms.append(nterm)
@@ -128,6 +142,9 @@ def main(pargs):
     plt.savefig('pvterms.png')
     plt.close()
 
+    mainTotalTime = time.time_ns() - mainStartTime
+    print(f'TOTAL TIME ELAPSED: {mainTotalTime} ({mainTotalTime/1000000000} seconds)')
+
 # command-line arguments here
 parser = argparse.ArgumentParser()
 parser.add_argument('param',type=str,help="paramter to test on")
@@ -142,8 +159,19 @@ parser.add_argument('--survey',type=str,default='CRACO_std_May2022',
 parser.add_argument('--lum_func',type=int,default=2, required=False,help="Luminosity function (0=power-law, 1=gamma, 2=spline)")
 pargs = parser.parse_args()
 
+# pr = cProfile.Profile()
+# pr.enable()
 
-main(pargs)
+# main(pargs)
+
+# pr.disable()
+# s = io.StringIO()
+# ps = pstats.Stats(pr, stream=s).sort_stats('cumtime')
+# ps.print_stats()
+
+# with open('test.txt', 'w+') as f:
+#     f.write(s.getvalue())
+# main(pargs)
 
 '''
 # OUT OF DATE TESTS
@@ -173,3 +201,24 @@ python testing.py alpha 0. 2. --nstep 50 --nFRB 100 --survey CRACO_alpha1_Planck
 python testing.py sfr_n 0. 5. --nstep 100 --nFRB 100 --iFRB 100 --survey CRACO_alpha1_Planck18_Gamma -o MC_Plots/CRACO_100_sfr_Gamma.png --lum_func 2
 #
 '''
+
+
+# TIMESTAMPING FUNCTION
+
+def _log(hmm):
+    print("bruh")
+
+def timeStamp(func):
+    def _timeStamp(*args, **kwargs):
+        start = time.time_ns()
+
+        func(*args, **kwargs)
+
+        total = time.time_ns() - start
+        print(func.__name__, total)
+        return total
+    return _timeStamp
+
+
+def function(check):
+    print(check)
