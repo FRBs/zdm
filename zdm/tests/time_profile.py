@@ -39,5 +39,4 @@ vparams[pparam] = pval
 
 #C,llC=it.minimise_const_only(vparams,grids,surveys, Verbose=False)
 
-embed(header='44 of time_profile')
 igrid.update(vparams) 
