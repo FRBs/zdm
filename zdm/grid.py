@@ -632,7 +632,7 @@ class Grid:
             set_evol = True
             new_sfr_smear = True
 
-        # Mask?
+        # DM_host
         # IT IS IMPORTANT TO USE np.any so that each item is executed!!
         if np.any([self.chk_upd_param('lmean', vparams, update=True), 
             self.chk_upd_param('lsigma', vparams, update=True)]):
