@@ -602,6 +602,10 @@ def fig_craco_varyF_zDM(
 
     plt.sca(ax1)
 
+    ax = plt.gca()
+    dms, zeval = figm.average_DM(0.3, cumul=True)
+    ax.plot(zeval, dms)
+
     plt.xlabel("z")
     plt.ylabel("${\\rm DM}_{\\rm EG}$")
 
@@ -627,6 +631,10 @@ def fig_craco_varyF_zDM(
         # Update grid
         vparams = {}
         vparams["F"] = F
+
+        vparams["lmean"] = 1e-3
+        vparams["lsigma"] = 0.1
+
         if other_param == "Emax":
             vparams["lEmax"] = fiducial_Emax + scl
         elif other_param == "H0":
@@ -654,6 +662,7 @@ def fig_craco_varyF_zDM(
 
         # sets the x and y tics
         # JXP fussing here!!
+
         tvals, ticks = figures.ticks_pgrid(zvals, these_vals=zticks)  # , fmt='str4')
         plt.xticks(tvals, ticks)
         tvals, ticks = figures.ticks_pgrid(dmvals, fmt="int")  # , fmt='str4')
@@ -676,6 +685,7 @@ def fig_craco_varyF_zDM(
 
     ###### gets decent axis labels, down to 1 decimal place #######
     ax = plt.gca()
+
     ax.legend(legend_lines, labels, loc="lower right")
 
     # Fontsize
@@ -696,7 +706,7 @@ def fig_craco_varyF_zDM(
 
     # Finish
     plt.tight_layout()
-    plt.savefig(outfile, dpi=300)
+    plt.savefig(outfile, dpi=300, bbox_inches="tight")
     plt.close()
     print(f"Wrote: {outfile}")
 
