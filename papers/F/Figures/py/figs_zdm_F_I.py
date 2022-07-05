@@ -7,11 +7,14 @@ from scipy.interpolate import interp1d
 from frb.dm import igm as figm
 from frb.figures import utils as fig_utils
 
-from zdm import figures
+from zdm import figures, pcosmic
 
 sys.path.append(os.path.abspath("../Analysis/py"))
 sys.path.append(os.path.abspath("../../Analysis/py"))
 import analy_F_I
+
+from astropy.cosmology import FlatLambdaCDM
+
 
 def fig_craco_varyF_zDM(
     outfile,
@@ -36,18 +39,15 @@ def fig_craco_varyF_zDM(
     # Generate the grid
     survey, grid = analy_F_I.craco_mc_survey_grid()
 
-    # survey, grid = loading.survey_and_grid(
-    #    survey_name='CRACO_alpha1_Planck18_Gamma',
-    #    NFRB=100, lum_func=2)
-
     fiducial_Emax = grid.state.energy.lEmax
     fiducial_H0 = grid.state.cosmo.H0
+    fiducial_lmean = grid.state.host.lmean
+    fiducial_lsigma = grid.state.host.lsigma
 
     plt.figure()
     ax1 = plt.axes()
 
     plt.sca(ax1)
-
 
     plt.xlabel("z")
     plt.ylabel("${\\rm DM}_{\\rm EG}$")
@@ -63,6 +63,11 @@ def fig_craco_varyF_zDM(
         other_values = [fiducial_H0, fiducial_H0, fiducial_H0, fiducial_H0]
         lstyles = ["-", "-", "-", ":"]
         zticks, ylim = None, None
+    elif other_param == "lmean":
+        F_values = [0.01, 0.32, 0.7, 0.32]
+        other_values = [0.0, 1.0, 0.0, 3.0]
+        lstyles = ["-", "-", "-", ":"]
+        zticks, ylim = None, None
 
     # Loop on grids
     legend_lines = []
@@ -75,6 +80,7 @@ def fig_craco_varyF_zDM(
         vparams = {}
         vparams["F"] = F
 
+        # Sets the log-normal distribution for DM_host to ~0.
         vparams["lmean"] = 1e-3
         vparams["lsigma"] = 0.1
 
@@ -82,6 +88,10 @@ def fig_craco_varyF_zDM(
             vparams["lEmax"] = fiducial_Emax + scl
         elif other_param == "H0":
             vparams["H0"] = scl
+        elif other_param == "lmean":
+            # vparams["lsigma"] = fiducial_lsigma
+            vparams["lmean"] = scl
+
         grid.update(vparams)
 
         # Unpack
@@ -100,13 +110,10 @@ def fig_craco_varyF_zDM(
             full_zDMgrid, zvals, (0, zmax), dmvals, (0, DMmax)
         )
 
-
         # Contours
         alevels = figures.find_Alevels(full_zDMgrid, Aconts)
 
-        # sets the x and y tics
-        # JXP fussing here!!
-
+        # Sets the x and y ticks
         tvals, ticks = figures.ticks_pgrid(zvals, these_vals=zticks)  # , fmt='str4')
         plt.xticks(tvals, ticks)
         tvals, ticks = figures.ticks_pgrid(dmvals, fmt="int")  # , fmt='str4')
@@ -126,21 +133,31 @@ def fig_craco_varyF_zDM(
             )
         elif other_param == "H0":
             labels.append(r"$F = $" + f"{F}, H0 = {vparams['H0']}")
+        elif other_param == "lmean":
+            labels.append(r"$F = $" + f"{F}, $\mu =$ {vparams['lmean']}")
 
     ###### gets decent axis labels, down to 1 decimal place #######
     ax = plt.gca()
 
     # Interpolators
-    f_DM = interp1d(dmvals, np.arange(dmvals.size), fill_value='extrapolate', bounds_error=False)
-    f_z = interp1d(zvals, np.arange(zvals.size), fill_value='extrapolate', bounds_error=False)
+    f_DM = interp1d(
+        dmvals, np.arange(dmvals.size), fill_value="extrapolate", bounds_error=False
+    )
+    f_z = interp1d(
+        zvals, np.arange(zvals.size), fill_value="extrapolate", bounds_error=False
+    )
 
-    from astropy.cosmology import FlatLambdaCDM
-    cosmo = FlatLambdaCDM(H0=grid.state.cosmo.H0, 
-                          Ob0=grid.state.cosmo.Omega_b, 
-                          Om0=grid.state.cosmo.Omega_m)
+    cosmo = FlatLambdaCDM(
+        H0=grid.state.cosmo.H0,
+        Ob0=grid.state.cosmo.Omega_b,
+        Om0=grid.state.cosmo.Omega_m,
+    )
     dms, zeval = figm.average_DM(2.0, cumul=True, cosmo=cosmo)
 
-    ax.plot(f_z(zeval), f_DM(dms), 'k--', label='Macquart Relation')
+    l_mqr = ax.plot(f_z(zeval), f_DM(dms), "k--")
+
+    legend_lines.append(l_mqr[0])
+    labels.append("Macquart Relation")
 
     ax.legend(legend_lines, labels, loc="lower right")
 
@@ -166,4 +183,348 @@ def fig_craco_varyF_zDM(
     plt.close()
     print(f"Wrote: {outfile}")
 
-fig_craco_varyF_zDM("test.pdf", other_param="H0")
+
+###
+
+
+def fig_varyF(
+    outfile,
+    zmax=2.3,
+    DMmax=1500,
+    other_param="lmean",
+    Aconts=[0.05],
+    F_values=[None],
+    other_values=[None],
+    lcolors=["b"],
+    lstyles=["-"],
+    zticks=None,
+    ylim=None,
+):
+
+    survey, grid = analy_F_I.craco_mc_survey_grid()
+
+    fiducial_F = grid.state.IGM.F
+    fiducial_Emax = grid.state.energy.lEmax
+    fiducial_H0 = grid.state.cosmo.H0
+    fiducial_lmean = grid.state.host.lmean
+    fiducial_lsigma = grid.state.host.lsigma
+
+    fig, ax = plt.subplots(dpi=200)
+
+    ax.set_xlabel("z")
+    ax.set_ylabel("${\\rm DM}_{\\rm EG}$")
+
+    legend_lines = []
+    labels = []
+
+    for F, other, lstyle, color in zip(F_values, other_values, lstyles, lcolors):
+
+        vparams = {}
+
+        if F is None:
+            F = fiducial_F
+
+        vparams["F"] = F
+
+        if other_param == "H0":
+            if other == None:
+                other = fiducial_H0
+            vparams["H0"] = other
+        elif other_param == "Emax":
+            if other == None:
+                other = fiducial_Emax
+            vparams["Emax"] = other
+            other = fiducial_Emax
+        elif other_param == "lmean":
+            if other == None:
+                other = fiducial_lmean
+            vparams["lmean"] = other
+            other = fiducial_lmean
+
+        grid.update(vparams)
+
+        full_zDMgrid, zvals, dmvals = (
+            grid.rates.copy(),
+            grid.zvals.copy(),
+            grid.dmvals.copy(),
+        )
+
+        zvals, dmvals, zDMgrid = figures.proc_pgrid(
+            full_zDMgrid, zvals, (0, zmax), dmvals, (0, DMmax)
+        )
+
+        alevels = figures.find_Alevels(full_zDMgrid, Aconts)
+
+        plt.sca(ax)
+
+        tvals, ticks = figures.ticks_pgrid(zvals, these_vals=zticks)
+        plt.xticks(tvals, ticks)
+
+        tvals, ticks = figures.ticks_pgrid(dmvals, fmt="int")
+        plt.yticks(tvals, ticks)
+
+        cs = ax.contour(
+            zDMgrid.T, levels=alevels, origin="lower", colors=[color], linestyles=lstyle
+        )
+
+        leg, _ = cs.legend_elements()
+        legend_lines.append(leg[0])
+
+        if other_param == "Emax":
+            labels.append(
+                r"$F = $" + f"{F}, log " + r"$E_{\rm max}$" + f"= {vparams['lEmax']}"
+            )
+        elif other_param == "H0":
+            labels.append(r"$F = $" + f"{F}, H0 = {vparams['H0']}")
+        elif other_param == "lmean":
+            labels.append(r"$F = $" + f"{F}, $\mu =$ {vparams['lmean']}")
+
+    # Interpolators
+    f_DM = interp1d(
+        dmvals, np.arange(dmvals.size), fill_value="extrapolate", bounds_error=False
+    )
+    f_z = interp1d(
+        zvals, np.arange(zvals.size), fill_value="extrapolate", bounds_error=False
+    )
+
+    cosmo = FlatLambdaCDM(
+        H0=grid.state.cosmo.H0,
+        Ob0=grid.state.cosmo.Omega_b,
+        Om0=grid.state.cosmo.Omega_m,
+    )
+
+    dms, zeval = figm.average_DM(2.0, cumul=True, cosmo=cosmo)
+
+    l_mqr = ax.plot(f_z(zeval), f_DM(dms), "k--")
+
+    legend_lines.append(l_mqr[0])
+    labels.append("Macquart Relation")
+
+    ax.legend(legend_lines, labels, loc="lower right")
+
+    # Fontsize
+    fig_utils.set_fontsize(ax, 16.0)
+
+    fig.tight_layout()
+    plt.savefig(outfile, dpi=300, bbox_inches="tight")
+    plt.close()
+    print(f"Wrote: {outfile}")
+
+
+###
+
+
+def fig_craco_fiducial_F(
+    outfile="fig_craco_fiducial_F.png",
+    zmax=2.5,
+    DMmax=2500,
+    show_Macquart=False,
+    log=True,
+    label="$\\log_{10} \; p(DM_{\\rm EG},z)$",
+    Aconts=[0.01, 0.1, 0.5],
+    cmap="jet",
+    show=False,
+    figsize=None,
+    vmnx=(None, None),
+    grid=None,
+    survey=None,
+    F=0.03,
+    suppress_DM_host=False,
+):
+    """
+    Very complicated routine for plotting 2D zdm grids 
+    Args:
+        zDMgrid ([type]): [description]
+        zvals ([type]): [description]
+        dmvals ([type]): [description]
+        zmax (int, optional): [description]. Defaults to 1.
+        DMmax (int, optional): [description]. Defaults to 1000.
+        norm (int, optional): [description]. Defaults to 0.
+        log (bool, optional): [description]. Defaults to True.
+        label (str, optional): [description]. Defaults to '$\log_{10}p(DM_{\rm EG},z)$'.
+        project (bool, optional): [description]. Defaults to False.
+        conts (bool, optional): [description]. Defaults to False.
+        FRBZ ([type], optional): [description]. Defaults to None.
+        FRBDM ([type], optional): [description]. Defaults to None.
+        Aconts (bool, optional): [description]. Defaults to False.
+        Macquart (state, optional): state object.  Used to generat the Maquart relation.
+            Defaults to None.
+        title (str, optional): [description]. Defaults to "Plot".
+        H0 ([type], optional): [description]. Defaults to None.
+        showplot (bool, optional): [description]. Defaults to False.
+    """
+    # Generate the grid
+    if grid is None or survey is None:
+        survey, grid = analy_F_I.craco_mc_survey_grid()
+
+    fiducial_H0 = grid.state.cosmo.H0
+
+    vparams = {"H0": fiducial_H0, "F": F}
+
+    if suppress_DM_host:
+        # Sets the log-normal distribution for DM_host to ~0.
+        vparams["lmean"] = 1e-3
+        vparams["lsigma"] = 0.1
+
+    grid.update(vparams)
+
+    # Unpack
+    full_zDMgrid, zvals, dmvals = grid.rates, grid.zvals, grid.dmvals
+    FRBZ = survey.frbs["Z"]
+    FRBDM = survey.DMEGs
+
+    ##### imshow of grid #######
+    fsize = 14.0
+    plt.figure(figsize=figsize)
+    ax1 = plt.axes()
+    plt.sca(ax1)
+
+    plt.xlabel("z")
+    plt.ylabel("${\\rm DM}_{\\rm EG}$")
+    # plt.title(title+str(H0))
+
+    # Cut down grid
+    zvals, dmvals, zDMgrid = figures.proc_pgrid(
+        full_zDMgrid, zvals, (0, zmax), dmvals, (0, DMmax)
+    )
+    ddm = dmvals[1] - dmvals[0]
+    dz = zvals[1] - zvals[0]
+    nz, ndm = zDMgrid.shape
+
+    # Contours
+    alevels = figures.find_Alevels(full_zDMgrid, Aconts, log=True)
+
+    # Ticks
+    tvals, ticks = figures.ticks_pgrid(zvals)  # , fmt='str4')
+    plt.xticks(tvals, ticks)
+    tvals, ticks = figures.ticks_pgrid(dmvals, fmt="int")  # , fmt='str4')
+    plt.yticks(tvals, ticks)
+
+    # Image
+    im = plt.imshow(
+        zDMgrid.T,
+        cmap=cmap,
+        origin="lower",
+        vmin=vmnx[0],
+        vmax=vmnx[1],
+        interpolation="None",
+        aspect="auto",
+    )
+
+    styles = ["--", "-.", ":"]
+    ax = plt.gca()
+    cs = ax.contour(
+        zDMgrid.T, levels=alevels, origin="lower", colors="white", linestyles=styles
+    )
+
+    ax = plt.gca()
+
+    ax.set_title(f"F = {F}")
+
+    muDMhost = np.log(10 ** grid.state.host.lmean)
+    sigmaDMhost = np.log(10 ** grid.state.host.lsigma)
+    meanHost = np.exp(muDMhost + sigmaDMhost ** 2 / 2.0)
+    medianHost = np.exp(muDMhost)
+    print(f"Host: mean={meanHost}, median={medianHost}")
+    plt.ylim(0, ndm - 1)
+    plt.xlim(0, nz - 1)
+    zmax = zvals[-1]
+    nz = zvals.size
+    # DMbar, zeval = igm.average_DM(zmax, cumul=True, neval=nz+1)
+    DM_cosmic = pcosmic.get_mean_DM(zvals, grid.state)
+
+    # idea is that 1 point is 1, hence...
+    zeval = zvals / dz
+    DMEG_mean = (DM_cosmic + meanHost) / ddm
+    DMEG_median = (DM_cosmic + medianHost) / ddm
+
+    # Check median
+    f_median = interp1d(zvals, DM_cosmic + medianHost, fill_value="extrapolate")
+    eval_DMEG = f_median(FRBZ)
+    above = FRBDM > eval_DMEG
+    print(f"There are {np.sum(above)/len(FRBZ)} above the median")
+
+    if show_Macquart:
+        plt.plot(
+            zeval,
+            DMEG_mean,
+            color="gray",
+            linewidth=2,
+            label="Macquart relation (mean)",
+        )
+        plt.plot(
+            zeval,
+            DMEG_median,
+            color="gray",
+            linewidth=2,
+            ls="--",
+            label="Macquart relation (median)",
+        )
+        l = plt.legend(loc="lower right", fontsize=12)
+    # l=plt.legend(bbox_to_anchor=(0.2, 0.8),fontsize=8)
+    # for text in l.get_texts():
+    # 	text.set_color("white")
+
+    # limit to a reasonable range if logscale
+    if log and vmnx[0] is None:
+        themax = zDMgrid.max()
+        themin = int(themax - 4)
+        themax = int(themax)
+        plt.clim(themin, themax)
+
+    ##### add FRB host galaxies at some DM/redshift #####
+    if FRBZ is not None:
+        iDMs = FRBDM / ddm
+        iZ = FRBZ / dz
+        # Restrict to plot range
+        gd = (FRBDM < DMmax) & (FRBZ < zmax)
+        plt.plot(iZ[gd], iDMs[gd], "ko", linestyle="", markersize=2.0)
+
+    cbar = plt.colorbar(im, fraction=0.046, shrink=1.2, aspect=15, pad=0.05)
+    cbar.set_label(label)
+
+    fig_utils.set_fontsize(ax, fsize)
+
+    plt.tight_layout()
+
+    if show:
+        plt.show()
+    else:
+        plt.savefig(outfile, dpi=300)
+        print(f"Wrote: {outfile}")
+    plt.close()
+
+
+### tests
+
+# fig_craco_varyF_zDM("contours_varyF_H0.pdf", other_param="H0")
+
+# fig_craco_fiducial_F("fig_craco_fiducial_F_0.32.png", show_Macquart=True, F=0.32, suppress_DM_host=True)
+# fig_craco_fiducial_F("fig_craco_fiducial_F_0.01.png", show_Macquart=True, F=0.01, suppress_DM_host=True)
+# fig_craco_fiducial_F("fig_craco_fiducial_F_0.9.png", show_Macquart=True, F=0.9, suppress_DM_host=True)
+
+# fig_craco_fiducial_F("fig_craco_fiducial_dmhost_F_0.32.png", show_Macquart=True, F=0.32, suppress_DM_host=False)
+# fig_craco_fiducial_F("fig_craco_fiducial_dmhost_F_0.01.png", show_Macquart=True, F=0.01, suppress_DM_host=False)
+# fig_craco_fiducial_F("fig_craco_fiducial_dmhost_F_0.9.png", show_Macquart=True, F=0.9, suppress_DM_host=False)
+
+# fig_craco_varyF_zDM("contours_varyF_lmean.pdf", other_param="lmean")
+
+fig_varyF(
+    "deg_basic.png",
+    other_param="lmean",
+    F_values=[0.01, 0.9],
+    other_values=[None, None],
+    lcolors=["r", "b"],
+    lstyles=["-", "-"],
+    DMmax=1800,
+)
+
+fig_varyF(
+    "deg_other.png",
+    other_param="lmean",
+    F_values=[None, None],
+    other_values=[2.5, 1.5],
+    lcolors=["#e07a5f", "#81b29a"],
+    lstyles=["-", "-"],
+    DMmax=1800,
+)
