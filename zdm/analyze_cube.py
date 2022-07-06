@@ -129,6 +129,22 @@ def slurp_cube(input_file:str, prefix:str, outfile:str,
     print(f"Wrote: {outfile}")
 
 
+def get_param_values(data,params):
+    """
+    Gets the unique values of the data from a cube output
+    Currently the parameter order is hard-coded
+    
+    """
+    # gets unique values for each axis
+    param_vals=[]
+    #param_list=[data["lEmax"],data["H0"],data["alpha"],data["gamma"],data["sfr_n"],data["lmean"],data["lsigma"]]
+    #for col in param_list:
+    for param in params:
+        col=data[param]
+        unique=np.unique(col)
+        param_vals.append(unique)  
+    return param_vals
+
 def apply_gaussian_prior(lls:np.ndarray,
                     iparam:int,
                     values:np.ndarray,
