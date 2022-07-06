@@ -77,7 +77,6 @@ def main():
             delete=np.where(g.dmvals > 2038)[0]
             g.rates[:,delete]=0.
         
-        print(i,name,s.frbs["Z"])
         for iFRB in s.zlist:
             zvals.append(s.Zs[iFRB])
             dmvals.append(s.DMEGs[iFRB])

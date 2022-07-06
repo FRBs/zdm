@@ -1080,7 +1080,8 @@ def do_single_plots(uvals,vectors,wvectors,names,tag=None, fig_exten='.png',
         return
 
 def make_1d_plots_by_contribution(data,contributions,labels,prefix="",
-    fig_exten='.png',log=False,splines=True,latexnames=None,units=None):
+    fig_exten='.png',log=False,splines=True,latexnames=None,units=None,
+    linestyles=None,colors=None):
     """
     contributions: list of vectors giving various likelihood terms
     args:
@@ -1113,7 +1114,10 @@ def make_1d_plots_by_contribution(data,contributions,labels,prefix="",
         unique=np.unique(col)
         param_vals.append(unique)
     # assigns different plotting styles to help distinguish curves
-    linestyles=['-','--','-.',':','-','--','-.',':','-','--','-.',':']
+    if linestyles is None:
+        linestyles=['-','--','-.',':','-','--','-.',':','-','--','-.',':']
+    if colors is None:
+        colors=plt.rcParams['axes.prop_cycle'].by_key()['color']
     for which in np.arange(len(param_list)):
         plt.figure()
         plt.xlabel('$'+xlatexnames[which]+'$')
@@ -1126,13 +1130,15 @@ def make_1d_plots_by_contribution(data,contributions,labels,prefix="",
                 f=scipy.interpolate.interp1d(xvals,np.log(vectors[which]),
                                       kind='cubic')
                 ydata=np.exp(f(xdata))
-                plt.plot(xdata,ydata,label=labels[idata],linestyle=linestyles[idata])
+                plt.plot(xdata,ydata,label=labels[idata],
+                    linestyle=linestyles[idata], color=colors[idata])
                 plt.scatter(xvals,vectors[which],color=plt.gca().lines[-1].get_color())
             else:
                 ydata=vectors[which]
                 xdata=xvals
                 #print(labels[idata]," has values ",vector)
-                plt.plot(xdata,ydata,label=labels[idata],linestyle=linestyles[idata])
+                plt.plot(xdata,ydata,label=labels[idata],linestyle=linestyles[idata],
+                    color=colors[idata])
         
         if log:
             plt.yscale('log')
