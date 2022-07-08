@@ -89,7 +89,7 @@ def fig_craco_varyF_zDM(
         elif other_param == "H0":
             vparams["H0"] = scl
         elif other_param == "lmean":
-            # vparams["lsigma"] = fiducial_lsigma
+            vparams["lsigma"] = fiducial_lsigma
             vparams["lmean"] = scl
 
         grid.update(vparams)
@@ -509,22 +509,34 @@ def fig_craco_fiducial_F(
 
 # fig_craco_varyF_zDM("contours_varyF_lmean.pdf", other_param="lmean")
 
-fig_varyF(
-    "deg_basic.png",
-    other_param="lmean",
-    F_values=[0.01, 0.9],
-    other_values=[None, None],
-    lcolors=["r", "b"],
-    lstyles=["-", "-"],
-    DMmax=1800,
-)
+# fig_varyF(
+#     "deg_basic.png",
+#     other_param="lmean",
+#     F_values=[0.01, 0.9],
+#     other_values=[None, None],
+#     lcolors=["r", "b"],
+#     lstyles=["-", "-"],
+#     DMmax=1800,
+# )
 
-fig_varyF(
-    "deg_other.png",
-    other_param="lmean",
-    F_values=[None, None],
-    other_values=[2.5, 1.5],
-    lcolors=["#e07a5f", "#81b29a"],
-    lstyles=["-", "-"],
-    DMmax=1800,
-)
+# fig_varyF(
+#     "deg_other.png",
+#     other_param="lmean",
+#     F_values=[None, None],
+#     other_values=[2.5, 1.5],
+#     lcolors=["#e07a5f", "#81b29a"],
+#     lstyles=["-", "-"],
+#     DMmax=1800,
+# )
+
+# fig_varyF(
+#     "test.png",
+#     other_param="lmean",
+#     F_values=[None, None],
+#     other_values=[1.0, 3.0],
+#     lcolors=["#e07a5f", "#81b29a"],
+#     lstyles=["-", "-"],
+#     DMmax=1800,
+# )
+
+fig_craco_varyF_zDM("strawberry.png", other_param="lmean")

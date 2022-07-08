@@ -2044,13 +2044,13 @@ def plot_grid_2(zDMgrid,zvals,dmvals,
     dz=zvals[1]-zvals[0]
     if norm==1:
         zDMgrid /= ddm
-        if Aconts:
-            alevels /= ddm
+        # if Aconts:
+        #     alevels /= ddm
     elif norm==2:
         xnorm=np.sum(zDMgrid)
         zDMgrid /= xnorm
-        if Aconts:
-            alevels /= xnorm
+        # if Aconts:
+        #     alevels /= xnorm
     elif norm==3:
         zDMgrid /= np.max(zDMgrid)
     
@@ -2071,6 +2071,11 @@ def plot_grid_2(zDMgrid,zvals,dmvals,
             #    level of the countour to draw
             iwhich=np.where(cslist > ac)[0][0]
             alevels[i]=slist[iwhich]
+        
+        if norm == 1:
+            alevels /= ddm
+        elif norm == 2:
+            alevels /= xnorm
         
     ### generates contours *before* cutting array in DM ###
     ### might need to normalise contours by integer lengths, oh well! ###
