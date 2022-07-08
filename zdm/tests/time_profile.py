@@ -9,6 +9,7 @@
 
 import numpy as np
 from matplotlib import pyplot as plt
+import mpmath as mp
 
 from zdm import iteration as it
 from zdm.craco import loading
@@ -37,6 +38,8 @@ vparams['lC'] = -0.9
 
 vparams[pparam] = pval
 
-#C,llC=it.minimise_const_only(vparams,grids,surveys, Verbose=False)
+vparams['H0'] = 74
+
+# C,llC=it.minimise_const_only(vparams,grids,surveys, Verbose=False)
 
 igrid.update(vparams) 
