@@ -18,16 +18,16 @@
             "lEmax",
             "lmean",
             "lsigma",
+            "F",
             "gamma",
-            "H0",
-            "F"
+            "H0"
         ]
     },
     "lEmax": {
         "DC": "energy",
         "min": 40.5,
         "max": 42.5,
-        "n": 50
+        "n": 10
     },
     "H0": {
         "DC": "cosmo",
@@ -45,7 +45,7 @@
         "DC": "energy",
         "min": -0.5,
         "max": -1.5,
-        "n": 10
+        "n": 5
     },
     "sfr_n": {
         "DC": "FRBdemo",
@@ -75,6 +75,6 @@
         "DC": "IGM",
         "min": 0.01,
         "max": 0.99,
-        "n": 50
+        "n": 10
     }
 }
