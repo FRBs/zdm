@@ -80,10 +80,9 @@ def main():
 
         if name == "Arecibo":
             # remove high DM vals from rates as per ALFA survey limit
-            delete = np.where(g.dmvals > 2038)[0]
-            g.rates[:, delete] = 0.0
-
-        print(i, name, s.frbs["Z"])
+            delete=np.where(g.dmvals > 2038)[0]
+            g.rates[:,delete]=0.
+        
         for iFRB in s.zlist:
             zvals.append(s.Zs[iFRB])
             dmvals.append(s.DMEGs[iFRB])

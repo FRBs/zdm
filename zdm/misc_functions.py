@@ -1956,7 +1956,8 @@ def plot_zdm_basic_paper(zDMgrid,zvals,dmvals,zmax=1,DMmax=1000,
 
 def plot_grid_2(zDMgrid,zvals,dmvals,
                 zmax=1,DMmax=1000,norm=0,log=True,name='temp.pdf',
-                label='$\\log_{10}p(DM_{\\rm EG},z)$',project=False,conts=False,
+                label='$\\log_{10}p(DM_{\\rm EG},z)$',ylabel='${\\rm DM}_{\\rm EG}$',
+                project=False,conts=False,
                 FRBZ=None,FRBDM=None,Aconts=False,
                 Macquart=None,title="Plot",
                 H0=None,showplot=False,DMlines=None):
@@ -1972,6 +1973,7 @@ def plot_grid_2(zDMgrid,zvals,dmvals,
         norm (int, optional): [description]. Defaults to 0.
         log (bool, optional): [description]. Defaults to True.
         name (str, optional): [description]. Defaults to 'temp.pdf'.
+        ylabel (str,optional): Label on y axis of plot. Defaults to '${\\rm DM}_{\\rm EG}$'
         label (str, optional): [description]. Defaults to '$\log_{10}p(DM_{\rm EG},z)$'.
         project (bool, optional): [description]. Defaults to False.
         conts (bool, optional): [description]. Defaults to False.
@@ -2025,7 +2027,7 @@ def plot_grid_2(zDMgrid,zvals,dmvals,
     plt.sca(ax1)
     
     plt.xlabel('z')
-    plt.ylabel('${\\rm DM}_{\\rm EG}$')
+    plt.ylabel(ylabel)
     #plt.title(title+str(H0)) # I have removed this default title, use a file naming convention instead
     
     nz,ndm=zDMgrid.shape
@@ -2204,7 +2206,7 @@ def plot_grid_2(zDMgrid,zvals,dmvals,
         sigmaDMhost=np.log(10**Macquart.host.lsigma)
         meanHost = np.exp(muDMhost + sigmaDMhost**2/2.)
         medianHost = np.exp(muDMhost) 
-        print(f"Host: mean={meanHost}, median={medianHost}")
+        #print(f"Host: mean={meanHost}, median={medianHost}")
         plt.ylim(0,ndm-1)
         plt.xlim(0,nz-1)
         zmax=zvals[-1]
@@ -2218,9 +2220,10 @@ def plot_grid_2(zDMgrid,zvals,dmvals,
         DMEG_median = (DM_cosmic+medianHost)/ddm
         plt.plot(zeval,DMEG_mean,color='blue',linewidth=2,
                  label='Macquart relation (mean)')
-        plt.plot(zeval,DMEG_median,color='blue',
-                 linewidth=2, ls='--',
-                 label='Macquart relation (median)')
+        # removed median, because it is only media of HOST not DM cosmic
+        #plt.plot(zeval,DMEG_median,color='blue',
+        #         linewidth=2, ls='--',
+        #         label='Macquart relation (median)')
         l=plt.legend(loc='lower right',fontsize=12)
         #l=plt.legend(bbox_to_anchor=(0.2, 0.8),fontsize=8)
         #for text in l.get_texts():

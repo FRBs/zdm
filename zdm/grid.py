@@ -60,6 +60,8 @@ class Grid:
         else:
             efficiencies=survey.mean_efficiencies
             weights=None
+        self.efficiencies=efficiencies
+        self.weights=weights
         self.calc_thresholds(survey.meta['THRESH'],
                              efficiencies,
                              weights=weights)
