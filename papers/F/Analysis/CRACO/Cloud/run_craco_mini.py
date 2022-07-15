@@ -61,7 +61,7 @@ def main(
             "-o",
             f"{outfile}",
             "-s",
-            f"CRACO_alpha1_Planck18_Gamma",
+            f"../../../../../zdm/craco/MC_F/Surveys/F_0.32_survey.dat",
             "--clobber",
             "-p",
             f"{pfile}",
