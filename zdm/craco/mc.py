@@ -334,16 +334,16 @@ generate(alpha_method=1, lum_func=2, Nsamples=5000, do_plots=True,
 
 # JB
 
-generate(
-    alpha_method=1,
-    lum_func=2,
-    Nsamples=1000,
-    do_plots=True,
-    outfile="MC_F/Surveys/F_vanilla_survey.dat",
-    plotfile="MC_F/Plots/F_vanilla.pdf",
-    savefile=None,
-    # update_params={"F": 0.01},
-)
+# generate(
+#     alpha_method=1,
+#     lum_func=2,
+#     Nsamples=1000,
+#     do_plots=True,
+#     outfile="MC_F/Surveys/F_vanilla_survey.dat",
+#     plotfile="MC_F/Plots/F_vanilla.pdf",
+#     savefile=None,
+#     # update_params={"F": 0.01},
+# )
 
 # generate(
 #     alpha_method=1,
@@ -356,16 +356,16 @@ generate(
 #     update_params={"F": 0.01},
 # )
 
-# generate(
-#     alpha_method=1,
-#     lum_func=2,
-#     Nsamples=1000,
-#     do_plots=True,
-#     outfile="MC_F/Surveys/F_0.9_survey.dat",
-#     plotfile="MC_F/Plots/F_0.9.pdf",
-#     savefile=None,
-#     update_params={"F": 0.9},
-# )
+generate(
+    alpha_method=1,
+    lum_func=2,
+    Nsamples=1000,
+    do_plots=True,
+    outfile="MC_F/Surveys/F_0.32_survey.dat",
+    plotfile="MC_F/Plots/F_0.32.pdf",
+    savefile=None,
+    update_params={"F": 0.32},
+)
 
 # generate(
 #     alpha_method=1,
@@ -378,46 +378,46 @@ generate(
 #     update_params={"F": 0.7},
 # )
 
-generate(
-    alpha_method=1,
-    lum_func=2,
-    Nsamples=1000,
-    do_plots=True,
-    outfile="MC_F/Surveys/F_0.01_dmhost_suppressed_survey.dat",
-    plotfile="MC_F/Plots/F_0.01_dmhost_suppressed.pdf",
-    savefile=None,
-    update_params={"F": 0.01, "lmean": 1e-3, "lsigma": 0.1},
-)
+# generate(
+#     alpha_method=1,
+#     lum_func=2,
+#     Nsamples=1000,
+#     do_plots=True,
+#     outfile="MC_F/Surveys/F_0.01_dmhost_suppressed_survey.dat",
+#     plotfile="MC_F/Plots/F_0.01_dmhost_suppressed.pdf",
+#     savefile=None,
+#     update_params={"F": 0.01, "lmean": 1e-3, "lsigma": 0.1},
+# )
 
-generate(
-    alpha_method=1,
-    lum_func=2,
-    Nsamples=1000,
-    do_plots=True,
-    outfile="MC_F/Surveys/F_0.9_dmhost_suppressed_survey.dat",
-    plotfile="MC_F/Plots/F_0.9_dmhost_suppressed.pdf",
-    savefile=None,
-    update_params={"F": 0.9, "lmean": 1e-3, "lsigma": 0.1},
-)
+# generate(
+#     alpha_method=1,
+#     lum_func=2,
+#     Nsamples=1000,
+#     do_plots=True,
+#     outfile="MC_F/Surveys/F_0.9_dmhost_suppressed_survey.dat",
+#     plotfile="MC_F/Plots/F_0.9_dmhost_suppressed.pdf",
+#     savefile=None,
+#     update_params={"F": 0.9, "lmean": 1e-3, "lsigma": 0.1},
+# )
 
-generate(
-    alpha_method=1,
-    lum_func=2,
-    Nsamples=1000,
-    do_plots=True,
-    outfile="MC_F/Surveys/F_0.7_dmhost_suppressed_survey.dat",
-    plotfile="MC_F/Plots/F_0.7_dmhost_suppressed.pdf",
-    savefile=None,
-    update_params={"F": 0.7, "lmean": 1e-3, "lsigma": 0.1},
-)
+# generate(
+#     alpha_method=1,
+#     lum_func=2,
+#     Nsamples=1000,
+#     do_plots=True,
+#     outfile="MC_F/Surveys/F_0.7_dmhost_suppressed_survey.dat",
+#     plotfile="MC_F/Plots/F_0.7_dmhost_suppressed.pdf",
+#     savefile=None,
+#     update_params={"F": 0.7, "lmean": 1e-3, "lsigma": 0.1},
+# )
 
-generate(
-    alpha_method=1,
-    lum_func=2,
-    Nsamples=1000,
-    do_plots=True,
-    outfile="MC_F/Surveys/F_vanilla_dmhost_suppressed_survey.dat",
-    plotfile="MC_F/Plots/F_vanilla_dmhost_suppressed.pdf",
-    savefile=None,
-    update_params={"lmean": 1e-3, "lsigma": 0.1},
-)
+# generate(
+#     alpha_method=1,
+#     lum_func=2,
+#     Nsamples=1000,
+#     do_plots=True,
+#     outfile="MC_F/Surveys/F_vanilla_dmhost_suppressed_survey.dat",
+#     plotfile="MC_F/Plots/F_vanilla_dmhost_suppressed.pdf",
+#     savefile=None,
+#     update_params={"lmean": 1e-3, "lsigma": 0.1},
+# )

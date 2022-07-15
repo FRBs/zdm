@@ -8,6 +8,8 @@ from zdm import iteration as it
 from zdm import io
 from zdm.craco import loading
 
+from IPython import embed
+
 
 #sys.path.append(os.path.abspath("../../Figures/py"))
 
@@ -55,6 +57,8 @@ def main(pargs):
     ll_cube = ll_cube - np.max(ll_cube)
 
     uvals,vectors,wvectors = analyze_cube.get_bayesian_data(ll_cube)
+
+    embed(header="Debugging...")
 
     analyze_cube.do_single_plots(uvals,vectors,wvectors, params, 
                                 vparams_dict=vparam_dict, outdir=outdir)

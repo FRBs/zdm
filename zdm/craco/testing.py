@@ -43,12 +43,7 @@ def main(pargs):
     )
 
     # suppress DM host
-    igrid.update(
-        {
-            "lmean": 1e-3,
-            "lsigma": 0.1
-        }
-    )
+    igrid.update({"lmean": 1e-3, "lsigma": 0.1})
 
     surveys = [isurvey]
     grids = [igrid]
@@ -209,6 +204,10 @@ python testing.py F .001 .1 --nstep 100 --nFRB 1000 -o MC_F/Plots/synth_100_F_dm
 python testing.py F .1 .999 --nstep 100 --nFRB 1000 -o MC_F/Plots/synth_100_F_dmhost_suppressed_0.7.png --lum_func 2 --survey ../MC_F/Surveys/F_0.7_dmhost_suppressed_survey
 python testing.py F .1 .999 --nstep 100 --nFRB 1000 -o MC_F/Plots/synth_100_F_dmhost_suppressed_0.9.png --lum_func 2 --survey ../MC_F/Surveys/F_0.9_dmhost_suppressed_survey
 python testing.py F .1 .999 --nstep 100 --nFRB 1000 -o MC_F/Plots/synth_100_F_dmhost_suppressed_vanilla.png --lum_func 2 --survey ../MC_F/Surveys/F_vanilla_dmhost_suppressed_survey
+
+python testing.py H0 60. 80. --nstep 50 --nFRB 100 -o MC_Plots/CRACO_100_H0_TEST.png --lum_func 2 --survey CRACO_alpha1_Planck18_Gamma
+
+python testing.py H0 60. 80. --nstep 50 --nFRB 100 -o MC_Plots/CRACO_100_H0_TEST.png --lum_func 2 --survey CRACO_alpha1_Planck18_Gamma
 
 """
 
