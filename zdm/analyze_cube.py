@@ -90,7 +90,7 @@ def slurp_cube(
 
         for n in ns:
             r_current = np.array(
-                [0] + list(np.unravel_index(int(n), cube_shape, order="F"))
+                [1] + list(np.unravel_index(int(n), cube_shape, order="F"))
             )
             current = r_current[iorder][:-1]  # Truncate lC
             # Ravel me back
@@ -126,7 +126,7 @@ def slurp_cube(
         pz=pz_cube,
     )
 
-    embed(header="line 129")
+    # embed(header="line 129")
 
     # Save the parameter values too
     for name in PARAMS[:-1]:

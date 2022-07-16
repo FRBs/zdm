@@ -361,8 +361,8 @@ generate(
     lum_func=2,
     Nsamples=1000,
     do_plots=True,
-    outfile="MC_F/Surveys/F_0.32_survey.dat",
-    plotfile="MC_F/Plots/F_0.32.pdf",
+    outfile="MC_Surveys/CRACO_F_0.32_survey.dat",
+    plotfile="MC_Plots/CRACO_F_0.32.pdf",
     savefile=None,
     update_params={"F": 0.32},
 )

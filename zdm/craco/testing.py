@@ -42,9 +42,6 @@ def main(pargs):
         lum_func=pargs.lum_func,
     )
 
-    # suppress DM host
-    igrid.update({"lmean": 1e-3, "lsigma": 0.1})
-
     surveys = [isurvey]
     grids = [igrid]
 
@@ -52,10 +49,6 @@ def main(pargs):
     vparams = {}
     vparams[pargs.param] = None
     vparams["lC"] = -0.9
-
-    # DEBUGGING
-    # print("WARNING:  REMOVE THE LINE BELOW WHEN DONE DEBUGGING")
-    # vparams['lEmax'] = 40.6
 
     lls = []
     nterms = []  # LL term related to norm (i.e. rates)
@@ -208,6 +201,8 @@ python testing.py F .1 .999 --nstep 100 --nFRB 1000 -o MC_F/Plots/synth_100_F_dm
 python testing.py H0 60. 80. --nstep 50 --nFRB 100 -o MC_Plots/CRACO_100_H0_TEST.png --lum_func 2 --survey CRACO_alpha1_Planck18_Gamma
 
 python testing.py H0 60. 80. --nstep 50 --nFRB 100 -o MC_Plots/CRACO_100_H0_TEST.png --lum_func 2 --survey CRACO_alpha1_Planck18_Gamma
+
+python testing.py H0 60. 80. --nstep 50 --nFRB 100 -o MC_Plots/CRACO_100_H0_TEST_F32.png --lum_func 2 --survey ../MC_F/Surveys/F_0.32_survey
 
 """
 
