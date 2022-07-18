@@ -631,7 +631,7 @@ class Grid:
             smear_dm = True
             calc_thresh = True
             calc_pdv = True
-            set_evol = True
+            set_evol = True  # JXP THINKS THIS SHOULD BE FALSE
             new_sfr_smear = True
 
         # DM_host
