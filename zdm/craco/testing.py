@@ -14,6 +14,8 @@ import numpy as np
 import matplotlib
 from matplotlib import pyplot as plt
 
+import pandas
+
 from zdm import iteration as it
 from zdm.craco import loading
 
@@ -50,6 +52,17 @@ def main(pargs):
     vparams[pargs.param] = None
     vparams["lC"] = -0.9
 
+    '''
+    tparams = pandas.read_csv('tst_params.csv')
+    for key in ['lEmax', 'alpha','gamma','sfr_n','lmean','lsigma','F']:
+        vparams[key] = tparams[key][0]
+    tmp_dict = {
+       'lEmax': 40.5, 'H0': 64.375, 'alpha': 0.2, 'gamma': -0.5, 
+     'sfr_n': 0.0, 'lmean': 1.7, 'lsigma': 0.3, 'F': 0.11}
+    vparams.update(tmp_dict)
+    #embed(header='64 of testing')
+    '''
+    
     lls = []
     nterms = []  # LL term related to norm (i.e. rates)
     pvterms = []  # LL term related to norm (i.e. rates)
@@ -202,6 +215,9 @@ python testing.py H0 60. 80. --nstep 50 --nFRB 100 -o MC_Plots/CRACO_100_H0_TEST
 
 python testing.py H0 60. 80. --nstep 50 --nFRB 100 -o MC_Plots/CRACO_100_H0_TEST.png --lum_func 2 --survey CRACO_alpha1_Planck18_Gamma
 
+python testing.py H0 60. 80. --nstep 50 --nFRB 100 -o MC_Plots/CRACO_100_H0_TEST_F32.png --lum_func 2 --survey ../MC_F/Surveys/F_0.32_survey
+
+# More fussing about with F and related
 python testing.py H0 60. 80. --nstep 50 --nFRB 100 -o MC_Plots/CRACO_100_H0_TEST_F32.png --lum_func 2 --survey ../MC_F/Surveys/F_0.32_survey
 
 """
