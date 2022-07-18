@@ -17,6 +17,8 @@ test = np.random.rand(1000)
 
 spline = interpolate.splrep(avals, numer)
 
+linear = interpolate.interp1d(avals, numer)
+
 print(len(numer))
 
 #2a) 100 calls to splev of 1000 (x) values 
@@ -34,13 +36,23 @@ def calls_1():
     # call avals
     # 
 
-for i in range(100):
-    calls_100()
-    calls_1()
+#3) Use scipy linear
+
+def call_linear_1():
+    val = linear(avals2)
 
 #3) Use scipy instead of spline
 
 # find a new interpolater and try make it run faster than these specific calls (down to 0.10s)
+
+ 
+# Run now
+
+for i in range(100):
+    calls_100()
+    calls_1()
+    call_linear_1()
+
 
 '''
 #TIMEPROFILING

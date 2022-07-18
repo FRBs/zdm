@@ -92,7 +92,8 @@ def survey_and_grid(survey_name:str='CRAFT/CRACO_1_5000',
             init_state=None,
             state_dict=None, iFRB:int=0,
                alpha_method=1, NFRB:int=100, 
-               lum_func:int=0,sdir=None):
+               lum_func:int=0,sdir=None,
+               use_linear=False):
     """ Load up a survey and grid for a CRACO mock dataset
 
     Args:

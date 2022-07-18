@@ -85,7 +85,6 @@ class Grid:
             self.vector_cum_lf=energetics.vector_cum_gamma_spline
             self.array_diff_lf=energetics.array_diff_gamma
             self.vector_diff_lf=energetics.vector_diff_gamma
-            # Init
         else:
             raise ValueError("Luminosity function must be 0, not ",self.luminosity_function)
     
