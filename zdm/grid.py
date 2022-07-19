@@ -711,7 +711,11 @@ class Grid:
                 weights=self.eff_weights)
         
         if calc_pdv or ALL:
+            import datetime
+            now = datetime.datetime.now()
             self.calc_pdv()
+            dt = datetime.datetime.now() - now
+            print(f"This pdv step took: {dt}")
 
         if set_evol or ALL:
             self.set_evolution() # sets star-formation rate scaling with z - here, no evoltion...
