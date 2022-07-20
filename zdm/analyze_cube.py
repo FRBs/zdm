@@ -48,7 +48,7 @@ def slurp_cube(
     order, iorder = iteration.set_orders(cube_dict["parameter_order"], PARAMS)
     cube_shape = iteration.set_cube_shape(vparam_dict, order)
 
-    param_shape = np.array([1] + cube_shape)[iorder].tolist()[:-1]
+    param_shape = np.array([0] + cube_shape)[iorder].tolist()[:-1]
 
     # Outputs
     ll_cube = np.zeros(param_shape, dtype=np.float32)
@@ -90,7 +90,7 @@ def slurp_cube(
 
         for n in ns:
             r_current = np.array(
-                [1] + list(np.unravel_index(int(n), cube_shape, order="F"))
+                [0] + list(np.unravel_index(int(n), cube_shape, order="F"))
             )
             current = r_current[iorder][:-1]  # Truncate lC
             # Ravel me back
@@ -905,18 +905,6 @@ def do_single_plots(
 
     for i, vals in enumerate(uvals):
 
-        kind = None
-
-        if len(vals) == 1:
-            continue
-        if len(vals) < 4:
-            kind = "linear"
-        else:
-            kind = "cubic"
-        # does the for alpha
-        plt.figure()
-        lw = 3
-
         # Convert vals?
         if vparams_dict is not None:
             # Check
@@ -924,7 +912,10 @@ def do_single_plots(
             vals = np.linspace(
                 vparams_dict[names[i]]["min"], vparams_dict[names[i]]["max"], len(vals)
             )
-
+    
+        plt.figure()
+        lw = 3
+        
         # get raw ylimits
         # removes zeroes, could lead to strange behaviour in theory
         ymax = np.max(vectors[i])
@@ -933,6 +924,17 @@ def do_single_plots(
         # set to integers and get range
         ymax = math.ceil(ymax)
         ymin = 0.0
+
+        kind = None
+
+        if len(vals[temp]) == 1:
+            continue
+        if len(vals[temp]) < 4:
+            kind = "linear"
+        else:
+            kind = "cubic"
+        # does the for alpha
+        
 
         x, y = interpolate_points(vals[temp], vectors[i][temp], logspline, kind=kind)
 
