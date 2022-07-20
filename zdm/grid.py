@@ -232,6 +232,7 @@ class Grid:
             self.b_fractions=np.zeros([self.zvals.size,self.dmvals.size,self.beam_b.size])
         
         # for some arbitrary reason, we treat the beamshape slightly differently... no need to keep an intermediate product!
+        now = datetime.datetime.now()
         for i,b in enumerate(self.beam_b):
             for j,w in enumerate(self.eff_weights):
                 if j==0:
@@ -242,6 +243,83 @@ class Grid:
                     self.b_fractions[:,:,i] += self.beam_o[i]*w*self.array_cum_lf(
                         self.thresholds[j,:,:]/b,Emin,Emax,
                         self.state.energy.gamma)
+        done = datetime.datetime.now()
+        print(f'Time to normal loop = {done-now}')
+
+        # Another JXP try
+        import mpmath
+        from scipy import interpolate
+
+        avals = 10**np.linspace(-6, 6., 1000)
+        numer = np.array([float(mpmath.gammainc(
+                self.state.energy.gamma, a=iEE)) for iEE in avals])
+        linear = interpolate.interp1d(np.log10(avals), numer)
+        now = datetime.datetime.now()
+        for i,b in enumerate(self.beam_b):
+            for j,w in enumerate(self.eff_weights):
+                if j==0:
+                    self.b_fractions[:,:,i] = self.beam_o[i]*w*(
+                        linear(self.jxp_thresholds[j,:,:] - np.log10(b) - np.log10(Emax)))
+                        #self.array_cum_lf(
+                        #self.thresholds[j,:,:]/b,Emin,Emax,
+                        #self.state.energy.gamma)
+                else:
+                    self.b_fractions[:,:,i] += self.beam_o[i]*w*(
+                        linear(self.jxp_thresholds[j,:,:] - np.log10(b) - np.log10(Emax)))
+                    #self.b_fractions[:,:,i] += self.beam_o[i]*w*self.array_cum_lf(
+                    #    self.thresholds[j,:,:]/b,Emin,Emax,
+                    #    self.state.energy.gamma)
+        done = datetime.datetime.now()
+        print(f'Time for log linear = {done-now}')
+        embed(header='235 of grid')
+
+        '''
+        embed(header='235 of grid')
+        now = datetime.datetime.now()
+        tmp2 = self.vector_cum_lf(self.new_thresholds.flatten(), Emin,Emax, self.state.energy.gamma)
+        done = datetime.datetime.now()
+        print(f'Time for new thresholds = {done-now}')
+
+        # JXP TINKERING
+        tmp = self.thresholds.flatten()
+        now = datetime.datetime.now()
+        #tmp2 = self.array_cum_lf(tmp, Emin,Emax, self.state.energy.gamma)
+        tmp2 = self.vector_cum_lf(tmp, Emin,Emax, self.state.energy.gamma)
+        done = datetime.datetime.now()
+        print(f'Time to not loop = {done-now}')
+
+        # MORE
+        tmp = self.thresholds.flatten()
+        tmp3 = np.concatenate([tmp]*5)
+        srt = np.argsort(tmp3)
+        now = datetime.datetime.now()
+        #tmp2 = self.array_cum_lf(tmp, Emin,Emax, self.state.energy.gamma)
+        #tmp2 = self.vector_cum_lf(tmp3, Emin,Emax, self.state.energy.gamma)
+        tmp5 = self.vector_cum_lf(tmp3[srt], Emin,Emax, self.state.energy.gamma)
+        done = datetime.datetime.now()
+        print(f'Time to not loop 2 = {done-now}')
+
+        # Log spline
+        import mpmath
+        from scipy import interpolate
+        avals = 10**np.linspace(-6, 6., 1000)
+        numer = np.array([float(mpmath.gammainc(
+                self.state.energy.gamma, a=iEE)) for iEE in avals])
+        spline = interpolate.splrep(np.log10(avals), numer)
+        embed(header='282 of grid')
+        now = datetime.datetime.now()
+        tmp6 = interpolate.splev(np.log10(tmp3/Emax), spline)
+        done = datetime.datetime.now()
+        print(f'Time to not loop = {done-now}')
+
+        # Log linear
+        embed(header='289 of grid')
+        now = datetime.datetime.now()
+        linear = interpolate.interp1d(np.log10(avals), numer)
+        tmp7 = linear(self.new_thresholds - np.log10(Emax))
+        done = datetime.datetime.now()
+        print(f'Time to not loop = {done-now}')
+        '''
                 
                 
         # here, b-fractions are unweighted according to the value of b.
@@ -322,9 +400,23 @@ class Grid:
         # The effective threshold array has one value for each combination of
         # FRB width (nthresh) and DM.
         # We loop over nthesh and generate a NDM x Nz array for each
+        now = datetime.datetime.now()
+        self.jxp_thresholds=np.zeros([self.nthresh,self.zvals.size,self.dmvals.size])
         for i in np.arange(self.nthresh):
             self.thresholds[i,:,:]=np.outer(self.FtoE,Eff_thresh[i,:])
-        
+            self.jxp_thresholds[i,:,:]= np.log10(np.outer(self.FtoE,Eff_thresh[i,:]))
+        done = datetime.datetime.now()
+        print(f"Time to build thresholds = {done-now}")
+
+        # JXP tinkering
+        now = datetime.datetime.now()
+        self.new_thresholds=np.zeros([self.nthresh*self.beam_b.size,self.zvals.size,self.dmvals.size])
+        for i in np.arange(self.nthresh):
+            tmp = np.log10(np.outer(self.FtoE,Eff_thresh[i,:]))
+            for ii,b in enumerate(self.beam_b):
+                self.new_thresholds[i*self.beam_b.size + ii] = tmp - np.log10(b)
+        done = datetime.datetime.now()
+        print(f"Time to build new_thresholds = {done-now}")
         
         
     def smear_dm(self,smear:np.ndarray):#,mean:float,sigma:float):
