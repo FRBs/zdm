@@ -256,6 +256,7 @@ class Grid:
         linear = interpolate.interp1d(np.log10(avals), numer)
         now = datetime.datetime.now()
         for i,b in enumerate(self.beam_b):
+            #cuml = linear(self.jxp_thresholds[j,:,:] - np.log10(b) - np.log10(Emax))
             for j,w in enumerate(self.eff_weights):
                 if j==0:
                     self.b_fractions[:,:,i] = self.beam_o[i]*w*(
