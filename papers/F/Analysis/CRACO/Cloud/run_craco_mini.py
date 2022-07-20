@@ -5,6 +5,7 @@
 import argparse
 import numpy as np
 import os, sys
+from pkg_resources import resource_filename
 
 from concurrent.futures import ProcessPoolExecutor
 import subprocess
@@ -45,6 +46,8 @@ def main(
     if int(ntotal / total_ncpu) != nper_cpu:
         raise IOError(f"Ncpu={total_ncpu} must divide evenly into ntotal={ntotal}")
 
+    survey_file = os.path.join(resource_filename('zdm', 'craco'),
+                    'MC_F', 'Surveys', 'F_0.32_survey')
     commands = []
     for kk in range(pargs.ncpu):
         line = []
@@ -61,7 +64,7 @@ def main(
             "-o",
             f"{outfile}",
             "-s",
-            f"../../../../../zdm/craco/MC_F/Surveys/F_0.32_survey.dat",
+            f"{survey_file}",
             "--clobber",
             "-p",
             f"{pfile}",
@@ -78,6 +81,7 @@ def main(
 
     # Launch em!
     processes = []
+    embed(header='84 of run craco')
     for command in commands:
         # Popen
         print(f"Running this command: {' '.join(command)}")
