@@ -36,7 +36,7 @@ def make_histogram(oldx,oldy):
         
     return newx,newy
 
-data=np.loadtxt("A1/frb_data.dat")
+data=np.loadtxt("FigureA1/frb_data.dat")
 
 DM=data[:,2]
 SNR=data[:,4]
@@ -110,5 +110,5 @@ plt.yticks([1,10],['1','10'])
 plt.legend()
 plt.tight_layout()
 
-plt.savefig('A1/logN_logS.pdf')
+plt.savefig('FigureA1/logN_logS.pdf')
 plt.close()

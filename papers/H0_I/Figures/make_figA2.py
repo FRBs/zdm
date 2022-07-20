@@ -1,18 +1,5 @@
 """
-Runs likelihood(H0) for the files
-
-CRAFT_CRACO_MC_alpha1_1000.dat
-CRAFT_CRACO_MC_alpha1_1000_maxdm.dat
-CRAFT_CRACO_MC_alpha1_1000_missing.dat
-
-CRAFT_CRACO_MC_alpha1_gamma_1000.dat
-CRAFT_CRACO_MC_alpha1_gamma_1000_maxdm.dat
-CRAFT_CRACO_MC_alpha1_gamma_1000_missing.dat
-
-and plots this is "Missing_z_Checks".
-
-This tests whether or not missing DMs, or placing a max in DMEG,
-introduces a bias. The result: no it does not.
+Generates Figure A2
 """
 import pytest
 

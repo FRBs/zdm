@@ -1,5 +1,5 @@
 """
-This is a script used to produce figures for fig 8
+This is a script used to produce figures for fig 7
 
 It generates two sets of results:
 - constraints on alpha (in directory fig8_alphaSingleFigures)
@@ -19,7 +19,7 @@ from matplotlib import pyplot as plt
 def main(verbose=False):
     
     ######### other results ####
-    Planck_H0 = 67.4
+    Planck_H0 = 67.66
     Planck_sigma = 0.5
     Reiss_H0 = 74.03
     Reiss_sigma = 1.42
