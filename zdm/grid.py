@@ -237,7 +237,9 @@ class Grid:
             for j,w in enumerate(self.eff_weights):
                 if j==0:
                     self.b_fractions[:,:,i] = self.beam_o[i]*w*self.array_cum_lf(
-                        self.thresholds[j,:,:]/b,Emin,Emax,
+                        self.thresholds[j,:,:]/b,  # xnew
+                        #self.thresholds[j,:,:] - np.log10(b) - np.log10(Emax)))
+                        Emin,Emax,
                         self.state.energy.gamma)
                 else:
                     self.b_fractions[:,:,i] += self.beam_o[i]*w*self.array_cum_lf(
@@ -246,6 +248,7 @@ class Grid:
         done = datetime.datetime.now()
         print(f'Time to normal loop = {done-now}')
 
+        '''
         # Another JXP try
         import mpmath
         from scipy import interpolate
@@ -274,7 +277,6 @@ class Grid:
         print(f'Time for log linear = {done-now}')
         embed(header='235 of grid')
 
-        '''
         embed(header='235 of grid')
         now = datetime.datetime.now()
         tmp2 = self.vector_cum_lf(self.new_thresholds.flatten(), Emin,Emax, self.state.energy.gamma)
@@ -405,10 +407,11 @@ class Grid:
         self.jxp_thresholds=np.zeros([self.nthresh,self.zvals.size,self.dmvals.size])
         for i in np.arange(self.nthresh):
             self.thresholds[i,:,:]=np.outer(self.FtoE,Eff_thresh[i,:])
-            self.jxp_thresholds[i,:,:]= np.log10(np.outer(self.FtoE,Eff_thresh[i,:]))
+            #self.jxp_thresholds[i,:,:]= np.log10(np.outer(self.FtoE,Eff_thresh[i,:]))
         done = datetime.datetime.now()
         print(f"Time to build thresholds = {done-now}")
 
+        '''
         # JXP tinkering
         now = datetime.datetime.now()
         self.new_thresholds=np.zeros([self.nthresh*self.beam_b.size,self.zvals.size,self.dmvals.size])
@@ -418,6 +421,7 @@ class Grid:
                 self.new_thresholds[i*self.beam_b.size + ii] = tmp - np.log10(b)
         done = datetime.datetime.now()
         print(f"Time to build new_thresholds = {done-now}")
+        '''
         
         
     def smear_dm(self,smear:np.ndarray):#,mean:float,sigma:float):
