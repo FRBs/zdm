@@ -3,7 +3,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: xavier-zdm-craco-full-3rd-10
+  name: xavier-zdm-craco-mini-f
 spec:
   backoffLimit: 0
   template:
@@ -37,7 +37,7 @@ spec:
             #nvidia.com/gpu:  "1"  # See docs to exlude certain types
         command: ["/bin/bash", "-c"]
         args:
-          - cd FRB/FRB;
+          - cd FRB;
             git fetch;
             git pull;
             python setup.py develop;
@@ -48,7 +48,7 @@ spec:
             git checkout varying_F;
             python setup.py develop;
             cd papers/F/Analysis/CRACO/Cloud;
-            python run_craco_full.py -n 25 -t 25 -b 1;
+            python run_craco_mini.py -n 25 -t 25 -b 1;
             aws --endpoint http://rook-ceph-rgw-nautiluss3.rook s3 cp Output s3://zdm/Cubes/F/mini/ --recursive --force;
         env:
           - name: "ENDPOINT_URL"
