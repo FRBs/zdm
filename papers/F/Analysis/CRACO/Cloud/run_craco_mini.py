@@ -81,7 +81,7 @@ def main(
 
     # Launch em!
     processes = []
-    embed(header='84 of run craco')
+
     for command in commands:
         # Popen
         print(f"Running this command: {' '.join(command)}")
