@@ -76,13 +76,13 @@ class Grid:
             self.vector_diff_lf=energetics.vector_diff_power_law
         elif self.luminosity_function==1:  # Gamma function
             embed(header='79 of grid -- BEST NOT TO USE THIS!!!!')
-            self.array_cum_lf=energetics.array_cum_gamma
-            self.vector_cum_lf=energetics.vector_cum_gamma
+            self.array_cum_lf=energetics.array_cum_gamma_linear
+            self.vector_cum_lf=energetics.vector_cum_gamma_linear
             self.array_diff_lf=energetics.array_diff_gamma
             self.vector_diff_lf=energetics.vector_diff_gamma
         elif self.luminosity_function==2:  # Spline gamma function
-            self.array_cum_lf=energetics.array_cum_gamma_spline
-            self.vector_cum_lf=energetics.vector_cum_gamma_spline
+            self.array_cum_lf=energetics.array_cum_gamma_linear
+            self.vector_cum_lf=energetics.vector_cum_gamma_linear
             self.array_diff_lf=energetics.array_diff_gamma
             self.vector_diff_lf=energetics.vector_diff_gamma
         else:
