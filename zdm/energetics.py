@@ -26,7 +26,7 @@ def init_igamma_linear(gammas, reinit=False):
             print(f"Initializing igamma_linear for gamma={gamma}")
             # values
             avals = 10**np.linspace(-6, 6., 1000)
-            log_avals = np.log(avals) # changed to log space
+            log_avals = np.log10(avals) # changed to log space
             print(type(log_avals))
             print(type(avals))
 
