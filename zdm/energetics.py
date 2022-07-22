@@ -30,12 +30,12 @@ def init_igamma_linear(gammas, reinit=False):
             print(type(log_avals))
             print(type(avals))
 
-            for iEE in log_avals:
+            for iEE in avals:
                 print(iEE, type(iEE))
 
-            numer = np.array([float(mpmath.gammainc(gamma, a=iEE)) for iEE in log_avals])
+            numer = np.array([float(mpmath.gammainc(gamma, a=iEE)) for iEE in avals])
             # Linear interp dict
-            igamma_linear[gamma] = interpolate.interp1d(avals, numer)
+            igamma_linear[gamma] = interpolate.interp1d(log_avals, numer)
 
 def template_array_cumulative_luminosity_function(Eth,*params):
     """
