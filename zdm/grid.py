@@ -245,13 +245,15 @@ class Grid:
             for j,w in enumerate(self.eff_weights):
                 if j==0:
                     self.b_fractions[:,:,i] = self.beam_o[i]*w*self.array_cum_lf(
-                        np.log10(self.thresholds[j,:,:]/b),  # xnew
+                        self.thresholds[j,:,:]/b,  # xnew
+                        #np.log10(self.thresholds[j,:,:]/b),  # xnew
                         #self.thresholds[j,:,:] - np.log10(b) - np.log10(Emax)))
                         Emin,Emax,
                         self.state.energy.gamma)
                 else:
                     self.b_fractions[:,:,i] += self.beam_o[i]*w*self.array_cum_lf(
-                        np.log10(self.thresholds[j,:,:]/b),Emin,Emax,
+                        self.thresholds[j,:,:]/b,Emin,Emax,
+                        #np.log10(self.thresholds[j,:,:]/b),Emin,Emax,
                         self.state.energy.gamma)
         done = datetime.datetime.now()
         print(f'Time to normal loop = {done-now}')
@@ -335,6 +337,7 @@ class Grid:
                 
         # here, b-fractions are unweighted according to the value of b.
         self.fractions=np.sum(self.b_fractions,axis=2) # sums over b-axis [ we could ignore this step?]
+        #embed(header='338 of grid')
         self.pdv=np.multiply(self.fractions.T,self.dV).T
 
         print(self.fractions)
@@ -377,13 +380,15 @@ class Grid:
             for j,w in enumerate(self.eff_weights):
                 if j==0:
                     self.b_fractions[:,:,i] = self.beam_o[i]*w*self.array_cum_lf_spline(
-                        np.log10(self.thresholds[j,:,:]/b),  # xnew
+                        self.thresholds[j,:,:]/b,  # xnew
+                        #np.log10(self.thresholds[j,:,:]/b),  # xnew
                         #self.thresholds[j,:,:] - np.log10(b) - np.log10(Emax)))
                         Emin,Emax,
                         self.state.energy.gamma)
                 else:
                     self.b_fractions[:,:,i] += self.beam_o[i]*w*self.array_cum_lf_spline(
-                        np.log10(self.thresholds[j,:,:]/b),Emin,Emax,
+                        #np.log10(self.thresholds[j,:,:]/b),Emin,Emax,
+                        self.thresholds[j,:,:]/b,Emin,Emax,
                         self.state.energy.gamma)
         done = datetime.datetime.now()
         print(f'Time to normal loop = {done-now}')
@@ -548,13 +553,15 @@ class Grid:
         # FRB width (nthresh) and DM.
         # We loop over nthesh and generate a NDM x Nz array for each
         now = datetime.datetime.now()
-        self.jxp_thresholds=np.zeros([self.nthresh,self.zvals.size,self.dmvals.size])
+        #self.jxp_thresholds=np.zeros([self.nthresh,self.zvals.size,self.dmvals.size])
         for i in np.arange(self.nthresh):
             # CHANGED TO log10 SPACE
-            self.thresholds[i,:,:]=np.log10(np.outer(self.FtoE,Eff_thresh[i,:]))
+            #self.thresholds[i,:,:]=np.log10(np.outer(self.FtoE,Eff_thresh[i,:]))
+            self.thresholds[i,:,:]=np.outer(self.FtoE,Eff_thresh[i,:])
             #self.jxp_thresholds[i,:,:]= np.log10(np.outer(self.FtoE,Eff_thresh[i,:]))
         done = datetime.datetime.now()
         print(f"Time to build thresholds = {done-now}")
+
 
         '''
         # JXP tinkering

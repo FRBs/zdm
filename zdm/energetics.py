@@ -215,10 +215,14 @@ def vector_cum_gamma_linear(Eth:np.ndarray, *params):
 
     # Calculate
     norm = float(mpmath.gammainc(gamma, a=Emin/Emax))
-    Eth_Emax = Eth/Emax
+    #Eth_Emax = Eth/Emax
+    log10_Eth_Emax = np.log10(Eth/Emax)
     if gamma not in igamma_linear.keys():
         init_igamma_linear([gamma])
-    numer = igamma_linear[gamma](Eth_Emax)
+    try:
+        numer = igamma_linear[gamma](log10_Eth_Emax)
+    except:
+        embed(header='225 of energetics')
     #numer = interpolate.splev(Eth_Emax, igamma_linear[gamma])
     result=numer/norm
 

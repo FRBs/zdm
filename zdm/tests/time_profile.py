@@ -54,6 +54,7 @@ def run_linear():
     igrid.array_cum_lf=energetics.array_cum_gamma_linear
     igrid.vector_cum_lf=energetics.vector_cum_gamma_linear
 
+    igrid.use_log10 = False
     
     
     vparams['H0'] += 1
