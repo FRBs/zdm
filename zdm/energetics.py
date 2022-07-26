@@ -26,11 +26,12 @@ def init_igamma_linear(gammas, reinit=False):
             print(f"Initializing igamma_linear for gamma={gamma}")
             # values
             avals = 10**np.linspace(-6, 6., 1000)
-            log_avals = np.log10(avals) # changed to log space
+            #log_avals = np.log10(avals) # changed to log space
 
             numer = np.array([float(mpmath.gammainc(gamma, a=iEE)) for iEE in avals])
             # Linear interp dict
-            igamma_linear[gamma] = interpolate.interp1d(log_avals, numer)
+            #igamma_linear[gamma] = interpolate.interp1d(log_avals, numer)
+            igamma_linear[gamma] = interpolate.interp1d(avals, numer)
 
 def template_array_cumulative_luminosity_function(Eth,*params):
     """
@@ -215,12 +216,13 @@ def vector_cum_gamma_linear(Eth:np.ndarray, *params):
 
     # Calculate
     norm = float(mpmath.gammainc(gamma, a=Emin/Emax))
-    #Eth_Emax = Eth/Emax
-    log10_Eth_Emax = np.log10(Eth/Emax)
+    Eth_Emax = Eth/Emax
+    #log10_Eth_Emax = np.log10(Eth/Emax)
     if gamma not in igamma_linear.keys():
         init_igamma_linear([gamma])
     try:
-        numer = igamma_linear[gamma](log10_Eth_Emax)
+        #numer = igamma_linear[gamma](log10_Eth_Emax)
+        numer = igamma_linear[gamma](Eth_Emax)
     except:
         embed(header='225 of energetics')
     #numer = interpolate.splev(Eth_Emax, igamma_linear[gamma])
