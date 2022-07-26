@@ -683,9 +683,9 @@ class Grid:
         if self.chk_upd_param("F", vparams, update=True):
             get_zdm = True
             smear_dm = True
-            calc_thresh = False  # JMB
-            calc_pdv = False  # JMB
-            set_evol = False  # JMB
+            #calc_thresh = False  # JMB
+            #calc_pdv = False  # JMB
+            #set_evol = False  # JMB
             new_sfr_smear = True
 
         # DM_host
