@@ -45,6 +45,7 @@ vparams[pparam] = pval
 def run_spline():
     vparams['H0'] += 1
     igrid.update_spline(vparams) 
+    return igrid.fractions.copy()
 
 # ###################
 # Now do linear
@@ -53,12 +54,18 @@ def run_linear():
     igrid.array_cum_lf=energetics.array_cum_gamma_linear
     igrid.vector_cum_lf=energetics.vector_cum_gamma_linear
 
+    
+    
     vparams['H0'] += 1
     igrid.update(vparams) 
 
+    return igrid.fractions.copy()
+
+
+
 frac1 = run_spline()
 frac2 = run_linear()
-
+embed()
 ar1_2_diff = np.setdiff1d(frac1, frac2)
 # doing something wrong bc there's no difference?
 print(ar1_2_diff)
