@@ -81,8 +81,16 @@ class Grid:
             self.array_diff_lf=energetics.array_diff_gamma
             self.vector_diff_lf=energetics.vector_diff_gamma
         elif self.luminosity_function==2:  # Spline gamma function
+            
+            # SPLINE IMPLEMENTATION
+            self.array_cum_lf_spline=energetics.array_cum_gamma_spline
+            self.vector_cum_lf_spline=energetics.vector_cum_gamma_spline
+
+            # LINEAR IMPLEMENTATION (current)
             self.array_cum_lf=energetics.array_cum_gamma_linear
             self.vector_cum_lf=energetics.vector_cum_gamma_linear
+
+            # DO NOT TOUCH
             self.array_diff_lf=energetics.array_diff_gamma
             self.vector_diff_lf=energetics.vector_diff_gamma
         else:
@@ -328,6 +336,8 @@ class Grid:
         # here, b-fractions are unweighted according to the value of b.
         self.fractions=np.sum(self.b_fractions,axis=2) # sums over b-axis [ we could ignore this step?]
         self.pdv=np.multiply(self.fractions.T,self.dV).T
+
+        print(self.fractions)
 
     def calc_rates(self):
         """ multiplies the rate per cell with the appropriate pdm plot """
