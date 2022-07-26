@@ -49,7 +49,8 @@ def main():
     #print("Integrating from ",orig_H0[-1]," to ",maxH0," gives an additional ",p2)
     
     # this figures shows a check where the lognormal fit is overplotted on the data
-    os.makedirs("Figure6")
+    if not os.path.isdir('Figure6'):
+        os.makedirs("Figure6")
     
     plt.figure()
     plt.scatter(orig_H0,orig_pH0,label="Data")
@@ -59,7 +60,7 @@ def main():
     
     plt.xlabel('$H_0$ [km/s/Mpc]')
     plt.ylabel('$p(H_0)$')
-    plt.savefig("Figure6/check_fit.png")
+    plt.savefig("Figure6/check_fit.png", dpi=300)
     plt.close()
     
     # renormalises data - p1 was original sum, p2 is new sum
@@ -124,8 +125,9 @@ def main():
     plt.gca().set_ylim(bottom=0)  
     plt.legend()
     plt.tight_layout()
-    plt.savefig("Figure6/H0_fig6.png")
+    plt.savefig("Figure6/H0_fig6.png", dpi=300)
     plt.close()
+    print("Wrote: Figure6/H0_fig6.png")
     
 def ln(x,*params):
     a=params[0]
