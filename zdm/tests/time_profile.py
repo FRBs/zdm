@@ -44,7 +44,7 @@ vparams[pparam] = pval
 
 def run_spline():
     vparams['H0'] += 1
-    igrid.update(vparams) 
+    igrid.update_spline(vparams) 
 
 # ###################
 # Now do linear
@@ -56,9 +56,12 @@ def run_linear():
     vparams['H0'] += 1
     igrid.update(vparams) 
 
-#run_spline()
-run_linear()
+frac1 = run_spline()
+frac2 = run_linear()
 
+ar1_2_diff = np.setdiff1d(frac1, frac2)
+# doing something wrong bc there's no difference?
+print(ar1_2_diff)
 '''
 #TIMEPROFILING
 python -m cProfile -o time_profile.prof time_profile.py

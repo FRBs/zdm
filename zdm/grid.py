@@ -338,6 +338,140 @@ class Grid:
         self.pdv=np.multiply(self.fractions.T,self.dV).T
 
         print(self.fractions)
+        return self.fractions
+
+    def calc_pdv_spline(self,beam_b=None,beam_o=None):
+        """ Calculates the rate per cell.
+        Assumed model: a power-law between Emin and Emax (erg)
+                       with slope gamma.
+        Efficiencies: list of efficiency response to DM
+        So-far: does NOT include time x solid-angle factor
+        
+        NOW: this includes a solid-angle and beam factor if initialised
+        
+        This will recalculate beam factors if they are passed, however
+        during iteration this is not recalculated
+        """
+        
+        if beam_b is not None:
+            self.beam_b=beam_b
+            self.beam_o=beam_o
+            try:
+                x=beam_o.shape
+                x=beam_b.shape
+            except:
+                raise ValueError("Beam values must be numby arrays! Currently ",beam_o,beam_b)
+        # linear weighted sum of probabilities: pdVdOmega now. Could also be used to include time factor
+
+        # For convenience and speed up
+        Emin = 10**self.state.energy.lEmin
+        Emax = 10**self.state.energy.lEmax
+        
+        # this implementation allows us to access the b-fractions later on
+        if (not (self.b_fractions is not None)) or (beam_b is not None):
+            self.b_fractions=np.zeros([self.zvals.size,self.dmvals.size,self.beam_b.size])
+        
+        # for some arbitrary reason, we treat the beamshape slightly differently... no need to keep an intermediate product!
+        now = datetime.datetime.now()
+        for i,b in enumerate(self.beam_b):
+            for j,w in enumerate(self.eff_weights):
+                if j==0:
+                    self.b_fractions[:,:,i] = self.beam_o[i]*w*self.array_cum_lf_spline(
+                        np.log10(self.thresholds[j,:,:]/b),  # xnew
+                        #self.thresholds[j,:,:] - np.log10(b) - np.log10(Emax)))
+                        Emin,Emax,
+                        self.state.energy.gamma)
+                else:
+                    self.b_fractions[:,:,i] += self.beam_o[i]*w*self.array_cum_lf_spline(
+                        np.log10(self.thresholds[j,:,:]/b),Emin,Emax,
+                        self.state.energy.gamma)
+        done = datetime.datetime.now()
+        print(f'Time to normal loop = {done-now}')
+
+        '''
+        # Another JXP try
+        import mpmath
+        from scipy import interpolate
+
+        avals = 10**np.linspace(-6, 6., 1000)
+        numer = np.array([float(mpmath.gammainc(
+                self.state.energy.gamma, a=iEE)) for iEE in avals])
+        linear = interpolate.interp1d(np.log10(avals), numer)
+        now = datetime.datetime.now()
+        for i,b in enumerate(self.beam_b):
+            #cuml = linear(self.jxp_thresholds[j,:,:] - np.log10(b) - np.log10(Emax))
+            for j,w in enumerate(self.eff_weights):
+                if j==0:
+                    self.b_fractions[:,:,i] = self.beam_o[i]*w*(
+                        linear(self.jxp_thresholds[j,:,:] - np.log10(b) - np.log10(Emax)))
+                        #self.array_cum_lf(
+                        #self.thresholds[j,:,:]/b,Emin,Emax,
+                        #self.state.energy.gamma)
+                else:
+                    self.b_fractions[:,:,i] += self.beam_o[i]*w*(
+                        linear(self.jxp_thresholds[j,:,:] - np.log10(b) - np.log10(Emax)))
+                    #self.b_fractions[:,:,i] += self.beam_o[i]*w*self.array_cum_lf(
+                    #    self.thresholds[j,:,:]/b,Emin,Emax,
+                    #    self.state.energy.gamma)
+        done = datetime.datetime.now()
+        print(f'Time for log linear = {done-now}')
+        embed(header='235 of grid')
+
+        embed(header='235 of grid')
+        now = datetime.datetime.now()
+        tmp2 = self.vector_cum_lf(self.new_thresholds.flatten(), Emin,Emax, self.state.energy.gamma)
+        done = datetime.datetime.now()
+        print(f'Time for new thresholds = {done-now}')
+
+        # JXP TINKERING
+        tmp = self.thresholds.flatten()
+        now = datetime.datetime.now()
+        #tmp2 = self.array_cum_lf(tmp, Emin,Emax, self.state.energy.gamma)
+        tmp2 = self.vector_cum_lf(tmp, Emin,Emax, self.state.energy.gamma)
+        done = datetime.datetime.now()
+        print(f'Time to not loop = {done-now}')
+
+        # MORE
+        tmp = self.thresholds.flatten()
+        tmp3 = np.concatenate([tmp]*5)
+        srt = np.argsort(tmp3)
+        now = datetime.datetime.now()
+        #tmp2 = self.array_cum_lf(tmp, Emin,Emax, self.state.energy.gamma)
+        #tmp2 = self.vector_cum_lf(tmp3, Emin,Emax, self.state.energy.gamma)
+        tmp5 = self.vector_cum_lf(tmp3[srt], Emin,Emax, self.state.energy.gamma)
+        done = datetime.datetime.now()
+        print(f'Time to not loop 2 = {done-now}')
+
+        # Log spline
+        import mpmath
+        from scipy import interpolate
+        avals = 10**np.linspace(-6, 6., 1000)
+        numer = np.array([float(mpmath.gammainc(
+                self.state.energy.gamma, a=iEE)) for iEE in avals])
+        spline = interpolate.splrep(np.log10(avals), numer)
+        embed(header='282 of grid')
+        now = datetime.datetime.now()
+        tmp6 = interpolate.splev(np.log10(tmp3/Emax), spline)
+        done = datetime.datetime.now()
+        print(f'Time to not loop = {done-now}')
+
+        # Log linear
+        embed(header='289 of grid')
+        now = datetime.datetime.now()
+        linear = interpolate.interp1d(np.log10(avals), numer)
+        tmp7 = linear(self.new_thresholds - np.log10(Emax))
+        done = datetime.datetime.now()
+        print(f'Time to not loop = {done-now}')
+        '''
+                
+                
+        # here, b-fractions are unweighted according to the value of b.
+        self.fractions=np.sum(self.b_fractions,axis=2) # sums over b-axis [ we could ignore this step?]
+        self.pdv=np.multiply(self.fractions.T,self.dV).T
+
+        print(self.fractions)
+        return self.fractions
+        
 
     def calc_rates(self):
         """ multiplies the rate per cell with the appropriate pdm plot """
@@ -416,6 +550,7 @@ class Grid:
         now = datetime.datetime.now()
         self.jxp_thresholds=np.zeros([self.nthresh,self.zvals.size,self.dmvals.size])
         for i in np.arange(self.nthresh):
+            # CHANGED TO log10 SPACE
             self.thresholds[i,:,:]=np.log10(np.outer(self.FtoE,Eff_thresh[i,:]))
             #self.jxp_thresholds[i,:,:]= np.log10(np.outer(self.FtoE,Eff_thresh[i,:]))
         done = datetime.datetime.now()
@@ -821,6 +956,181 @@ class Grid:
             import datetime
             now = datetime.datetime.now()
             self.calc_pdv()
+            dt = datetime.datetime.now() - now
+            print(f"This pdv step took: {dt}")
+
+        if set_evol or ALL:
+            self.set_evolution() # sets star-formation rate scaling with z - here, no evoltion...
+
+        if new_sfr_smear or ALL:
+            self.calc_rates() #includes sfr smearing factors and pdv mult
+        elif new_pdv_smear:
+            self.rates=self.pdv*self.sfr_smear #does pdv mult only, 'by hand'
+
+        # Catch all the changes just in case, e.g. lC
+        self.state.update_params(vparams)
+
+    def update_spline(self, vparams:dict, ALL=False, prev_grid=None):
+        """
+        UPDATING USING SPLINE METHOD
+        
+        Update the grid based on a set of input
+        parameters
+        
+        Hierarchy:
+        Each indent corresponds to one 'level'.
+        This is used in the program control below
+        to dictate how far each tree should proceed
+        in calculation.
+        Direct variable inputs are always listed first
+        We see that sfr evolution and dm smearing
+        lie just before the pdv step
+        Hence, we deal with these first, and
+        calc rates as a final step regardless
+        of what else has changed.
+
+        Args:
+            vparams (dict):  dict containing the parameters
+                to be updated and their values
+            prev_grid (Grid, optional):
+                If provided, it is assumed this grid has been
+                updated on items that need not be repeated for
+                the current grid.  i.e. Speed up!
+            ALL (bool, optional):  If True, update the full grid
+        
+        calc_rates:
+            calc_pdv
+                Emin
+                Emax
+                gamma
+                calc_thresholds
+                    F0
+                    alpha
+                    bandwidth
+            set_evolution
+                sfr_n
+            
+            smear_grid
+                grid
+                mask
+                    dmx_params (lmean, lsigma)
+            dV
+            zdm_grid
+                H0
+        
+        Note that the grid is independent of the constant C (trivial dependence)
+
+        Args:
+            vparams (dict): [description]
+        """
+        # Init
+        reset_cos, get_zdm, calc_dV = False, False, False
+        smear_mask, smear_dm, calc_pdv, set_evol = False, False, False, False
+        new_sfr_smear, new_pdv_smear, calc_thresh = False, False, False
+
+        # Cosmology -- Only H0 so far
+        if self.chk_upd_param('H0', vparams, update=True):
+            reset_cos = True
+            get_zdm = True
+            calc_dV = True
+            smear_dm = True
+            calc_thresh = True
+            calc_pdv = True
+            set_evol = True
+            new_sfr_smear = True
+
+        # IGM
+        if self.chk_upd_param('F', vparams, update=True):
+            get_zdm = True
+            smear_dm = True
+            calc_thresh = True
+            calc_pdv = True
+            set_evol = True
+            new_sfr_smear = True
+
+        # Mask?
+        # IT IS IMPORTANT TO USE np.any so that each item is executed!!
+        if np.any([self.chk_upd_param('lmean', vparams, update=True), 
+            self.chk_upd_param('lsigma', vparams, update=True)]):
+            smear_mask = True
+            smear_dm = True
+            new_sfr_smear=True
+
+        # SFR?
+        if self.chk_upd_param('sfr_n', vparams, update=True):
+            set_evol = True
+            new_sfr_smear=True  # True for either alpha_method
+        if self.chk_upd_param('alpha', vparams, update=True):
+            set_evol = True
+            if self.state.FRBdemo.alpha_method == 0:
+                calc_thresh = True
+                calc_pdv = True
+                new_pdv_smear=True
+            elif self.state.FRBdemo.alpha_method == 1:
+                new_sfr_smear=True
+
+        ##### examines the 'pdv tree' affecting sensitivity #####
+        # begin with alpha
+        # alpha does not change thresholds under rate scaling, only spec index
+        if np.any([self.chk_upd_param('lEmin', vparams, update=True),
+            self.chk_upd_param('lEmax', vparams, update=True),
+            self.chk_upd_param('gamma', vparams, update=True)]):
+            calc_pdv = True
+            new_pdv_smear=True
+
+        # ###########################
+        # NOW DO THE REAL WORK!!
+
+        # TODO -- For cubes with multiple surveys can we do these
+        #   first two steps (even the first 5!) only once??
+        # Update cosmology?
+        if reset_cos and prev_grid is None:
+            cos.set_cosmology(self.state)
+            cos.init_dist_measures()
+
+        if get_zdm or ALL:
+            if prev_grid is None:
+                zDMgrid, zvals,dmvals=misc_functions.get_zdm_grid(
+                    self.state, new=True,plot=False,method='analytic',
+                    save=False,nz=self.zvals.size,zmax=self.zvals[-1],
+                    ndm=self.dmvals.size,dmmax=self.dmvals[-1],zlog=self.zlog)
+                self.parse_grid(zDMgrid,zvals,dmvals)
+            else:
+                # Pass a copy (just to be safe)
+                self.parse_grid(prev_grid.grid.copy(),
+                               prev_grid.zvals.copy(),
+                               prev_grid.dmvals.copy())
+
+        if calc_dV or ALL:
+            if prev_grid is None:
+                self.calc_dV()
+            else:
+                self.dV = prev_grid.dV.copy()
+
+        # Smear?
+        if smear_mask or ALL:
+            if prev_grid is None:
+                self.smear=pcosmic.get_dm_mask(
+                    self.dmvals,(self.state.host.lmean,
+                             self.state.host.lsigma), self.zvals)
+            else:
+                self.smear = prev_grid.smear.copy()
+        if smear_dm or ALL:
+            if prev_grid is None:
+                self.smear_dm(self.smear)
+            else:
+                self.smear = prev_grid.smear.copy()
+                self.smear_grid = prev_grid.smear_grid.copy()
+            
+        if calc_thresh or ALL:
+            self.calc_thresholds(
+                self.F0,self.eff_table, bandwidth=self.bandwidth,
+                weights=self.eff_weights)
+        
+        if calc_pdv or ALL:
+            import datetime
+            now = datetime.datetime.now()
+            self.calc_pdv_spline()
             dt = datetime.datetime.now() - now
             print(f"This pdv step took: {dt}")
 
