@@ -127,3 +127,5 @@ if __name__ == "__main__":
 
 #  python py/slurp_craco_cubes.py mini
 #  python py/slurp_craco_cubes.py another_full
+
+#  python py/slurp_craco_cubes.py F
