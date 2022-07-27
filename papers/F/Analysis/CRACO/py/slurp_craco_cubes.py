@@ -19,7 +19,7 @@ def main(pargs):
     elif pargs.run == "F":
         # Emax
         input_file = "Cubes/craco_H0_F_cube.json"
-        prefix = "Cubes/craco_H0_F_cube"
+        prefix = "Cloud/OutputH0F/craco_H0_F"
         nsurveys = 1
 
         # Run it
