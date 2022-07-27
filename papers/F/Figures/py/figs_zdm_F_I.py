@@ -329,6 +329,8 @@ def fig_craco_fiducial_F(
     grid=None,
     survey=None,
     F=0.03,
+    H0=None,
+    iFRB=100,
     suppress_DM_host=False,
 ):
     """
@@ -355,11 +357,14 @@ def fig_craco_fiducial_F(
     """
     # Generate the grid
     if grid is None or survey is None:
-        survey, grid = analy_F_I.craco_mc_survey_grid()
+        survey, grid = analy_F_I.craco_mc_survey_grid(iFRB=iFRB)
 
     fiducial_H0 = grid.state.cosmo.H0
 
     vparams = {"H0": fiducial_H0, "F": F}
+
+    if H0 is not None:
+        vparams['H0'] = H0
 
     if suppress_DM_host:
         # Sets the log-normal distribution for DM_host to ~0.
@@ -503,7 +508,8 @@ def fig_craco_fiducial_F(
 # fig_craco_fiducial_F("fig_craco_fiducial_F_0.01.png", show_Macquart=True, F=0.01, suppress_DM_host=True)
 # fig_craco_fiducial_F("fig_craco_fiducial_F_0.9.png", show_Macquart=True, F=0.9, suppress_DM_host=True)
 
-# fig_craco_fiducial_F("fig_craco_fiducial_dmhost_F_0.32.png", show_Macquart=True, F=0.32, suppress_DM_host=False)
+#fig_craco_fiducial_F("fig_craco_fiducial_dmhost_F_0.32.png", show_Macquart=False, F=0.32, suppress_DM_host=False)
+#fig_craco_fiducial_F("fig_craco_fiducial_dmhost_F_0.82_H0_55.png", show_Macquart=False, F=0.82, H0=55., suppress_DM_host=False)
 # fig_craco_fiducial_F("fig_craco_fiducial_dmhost_F_0.01.png", show_Macquart=True, F=0.01, suppress_DM_host=False)
 # fig_craco_fiducial_F("fig_craco_fiducial_dmhost_F_0.9.png", show_Macquart=True, F=0.9, suppress_DM_host=False)
 
@@ -539,4 +545,12 @@ def fig_craco_fiducial_F(
 #     DMmax=1800,
 # )
 
-fig_craco_varyF_zDM("strawberry.png", other_param="lmean")
+#fig_craco_varyF_zDM("strawberry.png", other_param="lmean")
+
+# Fussing on the square
+#fig_craco_fiducial_F("fig_craco_fiducial_dmhost_F_0.32.png", show_Macquart=False, F=0.32, suppress_DM_host=False)
+#fig_craco_fiducial_F("fig_craco_fiducial_dmhost_F_0.82_H0_55.png", show_Macquart=False, F=0.82, H0=55., suppress_DM_host=False)
+
+# iFRB = 0
+#fig_craco_fiducial_F("fig_craco_fiducial_dmhost_F_0.99_H0_55_i0.png", show_Macquart=False, F=0.99, H0=55., suppress_DM_host=False, iFRB=0)
+fig_craco_fiducial_F("fig_craco_fiducial_dmhost_F_0.32_i0.png", show_Macquart=False, F=0.32, suppress_DM_host=False, iFRB=0)

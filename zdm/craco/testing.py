@@ -52,6 +52,9 @@ def main(pargs):
     vparams[pargs.param] = None
     vparams["lC"] = -0.9
 
+    # JXP Fussing
+    vparams["H0"] = 55.
+
     '''
     tparams = pandas.read_csv('tst_params.csv')
     for key in ['lEmax', 'alpha','gamma','sfr_n','lmean','lsigma','F']:
@@ -219,6 +222,13 @@ python testing.py H0 60. 80. --nstep 50 --nFRB 100 -o MC_Plots/CRACO_100_H0_TEST
 
 # More fussing about with F and related
 python testing.py H0 60. 80. --nstep 50 --nFRB 100 -o MC_Plots/CRACO_100_H0_TEST_F32.png --lum_func 2 --survey ../MC_F/Surveys/F_0.32_survey
+
+# Square debugging
+python testing.py F 0.1 0.99 --nstep 50 --nFRB 100 -o MC_Plots/CRACO_100_F_TEST_F32.png --lum_func 2 --survey ../MC_F/Surveys/F_0.32_survey --iFRB 100
+  # Best F: pval=0.2997959183673469, C=3.630489354871595, lltot=-565.4650145414604
+python testing.py F 0.1 0.99 --nstep 50 --nFRB 100 -o MC_Plots/CRACO_100_F_TEST_F32_H055.png --lum_func 2 --survey ../MC_F/Surveys/F_0.32_survey --iFRB 100
+  # Best F: pval=0.8265306122448979, C=3.6174093413949553, lltot=-567.7777429522436
+
 
 """
 

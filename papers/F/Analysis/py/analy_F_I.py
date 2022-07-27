@@ -3,9 +3,9 @@ from zdm.craco import loading
 fiducial_survey = "CRACO_std_May2022"
 
 
-def craco_mc_survey_grid():
+def craco_mc_survey_grid(iFRB=100):
     """ Load the defaul MonteCarlo survey+grid for CRACO """
     survey, grid = loading.survey_and_grid(
-        survey_name=fiducial_survey, NFRB=100, lum_func=2, iFRB=100
+        survey_name=fiducial_survey, NFRB=100, lum_func=2, iFRB=iFRB
     )
     return survey, grid
