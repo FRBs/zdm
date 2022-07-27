@@ -30,7 +30,7 @@ def main(pargs):
         # Emax
         input_file = "Cubes/craco_mini_cube.json"
         # prefix = 'Cubes/craco_mini'
-        prefix = "Cloud/Output/craco_mini"
+        prefix = "Cloud/OutputMini/craco_mini"
         nsurveys = 1
 
         # Run it
