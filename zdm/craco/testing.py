@@ -53,7 +53,7 @@ def main(pargs):
     vparams["lC"] = -0.9
 
     # JXP Fussing
-    vparams["H0"] = 55.
+    #vparams["H0"] = 55.
 
     '''
     tparams = pandas.read_csv('tst_params.csv')
