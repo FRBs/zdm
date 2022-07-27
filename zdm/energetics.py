@@ -5,6 +5,7 @@ import mpmath
 from IPython import embed
 
 igamma_splines = {}
+igamma_linear = {}
 
 ############## this section defines different luminosity functions ##########
 
@@ -18,6 +19,19 @@ def init_igamma_splines(gammas, reinit=False):
                 gamma, a=iEE)) for iEE in avals])
             # iGamma
             igamma_splines[gamma] = interpolate.splrep(avals, numer)
+
+def init_igamma_linear(gammas, reinit=False):
+    for gamma in gammas:
+        if gamma not in igamma_linear.keys() or reinit:
+            print(f"Initializing igamma_linear for gamma={gamma}")
+            # values
+            avals = 10**np.linspace(-6, 6., 1000)
+            #log_avals = np.log10(avals) # changed to log space
+
+            numer = np.array([float(mpmath.gammainc(gamma, a=iEE)) for iEE in avals])
+            # Linear interp dict
+            #igamma_linear[gamma] = interpolate.interp1d(log_avals, numer)
+            igamma_linear[gamma] = interpolate.interp1d(avals, numer)
 
 def template_array_cumulative_luminosity_function(Eth,*params):
     """
@@ -159,6 +173,39 @@ def vector_cum_gamma(Eth,*params):
     result[low]=1.
     return result
 
+def vector_cum_gamma_linear(Eth:np.ndarray, *params):
+    """ Calculate cumulative Gamma function using a linear interp1d
+
+    Args:
+        Eth (np.ndarray): [description]
+
+    Returns:
+        np.ndarray: [description]
+    """
+    params=np.array(params)
+    Emin=params[0]
+    Emax=params[1]
+    gamma=params[2]
+
+    # Calculate
+    norm = float(mpmath.gammainc(gamma, a=Emin/Emax))
+    Eth_Emax = Eth/Emax
+    #log10_Eth_Emax = np.log10(Eth/Emax)
+    if gamma not in igamma_linear.keys():
+        init_igamma_linear([gamma])
+    try:
+        #numer = igamma_linear[gamma](log10_Eth_Emax)
+        numer = igamma_linear[gamma](Eth_Emax)
+    except:
+        embed(header='225 of energetics')
+    #numer = interpolate.splev(Eth_Emax, igamma_linear[gamma])
+    result=numer/norm
+
+    # Low end
+    low= Eth < Emin
+    result[low]=1.
+    return result
+
 def vector_cum_gamma_spline(Eth:np.ndarray, *params):
     """ Calculate cumulative Gamma function using a spline
 
@@ -211,6 +258,15 @@ def array_cum_gamma_spline(Eth,*params):
     """
     dims=Eth.shape
     result=vector_cum_gamma_spline(Eth.flatten(),*params)
+    result=result.reshape(dims)
+    return result
+
+def array_cum_gamma_linear(Eth,*params):
+    """ Calculates the fraction of bursts above a certain gamma function
+    for a given Eth, where Eth is an N-dimensional array
+    """
+    dims=Eth.shape
+    result=vector_cum_gamma_linear(Eth.flatten(),*params)
     result=result.reshape(dims)
     return result
 
