@@ -57,10 +57,19 @@ def run_linear():
     igrid.vector_cum_lf=energetics.vector_cum_gamma_linear
 
     # An example of how to turn on log10
-    igrid.use_log10 = False
+    # igrid.use_log10 = False
     
     igrid.update(vparams, ALL=True) 
+    return igrid.fractions.copy()
 
+def run_linear_log10():
+    igrid.array_cum_lf=energetics.array_cum_gamma_linear
+    igrid.vector_cum_lf=energetics.vector_cum_gamma_linear
+
+    # An example of how to turn on log10
+    igrid.use_log10 = True
+    
+    igrid.update(vparams, ALL=True) 
     return igrid.fractions.copy()
 
 
@@ -68,9 +77,13 @@ def run_linear():
 frac1 = run_spline()
 frac2 = run_linear()
 
-ar1_2_diff = np.setdiff1d(frac1, frac2)
+
+relative_acc_array = np.absolute(frac1 - frac2) / frac1
+relative_acc_avg = np.average(relative_acc_array)
+
 # doing something wrong bc there's no difference?
-print(ar1_2_diff)
+# print(relative_acc_array)
+# print(relative_acc_avg)
 '''
 #TIMEPROFILING
 python -m cProfile -o time_profile.prof time_profile.py
