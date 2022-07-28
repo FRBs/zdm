@@ -85,10 +85,12 @@ class Grid:
             # SPLINE IMPLEMENTATION
             self.array_cum_lf_spline=energetics.array_cum_gamma_spline
             self.vector_cum_lf_spline=energetics.vector_cum_gamma_spline
+            self.array_cum_lf=energetics.array_cum_gamma_spline
+            self.vector_cum_lf=energetics.vector_cum_gamma_spline
 
             # LINEAR IMPLEMENTATION (current)
-            self.array_cum_lf=energetics.array_cum_gamma_linear
-            self.vector_cum_lf=energetics.vector_cum_gamma_linear
+            #self.array_cum_lf=energetics.array_cum_gamma_linear
+            #self.vector_cum_lf=energetics.vector_cum_gamma_linear
 
             # DO NOT TOUCH
             self.array_diff_lf=energetics.array_diff_gamma
@@ -258,7 +260,7 @@ class Grid:
         done = datetime.datetime.now()
         print(f'Time to normal loop = {done-now}')
 
-        '''
+
         # Another JXP try
         import mpmath
         from scipy import interpolate
@@ -267,6 +269,7 @@ class Grid:
         numer = np.array([float(mpmath.gammainc(
                 self.state.energy.gamma, a=iEE)) for iEE in avals])
         linear = interpolate.interp1d(np.log10(avals), numer)
+        embed(header='270 of grid')
         now = datetime.datetime.now()
         for i,b in enumerate(self.beam_b):
             #cuml = linear(self.jxp_thresholds[j,:,:] - np.log10(b) - np.log10(Emax))
@@ -286,6 +289,18 @@ class Grid:
         done = datetime.datetime.now()
         print(f'Time for log linear = {done-now}')
         embed(header='235 of grid')
+
+        # Thresholds
+        now = datetime.datetime.now()
+        tmp = np.log10(self.thresholds)
+        done = datetime.datetime.now()
+        print(f'Time for log the thresholds = {done-now}')
+
+        # Linear without log
+        self.array_cum_lf=energetics.array_cum_gamma_linear
+        self.vector_cum_lf=energetics.vector_cum_gamma_linear
+        #  Now re-run the above via copy/paste
+    
 
         embed(header='235 of grid')
         now = datetime.datetime.now()
@@ -332,7 +347,7 @@ class Grid:
         tmp7 = linear(self.new_thresholds - np.log10(Emax))
         done = datetime.datetime.now()
         print(f'Time to not loop = {done-now}')
-        '''
+
                 
                 
         # here, b-fractions are unweighted according to the value of b.
@@ -561,9 +576,9 @@ class Grid:
             #self.jxp_thresholds[i,:,:]= np.log10(np.outer(self.FtoE,Eff_thresh[i,:]))
         done = datetime.datetime.now()
         print(f"Time to build thresholds = {done-now}")
+        self.jxp_thresholds = np.log10(self.thresholds)
 
 
-        '''
         # JXP tinkering
         now = datetime.datetime.now()
         self.new_thresholds=np.zeros([self.nthresh*self.beam_b.size,self.zvals.size,self.dmvals.size])
@@ -573,7 +588,7 @@ class Grid:
                 self.new_thresholds[i*self.beam_b.size + ii] = tmp - np.log10(b)
         done = datetime.datetime.now()
         print(f"Time to build new_thresholds = {done-now}")
-        '''
+
         
         
     def smear_dm(self,smear:np.ndarray):#,mean:float,sigma:float):

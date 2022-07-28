@@ -51,20 +51,17 @@ def run_spline():
 # Now do linear
 
 def run_linear():
-    igrid.array_cum_lf=energetics.array_cum_gamma_linear
-    igrid.vector_cum_lf=energetics.vector_cum_gamma_linear
+    #igrid.array_cum_lf=energetics.array_cum_gamma_linear
+    #igrid.vector_cum_lf=energetics.vector_cum_gamma_linear
 
-    igrid.use_log10 = False
-    
-    
     vparams['H0'] += 1
-    igrid.update(vparams) 
+    igrid.update(vparams, ALL=True) 
 
     return igrid.fractions.copy()
 
 
 
-frac1 = run_spline()
+#frac1 = run_spline()
 frac2 = run_linear()
 embed()
 ar1_2_diff = np.setdiff1d(frac1, frac2)
