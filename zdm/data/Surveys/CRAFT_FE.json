@@ -1,0 +1,17 @@
+{
+    "observing": {
+        "TOBS": 1274.6
+    },
+    "telescope": {
+        "BEAM": "lat50_log",
+        "DIAM": 12.0,
+        "NBEAMS": 36,
+        "SNRTHRESH": 9.5,
+        "THRESH": 22.0
+    },
+    "timefrequency": {
+        "BW": 336.0,
+        "FRES": 1.0,
+        "TRES": 1.265
+    }
+}

@@ -20,7 +20,7 @@ from astropy.cosmology import FlatLambdaCDM
 from frb.dm import igm
 from zdm import cosmology as cos
 from zdm import parameters
-from zdm import c_code
+#from zdm import c_code
 
 import scipy as sp
 #import astropy.units as u
@@ -90,11 +90,11 @@ def make_C0_grid(zeds,F):
         C0s[i]=iterate_C0(z,F)
     return C0s
 
-def get_mean_DM(zeds, state:parameters.State):
+def get_mean_DM(zeds:np.ndarray, state:parameters.State):
     """ Gets mean average z to which can be applied deltas 
 
     Args:
-        zeds ([type]): [description]
+        zeds (np.ndarray): redshifts (must be linearly spaced)
         state (parameters.State): 
 
     Returns:
@@ -109,12 +109,37 @@ def get_mean_DM(zeds, state:parameters.State):
     nz=zeds.size
     DMbar, zeval = igm.average_DM(
         zmax, cosmo=cosmo, cumul=True, neval=nz+1)
-
+    
     # Check
     assert np.allclose(zeds, zeval[1:])
                                                               #wrong dimension
     return DMbar[1:].value
-    
+ 
+def get_log_mean_DM(zeds:np.ndarray, state:parameters.State):
+    """ Gets mean average z to which can be applied deltas
+        Does NOT assume that the zeds are linearly spaced. 
+
+    Args:
+        zeds (np.ndarray): redshifts (any order/spacing).
+        state (parameters.State): 
+
+    Returns:
+        np.ndarray: DM_cosmic
+    """
+    # Generate the cosmology
+    cosmo = FlatLambdaCDM(H0=state.cosmo.H0, 
+                          Ob0=state.cosmo.Omega_b, 
+                          Om0=state.cosmo.Omega_m)
+    #
+    nz=zeds.size
+    dms=np.zeros([nz])
+    for i,z in enumerate(zeds):
+        # neval probably should be a function of max z
+        DMbar, zeval = igm.average_DM(
+            z, cosmo=cosmo, cumul=True, neval=nz+1)#
+        dms[i]=DMbar[-1].value
+                                                         #wrong dimension
+    return dms  
 
 def get_C0(z,F,zgrid,Fgrid,C0grid):
     """ Takes a pre-generated table of C0 values,
@@ -141,26 +166,39 @@ def get_C0(z,F,zgrid,Fgrid,C0grid):
     return C0
     
     
-def get_pDM(z,F,DMgrid,zgrid,Fgrid,C0grid):
-    """ Gets pDM for an arbitrary z value """
+def get_pDM(z,F,DMgrid,zgrid,Fgrid,C0grid,zlog=False):
+    """ Gets pDM for an arbitrary z value 
+    
+    zlog (bool): True if zs are log-spaced
+                     False if linearly spaced
+    """
     C0=get_C0(z,F,zgrid,Fgrid,C0grid)
-    DMbar=get_mean_DM(z)
-    deltas=DMgrid/DMbar
+    if zlog:
+        DMbar=get_mean_DM(z)
+    else:
+        DMbar=get_log_mean_DM(z)
+    deltas=DMgrid/DMbar #in units of fractional DM
     pDM=pcosmic(deltas,z,F,C0)
     return pDM
 
 
-def get_pDM_grid(state:parameters.State, DMgrid,zgrid,C0s, verbose=False):
+def get_pDM_grid(state:parameters.State, DMgrid,zgrid,C0s, verbose=False, zlog=False):
     """ Gets pDM when the zvals are the same as the zgrid
     state
     C0grid: C0 values obtained by convergence
     DMgrid: range of DMs for which we are generating a histogram
-    zgrid: redshifts
+    zgrid: redshifts. These do not have to be in any particular
+        order or spacing.
+    zlog (bool): True if zs are log-spaced
+                 False if linearly spaced
     
     
     """
     #added H0 dependency
-    DMbars=get_mean_DM(zgrid, state)
+    if zlog:
+        DMbars=get_log_mean_DM(zgrid, state)
+    else:
+        DMbars=get_mean_DM(zgrid, state)
     
     pDMgrid=np.zeros([zgrid.size,DMgrid.size])
     if verbose:
@@ -168,7 +206,7 @@ def get_pDM_grid(state:parameters.State, DMgrid,zgrid,C0s, verbose=False):
     # iterates over zgrid to calculate p_delta_DM
     for i,z in enumerate(zgrid):
         deltas=DMgrid/DMbars[i] # since pDM is defined such that the mean is 1
-        #print("l147",i,z,F,COs[i],deltas)
+        
         pDMgrid[i,:]=pcosmic(deltas,z,state.IGM.F,C0s[i])
         pDMgrid[i,:] /= np.sum(pDMgrid[i,:]) #normalisation
     return pDMgrid
@@ -193,6 +231,8 @@ def linlognormal_dlin(DM,*args):
 def loglognormal_dlog(logDM,*args):
     '''x values, mean and sigma are already in logspace
     returns p dlogx
+    That is, this function is simply a Gaussian,
+    and the arguments happen to be in log space.
     '''
     logmean=args[0]
     logsigma=args[1]
@@ -218,11 +258,14 @@ def get_dm_mask(dmvals, params, zvals=None, plot=False):
     DMvals: these give local probabilities of p(DM).
     We simply assign lognormal values at the midpoints
     The renormalisation constants then give some idea of the
-    error is this procedure
+    error in this procedure
     This requires parameters to be passed as a vector
-    """
     
-    CSUMCUT=0.999
+    
+    dmvals: numpy array storing the dms over which to calculate the mask
+    
+    params [vector, 2]: mean and sigma of the lognormal (log10) distribution
+    """
     
     if len(params) != 2:
         raise ValueError("Incorrect number of DM parameters!",params," (expected log10mean, log10sigma)")
@@ -246,11 +289,11 @@ def get_dm_mask(dmvals, params, zvals=None, plot=False):
         mask=np.zeros([nz,ndm])
         for j,z in enumerate(zvals):
             # with each redshift, we reduce the effects of a 'host' contribution by (1+z)
-            # this means that we divide the value of logmean by by 1/(1+z)
+            # this means that we divide the value of logmean by 1/(1+z)
             # or equivalently, we multiply the ddm by this factor
-            # here we choose the former, but it is the same
+            # here we choose the latter, but it is the same
             mask[j,:]=integrate_pdm(ddm*(1.+z),ndm,logmean,logsigma)
-            mask[j,:] /= np.sum(mask[j,:])
+            mask[j,:] /= np.sum(mask[j,:]) # the mask must integrate to unity
     else:
         # do this for the z=0 case
         #dmmin=0
@@ -283,26 +326,74 @@ def get_dm_mask(dmvals, params, zvals=None, plot=False):
         plt.close()
     return mask
 
-def integrate_pdm(ddm,ndm,logmean,logsigma,csumcut=0.999):
+def integrate_pdm(ddm,ndm,logmean,logsigma,quick=True,plot=False):
+    '''
+    Assigns probabilities of DM smearing (e.g. due to the host galaxy contribution)
+    to a histogram in dm space.
+    
+    Two methods: quick (use central values of DM bins), and slow (integrate bins)
+    
+    Arguments:
+    
+    ddm (float) [pc/cm3]: spacing of dm bins
+    
+    ndm (int): number of dm bins. Bins assumed to start at 0
+    
+    logmean: natural logarithm of the mean of the DM distribution
+    
+    logsigma: sigma in natural log space of DM distribution
+    
+    quick (bool): True uses the speedup, False takes things slowly
+    
+    plot (bool): If True, compares quick and slow methods, then exits
+        to avoid generating infinite plots.
+    
+    Returns:
+        mask (np.ndarray)
+    '''
     # do this for the z=0 case
-    mask=np.zeros([ndm])
+    
     norm=(2.*np.pi)**-0.5/logsigma
-    args=(logmean,logsigma,norm)
-    #pdm,err=sp.integrate.quad(loglognormal_dlog,np.log(ddm*0.5)-logsigma*10,np.log(ddm*0.5),args=args)
-    pdm,err=sp.integrate.quad(c_code.func_ll,np.log(ddm*0.5)-logsigma*10,np.log(ddm*0.5),args=args)
-    mask[0]=pdm
+    
     #csum=pdm
     #imax=ndm
-    for i in np.arange(1,ndm):
-        #if csum > CSUMCUT:
-        #    imax=i
-        #    break
-        dmmin=(i-0.5)*ddm
-        dmmax=dmmin+ddm
-        #pdm,err=sp.integrate.quad(loglognormal_dlog,np.log(dmmin),np.log(dmmax),args=(logmean,logsigma))
-        pdm,err=sp.integrate.quad(c_code.func_ll,np.log(dmmin),np.log(dmmax),args=args)#(logmean,logsigma))
-        #csum += pdm
-        mask[i]=pdm
+    #if quick:
+    if plot or quick:
+        # does not integrate, takes central values, here in linear space- tiny bias
+        dmmeans=np.linspace(ddm/2.,ndm*ddm-ddm/2.,ndm)
+        logdmmeans=np.log(dmmeans)
+        dlogs=ddm/dmmeans
+        m1=loglognormal_dlog(logdmmeans,logmean,logsigma,norm)*dlogs #worst errors in lowest bins
+    #else:
+    if plot or not quick:
+        m2=np.zeros([ndm])
+        args=(logmean,logsigma,norm)
+        pdm,err=sp.integrate.quad(loglognormal_dlog,np.log(ddm*0.5)-logsigma*10,np.log(ddm*0.5),args=args)
+        m2[0]=pdm
         
-    #mask=mask[0:imax]
+        for i in np.arange(1,ndm):
+            #if csum > CSUMCUT:
+            #    imax=i
+            #    break
+            dmmin=(i-0.5)*ddm
+            dmmax=dmmin+ddm
+            pdm,err=sp.integrate.quad(loglognormal_dlog,np.log(dmmin),np.log(dmmax),args=args)
+            m2[i]=pdm
+    if quick:
+        mask=m1
+    else:
+        mask=m2
+    if plot:
+        plt.figure()
+        plt.plot(dmmeans,m2,label='quick')
+        plt.plot(dmmeans,mask,label='slow')
+        plt.xlabel('DM')
+        plt.ylabel('p(DM)')
+        plt.legend()
+        plt.xlim(0,1000)
+        plt.tight_layout()
+        plt.savefig('dm_mask_comparison_plot.pdf')
+        plt.close()
+        print("Generated plot of dm masks, exiting...")
+        exit() #quit to avoid infinite plots
     return mask

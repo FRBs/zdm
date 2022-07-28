@@ -1,0 +1,57 @@
+{
+    "FRBdemo": {
+        "alpha_method": 1,
+        "lC": 1,
+        "sfr_n": 0.73,
+        "source_evolution": 0
+    },
+    "IGM": {
+        "F": 0.32
+    },
+    "MW": {
+        "DMhalo": 50,
+        "ISM": 35.0
+    },
+    "analysis": {
+        "NewGrids": true,
+        "sprefix": "Std"
+    },
+    "beam": {
+        "Bthresh": 0.0,
+        "Bmethod": 2
+    },
+    "cosmo": {
+        "H0": 67.66,
+        "Omega_b": 0.04897,
+        "Omega_b_h2": 0.0224178568132,
+        "Omega_k": 0.0,
+        "Omega_lambda": 0.6888463055445441,
+        "Omega_m": 0.30966,
+        "fix_Omega_b_h2": true
+    },
+    "energy": {
+        "alpha": 0.65,
+        "gamma": -1.01,
+        "lEmax": 41.4,
+        "lEmin": 30,
+        "luminosity_function": 2
+    },
+    "host": {
+        "lmean": 2.18,
+        "lsigma": 0.48
+    },
+    "width": {
+        "Wlogmean": 1.70267,
+        "Wlogsigma": 0.899148,
+        "Wthresh": 0.5,
+        "Wmethod": 1,
+        "Wbins": 5,
+        "Wscale": 3.5
+    },
+    "scat": {
+        "Slogmean": 0.7,
+        "Slogsigma": 1.9,
+        "Sfnorm": 600,
+        "Sfpower": -4
+    }
+}

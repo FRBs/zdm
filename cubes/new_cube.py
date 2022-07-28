@@ -198,7 +198,8 @@ def main(Cube):
         
         if not os.path.exists(outdir):
             os.mkdir(outdir)
-        
+
+        # Set what portion of the Cube we are generating 
         run=Cube[0]
         howmany=Cube[1]
         opfile=Cube[3]
@@ -252,7 +253,6 @@ python new_cube.py -n 1 -m 3 -p all_params.json -o tmp.out --clobber
 python new_cube.py -n 1 -m 3 -p H0_params.json -o H0.out --clobber
 starti is  0
 cosmology: CosmoParams(H0=67.66, Omega_k=0.0, Omega_lambda=0.6888463055445441, Omega_m=0.30966, Omega_b=0.04897, Omega_b_h2=0.0224178568132, fixed_H0=67.66, fix_Omega_b_h2=True)
-FIX THIS!!!!!
 Starting at time  25.224615935
 Testing  0  of  3  begin at  0
 vparams: {'lEmin': 30.0, 'lEmax': 41.4, 'alpha': 1.0, 'gamma': -0.5, 'sfr_n': 0.0, 'lmean': 0.5, 'lsigma': 0.2, 'lC': -0.911}
@@ -260,4 +260,7 @@ survey=CRAFT_class_I_and_II, lls=47.359007883041286
 /home/xavier/Projects/FRB_Software/zdm/zdm/iteration.py:723: RuntimeWarning: divide by zero encountered in log10
   longlist += np.log10(wzpsnr)
 survey=CRAFT_ICS, lls=nan
+
+# TESTING CONTINUES
+python new_cube.py -n 1 -m 3 -p H0_lite_cube.json -o H0.dat --clobber
 '''

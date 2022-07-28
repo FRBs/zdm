@@ -1,4 +1,4 @@
-
+#WARNING - THIS ROUTINE USES OUTDATED NOTATION AND NEEDS TO BE UPDATED
 
 ######
 # first run this to generate surveys and parameter sets, by 

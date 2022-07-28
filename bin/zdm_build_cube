@@ -1,0 +1,16 @@
+#!/usr/bin/env python
+#
+# See top-level LICENSE file for Copyright information
+#
+# -*- coding: utf-8 -*-
+
+
+"""
+This script generates a log-likelihood cube for zdm
+"""
+
+from zdm.scripts import build_cube
+
+if __name__ == '__main__':
+    args = build_cube.parser()
+    build_cube.main(args)

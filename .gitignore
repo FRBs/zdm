@@ -10,9 +10,16 @@ __pycache__/
 *.png
 *.pdf
 
-# Data files
-tmp.npy
+# TMP Numpy
 tmp.np
+tmp.npy
+
+# data files
+*.out
+*.npz
+*.npy
+*.dat
+*.csv
 
 # Distribution / packaging
 .Python
@@ -162,5 +169,6 @@ zdm/untitled9.py
 zdm/untitled10.py
 
 *.DS_Store
+papers/H0_I/Analysis/Real/minicube_real.src
 
 

@@ -1,0 +1,10 @@
+python py/craco_H0_F_cube.py -n 1 -m 250 -o Cubes/craco_H0_F_cube1.out --clobber &
+python py/craco_H0_F_cube.py -n 2 -m 250 -o Cubes/craco_H0_F_cube2.out --clobber &
+python py/craco_H0_F_cube.py -n 3 -m 250 -o Cubes/craco_H0_F_cube3.out --clobber &
+python py/craco_H0_F_cube.py -n 4 -m 250 -o Cubes/craco_H0_F_cube4.out --clobber &
+python py/craco_H0_F_cube.py -n 5 -m 250 -o Cubes/craco_H0_F_cube5.out --clobber &
+python py/craco_H0_F_cube.py -n 6 -m 250 -o Cubes/craco_H0_F_cube6.out --clobber &
+python py/craco_H0_F_cube.py -n 7 -m 250 -o Cubes/craco_H0_F_cube7.out --clobber &
+python py/craco_H0_F_cube.py -n 8 -m 250 -o Cubes/craco_H0_F_cube8.out --clobber &
+python py/craco_H0_F_cube.py -n 9 -m 250 -o Cubes/craco_H0_F_cube9.out --clobber &
+python py/craco_H0_F_cube.py -n 10 -m 250 -o Cubes/craco_H0_F_cube10.out --clobber &
