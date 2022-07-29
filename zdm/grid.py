@@ -41,6 +41,9 @@ class Grid:
         self.b_fractions=None
         # State
         self.state = state
+        
+        # FOR TESTING WITH LOG 10
+        self.use_log10 = False
 
         self.source_function=cos.choose_source_evolution_function(
             state.FRBdemo.source_evolution)
@@ -69,8 +72,7 @@ class Grid:
         self.set_evolution() # sets star-formation rate scaling with z - here, no evoltion...
         self.calc_rates() #includes sfr smearing factors and pdv mult
 
-        # FOR TESTING WITH LOG 10
-        self.use_log10 = False
+        
 
     def init_luminosity_functions(self):
         """ Set the luminsoity function for FRB energetics """
@@ -238,19 +240,18 @@ class Grid:
             self.b_fractions=np.zeros([self.zvals.size,self.dmvals.size,self.beam_b.size])
         
         # for some arbitrary reason, we treat the beamshape slightly differently... no need to keep an intermediate product!
-        now = datetime.datetime.now()
+        
         for i,b in enumerate(self.beam_b):
             for j,w in enumerate(self.eff_weights):
                 if j==0:
                     self.b_fractions[:,:,i] = self.beam_o[i]*w*self.array_cum_lf(
                         self.thresholds[j,:,:]/b,Emin,Emax,
-                        self.state.energy.gamma)
+                        self.state.energy.gamma, self.use_log10)
                 else:
                     self.b_fractions[:,:,i] += self.beam_o[i]*w*self.array_cum_lf(
                         self.thresholds[j,:,:]/b,Emin,Emax,
-                        self.state.energy.gamma)
-        done = datetime.datetime.now()
-        print(f'Time to normal loop = {done-now}')
+                        self.state.energy.gamma, self.use_log10)
+        
                 
         # here, b-fractions are unweighted according to the value of b.
         self.fractions=np.sum(self.b_fractions,axis=2) # sums over b-axis [ we could ignore this step?]

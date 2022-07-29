@@ -17,6 +17,7 @@ from zdm import energetics
 
 from IPython import embed
 
+import datetime
 
 # Default parameters
 pparam = 'H0'
@@ -46,7 +47,15 @@ def run_spline():
     igrid.array_cum_lf=energetics.array_cum_gamma_spline
     igrid.vector_cum_lf=energetics.vector_cum_gamma_spline
 
-    igrid.update(vparams, ALL=True) 
+    times = []
+    for i in range(10):
+        now = datetime.datetime.now()
+        igrid.update(vparams, ALL=True) 
+        done = datetime.datetime.now()
+        print(f'Time to normal loop = {done-now}')
+        times.append((done-now))
+
+    print(sum(times, datetime.timedelta(0)) / len(times))
     return igrid.fractions.copy()
 
 # ###################
@@ -59,19 +68,37 @@ def run_linear():
     # An example of how to turn on log10
     # igrid.use_log10 = False
     
-    igrid.update(vparams, ALL=True) 
+    times = []
+
+    for i in range(10):
+        now = datetime.datetime.now()
+        igrid.update(vparams, ALL=True) 
+        done = datetime.datetime.now()
+        print(f'Time to normal loop = {done-now}')
+        times.append((done-now))
+
+    print(sum(times, datetime.timedelta(0)) / len(times))
     return igrid.fractions.copy()
 
 def run_linear_log10():
+    
     igrid.array_cum_lf=energetics.array_cum_gamma_linear
     igrid.vector_cum_lf=energetics.vector_cum_gamma_linear
 
     # An example of how to turn on log10
     igrid.use_log10 = True
-    
-    igrid.update(vparams, ALL=True) 
-    return igrid.fractions.copy()
 
+    times = []
+
+    for i in range(10):
+        now = datetime.datetime.now()
+        igrid.update(vparams, ALL=True) 
+        done = datetime.datetime.now()
+        print(f'Time to normal loop = {done-now}')
+        times.append((done-now))
+    
+    print(sum(times, datetime.timedelta(0)) / len(times))
+    return igrid.fractions.copy()
 
 
 frac1 = run_spline()
@@ -81,9 +108,7 @@ frac2 = run_linear()
 relative_acc_array = np.absolute(frac1 - frac2) / frac1
 relative_acc_avg = np.average(relative_acc_array)
 
-# doing something wrong bc there's no difference?
-# print(relative_acc_array)
-# print(relative_acc_avg)
+
 '''
 #TIMEPROFILING
 python -m cProfile -o time_profile.prof time_profile.py

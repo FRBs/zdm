@@ -26,9 +26,15 @@ def init_igamma_linear(gammas, reinit=False):
             print(f"Initializing igamma_linear for gamma={gamma}")
             # values
             avals = 10**np.linspace(-6, 6., 1000)
+
+            
             #log_avals = np.log10(avals) # changed to log space
 
             numer = np.array([float(mpmath.gammainc(gamma, a=iEE)) for iEE in avals])
+
+            # if log:
+            #     avals = np.log10(avals)
+
             # Linear interp dict
             #igamma_linear[gamma] = interpolate.interp1d(log_avals, numer)
             igamma_linear[gamma] = interpolate.interp1d(avals, numer)
@@ -173,6 +179,33 @@ def vector_cum_gamma(Eth,*params):
     result[low]=1.
     return result
 
+def vector_cum_gamma_spline(Eth:np.ndarray, *params):
+    """ Calculate cumulative Gamma function using a spline
+
+    Args:
+        Eth (np.ndarray): [description]
+
+    Returns:
+        np.ndarray: [description]
+    """
+    params=np.array(params)
+    Emin=params[0]
+    Emax=params[1]
+    gamma=params[2]
+
+    # Calculate
+    norm = float(mpmath.gammainc(gamma, a=Emin/Emax))
+    Eth_Emax = Eth/Emax
+    if gamma not in igamma_splines.keys():
+        init_igamma_splines([gamma])
+    numer = interpolate.splev(Eth_Emax, igamma_splines[gamma])
+    result=numer/norm
+
+    # Low end
+    low= Eth < Emin
+    result[low]=1.
+    return result
+
 def vector_cum_gamma_linear(Eth:np.ndarray, *params):
     """ Calculate cumulative Gamma function using a linear interp1d
 
@@ -199,33 +232,6 @@ def vector_cum_gamma_linear(Eth:np.ndarray, *params):
     except:
         embed(header='225 of energetics')
     #numer = interpolate.splev(Eth_Emax, igamma_linear[gamma])
-    result=numer/norm
-
-    # Low end
-    low= Eth < Emin
-    result[low]=1.
-    return result
-
-def vector_cum_gamma_spline(Eth:np.ndarray, *params):
-    """ Calculate cumulative Gamma function using a spline
-
-    Args:
-        Eth (np.ndarray): [description]
-
-    Returns:
-        np.ndarray: [description]
-    """
-    params=np.array(params)
-    Emin=params[0]
-    Emax=params[1]
-    gamma=params[2]
-
-    # Calculate
-    norm = float(mpmath.gammainc(gamma, a=Emin/Emax))
-    Eth_Emax = Eth/Emax
-    if gamma not in igamma_splines.keys():
-        init_igamma_splines([gamma])
-    numer = interpolate.splev(Eth_Emax, igamma_splines[gamma])
     result=numer/norm
 
     # Low end
