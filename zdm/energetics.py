@@ -20,10 +20,14 @@ def init_igamma_splines(gammas, reinit=False):
             # iGamma
             igamma_splines[gamma] = interpolate.splrep(avals, numer)
 
-def init_igamma_linear(gammas, reinit=False):
+def init_igamma_linear(gammas, reinit=False, log=True):
+    print(log)
     for gamma in gammas:
         if gamma not in igamma_linear.keys() or reinit:
-            print(f"Initializing igamma_linear for gamma={gamma}")
+            if not log:    
+                print(f"Initializing igamma_linear for gamma={gamma}")
+            else:
+                print(f"Initializing igamma_linear for gamma={gamma} with log10")
             # values
             avals = 10**np.linspace(-6, 6., 1000)
 
@@ -32,8 +36,8 @@ def init_igamma_linear(gammas, reinit=False):
 
             numer = np.array([float(mpmath.gammainc(gamma, a=iEE)) for iEE in avals])
 
-            # if log:
-            #     avals = np.log10(avals)
+            if log:
+                avals = np.log10(avals)
 
             # Linear interp dict
             #igamma_linear[gamma] = interpolate.interp1d(log_avals, numer)
@@ -219,13 +223,17 @@ def vector_cum_gamma_linear(Eth:np.ndarray, *params):
     Emin=params[0]
     Emax=params[1]
     gamma=params[2]
+    log = params[3]
 
     # Calculate
     norm = float(mpmath.gammainc(gamma, a=Emin/Emax))
     Eth_Emax = Eth/Emax
     #log10_Eth_Emax = np.log10(Eth/Emax)
+    if log:
+        Eth_Emax = np.log10(Eth_Emax)
+
     if gamma not in igamma_linear.keys():
-        init_igamma_linear([gamma])
+        init_igamma_linear([gamma], log=log)
     try:
         #numer = igamma_linear[gamma](log10_Eth_Emax)
         numer = igamma_linear[gamma](Eth_Emax)

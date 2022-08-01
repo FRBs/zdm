@@ -43,7 +43,7 @@ class Grid:
         self.state = state
         
         # FOR TESTING WITH LOG 10
-        self.use_log10 = False
+        self.use_log10 = True
 
         self.source_function=cos.choose_source_evolution_function(
             state.FRBdemo.source_evolution)
@@ -718,6 +718,9 @@ class Grid:
             self.calc_thresholds(
                 self.F0,self.eff_table, bandwidth=self.bandwidth,
                 weights=self.eff_weights)
+
+            if self.use_log10:
+                self.thresholds = np.log10(self.thresholds)
         
         if calc_pdv or ALL:
             self.calc_pdv()

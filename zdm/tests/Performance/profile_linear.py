@@ -87,7 +87,7 @@ def run_linear_log10():
 
     # An example of how to turn on log10
     igrid.use_log10 = True
-
+    print(igrid.use_log10)
     times = []
 
     for i in range(10):
@@ -101,12 +101,13 @@ def run_linear_log10():
     return igrid.fractions.copy()
 
 
-frac1 = run_spline()
-frac2 = run_linear()
+# frac1 = run_spline()
+# frac2 = run_linear()
+frac3 = run_linear_log10()
 
 
-relative_acc_array = np.absolute(frac1 - frac2) / frac1
-relative_acc_avg = np.average(relative_acc_array)
+# relative_acc_array = np.absolute(frac1 - frac2) / frac1
+# relative_acc_avg = np.average(relative_acc_array)
 
 
 '''
