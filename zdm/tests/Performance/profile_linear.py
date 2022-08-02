@@ -10,6 +10,7 @@
 import numpy as np
 from matplotlib import pyplot as plt
 import mpmath as mp
+from sqlalchemy import false
 
 from zdm import iteration as it
 from zdm.craco import loading
@@ -46,7 +47,7 @@ vparams[pparam] = pval
 def run_spline():
     igrid.array_cum_lf=energetics.array_cum_gamma_spline
     igrid.vector_cum_lf=energetics.vector_cum_gamma_spline
-
+    igrid.use_log10 = False
     times = []
     for i in range(10):
         now = datetime.datetime.now()
@@ -66,7 +67,7 @@ def run_linear():
     igrid.vector_cum_lf=energetics.vector_cum_gamma_linear
 
     # An example of how to turn on log10
-    # igrid.use_log10 = False
+    igrid.use_log10 = False
     
     times = []
 
@@ -87,22 +88,24 @@ def run_linear_log10():
 
     # An example of how to turn on log10
     igrid.use_log10 = True
-    print(igrid.use_log10)
     times = []
 
-    for i in range(10):
-        now = datetime.datetime.now()
-        igrid.update(vparams, ALL=True) 
-        done = datetime.datetime.now()
-        print(f'Time to normal loop = {done-now}')
-        times.append((done-now))
+    try:
+        for i in range(10):
+            now = datetime.datetime.now()
+            igrid.update(vparams, ALL=True) 
+            done = datetime.datetime.now()
+            print(f'Time to normal loop = {done-now}')
+            times.append((done-now))
+    except:
+        embed()
     
     print(sum(times, datetime.timedelta(0)) / len(times))
     return igrid.fractions.copy()
 
 
-# frac1 = run_spline()
-# frac2 = run_linear()
+frac1 = run_spline()
+frac2 = run_linear()
 frac3 = run_linear_log10()
 
 

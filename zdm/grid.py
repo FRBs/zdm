@@ -245,11 +245,11 @@ class Grid:
             for j,w in enumerate(self.eff_weights):
                 if j==0:
                     self.b_fractions[:,:,i] = self.beam_o[i]*w*self.array_cum_lf(
-                        self.thresholds[j,:,:]/b,Emin,Emax,
+                        (self.thresholds[j,:,:] - np.log10(Emax)),Emin,Emax,
                         self.state.energy.gamma, self.use_log10)
                 else:
                     self.b_fractions[:,:,i] += self.beam_o[i]*w*self.array_cum_lf(
-                        self.thresholds[j,:,:]/b,Emin,Emax,
+                        (self.thresholds[j,:,:] - np.log10(Emax)),Emin,Emax,
                         self.state.energy.gamma, self.use_log10)
         
                 
@@ -333,7 +333,6 @@ class Grid:
         # We loop over nthesh and generate a NDM x Nz array for each
         for i in np.arange(self.nthresh):
             self.thresholds[i,:,:]=np.outer(self.FtoE,Eff_thresh[i,:])
-        
         # if self.use_log10:
         #     self.thresholds = np.log10(self.thresholds)
         
