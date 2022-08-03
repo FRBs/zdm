@@ -93,15 +93,14 @@ def run_linear_log10():
     igrid.use_log10 = True
     times = []
 
-    try:
-        for i in range(10):
-            now = datetime.datetime.now()
-            igrid.update(vparams, ALL=True) 
-            done = datetime.datetime.now()
-            print(f'Time to normal loop = {done-now}')
-            times.append((done-now))
-    except:
-        embed()
+    
+    for i in range(10):
+        now = datetime.datetime.now()
+        igrid.update(vparams, ALL=True) 
+        done = datetime.datetime.now()
+        print(f'Time to normal loop = {done-now}')
+        times.append((done-now))
+   
     
     average = sum(times, datetime.timedelta(0)) / len(times)
     print(average)

@@ -241,15 +241,24 @@ class Grid:
         
         # for some arbitrary reason, we treat the beamshape slightly differently... no need to keep an intermediate product!
         
+        if self.use_log10:
+            new_thresh = np.log10(self.thresholds) - np.log10(Emax)
+
         for i,b in enumerate(self.beam_b):
+            bThresh = np.log10(b)
             for j,w in enumerate(self.eff_weights):
+                
+                thresh = self.thresholds[j,:,:]/b
+                if self.use_log10:
+                    thresh = new_thresh[j,:,:] - bThresh
+                    
                 if j==0:
                     self.b_fractions[:,:,i] = self.beam_o[i]*w*self.array_cum_lf(
-                        self.thresholds[j,:,:]/b,Emin,Emax,
+                        thresh,Emin,Emax,
                         self.state.energy.gamma, self.use_log10)
                 else:
                     self.b_fractions[:,:,i] += self.beam_o[i]*w*self.array_cum_lf(
-                        self.thresholds[j,:,:]/b,Emin,Emax,
+                        thresh,Emin,Emax,
                         self.state.energy.gamma, self.use_log10)
         
                 
@@ -333,8 +342,6 @@ class Grid:
         # We loop over nthesh and generate a NDM x Nz array for each
         for i in np.arange(self.nthresh):
             self.thresholds[i,:,:]=np.outer(self.FtoE,Eff_thresh[i,:])
-        # if self.use_log10:
-        #     self.thresholds = np.log10(self.thresholds)
         
         
     def smear_dm(self,smear:np.ndarray):#,mean:float,sigma:float):
@@ -719,6 +726,7 @@ class Grid:
             self.calc_thresholds(
                 self.F0,self.eff_table, bandwidth=self.bandwidth,
                 weights=self.eff_weights)
+            
         
         if calc_pdv or ALL:
             self.calc_pdv()

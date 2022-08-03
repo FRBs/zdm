@@ -228,10 +228,13 @@ def vector_cum_gamma_linear(Eth:np.ndarray, *params):
 
     # Calculate
     norm = float(mpmath.gammainc(gamma, a=Emin/Emax))
+
     Eth_Emax = Eth/Emax
-    #log10_Eth_Emax = np.log10(Eth/Emax)
-    # if log:
-    #     Eth_Emax = np.log10(Eth_Emax)
+    
+    if log == True:
+        Eth_Emax = Eth
+
+    # Eth_Emax = Eth/Emax
 
     if gamma not in igamma_linear.keys():
         init_igamma_linear([gamma], log=log)
