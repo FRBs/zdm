@@ -56,8 +56,9 @@ def run_spline():
         print(f'Time to normal loop = {done-now}')
         times.append((done-now))
 
-    print(sum(times, datetime.timedelta(0)) / len(times))
-    return igrid.fractions.copy()
+    average = sum(times, datetime.timedelta(0)) / len(times)
+    print(average)
+    return (average, igrid.fractions.copy())
 
 # ###################
 # Now do linear
@@ -78,8 +79,10 @@ def run_linear():
         print(f'Time to normal loop = {done-now}')
         times.append((done-now))
 
-    print(sum(times, datetime.timedelta(0)) / len(times))
-    return igrid.fractions.copy()
+    
+    average = sum(times, datetime.timedelta(0)) / len(times)
+    print(average)
+    return (average, igrid.fractions.copy())
 
 def run_linear_log10():
     
@@ -100,13 +103,14 @@ def run_linear_log10():
     except:
         embed()
     
-    print(sum(times, datetime.timedelta(0)) / len(times))
-    return igrid.fractions.copy()
+    average = sum(times, datetime.timedelta(0)) / len(times)
+    print(average)
+    return (average, igrid.fractions.copy())
 
 
-frac1 = run_spline()
-frac2 = run_linear()
-frac3 = run_linear_log10()
+splineAvg, frac1 = run_spline()
+linearAvg, frac2 = run_linear()
+linearAvgLog, frac3 = run_linear_log10()
 
 
 # relative_acc_array = np.absolute(frac1 - frac2) / frac1
