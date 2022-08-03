@@ -135,7 +135,7 @@ def make_plots_F(
     ax.scatter(df["F"], df["lower.ci"])
     ax.set_title(f"H0 = {H0}, z = {z}")
     ax.set_xlabel(f"$F$")
-    ax.set_ylabel(f"$p(\Delta)$")
+    ax.set_ylabel(f"Lower CI of $p(\Delta)$")
     plt.savefig(outfile)
 
 
@@ -164,21 +164,21 @@ def make_plots_H0(
     ax.scatter(df["H0"], df["lower.ci"])
     ax.set_title(f"F = {F}, z = {z}")
     ax.set_xlabel(f"$H_0$")
-    ax.set_ylabel(f"$p(\Delta)$")
+    ax.set_ylabel(f"Lower CI of $p(\Delta)$")
     plt.savefig(outfile)
 
 
-# make_plots_F(np.linspace(0.1, 1, 20), z=0.5, outfile="F_plot_z_0.5.png")
-# make_plots_H0(np.linspace(50, 80, 20), z=0.5, outfile="H0_plot_z_0.5.png")
+make_plots_F(np.linspace(0.1, 1, 20), z=0.5, outfile="F_plot_z_0.5.png")
+make_plots_H0(np.linspace(50, 80, 20), z=0.5, outfile="H0_plot_z_0.5.png")
 
-# make_plots_F(np.linspace(0.1, 1, 20), z=0.25, outfile="F_plot_z_0.25.png")
-# make_plots_H0(np.linspace(50, 80, 20), z=0.25, outfile="H0_plot_z_0.25.png")
+make_plots_F(np.linspace(0.1, 1, 20), z=0.25, outfile="F_plot_z_0.25.png")
+make_plots_H0(np.linspace(50, 80, 20), z=0.25, outfile="H0_plot_z_0.25.png")
 
-# make_plots_F(np.linspace(0.1, 1, 20), z=0.1, outfile="F_plot_z_0.1.png")
-# make_plots_H0(np.linspace(50, 80, 20), z=0.1, outfile="H0_plot_z_0.1.png")
+make_plots_F(np.linspace(0.1, 1, 20), z=0.1, outfile="F_plot_z_0.1.png")
+make_plots_H0(np.linspace(50, 80, 20), z=0.1, outfile="H0_plot_z_0.1.png")
 
-# make_plots_F(np.linspace(0.1, 1, 20), z=1.5, outfile="F_plot_z_1.5.png")
-# make_plots_H0(np.linspace(50, 80, 20), z=1.5, outfile="H0_plot_z_1.5.png")
+make_plots_F(np.linspace(0.1, 1, 20), z=1.5, outfile="F_plot_z_1.5.png")
+make_plots_H0(np.linspace(50, 80, 20), z=1.5, outfile="H0_plot_z_1.5.png")
 
 make_plots_F(np.linspace(0.1, 1, 20), H0=55, z=0.25, outfile="F_plot_z_0.25_alt.png")
 make_plots_H0(np.linspace(50, 80, 20), F=0.8, z=0.25, outfile="H0_plot_z_0.25_alt.png")
