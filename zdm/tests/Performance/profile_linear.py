@@ -112,13 +112,13 @@ linearAvg, frac2 = run_linear()
 linearAvgLog, frac3 = run_linear_log10()
 
 
-# relative_acc_array = np.absolute(frac1 - frac2) / frac1
-# relative_acc_avg = np.average(relative_acc_array)
+relative_acc_array = np.absolute(frac1 - frac2) / frac1
+relative_acc_avg = np.average(relative_acc_array)
 
-# relative_acc_array2 = np.absolute(frac1 - frac3) / frac1
-# relative_acc_avg2 = np.average(relative_acc_array2)
+relative_acc_array2 = np.absolute(frac1 - frac3) / frac1
+relative_acc_avg2 = np.average(relative_acc_array2)
 
-# diff_array = np.absolute(relative_acc_array - relative_acc_array2)
+diff_array = np.absolute(relative_acc_array - relative_acc_array2)
 
 
 '''

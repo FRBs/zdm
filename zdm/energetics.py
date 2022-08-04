@@ -242,20 +242,16 @@ def vector_cum_gamma_linear(Eth:np.ndarray, *params):
 
     if not log:
         if gamma not in igamma_linear.keys():
-            print("I go here")
             init_igamma_linear([gamma], log=log)
     else:
         if gamma not in igamma_linear_log10.keys():
-            print("I go here ?")
             init_igamma_linear([gamma], log=log)
 
-    try:
-        if not log:
-            numer = igamma_linear[gamma](Eth_Emax)
-        else:
-            numer = igamma_linear_log10[gamma](Eth_Emax)
-    except:
-        embed(header='243 of energetics')
+    
+    if not log:
+        numer = igamma_linear[gamma](Eth_Emax)
+    else:
+        numer = igamma_linear_log10[gamma](Eth_Emax)
     
     result=numer/norm
 
