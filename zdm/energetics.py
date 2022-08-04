@@ -6,6 +6,7 @@ from IPython import embed
 
 igamma_splines = {}
 igamma_linear = {}
+igamma_linear_log10 = {}
 
 ############## this section defines different luminosity functions ##########
 
@@ -21,9 +22,9 @@ def init_igamma_splines(gammas, reinit=False):
             igamma_splines[gamma] = interpolate.splrep(avals, numer)
 
 def init_igamma_linear(gammas, reinit=False, log=False):
-    print(log)
+
     for gamma in gammas:
-        if gamma not in igamma_linear.keys() or reinit:
+        if gamma not in igamma_linear.keys() or gamma not in igamma_linear_log10.keys() or reinit:
             if not log:    
                 print(f"Initializing igamma_linear for gamma={gamma}")
             else:
@@ -42,7 +43,10 @@ def init_igamma_linear(gammas, reinit=False, log=False):
 
             # Linear interp dict
             #igamma_linear[gamma] = interpolate.interp1d(log_avals, numer)
-            igamma_linear[gamma] = interpolate.interp1d(avals, numer)
+            if not log:
+                igamma_linear[gamma] = interpolate.interp1d(avals, numer)
+            else:
+                igamma_linear_log10[gamma] = interpolate.interp1d(avals, numer)
 
 def template_array_cumulative_luminosity_function(Eth,*params):
     """
@@ -230,20 +234,29 @@ def vector_cum_gamma_linear(Eth:np.ndarray, *params):
     norm = float(mpmath.gammainc(gamma, a=Emin/Emax))
 
     Eth_Emax = Eth/Emax
-    
+
     if log == True:
         Eth_Emax = Eth
 
     # Eth_Emax = Eth/Emax
 
-    if gamma not in igamma_linear.keys():
-        init_igamma_linear([gamma], log=log)
-    # try:
-    #     #numer = igamma_linear[gamma](log10_Eth_Emax)
-    numer = igamma_linear[gamma](Eth_Emax)
-    # except:
-    #     embed(header='225 of energetics')
-    #numer = interpolate.splev(Eth_Emax, igamma_linear[gamma])
+    if not log:
+        if gamma not in igamma_linear.keys():
+            print("I go here")
+            init_igamma_linear([gamma], log=log)
+    else:
+        if gamma not in igamma_linear_log10.keys():
+            print("I go here ?")
+            init_igamma_linear([gamma], log=log)
+
+    try:
+        if not log:
+            numer = igamma_linear[gamma](Eth_Emax)
+        else:
+            numer = igamma_linear_log10[gamma](Eth_Emax)
+    except:
+        embed(header='243 of energetics')
+    
     result=numer/norm
 
     # Low end
