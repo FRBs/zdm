@@ -168,17 +168,74 @@ def make_plots_H0(
     plt.savefig(outfile)
 
 
-make_plots_F(np.linspace(0.1, 1, 20), z=0.5, outfile="F_plot_z_0.5.png")
-make_plots_H0(np.linspace(50, 80, 20), z=0.5, outfile="H0_plot_z_0.5.png")
+def lower_CI_grid(
+    H0s,
+    Fs,
+    deltas=np.linspace(0.01, 5, 200),
+    z=0.5,
+    niter_per_param=1000,
+    ns_per_param=1000,
+    make_plot=False,
+):
 
-make_plots_F(np.linspace(0.1, 1, 20), z=0.25, outfile="F_plot_z_0.25.png")
-make_plots_H0(np.linspace(50, 80, 20), z=0.25, outfile="H0_plot_z_0.25.png")
+    state = State()
 
-make_plots_F(np.linspace(0.1, 1, 20), z=0.1, outfile="F_plot_z_0.1.png")
-make_plots_H0(np.linspace(50, 80, 20), z=0.1, outfile="H0_plot_z_0.1.png")
+    lower_cis = np.zeros((len(H0s), len(Fs)))
 
-make_plots_F(np.linspace(0.1, 1, 20), z=1.5, outfile="F_plot_z_1.5.png")
-make_plots_H0(np.linspace(50, 80, 20), z=1.5, outfile="H0_plot_z_1.5.png")
+    for i, H0 in enumerate(H0s):
+        for j, F in enumerate(Fs):
+            state.update_params({"H0": H0, "F": F})
 
-make_plots_F(np.linspace(0.1, 1, 20), H0=55, z=0.25, outfile="F_plot_z_0.25_alt.png")
-make_plots_H0(np.linspace(50, 80, 20), F=0.8, z=0.25, outfile="H0_plot_z_0.25_alt.png")
+            z = np.array(z).reshape(1)
+            mean_dm_cosmic = get_mean_DM(z, state)
+
+            sigma = F / np.sqrt(z)
+            C0 = fC0(sigma)
+            pdelta = zdm.pcosmic.pcosmic(deltas, z, F, C0)
+
+            lower_cis_at_pt = np.zeros(niter_per_param)
+
+            for u in range(niter_per_param):
+                sample = np.random.choice(
+                    deltas, p=pdelta / np.sum(pdelta), size=ns_per_param, replace=True
+                )
+
+                lower_cis_at_pt[u] = lower_ci(sample) * mean_dm_cosmic
+
+            lower_cis[i, j] = np.mean(lower_cis_at_pt)
+
+    if make_plot:
+        outfile = f"lower_CI_grid_z_{z}.png"
+        fig, ax = plt.subplots(dpi=200)
+
+        x, y = np.meshgrid(H0s, Fs)
+
+        c = ax.pcolormesh(x, y, lower_cis.T, cmap="jet")
+        plt.colorbar(c)
+
+        ax.set_title(f"z = {z}")
+
+        plt.savefig(outfile, bbox_inches="tight")
+
+    return lower_cis
+
+
+# make_plots_F(np.linspace(0.1, 1, 20), z=0.5, outfile="F_plot_z_0.5.png")
+# make_plots_H0(np.linspace(50, 80, 20), z=0.5, outfile="H0_plot_z_0.5.png")
+
+# make_plots_F(np.linspace(0.1, 1, 20), z=0.25, outfile="F_plot_z_0.25.png")
+# make_plots_H0(np.linspace(50, 80, 20), z=0.25, outfile="H0_plot_z_0.25.png")
+
+# make_plots_F(np.linspace(0.1, 1, 20), z=0.1, outfile="F_plot_z_0.1.png")
+# make_plots_H0(np.linspace(50, 80, 20), z=0.1, outfile="H0_plot_z_0.1.png")
+
+# make_plots_F(np.linspace(0.1, 1, 20), z=1.5, outfile="F_plot_z_1.5.png")
+# make_plots_H0(np.linspace(50, 80, 20), z=1.5, outfile="H0_plot_z_1.5.png")
+
+# make_plots_F(np.linspace(0.1, 1, 20), H0=55, z=0.25, outfile="F_plot_z_0.25_alt.png")
+# make_plots_H0(np.linspace(50, 80, 20), F=0.8, z=0.25, outfile="H0_plot_z_0.25_alt.png")
+
+lower_CI_grid(
+    H0s=np.linspace(55, 80, num=20), Fs=np.linspace(0.1, 0.8, num=20), make_plot=True
+)
+
