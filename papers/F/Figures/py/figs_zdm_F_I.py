@@ -24,6 +24,7 @@ def fig_craco_varyF_zDM(
     other_param="Emax",
     Aconts=[0.05],
     fuss_with_ticks: bool = False,
+    suppress_DM_host=False,
 ):
     """_summary_
 
@@ -81,8 +82,9 @@ def fig_craco_varyF_zDM(
         vparams["F"] = F
 
         # Sets the log-normal distribution for DM_host to ~0.
-        vparams["lmean"] = 1e-3
-        vparams["lsigma"] = 0.1
+        if suppress_DM_host:
+            vparams["lmean"] = 1e-3
+            vparams["lsigma"] = 0.1
 
         if other_param == "Emax":
             vparams["lEmax"] = fiducial_Emax + scl
@@ -364,7 +366,7 @@ def fig_craco_fiducial_F(
     vparams = {"H0": fiducial_H0, "F": F}
 
     if H0 is not None:
-        vparams['H0'] = H0
+        vparams["H0"] = H0
 
     if suppress_DM_host:
         # Sets the log-normal distribution for DM_host to ~0.
@@ -502,38 +504,67 @@ def fig_craco_fiducial_F(
 
 ### tests
 
-# fig_craco_varyF_zDM("contours_varyF_H0.pdf", other_param="H0")
+fig_craco_varyF_zDM("contours_varyF_H0.pdf", other_param="H0")
+fig_craco_varyF_zDM(
+    "contours_varyF_H0_dmhost_suppressed.pdf", other_param="H0", suppress_DM_host=True
+)
 
-# fig_craco_fiducial_F("fig_craco_fiducial_F_0.32.png", show_Macquart=True, F=0.32, suppress_DM_host=True)
-# fig_craco_fiducial_F("fig_craco_fiducial_F_0.01.png", show_Macquart=True, F=0.01, suppress_DM_host=True)
-# fig_craco_fiducial_F("fig_craco_fiducial_F_0.9.png", show_Macquart=True, F=0.9, suppress_DM_host=True)
+fig_craco_fiducial_F(
+    "fig_craco_F_0.32_dmhost_suppressed.png",
+    show_Macquart=True,
+    F=0.32,
+    suppress_DM_host=True,
+)
+fig_craco_fiducial_F(
+    "fig_craco_F_0.01_dmhost_suppressed.png",
+    show_Macquart=True,
+    F=0.01,
+    suppress_DM_host=True,
+)
+fig_craco_fiducial_F(
+    "fig_craco_F_0.9_dmhost_suppressed.png",
+    show_Macquart=True,
+    F=0.9,
+    suppress_DM_host=True,
+)
 
-#fig_craco_fiducial_F("fig_craco_fiducial_dmhost_F_0.32.png", show_Macquart=False, F=0.32, suppress_DM_host=False)
-#fig_craco_fiducial_F("fig_craco_fiducial_dmhost_F_0.82_H0_55.png", show_Macquart=False, F=0.82, H0=55., suppress_DM_host=False)
-# fig_craco_fiducial_F("fig_craco_fiducial_dmhost_F_0.01.png", show_Macquart=True, F=0.01, suppress_DM_host=False)
-# fig_craco_fiducial_F("fig_craco_fiducial_dmhost_F_0.9.png", show_Macquart=True, F=0.9, suppress_DM_host=False)
+fig_craco_fiducial_F(
+    "fig_craco_F_0.32.png", show_Macquart=False, F=0.32, suppress_DM_host=False
+)
 
-# fig_craco_varyF_zDM("contours_varyF_lmean.pdf", other_param="lmean")
+fig_craco_fiducial_F(
+    "fig_craco_F_0.82_H0_55.png",
+    show_Macquart=False,
+    F=0.82,
+    H0=55.0,
+    suppress_DM_host=False,
+)
+fig_craco_fiducial_F(
+    "fig_craco_F_0.01.png", show_Macquart=True, F=0.01, suppress_DM_host=False
+)
+fig_craco_fiducial_F(
+    "fig_craco_F_0.9.png", show_Macquart=True, F=0.9, suppress_DM_host=False
+)
 
-# fig_varyF(
-#     "deg_basic.png",
-#     other_param="lmean",
-#     F_values=[0.01, 0.9],
-#     other_values=[None, None],
-#     lcolors=["r", "b"],
-#     lstyles=["-", "-"],
-#     DMmax=1800,
-# )
+fig_varyF(
+    "fig_lmean_degeneracy_varyF.png",
+    other_param="lmean",
+    F_values=[0.01, 0.9],
+    other_values=[None, None],
+    lcolors=["r", "b"],
+    lstyles=["-", "-"],
+    DMmax=1800,
+)
 
-# fig_varyF(
-#     "deg_other.png",
-#     other_param="lmean",
-#     F_values=[None, None],
-#     other_values=[2.5, 1.5],
-#     lcolors=["#e07a5f", "#81b29a"],
-#     lstyles=["-", "-"],
-#     DMmax=1800,
-# )
+fig_varyF(
+    "fig_lmean_degeneracy_varylm.png",
+    other_param="lmean",
+    F_values=[None, None],
+    other_values=[2.5, 1.5],
+    lcolors=["#e07a5f", "#81b29a"],
+    lstyles=["-", "-"],
+    DMmax=1800,
+)
 
 # fig_varyF(
 #     "test.png",
@@ -545,12 +576,10 @@ def fig_craco_fiducial_F(
 #     DMmax=1800,
 # )
 
-#fig_craco_varyF_zDM("strawberry.png", other_param="lmean")
-
 # Fussing on the square
-#fig_craco_fiducial_F("fig_craco_fiducial_dmhost_F_0.32.png", show_Macquart=False, F=0.32, suppress_DM_host=False)
-#fig_craco_fiducial_F("fig_craco_fiducial_dmhost_F_0.82_H0_55.png", show_Macquart=False, F=0.82, H0=55., suppress_DM_host=False)
+# fig_craco_fiducial_F("fig_craco_fiducial_dmhost_F_0.32.png", show_Macquart=False, F=0.32, suppress_DM_host=False)
+# fig_craco_fiducial_F("fig_craco_fiducial_dmhost_F_0.82_H0_55.png", show_Macquart=False, F=0.82, H0=55., suppress_DM_host=False)
 
 # iFRB = 0
-#fig_craco_fiducial_F("fig_craco_fiducial_dmhost_F_0.99_H0_55_i0.png", show_Macquart=False, F=0.99, H0=55., suppress_DM_host=False, iFRB=0)
-fig_craco_fiducial_F("fig_craco_fiducial_dmhost_F_0.32_i0.png", show_Macquart=False, F=0.32, suppress_DM_host=False, iFRB=0)
+# fig_craco_fiducial_F("fig_craco_fiducial_dmhost_F_0.99_H0_55_i0.png", show_Macquart=False, F=0.99, H0=55., suppress_DM_host=False, iFRB=0)
+# fig_craco_fiducial_F("fig_craco_fiducial_dmhost_F_0.32_i0.png", show_Macquart=False, F=0.32, suppress_DM_host=False, iFRB=0)
