@@ -241,9 +241,10 @@ class Grid:
         
         # for some arbitrary reason, we treat the beamshape slightly differently... no need to keep an intermediate product!
         
-        main_beam_b = self.beam_b
+        main_beam_b = self.beam_b.copy()
+
         if self.use_log10:
-            new_thresh = np.log10(self.thresholds/Emax)
+            new_thresh = np.log10(self.thresholds) - np.log10(Emax)
             main_beam_b = np.log10(main_beam_b)
 
         for i,b in enumerate(main_beam_b):

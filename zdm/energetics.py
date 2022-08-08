@@ -231,7 +231,9 @@ def vector_cum_gamma_linear(Eth:np.ndarray, *params):
     log = params[3]
 
     # Calculate
+
     norm = float(mpmath.gammainc(gamma, a=Emin/Emax))
+
 
     Eth_Emax = Eth/Emax
 

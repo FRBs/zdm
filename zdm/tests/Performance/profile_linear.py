@@ -120,6 +120,7 @@ relative_acc_avg2 = np.average(relative_acc_array2)
 
 diff_array = np.absolute(relative_acc_array - relative_acc_array2)
 
+embed()
 
 '''
 #TIMEPROFILING
