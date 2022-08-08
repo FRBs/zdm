@@ -255,6 +255,7 @@ def vector_cum_gamma_linear(Eth:np.ndarray, *params):
     else:
         numer = igamma_linear_log10[gamma](Eth_Emax)
     
+    
     result=numer/norm
 
     # Low end
