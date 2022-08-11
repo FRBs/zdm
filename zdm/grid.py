@@ -243,18 +243,20 @@ class Grid:
         
         main_beam_b = self.beam_b.copy()
 
-        if self.use_log10:
-            new_thresh = np.log10(self.thresholds) - np.log10(Emax)
-            main_beam_b = np.log10(main_beam_b)
+        # if self.use_log10:
+        #     new_thresh = np.log10(self.thresholds) - np.log10(Emax)
+        #     main_beam_b = np.log10(main_beam_b)
 
         for i,b in enumerate(main_beam_b):
             for j,w in enumerate(self.eff_weights):
                 
-                if not self.use_log10:
-                    thresh = self.thresholds[j,:,:]/b
+                # if not self.use_log10:
+                #     thresh = self.thresholds[j,:,:]/b
 
-                if self.use_log10:
-                    thresh = new_thresh[j,:,:] - b
+                # if self.use_log10:
+                #     thresh = new_thresh[j,:,:] - b
+
+                thresh = self.thresholds[j,:,:]/b
                     
                 if j==0:
                     self.b_fractions[:,:,i] = self.beam_o[i]*w*self.array_cum_lf(

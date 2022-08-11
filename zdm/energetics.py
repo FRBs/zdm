@@ -24,29 +24,32 @@ def init_igamma_splines(gammas, reinit=False):
 def init_igamma_linear(gammas, reinit=False, log=False):
 
     for gamma in gammas:
-        if gamma not in igamma_linear.keys() or gamma not in igamma_linear_log10.keys() or reinit:
-            if not log:    
-                print(f"Initializing igamma_linear for gamma={gamma}")
-            else:
+        
+        if log:
+            if gamma not in igamma_linear_log10.keys() or reinit:
                 print(f"Initializing igamma_linear for gamma={gamma} with log10")
-            # values
-            avals = 10**np.linspace(-6, 6., 1000)
+                 # values
+                avals = 10**np.linspace(-6, 6., 1000)
 
-            
-            #log_avals = np.log10(avals) # changed to log space
+                print(gamma)
+                numer = np.array([float(mpmath.gammainc(
+                    gamma, a=iEE)) for iEE in avals])
 
-            numer = np.array([float(mpmath.gammainc(
-                gamma, a=iEE)) for iEE in avals])
+                log_avals = np.log10(avals)
 
-            if log:
-                avals = np.log10(avals)
+                igamma_linear_log10[gamma] = interpolate.interp1d(log_avals, numer)
 
-            # Linear interp dict
-            #igamma_linear[gamma] = interpolate.interp1d(log_avals, numer)
-            if not log:
+        else:
+            if gamma not in igamma_linear.keys() or reinit:    
+                print(f"Initializing igamma_linear for gamma={gamma}")
+                 # values
+                avals = 10**np.linspace(-6, 6., 1000)
+
+                print(gamma)
+                numer = np.array([float(mpmath.gammainc(
+                    gamma, a=iEE)) for iEE in avals])
+
                 igamma_linear[gamma] = interpolate.interp1d(avals, numer)
-            else:
-                igamma_linear_log10[gamma] = interpolate.interp1d(avals, numer)
 
 def template_array_cumulative_luminosity_function(Eth,*params):
     """
@@ -231,30 +234,21 @@ def vector_cum_gamma_linear(Eth:np.ndarray, *params):
     log = params[3]
 
     # Calculate
-
     norm = float(mpmath.gammainc(gamma, a=Emin/Emax))
 
-
-    Eth_Emax = Eth/Emax
-
-    if log == True:
-        Eth_Emax = Eth
-
-    # Eth_Emax = Eth/Emax
-
-    if not log:
-        if gamma not in igamma_linear.keys():
-            init_igamma_linear([gamma], log=log)
-    else:
+    if log:
+        Eth_Emax = np.log10(Eth/Emax)
         if gamma not in igamma_linear_log10.keys():
             init_igamma_linear([gamma], log=log)
 
-    
-    if not log:
-        numer = igamma_linear[gamma](Eth_Emax)
-    else:
         numer = igamma_linear_log10[gamma](Eth_Emax)
-    
+
+    else:
+        Eth_Emax = Eth/Emax
+        if gamma not in igamma_linear.keys():
+            init_igamma_linear([gamma], log=log)
+        
+        numer = igamma_linear[gamma](Eth_Emax)
     
     result=numer/norm
 
@@ -272,7 +266,6 @@ def array_diff_gamma(Eth,*params):
     result=result.reshape(dims)
     return result
 
-    
 def array_cum_gamma(Eth,*params):
     """ Calculates the fraction of bursts above a certain gamma function
     for a given Eth, where Eth is an N-dimensional array

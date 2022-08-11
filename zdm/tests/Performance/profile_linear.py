@@ -107,9 +107,10 @@ def run_linear_log10():
     return (average, igrid.fractions.copy())
 
 
+linearAvgLog, frac3 = run_linear_log10()
 splineAvg, frac1 = run_spline()
 linearAvg, frac2 = run_linear()
-linearAvgLog, frac3 = run_linear_log10()
+
 
 
 relative_acc_array = np.absolute(frac1 - frac2) / frac1
