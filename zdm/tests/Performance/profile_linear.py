@@ -85,7 +85,6 @@ def run_linear():
     return (average, igrid.fractions.copy())
 
 def run_linear_log10():
-    
     igrid.array_cum_lf=energetics.array_cum_gamma_linear
     igrid.vector_cum_lf=energetics.vector_cum_gamma_linear
 

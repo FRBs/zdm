@@ -241,23 +241,23 @@ class Grid:
         
         # for some arbitrary reason, we treat the beamshape slightly differently... no need to keep an intermediate product!
         
-        main_beam_b = self.beam_b.copy()
+        main_beam_b = self.beam_b
 
         # if self.use_log10:
-        #     new_thresh = np.log10(self.thresholds) - np.log10(Emax)
+        #     new_thresh = np.log10(self.thresholds)
         #     main_beam_b = np.log10(main_beam_b)
 
         for i,b in enumerate(main_beam_b):
             for j,w in enumerate(self.eff_weights):
-                
-                # if not self.use_log10:
-                #     thresh = self.thresholds[j,:,:]/b
 
-                # if self.use_log10:
-                #     thresh = new_thresh[j,:,:] - b
+                
 
                 thresh = self.thresholds[j,:,:]/b
-                    
+
+                # DOES NOT WORK
+                if self.use_log10:
+                    thresh = np.log10(thresh)
+                
                 if j==0:
                     self.b_fractions[:,:,i] = self.beam_o[i]*w*self.array_cum_lf(
                         thresh,Emin,Emax,
