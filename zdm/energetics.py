@@ -252,10 +252,11 @@ def vector_cum_gamma_linear(Eth:np.ndarray, *params):
 
     # Low end
 
+    Emin_temp = Emin
     if log:
-        Eth = 10**Eth
+        Emin_temp = np.log10(float(Emin))
 
-    low= Eth < Emin
+    low= Eth < Emin_temp
     result[low]=1.
     return result
 
