@@ -106,9 +106,9 @@ def run_linear_log10():
     return (average, igrid.fractions.copy())
 
 
-linearAvgLog, frac3 = run_linear_log10()
 splineAvg, frac1 = run_spline()
 linearAvg, frac2 = run_linear()
+linearAvgLog, frac3 = run_linear_log10()
 
 
 
@@ -120,7 +120,7 @@ relative_acc_avg2 = np.average(relative_acc_array2)
 
 diff_array = np.absolute(relative_acc_array - relative_acc_array2)
 
-embed()
+# embed()
 
 '''
 #TIMEPROFILING

@@ -245,17 +245,13 @@ class Grid:
         new_thresh = np.log10(self.thresholds)
 
         if self.use_log10:
-             
             main_beam_b = np.log10(main_beam_b)
 
         for i,b in enumerate(main_beam_b):
             for j,w in enumerate(self.eff_weights):
 
-                
-
                 thresh = self.thresholds[j,:,:]/b
 
-                # DOES NOT WORK
                 if self.use_log10:
                     thresh = new_thresh[j,:,:] - b
                 
