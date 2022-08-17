@@ -110,8 +110,6 @@ splineAvg, frac1 = run_spline()
 linearAvg, frac2 = run_linear()
 linearAvgLog, frac3 = run_linear_log10()
 
-
-
 relative_acc_array = np.absolute(frac1 - frac2) / frac1
 relative_acc_avg = np.average(relative_acc_array)
 
@@ -124,5 +122,5 @@ diff_array = np.absolute(relative_acc_array - relative_acc_array2)
 
 '''
 #TIMEPROFILING
-python -m cProfile -o time_profile.prof time_profile.py
+python -m cProfile -o profile_linear.prof profile_linear.py
 '''
