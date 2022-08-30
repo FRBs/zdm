@@ -240,18 +240,20 @@ class Grid:
             self.b_fractions=np.zeros([self.zvals.size,self.dmvals.size,self.beam_b.size])
         
         # for some arbitrary reason, we treat the beamshape slightly differently... no need to keep an intermediate product!
-        
         main_beam_b = self.beam_b
-        new_thresh = np.log10(self.thresholds)
+        new_thresh = np.log10(self.thresholds) # use when calling in log10 space conversion
 
+        # call log10 beam
         if self.use_log10:
             main_beam_b = np.log10(main_beam_b)
 
         for i,b in enumerate(main_beam_b):
             for j,w in enumerate(self.eff_weights):
-
+                
+                # original
                 thresh = self.thresholds[j,:,:]/b
 
+                # using log10 space conversion
                 if self.use_log10:
                     thresh = new_thresh[j,:,:] - b
                 

@@ -34,6 +34,7 @@ def init_igamma_linear(gammas, reinit=False, log=False):
                 numer = np.array([float(mpmath.gammainc(
                     gamma, a=iEE)) for iEE in avals])
 
+                # convert avals to log10 space (init x values)
                 log_avals = np.log10(avals)
 
                 igamma_linear_log10[gamma] = interpolate.interp1d(log_avals, numer)
@@ -235,11 +236,11 @@ def vector_cum_gamma_linear(Eth:np.ndarray, *params):
     norm = float(mpmath.gammainc(gamma, a=Emin/Emax))
     Emin_temp = Emin
     
+    # Branch either with log10 space or without
     if log:
         Eth_Emax = Eth - np.log10(Emax)
         if gamma not in igamma_linear_log10.keys():
             init_igamma_linear([gamma], log=log)
-        # embed()
         numer = igamma_linear_log10[gamma](Eth_Emax)
         Emin_temp = np.log10(float(Emin))
 
