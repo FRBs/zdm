@@ -206,11 +206,7 @@ def main(verbose=False):
                 lims=ac.interpolate_and_limits(uvals[i],constraints,limits)
                 fullstring = "    & "+ H0text[k+1]+" & "+lims+"\\\\"
                 print(fullstring)
-                #x,y=ac.interpolate_points(uvals[i],constraints,logspline=True)
-                #for limit in [0.00135,0.0228,0.05,0.15866]:
-                #    v0,v1,ik1,ik2=ac.extract_limits(x,y,limit,method=1)
-                #    print(v0,v1)
-    exit()
+    
     # special plot for alpha, where confidence intervals are LIES (due to undercoverage of the prior)
     do_alpha_plot([uvals[ialpha]],[wH0_vectors[ialpha]],None,[params[ialpha]],tag="fig8_alpha",truth=None,
         dolevels=True,latexnames=[latexnames[ialpha]],logspline=False,others=[others[ialpha]])
