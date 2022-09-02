@@ -483,7 +483,7 @@ def do_alpha_plot(uvals,vectors,wvectors,names,tag=None, fig_exten='.png',
             plt.legend(loc='upper left',title='Prior on $\\alpha$')
         
         plt.tight_layout()
-        plt.savefig(os.path.join(outdir, prefix+names[i]+fig_exten), dpi=200)
+        plt.savefig(os.path.join(outdir, prefix+names[i]+fig_exten), dpi=300)
         plt.close()
     if log:
         logfile.close()
