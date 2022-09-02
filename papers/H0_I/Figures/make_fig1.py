@@ -1,6 +1,7 @@
 """
 Makes Figure 1 from the paper
 Loads data from directory Figure1 and generates fig1.pdf there
+Also makes a couple of extra plots
 """
 
 import numpy as np
