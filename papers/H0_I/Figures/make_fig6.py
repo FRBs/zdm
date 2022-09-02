@@ -100,7 +100,7 @@ def main():
     plt.scatter(orig_H0,orig_pH0/norm,label="Data")
     #plt.scatter(H0,pH0/norm, label="fitted data")
     plt.plot(longx,spl(longx)/norm,label='Spline interpolation')
-    plt.plot(extrax,ln(extrax,*popt)/norm,label="Lognormal extension",linestyle="--")
+    plt.plot(extrax,ln(extrax,*popt)/norm,label="Log-normal extension",linestyle="--")
     
     # gets pH0 when all other values fixed
     other_H0=np.load('ph0_others_all_fixed.npy')

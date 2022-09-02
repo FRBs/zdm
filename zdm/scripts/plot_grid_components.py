@@ -46,9 +46,11 @@ from matplotlib import pyplot as plt
 
 def main():
     
+    H0=80
+    F=0.32
+    
     # in case you wish to switch to another output directory
-    opdir='GridComponents70/'
-    opdir='TEMP/'
+    opdir='GridComponents_H'+str(H0)+'_F'+str(F)+'/'
     if not os.path.exists(opdir):
         os.mkdir(opdir)
     
@@ -58,7 +60,8 @@ def main():
     
     # approximate best-fit values from recent analysis
     vparams = {}
-    vparams['H0'] = 70 #real one is 73
+    vparams['H0'] = H0 #real one is 73
+    vparams['F'] = F
     vparams['lEmax'] = 41.3
     vparams['gamma'] = -0.9
     vparams['alpha'] = 1
@@ -86,7 +89,7 @@ def main():
         label='$\\log_{10} p({\\rm DM}_{\\rm IGM}|z)$ [a.u.]',
         project=False, ylabel='${\\rm DM}_{\\rm IGM}$',
         zmax=zmax,DMmax=DMmax,DMlines=nozlist,Macquart=g.state)
-    
+    exit()
     # restore host galaxy contribution   
     vparams['lmean'] = orig_lmean
     g.update(vparams)

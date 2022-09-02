@@ -811,6 +811,10 @@ def extract_limits(x,y,p,method=1):
         ik2=OK[-1]
         v0=x[ik1]
         v1=x[ik2]
+        if v1 < v0:
+            temp=v0
+            v0=v1
+            v1=temp
     elif method==2:
         cy=np.cumsum(y)
         cy /= cy[-1] # ignores normalisation in dx direction
@@ -825,6 +829,33 @@ def extract_limits(x,y,p,method=1):
         v1=x[ik2]
     return v0,v1,ik1,ik2
 
+def interpolate_and_limits(x0,y0,limits,logspline=True,aslatex=True):
+    """
+    Fits a spline to y0(x0) (both np arrays of equal length)
+    Extracts values of x corresponding to the limits in limits,
+    and 1-limits
+    Returns: limits (list)
+    
+    Logspline: interpolate y in logspace
+    """
+    xlims=[]
+    
+    x,y=interpolate_points(x0,y0,logspline)
+    for limit in limits:
+        l1,l2,ik1,ik2=extract_limits(x,y,limit,method=1)
+        xlims.append([l1,l2])
+    
+    if aslatex:
+        xmax=x[np.argmax(y)]
+        string="${0:4.2f}$".format(xmax)
+        for pair in xlims:
+            minus=pair[0]-xmax
+            plus=pair[1]-xmax
+            latex="& $_{{{0:3.2f}}}^{{+{1:3.2f}}}$ ".format(minus,plus)
+            string += latex
+        return string
+    return xlims
+    
 def do_single_plots(uvals,vectors,wvectors,names,tag=None, fig_exten='.png',
                     dolevels=False,log=True,outdir='SingleFigs/',
                     vparams_dict=None, prefix='',truth=None,latexnames=None,

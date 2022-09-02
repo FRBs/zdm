@@ -2039,20 +2039,19 @@ def plot_grid_2(zDMgrid,zvals,dmvals,
         nz=zvals.size
         zDMgrid=zDMgrid[:ixmax[0],:]
     
-    
     # currently this is "per cell" - now to change to "per DM"
     # normalises the grid by the bin width, i.e. probability per bin, not probability density
     ddm=dmvals[1]-dmvals[0]
     dz=zvals[1]-zvals[0]
     if norm==1:
         zDMgrid /= ddm
-        if Aconts:
-            alevels /= ddm
+        #if Aconts:
+        #    alevels /= ddm
     elif norm==2:
         xnorm=np.sum(zDMgrid)
         zDMgrid /= xnorm
-        if Aconts:
-            alevels /= xnorm
+        #if Aconts:
+        #    alevels /= xnorm
     elif norm==3:
         zDMgrid /= np.max(zDMgrid)
     
