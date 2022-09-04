@@ -11,13 +11,14 @@ Currently, the script has to "know" how many surveys
 """
 
 import numpy as np
+import argparse
 import zdm
 from zdm import analyze_cube as ac
 from matplotlib import pyplot as plt
 
-def main():
+def main(pargs):
     
-    data=np.load('real_mini_cube.npz')
+    data=np.load(pargs.cube)
     
     lst = data.files
     lldata=data["ll"]
@@ -172,5 +173,9 @@ def make_2d_plot(array,xlabel,ylabel,xvals,yvals,savename=None):
     plt.savefig(savename)
     plt.close()
     
+parser = argparse.ArgumentParser()
+parser.add_argument('-c','--cube',type=str, required=True, help="The .npz cube to analyse")
 
-main()
+args = parser.parse_args()
+
+main(args)

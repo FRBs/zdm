@@ -1,7 +1,7 @@
 """ 
-This script creates zdm grids and plots localised FRBs
+This script generates figure 5 from the H0 paper (James, Ghosh, Prochaska et al)
 
-It can also generate a summed histogram from all CRAFT data
+It also generates imilar figures for each of the three frequency ranges.
 
 """
 import os
@@ -22,21 +22,15 @@ from matplotlib import pyplot as plt
 def main():
     
     # in case you wish to switch to another output directory
-    opdir='Localised_FRBs/'
+    opdir='Figure5/'
     if not os.path.exists(opdir):
         os.mkdir(opdir)
     
     # Initialise surveys and grids
     
     # The below is for private, unpublished FRBs. You will NOT see this in the repository!
-    names = ['private_CRAFT_ICS','private_CRAFT_ICS_892','private_CRAFT_ICS_1632']
-    sdir='../data/Surveys/'
-    
-    # Public CRAFT FRBs
-    #names = ['CRAFT_ICS','CRAFT_ICS_892','CRAFT_ICS_1632']
-    
-    #Examples for other FRB surveys
-    #names = ['FAST','Arecibo','parkes_mb_class_I_and_II']
+    names = ['CRAFT_ICS','CRAFT_ICS_892','CRAFT_ICS_1632']
+    sdir='zdm/data/Surveys/'
     
     # if True, this generates a summed histogram of all the surveys, weighted by
     # the observation time
@@ -82,7 +76,7 @@ def main():
             dmvals.append(s.DMEGs[iFRB])
             for dm in s.DMEGs[s.nozlist]:
                 nozlist.append(dm)
-        print("About to plot")
+        
         ############# do 2D plots ##########
         misc_functions.plot_grid_2(g.rates,g.zvals,g.dmvals,
             name=opdir+name+'.pdf',norm=3,log=True,label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$  [a.u.]',
@@ -95,7 +89,7 @@ def main():
         frbdmvals=np.array(dmvals)
         ############# do 2D plots ##########
         misc_functions.plot_grid_2(g.rates,g.zvals,g.dmvals,
-            name=opdir+'combined_localised_FRBs.pdf',norm=3,log=True,
+            name=opdir+'Fig5_combined_localised_FRBs.pdf',norm=3,log=True,
             label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$ [a.u.]',
             project=False,FRBDM=frbdmvals,FRBZ=frbzvals,Aconts=[0.01,0.1,0.5],
             zmax=1.5,DMmax=2000,DMlines=nozlist)
