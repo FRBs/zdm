@@ -1,4 +1,3 @@
-from webbrowser import get
 import numpy as np
 import zdm
 import matplotlib.pyplot as plt
