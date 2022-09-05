@@ -22,6 +22,9 @@ def main(pargs):
     elif pargs.run == "F":
         scube = "H0_F"
         outdir = "H0_F/"
+    elif pargs.run == "lmF":
+        scube = "lm_F"
+        outdir = "lm_F/"
     elif pargs.run == "full":
         scube = "full"
         outdir = "Full/"

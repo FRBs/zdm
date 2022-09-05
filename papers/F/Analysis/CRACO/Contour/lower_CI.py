@@ -205,15 +205,17 @@ def lower_CI_grid(
             lower_cis[i, j] = np.mean(lower_cis_at_pt)
 
     if make_plot:
-        outfile = f"lower_CI_grid_z_{z}.png"
+        outfile = f"lower_CI_grid_z_{z[0]}.png"
         fig, ax = plt.subplots(dpi=200)
 
         x, y = np.meshgrid(H0s, Fs)
 
-        c = ax.pcolormesh(x, y, lower_cis.T, cmap="jet")
-        plt.colorbar(c)
+        c = ax.pcolormesh(x, y, lower_cis.T, cmap="jet", shading="auto")
+        plt.colorbar(c, label="DM (Lower CI)")
 
-        ax.set_title(f"z = {z}")
+        ax.set_title(f"z = {z[0]}")
+        ax.set_xlabel(f"$H_0$")
+        ax.set_ylabel(f"$F$")
 
         plt.savefig(outfile, bbox_inches="tight")
 
@@ -236,6 +238,22 @@ def lower_CI_grid(
 # make_plots_H0(np.linspace(50, 80, 20), F=0.8, z=0.25, outfile="H0_plot_z_0.25_alt.png")
 
 lower_CI_grid(
-    H0s=np.linspace(55, 80, num=20), Fs=np.linspace(0.1, 0.8, num=20), make_plot=True
+    H0s=np.linspace(55, 80, num=20),
+    Fs=np.linspace(0.01, 1, num=20),
+    z=0.5,
+    make_plot=True,
 )
 
+lower_CI_grid(
+    H0s=np.linspace(55, 80, num=20),
+    Fs=np.linspace(0.01, 1, num=20),
+    z=0.15,
+    make_plot=True,
+)
+
+lower_CI_grid(
+    H0s=np.linspace(55, 80, num=20),
+    Fs=np.linspace(0.01, 1, num=20),
+    z=0.05,
+    make_plot=True,
+)

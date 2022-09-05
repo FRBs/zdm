@@ -26,6 +26,18 @@ def main(pargs):
         analyze_cube.slurp_cube(
             input_file, prefix, "Cubes/craco_H0_F_cube.npz", nsurveys
         )
+
+    elif pargs.run == "lmF":
+        # Emax
+        input_file = "Cubes/craco_lm_F_cube.json"
+        prefix = "Cloud/Output/craco_lm_F"
+        nsurveys = 1
+
+        # Run it
+        analyze_cube.slurp_cube(
+            input_file, prefix, "Cubes/craco_lm_F_cube.npz", nsurveys
+        )
+
     elif pargs.run == "mini":
         # Emax
         input_file = "Cubes/craco_mini_cube.json"
