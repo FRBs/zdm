@@ -101,7 +101,7 @@ class FRBDemoParams(data_class.myDataClass):
 
 # FRB Demographics -- repeaters
 @dataclass
-class FRBrepeaters(data_class.myDataClass):
+class RepeatParams(data_class.myDataClass):
     Rmin: float = field(
         default=1e-3,
         metadata={'help': 'Minimum repeater rate',
@@ -109,13 +109,13 @@ class FRBrepeaters(data_class.myDataClass):
                   'Notation': '$R_{\rm min}$',
                   })
     Rmax: float = field(
-        default=1,
+        default=10,
         metadata={'help': 'Maximum repeater rate',
                   'unit': 'day^-1',
                   'Notation': '$R_{\rm max}$',
                   })
     Rgamma: float = field(
-        default = -2,
+        default = -2.375,
         metadata={'help': 'differential index of repeater density',
                   'unit': '',
                   'Notation': '$\gamma_r$',
@@ -126,6 +126,13 @@ class FRBrepeaters(data_class.myDataClass):
                   'unit': 'Repeaters day / Gpc^-3',
                   'Notation': '$C_R$',
                   })
+    RE0: float = field(
+        default = 1.e38,
+        metadata={'help': 'Energy at which rates are defined',
+                  'unit': 'erg',
+                  'Notation': '$E_R$',
+                  })
+                  
 
 # Galactic parameters
 @dataclass
@@ -280,7 +287,7 @@ class State(data_class.myData):
         self.host = HostParams()
         self.IGM = IGMParams()
         self.energy = EnergeticsParams()
-
+        self.rep = RepeatParams()
 
     def update_param(self, param:str, value):
         DC = self.params[param]

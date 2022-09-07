@@ -1840,9 +1840,9 @@ def minimise_const_only(vparams:dict,grids:list,surveys:list,
                     args=data,bounds=bounds)
     t1=time.process_time()
     dC=result.x
-    #newC=pset[7]+dC
-    #newC=vparams['lC']+float(dC)
+    # constant needs to include the starting value of .lC
     newC = grids[j].state.FRBdemo.lC + float(dC)
+    # likelihood is calculated  *relative* to the starting value
     llC=-minus_poisson_ps(dC,data)
     return newC,llC
     
