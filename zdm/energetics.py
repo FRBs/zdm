@@ -21,10 +21,17 @@ def init_igamma_splines(gammas, reinit=False):
             # iGamma
             igamma_splines[gamma] = interpolate.splrep(avals, numer)
 
-def init_igamma_linear(gammas, reinit=False, log=False):
+def init_igamma_linear(gammas:list, reinit:bool=False, 
+                       log:bool=False):
+    """ Setup the linear interpolator for gamma
+
+    Args:
+        gammas (list): values of gamma
+        reinit (bool, optional): If True, redo the calculation.
+        log (bool, optional): Perform in log10 space
+    """
 
     for gamma in gammas:
-        
         if log:
             if gamma not in igamma_linear_log10.keys() or reinit:
                 print(f"Initializing igamma_linear for gamma={gamma} with log10")
