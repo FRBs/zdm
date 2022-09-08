@@ -32,29 +32,23 @@ def init_igamma_linear(gammas:list, reinit:bool=False,
     """
 
     for gamma in gammas:
-        if log:
-            if gamma not in igamma_linear_log10.keys() or reinit:
-                print(f"Initializing igamma_linear for gamma={gamma} with log10")
-                 # values
-                avals = 10**np.linspace(-6, 6., 1000)
+        if (log and (gamma not in igamma_linear_log10.keys())) \
+            or reinit or \
+            (not log and (gamma not in igamma_linear.keys())):
 
-                numer = np.array([float(mpmath.gammainc(
-                    gamma, a=iEE)) for iEE in avals])
+            print(f"Initializing igamma_linear for gamma={gamma} with log10")
 
-                # convert avals to log10 space (init x values)
+            # values
+            avals = 10**np.linspace(-6, 6., 1000)
+
+            numer = np.array([float(mpmath.gammainc(
+                gamma, a=iEE)) for iEE in avals])
+
+            # convert avals to log10 space (init x values)
+            if log:
                 log_avals = np.log10(avals)
-
                 igamma_linear_log10[gamma] = interpolate.interp1d(log_avals, numer)
-
-        else:
-            if gamma not in igamma_linear.keys() or reinit:    
-                print(f"Initializing igamma_linear for gamma={gamma}")
-                 # values
-                avals = 10**np.linspace(-6, 6., 1000)
-
-                numer = np.array([float(mpmath.gammainc(
-                    gamma, a=iEE)) for iEE in avals])
-
+            else:
                 igamma_linear[gamma] = interpolate.interp1d(avals, numer)
 
 def template_array_cumulative_luminosity_function(Eth,*params):
@@ -228,10 +222,10 @@ def vector_cum_gamma_linear(Eth:np.ndarray, *params):
     """ Calculate cumulative Gamma function using a linear interp1d
 
     Args:
-        Eth (np.ndarray): [description]
+        Eth (np.ndarray): Energy threshold in ergs
 
     Returns:
-        np.ndarray: [description]
+        np.ndarray: cumulative probability above Eth
     """
     params=np.array(params)
     Emin=params[0]
@@ -241,7 +235,6 @@ def vector_cum_gamma_linear(Eth:np.ndarray, *params):
 
     # Calculate
     norm = float(mpmath.gammainc(gamma, a=Emin/Emax))
-    Emin_temp = Emin
     
     # Branch either with log10 space or without
     if log:
@@ -257,6 +250,7 @@ def vector_cum_gamma_linear(Eth:np.ndarray, *params):
             init_igamma_linear([gamma], log=log)
         
         numer = igamma_linear[gamma](Eth_Emax)
+        Emin_temp = Emin
     
     result=numer/norm
 

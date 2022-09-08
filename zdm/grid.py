@@ -42,12 +42,15 @@ class Grid:
         # State
         self.state = state
         
-        # FOR TESTING WITH LOG 10
-        self.use_log10 = False
 
         self.source_function=cos.choose_source_evolution_function(
             state.FRBdemo.source_evolution)
 
+        # Energetics
+        if self.state.energy.luminosity_function in [3]:
+            self.use_log10 = True
+        else:
+            self.use_log10 = False
         self.luminosity_function = self.state.energy.luminosity_function
         self.init_luminosity_functions()
         
@@ -92,7 +95,11 @@ class Grid:
             self.vector_cum_lf=energetics.vector_cum_gamma_spline
             self.array_diff_lf=energetics.array_diff_gamma
             self.vector_diff_lf=energetics.vector_diff_gamma
-            # Init
+        elif self.luminosity_function==3:  # Linear + log10
+            self.array_cum_lf=energetics.array_cum_gamma_linear
+            self.vector_cum_lf=energetics.vector_cum_gamma_linear
+            self.array_diff_lf=energetics.array_diff_gamma
+            self.vector_diff_lf=energetics.vector_diff_gamma
         else:
             raise ValueError("Luminosity function must be 0, not ",self.luminosity_function)
     
@@ -241,21 +248,21 @@ class Grid:
         
         # for some arbitrary reason, we treat the beamshape slightly differently... no need to keep an intermediate product!
         main_beam_b = self.beam_b
-        new_thresh = np.log10(self.thresholds) # use when calling in log10 space conversion
 
         # call log10 beam
         if self.use_log10:
+            new_thresh = np.log10(self.thresholds) # use when calling in log10 space conversion
             main_beam_b = np.log10(main_beam_b)
 
         for i,b in enumerate(main_beam_b):
             for j,w in enumerate(self.eff_weights):
                 
-                # original
-                thresh = self.thresholds[j,:,:]/b
 
                 # using log10 space conversion
                 if self.use_log10:
                     thresh = new_thresh[j,:,:] - b
+                else: # original
+                    thresh = self.thresholds[j,:,:]/b
                 
                 if j==0:
                     self.b_fractions[:,:,i] = self.beam_o[i]*w*self.array_cum_lf(
