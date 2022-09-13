@@ -228,7 +228,7 @@ class EnergeticsParams(data_class.myDataClass):
                   })
     luminosity_function: int = field(
         default = 0,
-        metadata={'help': 'luminosity function applied (0=power-law, 1=gamma, 2=spline+gamma)'})
+        metadata={'help': 'luminosity function applied (0=power-law, 1=gamma, 2=spline+gamma, 3=gamma+linear+log10)'})
 
 class State(data_class.myData):
     """ Initialize the full state for the analysis 
