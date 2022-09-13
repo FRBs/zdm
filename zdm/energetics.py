@@ -5,6 +5,8 @@ import mpmath
 from IPython import embed
 
 igamma_splines = {}
+igamma_linear = {}
+igamma_linear_log10 = {}
 
 ############## this section defines different luminosity functions ##########
 
@@ -18,6 +20,36 @@ def init_igamma_splines(gammas, reinit=False):
                 gamma, a=iEE)) for iEE in avals])
             # iGamma
             igamma_splines[gamma] = interpolate.splrep(avals, numer)
+
+def init_igamma_linear(gammas:list, reinit:bool=False, 
+                       log:bool=False):
+    """ Setup the linear interpolator for gamma
+
+    Args:
+        gammas (list): values of gamma
+        reinit (bool, optional): If True, redo the calculation.
+        log (bool, optional): Perform in log10 space
+    """
+
+    for gamma in gammas:
+        if (log and (gamma not in igamma_linear_log10.keys())) \
+            or reinit or \
+            (not log and (gamma not in igamma_linear.keys())):
+
+            print(f"Initializing igamma_linear for gamma={gamma} with log10")
+
+            # values
+            avals = 10**np.linspace(-6, 6., 1000)
+
+            numer = np.array([float(mpmath.gammainc(
+                gamma, a=iEE)) for iEE in avals])
+
+            # convert avals to log10 space (init x values)
+            if log:
+                log_avals = np.log10(avals)
+                igamma_linear_log10[gamma] = interpolate.interp1d(log_avals, numer)
+            else:
+                igamma_linear[gamma] = interpolate.interp1d(avals, numer)
 
 def template_array_cumulative_luminosity_function(Eth,*params):
     """
@@ -186,6 +218,47 @@ def vector_cum_gamma_spline(Eth:np.ndarray, *params):
     result[low]=1.
     return result
 
+def vector_cum_gamma_linear(Eth:np.ndarray, *params):
+    """ Calculate cumulative Gamma function using a linear interp1d
+
+    Args:
+        Eth (np.ndarray): Energy threshold in ergs
+
+    Returns:
+        np.ndarray: cumulative probability above Eth
+    """
+    params=np.array(params)
+    Emin=params[0]
+    Emax=params[1]
+    gamma=params[2]
+    log = params[3]
+
+    # Calculate
+    norm = float(mpmath.gammainc(gamma, a=Emin/Emax))
+    
+    # Branch either with log10 space or without
+    if log:
+        Eth_Emax = Eth - np.log10(Emax)
+        if gamma not in igamma_linear_log10.keys():
+            init_igamma_linear([gamma], log=log)
+        numer = igamma_linear_log10[gamma](Eth_Emax)
+        Emin_temp = np.log10(float(Emin))
+
+    else:
+        Eth_Emax = Eth/Emax
+        if gamma not in igamma_linear.keys():
+            init_igamma_linear([gamma], log=log)
+        
+        numer = igamma_linear[gamma](Eth_Emax)
+        Emin_temp = Emin
+    
+    result=numer/norm
+
+    # Low end
+    low= Eth < Emin_temp
+    result[low]=1.
+    return result
+
 def array_diff_gamma(Eth,*params):
     """ Calculates the differential fraction of bursts for a gamma function
     at a given Eth, where Eth is an N-dimensional array
@@ -195,7 +268,6 @@ def array_diff_gamma(Eth,*params):
     result=result.reshape(dims)
     return result
 
-    
 def array_cum_gamma(Eth,*params):
     """ Calculates the fraction of bursts above a certain gamma function
     for a given Eth, where Eth is an N-dimensional array
@@ -211,6 +283,15 @@ def array_cum_gamma_spline(Eth,*params):
     """
     dims=Eth.shape
     result=vector_cum_gamma_spline(Eth.flatten(),*params)
+    result=result.reshape(dims)
+    return result
+
+def array_cum_gamma_linear(Eth,*params):
+    """ Calculates the fraction of bursts above a certain gamma function
+    for a given Eth, where Eth is an N-dimensional array
+    """
+    dims=Eth.shape
+    result=vector_cum_gamma_linear(Eth.flatten(),*params)
     result=result.reshape(dims)
     return result
 

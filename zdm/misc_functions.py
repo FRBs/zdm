@@ -1959,8 +1959,9 @@ def plot_grid_2(zDMgrid,zvals,dmvals,
                 label='$\\log_{10}p(DM_{\\rm EG},z)$',ylabel='${\\rm DM}_{\\rm EG}$',
                 project=False,conts=False,
                 FRBZ=None,FRBDM=None,Aconts=False,
-                Macquart=None,title="Plot",
-                H0=None,showplot=False,DMlines=None):
+                Macquart=None,title="Plot", cmap=None,
+                H0=None,showplot=False,DMlines=None,
+                data_clr='red'):
     """
     Very complicated routine for plotting 2D zdm grids 
 
@@ -1985,10 +1986,15 @@ def plot_grid_2(zDMgrid,zvals,dmvals,
         title (str, optional): [description]. Defaults to "Plot".
         H0 ([type], optional): [description]. Defaults to None.
         showplot (bool, optional): [description]. Defaults to False.
+        cmap (str, optional): Alternate color map for PDF
+        data_clr (str, optional): Alternate color for data
     """
     if H0 is None:
         H0 = cos.cosmo.H0
-    cmx = plt.get_cmap('cubehelix')
+    if cmap is None:
+        cmx = plt.get_cmap('cubehelix')
+    else:
+        cmx = plt.get_cmap(cmap)
     
     ##### imshow of grid #######
     
@@ -2039,20 +2045,19 @@ def plot_grid_2(zDMgrid,zvals,dmvals,
         nz=zvals.size
         zDMgrid=zDMgrid[:ixmax[0],:]
     
-    
     # currently this is "per cell" - now to change to "per DM"
     # normalises the grid by the bin width, i.e. probability per bin, not probability density
     ddm=dmvals[1]-dmvals[0]
     dz=zvals[1]-zvals[0]
     if norm==1:
         zDMgrid /= ddm
-        # if Aconts:
-        #     alevels /= ddm
+        #if Aconts:
+        #    alevels /= ddm
     elif norm==2:
         xnorm=np.sum(zDMgrid)
         zDMgrid /= xnorm
-        # if Aconts:
-        #     alevels /= xnorm
+        #if Aconts:
+        #    alevels /= xnorm
     elif norm==3:
         zDMgrid /= np.max(zDMgrid)
     
@@ -2187,7 +2192,7 @@ def plot_grid_2(zDMgrid,zvals,dmvals,
             zstop = kDM*zvals[stop2] + (1.-kDM)*zvals[stop1]
             zstop /= (zvals[1]-zvals[0])
             DM /= (dmvals[1]-dmvals[0])
-            plt.plot([0,zstop],[DM,DM],color='red',linestyle=':')
+            plt.plot([0,zstop],[DM,DM],color=data_clr, linestyle=':')
             
     # plots contours i there
     if conts:
@@ -2241,7 +2246,7 @@ def plot_grid_2(zDMgrid,zvals,dmvals,
         iDMs=FRBDM/ddm
         iZ=FRBZ/dz
         OK = np.where(FRBZ>0)[0]
-        plt.plot(iZ[OK],iDMs[OK],'ro',linestyle="")
+        plt.plot(iZ[OK],iDMs[OK],'o', color=data_clr, linestyle="")
         
     # do 1-D projected plots
     if project:
@@ -2275,7 +2280,7 @@ def plot_grid_2(zDMgrid,zvals,dmvals,
             hvals=np.zeros(FRBZ[OK].size)
             for i,Z in enumerate(FRBZ[OK]):
                 hvals[i]=xonly[np.where(zvals > Z)[0][0]]
-            axx.plot(FRBZ[OK],hvals,'ro',linestyle="")
+            axx.plot(FRBZ[OK],hvals,'o', color=data_clr, linestyle="")
             for tick in axx.xaxis.get_major_ticks():
                         tick.label.set_fontsize(6)
     else:
@@ -2283,7 +2288,7 @@ def plot_grid_2(zDMgrid,zvals,dmvals,
         cbar.set_label(label)
         plt.tight_layout()
     
-    plt.savefig(name)
+    plt.savefig(name, dpi=300)
     if showplot:
         plt.show()
     plt.close()

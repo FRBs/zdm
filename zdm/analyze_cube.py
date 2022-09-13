@@ -16,15 +16,9 @@ from zdm import iteration
 
 from IPython import embed
 
-
-def slurp_cube(
-    input_file: str,
-    prefix: str,
-    outfile: str,
-    nsurveys,
-    debug: bool = False,
-    suffix: str = ".csv",
-):
+def slurp_cube(input_file:str, prefix:str, outfile:str, 
+               nsurveys, debug:bool=False,
+               suffix:str='.csv'):
     """ Slurp the cube ASCII output files and write 
     lC and ll into a numpy savez file
 
@@ -139,13 +133,15 @@ def slurp_cube(
         out_dict[key] = survey_arrays[key]
 
     # Write
-    np.savez(outfile, **out_dict)  # ll=ll_cube, lC=lC_cube, params=PARAMS[-1])
+    np.savez(outfile, **out_dict) #ll=ll_cube, lC=lC_cube, params=PARAMS[-1])
     print(f"Wrote: {outfile}")
 
 
-def apply_gaussian_prior(
-    lls: np.ndarray, iparam: int, values: np.ndarray, mean: float, sigma: float
-):
+def apply_gaussian_prior(lls:np.ndarray,
+                    iparam:int,
+                    values:np.ndarray,
+                    mean:float,
+                    sigma:float):
     """
     Applies a prior to parameter iparam
     with mean mean and deviation sigma.
@@ -544,10 +540,11 @@ def get_2D_bayesian_data(lls: np.ndarray, plls: np.ndarray = None, pklfile=None)
 
     # result is just the total probability, normalised to unity, when summed over the parameter space
     # technically needs to be divided by the x-increment in bins.
-    return uvals, ijs, arrays, warrays
+    return uvals,ijs,arrays,warrays
 
-
-def get_maxl_data(lls: np.ndarray, plls: np.ndarray = None, pklfile=None):
+def get_maxl_data(lls:np.ndarray, 
+                      plls:np.ndarray=None, 
+                      pklfile=None):
     """ Method to perform simple Bayesian analysis
     on the Log-likelihood cube
 
@@ -791,13 +788,12 @@ def interpolate_points(oldx, oldy, logspline=False, kind="cubic"):
         # replaces linear interpolation in small-value regime where splines can be dumb
         if np.min(y2) < 1.0e-2:
             very_small = np.where(y2 < 1e-2)[0]
-            y[very_small] = y2[very_small]
+            y[very_small]=y2[very_small]
+    
+    y[np.where(y < 0.)]=0.
+    return x,y
 
-    y[np.where(y < 0.0)] = 0.0
-    return x, y
-
-
-def extract_limits(x, y, p, method=1):
+def extract_limits(x,y,p,method=1):
     """
     args:
         x (np.ndarray): xvalues of data (independent variable on which we place limits)
@@ -820,47 +816,32 @@ def extract_limits(x, y, p, method=1):
         csy /= csy[-1]
 
         # this is the likelihood we cut on
-        cut = np.where(csy < 1.0 - 2.0 * p)[0]  # allowed values in interval
-        cut = cut[-1]  # last allowed value
-        cut = sy[cut]
-        OK = np.where(y > cut)[0]
-        ik1 = OK[0]
-        ik2 = OK[-1]
-        v0 = x[ik1]
-        v1 = x[ik2]
-    elif method == 2:
-        cy = np.cumsum(y)
-        cy /= cy[-1]  # ignores normalisation in dx direction
-
+        cut=np.where(csy < 1.-2.*p)[0] # allowed values in interval
+        cut=cut[-1] # last allowed value
+        cut=sy[cut]
+        OK=np.where(y > cut)[0]
+        ik1=OK[0]
+        ik2=OK[-1]
+        v0=x[ik1]
+        v1=x[ik2]
+    elif method==2:
+        cy=np.cumsum(y)
+        cy /= cy[-1] # ignores normalisation in dx direction
+        
         # gets lower value
         inside = np.where(cy > p)[0]
         ik1 = inside[0]
         v0 = x[ik1]
         # gets upper value
-        inside = np.where(cy > 1.0 - p)[0]
-        ik2 = inside[0]
-        v1 = x[ik2]
-    return v0, v1, ik1, ik2
+        inside=np.where(cy > 1.-p)[0]
+        ik2=inside[0]
+        v1=x[ik2]
+    return v0,v1,ik1,ik2
 
-
-def do_single_plots(
-    uvals,
-    vectors,
-    wvectors,
-    names,
-    tag=None,
-    fig_exten=".png",
-    dolevels=False,
-    log=True,
-    outdir="SingleFigs/",
-    vparams_dict=None,
-    prefix="",
-    truth=None,
-    latexnames=None,
-    units=None,
-    logspline=True,
-    others=None,
-):
+def do_single_plots(uvals,vectors,wvectors,names,tag=None, fig_exten='.png',
+                    dolevels=False,log=True,outdir='SingleFigs/',
+                    vparams_dict=None, prefix='',truth=None,latexnames=None,
+                    units=None,logspline=True, others=None):
     """ Generate a series of 1D plots of the cube parameters
 
     Args:
