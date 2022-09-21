@@ -812,7 +812,7 @@ def extract_limits(x,y,p,method=1):
 def do_single_plots(uvals,vectors,wvectors,names,tag=None, fig_exten='.png',
                     dolevels=False,log=True,outdir='SingleFigs/',
                     vparams_dict=None, prefix='',truth=None,latexnames=None,
-                    units=None,logspline=True, others=None):
+                    units=None,logspline=True, others=None,kind=None):
     """ Generate a series of 1D plots of the cube parameters
 
     Args:
@@ -854,12 +854,18 @@ def do_single_plots(uvals,vectors,wvectors,names,tag=None, fig_exten='.png',
         prior_results=np.zeros([len(uvals),9]) # does the same with alpha priors
     
     for i,vals in enumerate(uvals):
+        
+        
         if len(vals) == 1:
             continue
         if len(vals) < 4:
+            print("Length of the values is too small for spline interpolation, skipping...")
+            continue
             kind = 'linear'
         else:
-            kind = 'cubic'
+            if kind is None:
+                kind = 'cubic'
+        
         # does the for alpha
         plt.figure()
         lw=3
@@ -882,7 +888,7 @@ def do_single_plots(uvals,vectors,wvectors,names,tag=None, fig_exten='.png',
         ymax=math.ceil(ymax)
         ymin=0.
         
-        x,y=interpolate_points(vals[temp],vectors[i][temp],logspline)
+        x,y=interpolate_points(vals[temp],vectors[i][temp],logspline,kind)
         
         norm=np.sum(y)*(x[1]-x[0]) # integral y dx ~ sum y delta x
         norm=np.abs(norm)

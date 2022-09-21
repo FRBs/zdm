@@ -54,8 +54,10 @@ def main():
     nozlist=[]
     sdir='../data/Surveys/'
     # use loading.survey_and_grid for proper estimates
+    # remove loading for width-based estimates
     # the below is hard-coded for a *very* simplified analysis!
-    s,g = survey_and_grid(survey_name=name,NFRB=None,sdir=sdir) # should be equal to actual number of FRBs, but for this purpose it doesn't matter
+    # using loading. gives 5 beams and widths, ignoring that gives a single beam
+    s,g = loading.survey_and_grid(survey_name=name,NFRB=None,sdir=sdir) # should be equal to actual number of FRBs, but for this purpose it doesn't matter
     
     # updates survey to have single beam value and weights
     
@@ -66,11 +68,11 @@ def main():
     newC,llC=it.minimise_const_only(None,[g],[s])
     
     #Defines Nfield and Tobs per field as per average parameters (units are days)
-    Tfield=2000
+    Tfield=20
     Nfields=1 #really more like 20. But these are example parameters now
     
     # adds repeating grid
-    rg = rep.repeat_Grid(g,Tfield=Tfield,Nfields=1)
+    rg = rep.repeat_Grid(g,Tfield=Tfield,Nfields=1,MC=True,opdir='Repeaters/')
     exit()
     ############# do 2D plots ##########
     misc_functions.plot_grid_2(g.rates,g.zvals,g.dmvals,
@@ -121,7 +123,7 @@ def survey_and_grid(survey_name:str='CRAFT/CRACO_1_5000',
     zDMgrid, zvals,dmvals = misc_functions.get_zdm_grid(
         state, new=True, plot=False, method='analytic',
         datdir=resource_filename('zdm', 'GridData'),
-        zlog=False,nz=500)
+        zlog=False,nz=990,zmax=9.9)
 
     ############## Initialise surveys ##############
     if sdir is not None:
