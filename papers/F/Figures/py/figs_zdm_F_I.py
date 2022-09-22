@@ -205,7 +205,7 @@ def fig_varyF(
 
     survey, grid = analy_F_I.craco_mc_survey_grid()
 
-    fiducial_F = grid.state.IGM.F
+    fiducial_F = grid.state.IGM.logF
     fiducial_Emax = grid.state.energy.lEmax
     fiducial_H0 = grid.state.cosmo.H0
     fiducial_lmean = grid.state.host.lmean

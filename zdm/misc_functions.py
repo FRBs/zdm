@@ -1771,15 +1771,16 @@ def get_zdm_grid(state:parameters.State, new=True,
             t0=time.process_time()
             # calculate constants for p_DM distribution
             if orig:
-                C0s=pcosmic.make_C0_grid(zvals,state.IGM.F)
+                C0s=pcosmic.make_C0_grid(zvals,state.IGM.logF)
             else:
                 f_C0_3 = cosmic.grab_C0_spline()
-                sigma = state.IGM.F / np.sqrt(zvals)
+                actual_F = 10**(state.IGM.logF)
+                sigma = actual_F / np.sqrt(zvals)
                 C0s = f_C0_3(sigma)
             # generate pDM grid using those COs
             zDMgrid=pcosmic.get_pDM_grid(state,dmvals,zvals,C0s,zlog=zlog)
         
-        metadata=np.array([nz,ndm,state.IGM.F])
+        metadata=np.array([nz,ndm,state.IGM.logF])
         if save:
             np.save(savefile,zDMgrid)
             np.save(datfile,metadata)
