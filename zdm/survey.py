@@ -686,8 +686,10 @@ def make_widths(s:Survey,state):
     return widths,weights
 
 
-def load_survey(survey_name:str, state:parameters.State, dmvals:np.ndarray,
-                sdir:str=None, NFRB:int=None, Nbeams=None, iFRB:int=0):
+def load_survey(survey_name:str, state:parameters.State, 
+                dmvals:np.ndarray,
+                sdir:str=None, NFRB:int=None, 
+                Nbeams=None, iFRB:int=0):
     """Load a survey
 
     Args:

@@ -1,6 +1,6 @@
 """ Survey data """
 
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, field
 
 from zdm import data_class
 
