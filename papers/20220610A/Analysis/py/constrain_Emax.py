@@ -54,7 +54,8 @@ def main(pargs):
     state.update_param_dict(state_dict)
 
     ############## Initialise ##############
-    surveys, grids = real_loading.surveys_and_grids(init_state=state)
+    surveys, grids = real_loading.surveys_and_grids(init_state=state,
+                                                    add_20220610A=pargs.add_new)
 
     pvals = np.linspace(pargs.min, pargs.max, pargs.nstep)
     vparams = {}
@@ -192,12 +193,18 @@ parser.add_argument('max',type=float,help="maximum value")
 parser.add_argument('--nstep',type=int,default=10,required=False,help="number of steps")
 parser.add_argument('-o','--opfile',type=str,required=False,help="Output file for the data")
 parser.add_argument('--lum_func',type=int,default=0, required=False,help="Luminosity function (0=power-law, 1=gamma)")
+parser.add_argument('--add_new', default=False, action='store_true',
+                    help="Add all the new FRBs?")
 pargs = parser.parse_args()
 
 
 main(pargs)
 
 '''
+# Original
 python py/constrain_Emax.py 40.5 43.5 --nstep 30  -o James2022_Emax.png
+
+# New
+python py/constrain_Emax.py 40.5 43.5 --nstep 30  -o FRB20220610A_Emax.png --add_new
 #
 '''
