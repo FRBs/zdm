@@ -124,6 +124,7 @@ def surveys_and_grids(init_state=None, alpha_method=1):
     beams = [5,5,5,5,10]
     surveys = []
     for nbeam, survey_name in zip(beams, survey_names):
+        print(f"Initializing {survey_name}")
         surveys.append(survey.load_survey(survey_name, 
                                           state, dmvals,
                                           Nbeams=nbeam))
