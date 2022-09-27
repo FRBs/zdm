@@ -272,6 +272,27 @@ def fig_varyF(
         leg, _ = cs.legend_elements()
         legend_lines.append(leg[0])
 
+        ### TEST
+        # Interpolators
+        f_DM = interp1d(
+            dmvals, np.arange(dmvals.size), fill_value="extrapolate", bounds_error=False
+        )
+        f_z = interp1d(
+            zvals, np.arange(zvals.size), fill_value="extrapolate", bounds_error=False
+        )
+
+        cosmo = FlatLambdaCDM(
+            H0=grid.state.cosmo.H0,
+            Ob0=grid.state.cosmo.Omega_b,
+            Om0=grid.state.cosmo.Omega_m,
+        )
+
+        dms, zeval = figm.average_DM(2.0, cumul=True, cosmo=cosmo)
+
+        l_mqr = ax.plot(f_z(zeval), f_DM(dms), ls="--", c=color, alpha=0.5)
+
+        #### TEST END
+
         if other_param == "Emax":
             labels.append(
                 r"$F = $" + f"{F}, log " + r"$E_{\rm max}$" + f"= {vparams['lEmax']}"
@@ -281,26 +302,26 @@ def fig_varyF(
         elif other_param == "lmean":
             labels.append(r"$F = $" + f"{F}, $\mu =$ {vparams['lmean']}")
 
-    # Interpolators
-    f_DM = interp1d(
-        dmvals, np.arange(dmvals.size), fill_value="extrapolate", bounds_error=False
-    )
-    f_z = interp1d(
-        zvals, np.arange(zvals.size), fill_value="extrapolate", bounds_error=False
-    )
+    # # Interpolators
+    # f_DM = interp1d(
+    #     dmvals, np.arange(dmvals.size), fill_value="extrapolate", bounds_error=False
+    # )
+    # f_z = interp1d(
+    #     zvals, np.arange(zvals.size), fill_value="extrapolate", bounds_error=False
+    # )
 
-    cosmo = FlatLambdaCDM(
-        H0=grid.state.cosmo.H0,
-        Ob0=grid.state.cosmo.Omega_b,
-        Om0=grid.state.cosmo.Omega_m,
-    )
+    # cosmo = FlatLambdaCDM(
+    #     H0=grid.state.cosmo.H0,
+    #     Ob0=grid.state.cosmo.Omega_b,
+    #     Om0=grid.state.cosmo.Omega_m,
+    # )
 
-    dms, zeval = figm.average_DM(2.0, cumul=True, cosmo=cosmo)
+    # dms, zeval = figm.average_DM(2.0, cumul=True, cosmo=cosmo)
 
-    l_mqr = ax.plot(f_z(zeval), f_DM(dms), "k--")
+    # l_mqr = ax.plot(f_z(zeval), f_DM(dms), "k--")
 
-    legend_lines.append(l_mqr[0])
-    labels.append("Macquart Relation")
+    # legend_lines.append(l_mqr[0])
+    # labels.append("Macquart Relation")
 
     ax.legend(legend_lines, labels, loc="lower right")
 
@@ -459,14 +480,14 @@ def fig_craco_fiducial_F(
             linewidth=2,
             label="Macquart relation (mean)",
         )
-        plt.plot(
-            zeval,
-            DMEG_median,
-            color="gray",
-            linewidth=2,
-            ls="--",
-            label="Macquart relation (median)",
-        )
+        # plt.plot(
+        #     zeval,
+        #     DMEG_median,
+        #     color="gray",
+        #     linewidth=2,
+        #     ls="--",
+        #     label="Macquart relation (median)",
+        # )
         l = plt.legend(loc="lower right", fontsize=12)
     # l=plt.legend(bbox_to_anchor=(0.2, 0.8),fontsize=8)
     # for text in l.get_texts():
@@ -504,67 +525,102 @@ def fig_craco_fiducial_F(
 
 ### tests
 
-fig_craco_varyF_zDM("contours_varyF_H0.pdf", other_param="H0")
-fig_craco_varyF_zDM(
-    "contours_varyF_H0_dmhost_suppressed.pdf", other_param="H0", suppress_DM_host=True
-)
+# fig_craco_varyF_zDM("contours_varyF_H0.pdf", other_param="H0")
+# fig_craco_varyF_zDM(
+#     "contours_varyF_H0_dmhost_suppressed.pdf", other_param="H0", suppress_DM_host=True
+# )
 
-fig_craco_fiducial_F(
-    "fig_craco_F_0.32_dmhost_suppressed.png",
-    show_Macquart=True,
-    F=0.32,
-    suppress_DM_host=True,
-)
-fig_craco_fiducial_F(
-    "fig_craco_F_0.01_dmhost_suppressed.png",
-    show_Macquart=True,
-    F=0.01,
-    suppress_DM_host=True,
-)
-fig_craco_fiducial_F(
-    "fig_craco_F_0.9_dmhost_suppressed.png",
-    show_Macquart=True,
-    F=0.9,
-    suppress_DM_host=True,
-)
+# fig_craco_fiducial_F(
+#     "fig_craco_F_0.32_dmhost_suppressed.png",
+#     show_Macquart=True,
+#     F=0.32,
+#     suppress_DM_host=True,
+# )
+# fig_craco_fiducial_F(
+#     "fig_craco_F_0.01_dmhost_suppressed.png",
+#     show_Macquart=True,
+#     F=0.01,
+#     suppress_DM_host=True,
+# )
+# fig_craco_fiducial_F(
+#     "fig_craco_F_0.9_dmhost_suppressed.png",
+#     show_Macquart=True,
+#     F=0.9,
+#     suppress_DM_host=True,
+# )
 
-fig_craco_fiducial_F(
-    "fig_craco_F_0.32.png", show_Macquart=False, F=0.32, suppress_DM_host=False
-)
+# fig_craco_fiducial_F(
+#     "fig_craco_F_0.32.png", show_Macquart=True, F=0.32, suppress_DM_host=False
+# )
 
-fig_craco_fiducial_F(
-    "fig_craco_F_0.82_H0_55.png",
-    show_Macquart=False,
-    F=0.82,
-    H0=55.0,
-    suppress_DM_host=False,
-)
-fig_craco_fiducial_F(
-    "fig_craco_F_0.01.png", show_Macquart=True, F=0.01, suppress_DM_host=False
-)
-fig_craco_fiducial_F(
-    "fig_craco_F_0.9.png", show_Macquart=True, F=0.9, suppress_DM_host=False
-)
+# fig_craco_fiducial_F(
+#     "fig_craco_F_0.32_H0_55.png",
+#     show_Macquart=True,
+#     F=0.32,
+#     H0=55.0,
+#     suppress_DM_host=False,
+# )
+
+# fig_craco_fiducial_F(
+#     "fig_craco_F_0.01.png", show_Macquart=True, F=0.01, suppress_DM_host=False
+# )
+# fig_craco_fiducial_F(
+#     "fig_craco_F_0.9.png", show_Macquart=True, F=0.9, suppress_DM_host=False
+# )
+
+# fig_varyF(
+#     "fig_lmean_degeneracy_varyF.png",
+#     other_param="lmean",
+#     F_values=[0.01, 0.9],
+#     other_values=[None, None],
+#     lcolors=["r", "b"],
+#     lstyles=["-", "-"],
+#     DMmax=1800,
+# )
+
+# fig_varyF(
+#     "fig_lmean_degeneracy_varylm.png",
+#     other_param="lmean",
+#     F_values=[None, None],
+#     other_values=[2.5, 1.5],
+#     lcolors=["#e07a5f", "#81b29a"],
+#     lstyles=["-", "-"],
+#     DMmax=1800,
+# )
+
+###
+
+# fig_varyF(
+#     "fig_varyingF.png",
+#     other_param="H0",
+#     F_values=[0.01, 0.32, 0.5, 0.9],
+#     other_values=[None, None, None, None],
+#     lcolors=["#f72585", "#f8961e", "#3a0ca3", "#4895ef"],
+#     lstyles=["-", "-", "-", "-"],
+#     DMmax=1800,
+# )
 
 fig_varyF(
-    "fig_lmean_degeneracy_varyF.png",
-    other_param="lmean",
-    F_values=[0.01, 0.9],
-    other_values=[None, None],
-    lcolors=["r", "b"],
+    "fig_H0_F_Degeneracy_.png",
+    other_param="H0",
+    F_values=[0.32, 0.82],
+    other_values=[None, 55],
+    lcolors=["#f72585", "#f8961e"],
     lstyles=["-", "-"],
     DMmax=1800,
 )
 
-fig_varyF(
-    "fig_lmean_degeneracy_varylm.png",
-    other_param="lmean",
-    F_values=[None, None],
-    other_values=[2.5, 1.5],
-    lcolors=["#e07a5f", "#81b29a"],
-    lstyles=["-", "-"],
-    DMmax=1800,
-)
+# fig_varyF(
+#     "fig_varyingH0.png",
+#     other_param="H0",
+#     F_values=[0.32, 0.32, 0.32],
+#     other_values=[55, 67.4, 80],
+#     lcolors=["#f72585", "#f8961e", "#4895ef"],
+#     lstyles=["-", "-", "-"],
+#     DMmax=1800,
+# )
+
+###
 
 # fig_varyF(
 #     "test.png",
