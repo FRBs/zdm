@@ -7,7 +7,7 @@
 
 
 #############################
-from fcntl import F_ADD_SEALS
+# from fcntl import F_ADD_SEALS
 import sys
 
 # sys.path.insert(1, '/Users/cjames/CRAFT/FRB_library/ne2001-master/src/ne2001')
