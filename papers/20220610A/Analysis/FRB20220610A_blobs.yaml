@@ -1,0 +1,88 @@
+A:
+  a: !astropy.units.Quantity
+    unit: !astropy.units.Unit {unit: arcsec}
+    value: 1.0
+  b: !astropy.units.Quantity
+    unit: !astropy.units.Unit {unit: arcsec}
+    value: 1.0
+  centre: !astropy.coordinates.sky_coordinate.SkyCoord
+    dec: !astropy.coordinates.Latitude
+      unit: !astropy.units.Unit {unit: deg}
+      value: -33.51386111111111
+    frame: icrs
+    ra: !astropy.coordinates.Longitude
+      unit: !astropy.units.Unit {unit: deg}
+      value: 351.0731249999999
+      wrap_angle: !astropy.coordinates.Angle
+        unit: !astropy.units.Unit {unit: deg}
+        value: 360.0
+    representation_type: spherical
+  theta: !astropy.units.Quantity
+    unit: !astropy.units.Unit {unit: deg}
+    value: -45.0
+B:
+  a: !astropy.units.Quantity
+    unit: !astropy.units.Unit {unit: arcsec}
+    value: 1.6
+  b: !astropy.units.Quantity
+    unit: !astropy.units.Unit {unit: arcsec}
+    value: 1.1
+  centre: !astropy.coordinates.sky_coordinate.SkyCoord
+    dec: !astropy.coordinates.Latitude
+      unit: !astropy.units.Unit {unit: deg}
+      value: -33.51338888888889
+    frame: icrs
+    ra: !astropy.coordinates.Longitude
+      unit: !astropy.units.Unit {unit: deg}
+      value: 351.0734999999999
+      wrap_angle: !astropy.coordinates.Angle
+        unit: !astropy.units.Unit {unit: deg}
+        value: 360.0
+    representation_type: spherical
+  theta: !astropy.units.Quantity
+    unit: !astropy.units.Unit {unit: deg}
+    value: 35.0
+C:
+  a: !astropy.units.Quantity
+    unit: !astropy.units.Unit {unit: arcsec}
+    value: 0.8
+  b: !astropy.units.Quantity
+    unit: !astropy.units.Unit {unit: arcsec}
+    value: 0.7
+  centre: !astropy.coordinates.sky_coordinate.SkyCoord
+    dec: !astropy.coordinates.Latitude
+      unit: !astropy.units.Unit {unit: deg}
+      value: -33.51386111111111
+    frame: icrs
+    ra: !astropy.coordinates.Longitude
+      unit: !astropy.units.Unit {unit: deg}
+      value: 351.0739583333333
+      wrap_angle: !astropy.coordinates.Angle
+        unit: !astropy.units.Unit {unit: deg}
+        value: 360.0
+    representation_type: spherical
+  theta: !astropy.units.Quantity
+    unit: !astropy.units.Unit {unit: deg}
+    value: 80.0
+all:
+  a: !astropy.units.Quantity
+    unit: !astropy.units.Unit {unit: arcsec}
+    value: 3.0
+  b: !astropy.units.Quantity
+    unit: !astropy.units.Unit {unit: arcsec}
+    value: 3.0
+  centre: !astropy.coordinates.sky_coordinate.SkyCoord
+    dec: !astropy.coordinates.Latitude
+      unit: !astropy.units.Unit {unit: deg}
+      value: -33.51361111111111
+    frame: icrs
+    ra: !astropy.coordinates.Longitude
+      unit: !astropy.units.Unit {unit: deg}
+      value: 351.07354166666664
+      wrap_angle: !astropy.coordinates.Angle
+        unit: !astropy.units.Unit {unit: deg}
+        value: 360.0
+    representation_type: spherical
+  theta: !astropy.units.Quantity
+    unit: !astropy.units.Unit {unit: deg}
+    value: 45.0

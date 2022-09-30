@@ -152,8 +152,9 @@ def main(pargs):
 
         # Hold
         final_lls.append(ll)
-        final_dicts.append(odict)
+        final_dicts.append(odict.copy())
         print(f'{param}: pval={pval}, C={C}, lltot={ll}')
+        embed(header='157 of constrain')
 
     # Write
     tdf = pandas.DataFrame(final_dicts)
@@ -205,6 +206,6 @@ main(pargs)
 python py/constrain_Emax.py 40.5 43.5 --nstep 30  -o James2022_Emax.png
 
 # New
-python py/constrain_Emax.py 40.5 43.5 --nstep 30  -o FRB20220610A_Emax.png --add_new
+python py/constrain_Emax.py 40.5 43.5 --nstep 50  -o FRB20220610A_Emax.png --add_new
 #
 '''
