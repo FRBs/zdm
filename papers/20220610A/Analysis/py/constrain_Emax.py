@@ -150,11 +150,14 @@ def main(pargs):
         odict['p_DMgz'] = longlistsum[2]
         odict['p_z'] = longlistsum[3]
 
+        # Parameter
+        odict[param] = pval
+
         # Hold
         final_lls.append(ll)
         final_dicts.append(odict.copy())
         print(f'{param}: pval={pval}, C={C}, lltot={ll}')
-        embed(header='157 of constrain')
+        #embed(header='157 of constrain')
 
     # Write
     tdf = pandas.DataFrame(final_dicts)
