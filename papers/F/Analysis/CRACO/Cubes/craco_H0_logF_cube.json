@@ -1,7 +1,7 @@
 {
   "state": {
     "energy": {
-      "luminosity_function": 2
+      "luminosity_function": 3
     },
     "FRBdemo": {
       "alpha_method": 1
