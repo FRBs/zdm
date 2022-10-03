@@ -14,11 +14,11 @@
         "parameter_order": [
             "lC",
             "sfr_n",
-            "alpha",
-            "lEmax",
             "lmean",
             "lsigma",
             "F",
+            "alpha",
+            "lEmax",
             "gamma",
             "H0"
         ]
