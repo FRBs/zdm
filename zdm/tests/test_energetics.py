@@ -12,7 +12,8 @@ def test_init_gamma():
 
     # Test
     assert -1. in energetics.igamma_linear.keys()
-    assert np.isclose(float(energetics.igamma_linear[-1](1.)), 0.14860105)
+    assert np.isclose(float(
+        energetics.igamma_linear[-1](1.)), 0.14860105, atol=2e-4)
 
     # Run with log
     energetics.init_igamma_linear([-1.], log=True)
