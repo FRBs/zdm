@@ -39,7 +39,7 @@ def init_igamma_linear(gammas:list, reinit:bool=False,
             print(f"Initializing igamma_linear for gamma={gamma} with log10")
 
             # values
-            avals = 10**np.linspace(-6, 6., 1000)
+            avals = 10**np.linspace(-7.5, 6., 1000)
 
             numer = np.array([float(mpmath.gammainc(
                 gamma, a=iEE)) for iEE in avals])
@@ -241,7 +241,11 @@ def vector_cum_gamma_linear(Eth:np.ndarray, *params):
         Eth_Emax = Eth - np.log10(Emax)
         if gamma not in igamma_linear_log10.keys():
             init_igamma_linear([gamma], log=log)
-        numer = igamma_linear_log10[gamma](Eth_Emax)
+        try:
+            numer = igamma_linear_log10[gamma](Eth_Emax)
+        except:
+            print(Eth_Emax)
+            embed(header='248 of energetics.py')
         Emin_temp = np.log10(float(Emin))
 
     else:

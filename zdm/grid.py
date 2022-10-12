@@ -71,6 +71,7 @@ class Grid:
         self.calc_thresholds(survey.meta['THRESH'],
                              efficiencies,
                              weights=weights)
+        # Calculate
         self.calc_pdv()
         self.set_evolution() # sets star-formation rate scaling with z - here, no evoltion...
         self.calc_rates() #includes sfr smearing factors and pdv mult
@@ -256,8 +257,6 @@ class Grid:
 
         for i,b in enumerate(main_beam_b):
             for j,w in enumerate(self.eff_weights):
-                
-
                 # using log10 space conversion
                 if self.use_log10:
                     thresh = new_thresh[j,:,:] - b
@@ -273,7 +272,6 @@ class Grid:
                         thresh,Emin,Emax,
                         self.state.energy.gamma, self.use_log10)
         
-                
         # here, b-fractions are unweighted according to the value of b.
         self.fractions=np.sum(self.b_fractions,axis=2) # sums over b-axis [ we could ignore this step?]
         self.pdv=np.multiply(self.fractions.T,self.dV).T
