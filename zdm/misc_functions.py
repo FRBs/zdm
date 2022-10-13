@@ -1961,7 +1961,7 @@ def plot_grid_2(zDMgrid,zvals,dmvals,
                 FRBZ=None,FRBDM=None,Aconts=False,
                 Macquart=None,title="Plot", cmap=None,
                 H0=None,showplot=False,DMlines=None,
-                data_clr='red'):
+                data_clr='red',special=None):
     """
     Very complicated routine for plotting 2D zdm grids 
 
@@ -1988,6 +1988,7 @@ def plot_grid_2(zDMgrid,zvals,dmvals,
         showplot (bool, optional): [description]. Defaults to False.
         cmap (str, optional): Alternate color map for PDF
         data_clr (str, optional): Alternate color for data
+        special: list of [z,dm] values to show as a special big star
     """
     if H0 is None:
         H0 = cos.cosmo.H0
@@ -2078,6 +2079,11 @@ def plot_grid_2(zDMgrid,zvals,dmvals,
             #    level of the countour to draw
             iwhich=np.where(cslist > ac)[0][0]
             alevels[i]=slist[iwhich]
+        
+        if norm == 1:
+            alevels /= ddm
+        elif norm == 2:
+            alevels /= xnorm
         
     ### generates contours *before* cutting array in DM ###
     ### might need to normalise contours by integer lengths, oh well! ###
@@ -2242,7 +2248,12 @@ def plot_grid_2(zDMgrid,zvals,dmvals,
         iZ=FRBZ/dz
         OK = np.where(FRBZ>0)[0]
         plt.plot(iZ[OK],iDMs[OK],'o', color=data_clr, linestyle="")
-        
+    
+    if special is not None:
+        iDM=special[0]/ddm
+        iz=special[1]/dz
+        plt.plot([iz],[iDM],'*', markersize=10,color="blue", linestyle="")
+    
     # do 1-D projected plots
     if project:
         plt.sca(acb)

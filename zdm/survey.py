@@ -152,7 +152,7 @@ class Survey:
         if NFRB is None:
             self.NFRB=keys.count('FRB')
         else:
-            self.NFRB = NFRB
+            self.NFRB = min(keys.count('FRB'),NFRB)
         if self.NFRB==0:
             raise ValueError('No FRBs found in file '+filename) #change this?
 
@@ -163,10 +163,12 @@ class Survey:
         
         #### separates FRB and non-FRB keys
         self.frblist=self.find(keys,'FRB')
-
         if NFRB is not None:
-            # Take the first set
-            self.frblist=self.frblist[iFRB:NFRB+iFRB]
+            # Take the first set - ensures we do not overrun the total number of FRBs
+            if self.NFRB < NFRB+iFRB:
+                raise ValueError("Cannot return sufficient FRBs, did you mean NFRB=None?")
+            themax = min(NFRB+iFRB,self.NFRB)
+            self.frblist=self.frblist[iFRB:themax]
         
         ### first check for the key list to interpret the FRB table
         iKEY=self.do_metakey('KEY')
@@ -206,6 +208,7 @@ class Survey:
         self.do_keyword_char('XDec',which,None, dtype='str') # obviously we don't need names,!
         
         self.do_keyword('Z',which,None)
+        
         if self.frbs["Z"] is not None:
             
             self.Zs=self.frbs["Z"]

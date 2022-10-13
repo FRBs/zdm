@@ -80,7 +80,9 @@ def set_state(alpha_method=1, cosmo=Planck18):
         
         vparams['host']['lmean'] = 2.18
         vparams['host']['lsigma'] = 0.48
-        
+    
+    vparams['energy']['luminosity_function'] = 2 # gamma function with splines
+    
     state.update_param_dict(vparams)
     state.set_astropy_cosmo(cosmo)
 
@@ -92,7 +94,7 @@ def survey_and_grid(survey_name:str='CRAFT/CRACO_1_5000',
             init_state=None,
             state_dict=None, iFRB:int=0,
                alpha_method=1, NFRB:int=100, 
-               lum_func:int=0,sdir=None,nz=500,ndm=1400,Nbeams=5):
+               lum_func:int=2,sdir=None,nz=500,ndm=1400,Nbeams=5):
     """ Load up a survey and grid for a CRACO mock dataset
 
     Args:

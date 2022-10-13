@@ -10,7 +10,7 @@ beams_path = os.path.join(resource_filename('zdm', 'data'), 'BeamData')
 
 def gauss_beam(thresh=1e-3,nbins=10,freq=1.4e9,D=64,sigma=None):
     '''initialises a Gaussian beam
-    D in m, freq in Hz
+    D in m, freq in MHz
     e.g. Parkes HWHM is 7 arcmin at 1.4 GHz
     #thresh 1e-3 means -6.7 is range in lnb, 3.74 range in sigma
     '''
@@ -70,6 +70,13 @@ def simplify_beam(logb,omega_b,nbins,thresh=0.,weight=1.5,method=1,savename=None
     Thresh is the threshold below which we cut out measurements.
     Defaults to including 99% of the rate. Simpler!
     weight tells us how to scale the omega_b to get effective means
+    
+    method:
+        1: attempts to place equal probability into each beam bin
+        2: starts with lowest b-value where cumulative rate above thresh
+        3: no simplification, returns the full beam!
+        4: favours the first few bins
+        5: ignores the data, simply sets omeba_b to 1, b to 1 (e.g. for testing)
     """
     
     # Calculates relative rate as a function of beam position rate of -1.5
@@ -166,6 +173,12 @@ def simplify_beam(logb,omega_b,nbins,thresh=0.,weight=1.5,method=1,savename=None
                 start=0
             new_b[i]=np.sum(rate[start:stop]*b[start:stop])/np.sum(rate[start:stop])
             new_o[i]=np.sum(omega_b[start:stop])
+    elif method==5:
+        new_b=np.array([1.])
+        new_o=np.array([1.])
+    else:
+        raise ValueError("Beam method ",method," not implemented")
+        
     ### plots if appropriate
     if savename is not None:
         
