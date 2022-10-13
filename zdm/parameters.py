@@ -227,7 +227,7 @@ class EnergeticsParams(data_class.myDataClass):
                   'Notation': '\gamma',
                   })
     luminosity_function: int = field(
-        default = 0,
+        default = 2,
         metadata={'help': 'luminosity function applied (0=power-law, 1=gamma, 2=spline+gamma, 3=gamma+linear+log10)'})
 
 class State(data_class.myData):

@@ -785,7 +785,7 @@ def extract_limits(x,y,p,method=1):
     args:
         x (np.ndarray): xvalues of data (independent variable on which we place limits)
         y (np.ndarray): yvalues of data (probability distribution)
-        p: probability of confidence interval (e.g. 0.68 for ~1 sigma)
+        p: probability of confidence interval (e.g. (1-0.68)/2 for ~1 sigma)
         method: 1: includes most-likely points in C.I. first
                 2: sets equal probability to either side
     returns:

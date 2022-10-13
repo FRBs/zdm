@@ -1,10 +1,17 @@
 BW    336 #MHz
 FRES  1 #MHz
-NFRB 3 #Number of FRBs
+NFRB 8 #Number of FRBs
+NORM_FRB 8
+TOBS 62 #days - divided by 2 for SNR error
 BEAM ASKAP_892 #prefix of beam file
 THRESH 4.4 #Jy ms to a 1 ms burst, averaged over THRESH of below configs (22/sqrt{Nant}). Should be adjusted to lower frequency
 SNRTHRESH 9 # signal-to-noise threshold: scales jy ms to snr
-KEY	ID	DM	FBAR	SNR	XRA		XDEC		XUT		DMG	XNant	XConfig			TRES	WIDTH	Z
-FRB	191001	506.92	919.5	62	21:33:24	-54:44:54	16:55:35.97081	44.2	30	closepack36/45		1.728	4.2	0.23
-FRB	200430	380.1	864.5	25.7	15:18:49.581	12:22:34.007	15:49:48.907	27	26	square_6x6		1.728	6.5	0.161
-FRB	200906	577.8	864.5	19.2	03:33:58.9364	-14:04:59.9136	21:40:50.923	35.9	7	closepack36		1.728	6.0	0.36879	
+KEY	ID	    DM	    FBAR	SNR	    XRA		        XDEC		    DMG	    XNant	XConfig			    TRES	WIDTH	Z
+FRB	191001	506.92	919.5	62	    21:33:24	    -54:44:54	    44.2	30	    closepack36/45	    1.728	4.2	    0.23
+FRB	200430	380.1	864.5	16	15:18:49.581	12:22:34.007	27	    26	    square_6x6		    1.728	6.5	    0.161
+FRB 200627	294	    920.5	11.0	21:46:47.0	    -39:29:05.0	    40		31	    closepack36	        1.728	2.9	    -1
+FRB	200906	577.8	864.5	19.2	03:33:58.9364	-14:04:59.9136	35.9	7	    closepack36		    1.728	6.0	    0.36879	
+FRB	210320	384.8	864.5	15.3	13:37:50.08605	-16:09:05.1		42.2	24	    square_6x6/45/1.05	1.728	5.4	    0.28
+FRB	210807	251.9	920.5	47.1	19:56:53.144	-00:45:44.5		121.2	23	    square6x6/45/0.9	1.182	10	    0.12969
+FRB 210809	651.5   920.5	16.8	18:04:37.7	    01:19:43.5		190.1	23	    square6x6/45/0.9	1.182	14.2	-1
+FRB 211203  636.2   920.5   14.2    13:37:52.8	    -31:22:04.0     63.4    24      closepack36/45/0.9  1.182   9.6     -1
