@@ -31,7 +31,20 @@ class myData:
 
     @classmethod
     def from_jsonfile(cls, jfile:str):
+        """ Load from a JSON file
+
+        Args:
+            jfile (str): name of the JSON file
+
+        Returns:
+            myDataClass: 
+        """
         json_dict = io.process_jfile(jfile)
+        return cls.from_dict(json_dict)
+
+    @classmethod
+    def from_jsonstr(cls, jsonstr:str):
+        json_dict = json.loads(jsonstr)
         return cls.from_dict(json_dict)
 
     def set_dataclasses(self):

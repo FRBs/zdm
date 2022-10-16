@@ -19,6 +19,7 @@ from scipy.integrate import quad
 
 import pandas
 from astropy.table import Table
+import json
 
 from typing import IO
 
@@ -760,19 +761,37 @@ def load_survey(survey_name:str, state:parameters.State,
 
 def refactor_old_survey_file(survey_name:str, outfile:str):
     state = parameters.State()
+    srvy_data = survey_data.SurveyData()
     
     # Load up
     isurvey = load_survey(survey_name, state,
                          np.linspace(0., 2000., 1000))
-    if 'CRAFT' in survey_name:
-        srvy_data = survey_data.SurveyData()
-    else:
-        raise IOError("Not ready for other surveys yet.")
+
+    # Fill in
+
+    # Time and Frequency
+    srvy_data.timefrequency.BW = isurvey.BWs[0]
+    srvy_data.timefrequency.FRES = isurvey.FRESs[0]
+    srvy_data.timefrequency.TRES = isurvey.TRESs[0]
+
+    # Telescope
+    srvy_data.telescope.BEAM = isurvey.meta['BEAM']
+    srvy_data.telescope.DIAM = isurvey.meta['DIAM']
+    srvy_data.telescope.NBEAMS = int(isurvey.meta['NBEAMS'])
+    srvy_data.telescope.SNRTHRESH = isurvey.meta['SNRTHRESH']
+    srvy_data.telescope.THRESH = isurvey.meta['THRESH']
+
+    # Observing
+    srvy_data.observing.TOBS = isurvey.TOBS
 
     # FRBs
     frbs = pandas.DataFrame(isurvey.frbs)
     frbs = Table.from_pandas(frbs)
 
+    # Meta
+    frbs.meta['survey_data'] = json.dumps(
+        srvy_data.to_dict(), sort_keys=True, indent=4, 
+        separators=(',', ': '))
+
     # Write me
-    embed(header='777 of survey.py')
-    srvy_data.write('craft_fe.json')
+    frbs.write(outfile, overwrite=True)
