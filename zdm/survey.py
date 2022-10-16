@@ -17,10 +17,14 @@ import os
 from pkg_resources import resource_filename
 from scipy.integrate import quad
 
+import pandas
+from astropy.table import Table
+
 from typing import IO
 
 from zdm import beams, parameters
 from zdm import pcosmic
+from zdm import survey_data
 
 import matplotlib.pyplot as plt
 
@@ -753,3 +757,22 @@ def load_survey(survey_name:str, state:parameters.State,
     _ = srvy.get_efficiency_from_wlist(dmvals,pwidths,pprobs)
 
     return srvy
+
+def refactor_old_survey_file(survey_name:str, outfile:str):
+    state = parameters.State()
+    
+    # Load up
+    isurvey = load_survey(survey_name, state,
+                         np.linspace(0., 2000., 1000))
+    if 'CRAFT' in survey_name:
+        srvy_data = survey_data.SurveyData()
+    else:
+        raise IOError("Not ready for other surveys yet.")
+
+    # FRBs
+    frbs = pandas.DataFrame(isurvey.frbs)
+    frbs = Table.from_pandas(frbs)
+
+    # Write me
+    embed(header='777 of survey.py')
+    srvy_data.write('craft_fe.json')
