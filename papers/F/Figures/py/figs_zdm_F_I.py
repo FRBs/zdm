@@ -363,7 +363,7 @@ def fig_craco_fiducial_F(
 
     fiducial_H0 = grid.state.cosmo.H0
 
-    vparams = {"H0": fiducial_H0, "F": F}
+    vparams = {"H0": fiducial_H0, "logF": F}
 
     if H0 is not None:
         vparams["H0"] = H0
@@ -426,7 +426,7 @@ def fig_craco_fiducial_F(
 
     ax = plt.gca()
 
-    ax.set_title(f"F = {F}")
+    ax.set_title(rf"$\log F = {F}$")
 
     muDMhost = np.log(10 ** grid.state.host.lmean)
     sigmaDMhost = np.log(10 ** grid.state.host.lsigma)
@@ -504,67 +504,85 @@ def fig_craco_fiducial_F(
 
 ### tests
 
-fig_craco_varyF_zDM("contours_varyF_H0.pdf", other_param="H0")
-fig_craco_varyF_zDM(
-    "contours_varyF_H0_dmhost_suppressed.pdf", other_param="H0", suppress_DM_host=True
-)
+# fig_craco_fiducial_F(
+#     "fig_craco_logF_-.5_H0_56.png",
+#     show_Macquart=False,
+#     F=-0.5,
+#     H0=56,
+#     suppress_DM_host=False,
+# )
 
 fig_craco_fiducial_F(
-    "fig_craco_F_0.32_dmhost_suppressed.png",
-    show_Macquart=True,
-    F=0.32,
-    suppress_DM_host=True,
-)
-fig_craco_fiducial_F(
-    "fig_craco_F_0.01_dmhost_suppressed.png",
-    show_Macquart=True,
-    F=0.01,
-    suppress_DM_host=True,
-)
-fig_craco_fiducial_F(
-    "fig_craco_F_0.9_dmhost_suppressed.png",
-    show_Macquart=True,
-    F=0.9,
-    suppress_DM_host=True,
-)
-
-fig_craco_fiducial_F(
-    "fig_craco_F_0.32.png", show_Macquart=False, F=0.32, suppress_DM_host=False
-)
-
-fig_craco_fiducial_F(
-    "fig_craco_F_0.82_H0_55.png",
+    "fig_craco_logF_-1.51_H0_56.png",
     show_Macquart=False,
-    F=0.82,
-    H0=55.0,
+    F=-1.51,
+    H0=56,
     suppress_DM_host=False,
 )
-fig_craco_fiducial_F(
-    "fig_craco_F_0.01.png", show_Macquart=True, F=0.01, suppress_DM_host=False
-)
-fig_craco_fiducial_F(
-    "fig_craco_F_0.9.png", show_Macquart=True, F=0.9, suppress_DM_host=False
-)
 
-fig_varyF(
-    "fig_lmean_degeneracy_varyF.png",
-    other_param="lmean",
-    F_values=[0.01, 0.9],
-    other_values=[None, None],
-    lcolors=["r", "b"],
-    lstyles=["-", "-"],
-    DMmax=1800,
-)
+####
 
-fig_varyF(
-    "fig_lmean_degeneracy_varylm.png",
-    other_param="lmean",
-    F_values=[None, None],
-    other_values=[2.5, 1.5],
-    lcolors=["#e07a5f", "#81b29a"],
-    lstyles=["-", "-"],
-    DMmax=1800,
-)
+# fig_craco_varyF_zDM("contours_varyF_H0.pdf", other_param="H0")
+# fig_craco_varyF_zDM(
+#     "contours_varyF_H0_dmhost_suppressed.pdf", other_param="H0", suppress_DM_host=True
+# )
+
+# fig_craco_fiducial_F(
+#     "fig_craco_F_0.32_dmhost_suppressed.png",
+#     show_Macquart=True,
+#     F=0.32,
+#     suppress_DM_host=True,
+# )
+# fig_craco_fiducial_F(
+#     "fig_craco_F_0.01_dmhost_suppressed.png",
+#     show_Macquart=True,
+#     F=0.01,
+#     suppress_DM_host=True,
+# )
+# fig_craco_fiducial_F(
+#     "fig_craco_F_0.9_dmhost_suppressed.png",
+#     show_Macquart=True,
+#     F=0.9,
+#     suppress_DM_host=True,
+# )
+
+# fig_craco_fiducial_F(
+#     "fig_craco_F_0.32.png", show_Macquart=False, F=0.32, suppress_DM_host=False
+# )
+
+# fig_craco_fiducial_F(
+#     "fig_craco_F_0.82_H0_55.png",
+#     show_Macquart=False,
+#     F=0.82,
+#     H0=55.0,
+#     suppress_DM_host=False,
+# )
+# fig_craco_fiducial_F(
+#     "fig_craco_F_0.01.png", show_Macquart=True, F=0.01, suppress_DM_host=False
+# )
+# fig_craco_fiducial_F(
+#     "fig_craco_F_0.9.png", show_Macquart=True, F=0.9, suppress_DM_host=False
+# )
+
+# fig_varyF(
+#     "fig_lmean_degeneracy_varyF.png",
+#     other_param="lmean",
+#     F_values=[0.01, 0.9],
+#     other_values=[None, None],
+#     lcolors=["r", "b"],
+#     lstyles=["-", "-"],
+#     DMmax=1800,
+# )
+
+# fig_varyF(
+#     "fig_lmean_degeneracy_varylm.png",
+#     other_param="lmean",
+#     F_values=[None, None],
+#     other_values=[2.5, 1.5],
+#     lcolors=["#e07a5f", "#81b29a"],
+#     lstyles=["-", "-"],
+#     DMmax=1800,
+# )
 
 # fig_varyF(
 #     "test.png",
