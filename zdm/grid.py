@@ -279,11 +279,15 @@ class Grid:
                 else:  # original
                     thresh = self.thresholds[j, :, :] / b
 
-                if j == 0:
-                    self.b_fractions[:, :, i] = (self.beam_o[i] * w * self.array_cum_lf(thresh, Emin, Emax, self.state.energy.gamma, self.use_log10))
+                if j==0:
+                    self.b_fractions[:,:,i] = self.beam_o[i]*w*self.array_cum_lf(
+                        thresh,Emin,Emax,
+                        self.state.energy.gamma, self.use_log10)
                 else:
-                    self.b_fractions[:, :, i] += (self.beam_o[i] * w * self.array_cum_lf(thresh, Emin, Emax, self.state.energy.gamma, self.use_log10))
-
+                    self.b_fractions[:,:,i] += self.beam_o[i]*w*self.array_cum_lf(
+                        thresh,Emin,Emax,
+                        self.state.energy.gamma, self.use_log10)
+                        
         # here, b-fractions are unweighted according to the value of b.
         self.fractions = np.sum(
             self.b_fractions, axis=2
