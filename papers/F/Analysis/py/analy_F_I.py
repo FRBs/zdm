@@ -1,6 +1,6 @@
 from zdm.craco import loading
 
-fiducial_survey = "CRACO_std_May2022"
+fiducial_survey = "CRACO_F_0.32_survey"
 
 
 def craco_mc_survey_grid(iFRB=100):

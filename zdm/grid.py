@@ -662,12 +662,14 @@ class Grid:
                 Emin
                 Emax
                 gamma
+                H0
                 calc_thresholds
                     F0
                     alpha
                     bandwidth
             set_evolution
                 sfr_n
+                H0
             
             smear_grid
                 grid
