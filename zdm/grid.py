@@ -267,9 +267,7 @@ class Grid:
 
         # call log10 beam
         if self.use_log10:
-            new_thresh = np.log10(
-                self.thresholds
-            )  # use when calling in log10 space conversion
+            new_thresh = np.log10(self.thresholds)  # use when calling in log10 space conversion
             main_beam_b = np.log10(main_beam_b)
 
         for i, b in enumerate(main_beam_b):
@@ -282,21 +280,9 @@ class Grid:
                     thresh = self.thresholds[j, :, :] / b
 
                 if j == 0:
-                    self.b_fractions[:, :, i] = (
-                        self.beam_o[i]
-                        * w
-                        * self.array_cum_lf(
-                            thresh, Emin, Emax, self.state.energy.gamma, self.use_log10
-                        )
-                    )
+                    self.b_fractions[:, :, i] = (self.beam_o[i] * w * self.array_cum_lf(thresh, Emin, Emax, self.state.energy.gamma, self.use_log10))
                 else:
-                    self.b_fractions[:, :, i] += (
-                        self.beam_o[i]
-                        * w
-                        * self.array_cum_lf(
-                            thresh, Emin, Emax, self.state.energy.gamma, self.use_log10
-                        )
-                    )
+                    self.b_fractions[:, :, i] += (self.beam_o[i] * w * self.array_cum_lf(thresh, Emin, Emax, self.state.energy.gamma, self.use_log10))
 
         # here, b-fractions are unweighted according to the value of b.
         self.fractions = np.sum(
