@@ -205,7 +205,7 @@ def fig_varyF(
 
     survey, grid = analy_F_I.craco_mc_survey_grid()
 
-    fiducial_F = grid.state.IGM.F
+    fiducial_F = grid.state.IGM.logF
     fiducial_Emax = grid.state.energy.lEmax
     fiducial_H0 = grid.state.cosmo.H0
     fiducial_lmean = grid.state.host.lmean
@@ -384,7 +384,7 @@ def fig_craco_fiducial_F(
 
     fiducial_H0 = grid.state.cosmo.H0
 
-    vparams = {"H0": fiducial_H0, "F": F}
+    vparams = {"H0": fiducial_H0, "logF": F}
 
     if H0 is not None:
         vparams["H0"] = H0
@@ -447,7 +447,7 @@ def fig_craco_fiducial_F(
 
     ax = plt.gca()
 
-    ax.set_title(f"F = {F}")
+    ax.set_title(rf"$\log F = {F}$")
 
     muDMhost = np.log(10 ** grid.state.host.lmean)
     sigmaDMhost = np.log(10 ** grid.state.host.lsigma)
@@ -525,6 +525,24 @@ def fig_craco_fiducial_F(
 
 ### tests
 
+# fig_craco_fiducial_F(
+#     "fig_craco_logF_-.5_H0_56.png",
+#     show_Macquart=False,
+#     F=-0.5,
+#     H0=56,
+#     suppress_DM_host=False,
+# )
+
+fig_craco_fiducial_F(
+    "fig_craco_logF_-1.51_H0_56.png",
+    show_Macquart=False,
+    F=-1.51,
+    H0=56,
+    suppress_DM_host=False,
+)
+
+####
+
 # fig_craco_varyF_zDM("contours_varyF_H0.pdf", other_param="H0")
 # fig_craco_varyF_zDM(
 #     "contours_varyF_H0_dmhost_suppressed.pdf", other_param="H0", suppress_DM_host=True
@@ -550,17 +568,16 @@ def fig_craco_fiducial_F(
 # )
 
 # fig_craco_fiducial_F(
-#     "fig_craco_F_0.32.png", show_Macquart=True, F=0.32, suppress_DM_host=False
+#     "fig_craco_F_0.32.png", show_Macquart=False, F=0.32, suppress_DM_host=False
 # )
 
 # fig_craco_fiducial_F(
-#     "fig_craco_F_0.32_H0_55.png",
-#     show_Macquart=True,
-#     F=0.32,
+#     "fig_craco_F_0.82_H0_55.png",
+#     show_Macquart=False,
+#     F=0.82,
 #     H0=55.0,
 #     suppress_DM_host=False,
 # )
-
 # fig_craco_fiducial_F(
 #     "fig_craco_F_0.01.png", show_Macquart=True, F=0.01, suppress_DM_host=False
 # )
@@ -587,28 +604,6 @@ def fig_craco_fiducial_F(
 #     lstyles=["-", "-"],
 #     DMmax=1800,
 # )
-
-###
-
-# fig_varyF(
-#     "fig_varyingF.png",
-#     other_param="H0",
-#     F_values=[0.01, 0.32, 0.5, 0.9],
-#     other_values=[None, None, None, None],
-#     lcolors=["#f72585", "#f8961e", "#3a0ca3", "#4895ef"],
-#     lstyles=["-", "-", "-", "-"],
-#     DMmax=1800,
-# )
-
-fig_varyF(
-    "fig_H0_F_Degeneracy_.png",
-    other_param="H0",
-    F_values=[0.32, 0.82],
-    other_values=[None, 55],
-    lcolors=["#f72585", "#f8961e"],
-    lstyles=["-", "-"],
-    DMmax=1800,
-)
 
 # fig_varyF(
 #     "fig_varyingH0.png",

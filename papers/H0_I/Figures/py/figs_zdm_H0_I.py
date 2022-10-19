@@ -222,7 +222,7 @@ def fig_craco_varyH0_zDM(outfile,
         lstyles = ['-', '-', '-', ':']
         zticks = [0.5, 1.0, 1.5, 2.]
         ylim = (0., DMmax)
-    elif other_param == 'F':
+    elif other_param == 'logF':
         H0_values = [60., 70., 80., 60.]
         other_values = [fiducial_F, fiducial_F, fiducial_F, 0.5]
         lstyle = '-'
@@ -242,8 +242,8 @@ def fig_craco_varyH0_zDM(outfile,
         vparams['H0'] = H0
         if other_param == 'Emax':
             vparams['lEmax'] = fiducial_Emax + scl
-        elif other_param == 'F':
-            vparams['F'] = scl
+        elif other_param == 'logF':
+            vparams['logF'] = scl
         grid.update(vparams)
 
         # Unpack
@@ -279,8 +279,8 @@ def fig_craco_varyH0_zDM(outfile,
         # Label
         if other_param == 'Emax':
             labels.append(r"$H_0 = $"+f"{H0}, log "+r"$E_{\rm max}$"+f"= {vparams['lEmax']}")
-        elif other_param == 'F':
-            labels.append(r"$H_0 = $"+f"{H0}, F = {vparams['F']}")
+        elif other_param == 'logF':
+            labels.append(r"$H_0 = $"+f"{H0}, F = {vparams['logF']}")
 
     ###### gets decent axis labels, down to 1 decimal place #######
     ax=plt.gca()
@@ -327,7 +327,7 @@ def fig_craco_varyH0_other(outfile, params,
         H0_values = [60., 70., 80., 80.]
         other_values = [41.4, 41.4, 41.4, 41.3]
         lstyles = ['-', '-', '-', ':']
-    elif other_param == 'F':
+    elif other_param == 'logF':
         H0_values = [60., 70., 80., 60.]
         other_values = [fiducial_F, fiducial_F, fiducial_F, 0.5]
         lstyle = '-'
@@ -412,7 +412,7 @@ def fig_craco_varyH0_other(outfile, params,
         if other_param == "Emax":
             labels.append(r"$H_0 = $" + f"{H0}, log " + r"$E_{\rm max}$" + f"= {lEmax}")
         elif other_param == "F":
-            labels.append(r"$H_0 = $" + f"{H0}, F = {vparams['F']}")
+            labels.append(r"$H_0 = $" + f"{H0}, F = {vparams['logF']}")
 
     ###### gets decent axis labels, down to 1 decimal place #######
     ax = plt.gca()

@@ -6,7 +6,7 @@
         "source_evolution": 0
     },
     "IGM": {
-        "F": 0.32
+        "logF": -0.49485
     },
     "MW": {
         "DMhalo": 50,

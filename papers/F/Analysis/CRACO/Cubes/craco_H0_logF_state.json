@@ -6,7 +6,7 @@
         "source_evolution": 0
     },
     "IGM": {
-        "logF": -0.49485
+        "logF": 0.32
     },
     "MW": {
         "DMhalo": 50,
@@ -17,8 +17,8 @@
         "sprefix": "Std"
     },
     "beam": {
-        "Bthresh": 0.0,
-        "Bmethod": 2
+        "Bmethod": 2,
+        "Bthresh": 0
     },
     "cosmo": {
         "H0": 67.66,
@@ -40,18 +40,18 @@
         "lmean": 2.18,
         "lsigma": 0.48
     },
+    "scat": {
+        "Sfnorm": 600,
+        "Sfpower": -4.0,
+        "Slogmean": 0.7,
+        "Slogsigma": 1.9
+    },
     "width": {
+        "Wbins": 10,
         "Wlogmean": 1.70267,
         "Wlogsigma": 0.899148,
-        "Wthresh": 0.5,
-        "Wmethod": 1,
-        "Wbins": 5,
-        "Wscale": 3.5
-    },
-    "scat": {
-        "Slogmean": 0.7,
-        "Slogsigma": 1.9,
-        "Sfnorm": 600,
-        "Sfpower": -4
+        "Wmethod": 2,
+        "Wscale": 2,
+        "Wthresh": 0.5
     }
 }

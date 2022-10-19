@@ -130,11 +130,11 @@ class HostParams(data_class.myDataClass):
 # IGM parameters
 @dataclass
 class IGMParams(data_class.myDataClass):
-    F: float = field(
+    logF: float = field(
         default=0.32,
-        metadata={'help': 'F parameter in DM$_{\\rm cosmic}$ PDF for the Cosmic web',
+        metadata={'help': 'logF parameter in DM$_{\\rm cosmic}$ PDF for the Cosmic web',
                   'unit': '',
-                  'Notation': 'F',
+                  'Notation': 'logF',
         })
 
 

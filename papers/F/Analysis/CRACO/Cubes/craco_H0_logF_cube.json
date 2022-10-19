@@ -13,14 +13,14 @@
   "cube": {
     "parameter_order": [
       "lC",
-      "F",
+      "logF",
       "H0"
     ]
   },
-  "F": {
+  "logF": {
     "DC": "IGM",
-    "min": 0.01,
-    "max": 1.0,
+    "min": -2,
+    "max": 0,
     "n": 50
   },
   "H0": {

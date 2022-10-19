@@ -8,6 +8,7 @@ from zdm import energetics
 from zdm import pcosmic
 from zdm import io
 
+
 class Grid:
     """A class to hold a grid of z-dm plots
     
@@ -16,10 +17,8 @@ class Grid:
     
     It also assumes a linear uniform grid.
     """
-    
-    def __init__(self, survey, state,
-                 zDMgrid, zvals, dmvals, smear_mask,
-                 wdist):
+
+    def __init__(self, survey, state, zDMgrid, zvals, dmvals, smear_mask, wdist):
         """
         Class constructor.
 
@@ -73,8 +72,6 @@ class Grid:
         self.set_evolution()  # sets star-formation rate scaling with z - here, no evoltion...
         self.calc_rates()  # includes sfr smearing factors and pdv mult
 
-        
-
     def init_luminosity_functions(self):
         """ Set the luminsoity function for FRB energetics """
         if self.luminosity_function == 0:  # Power-law
@@ -93,18 +90,20 @@ class Grid:
             self.vector_cum_lf = energetics.vector_cum_gamma_spline
             self.array_diff_lf = energetics.array_diff_gamma
             self.vector_diff_lf = energetics.vector_diff_gamma
-        elif self.luminosity_function==3:  # Linear + log10
-            self.array_cum_lf=energetics.array_cum_gamma_linear
-            self.vector_cum_lf=energetics.vector_cum_gamma_linear
-            self.array_diff_lf=energetics.array_diff_gamma
-            self.vector_diff_lf=energetics.vector_diff_gamma
+        elif self.luminosity_function == 3:  # Linear + log10
+            self.array_cum_lf = energetics.array_cum_gamma_linear
+            self.vector_cum_lf = energetics.vector_cum_gamma_linear
+            self.array_diff_lf = energetics.array_diff_gamma
+            self.vector_diff_lf = energetics.vector_diff_gamma
         else:
-            raise ValueError("Luminosity function must be 0, not ",self.luminosity_function)
-    
-    def parse_grid(self,zDMgrid,zvals,dmvals):
-        self.grid=zDMgrid
-        self.zvals=zvals
-        self.dmvals=dmvals
+            raise ValueError(
+                "Luminosity function must be 0, not ", self.luminosity_function
+            )
+
+    def parse_grid(self, zDMgrid, zvals, dmvals):
+        self.grid = zDMgrid
+        self.zvals = zvals
+        self.dmvals = dmvals
         #
         self.check_grid()
         # self.calc_dV()
@@ -268,19 +267,18 @@ class Grid:
 
         # call log10 beam
         if self.use_log10:
-            new_thresh = np.log10(self.thresholds) # use when calling in log10 space conversion
+            new_thresh = np.log10(self.thresholds)  # use when calling in log10 space conversion
             main_beam_b = np.log10(main_beam_b)
 
-        for i,b in enumerate(main_beam_b):
-            for j,w in enumerate(self.eff_weights):
-                
+        for i, b in enumerate(main_beam_b):
+            for j, w in enumerate(self.eff_weights):
 
                 # using log10 space conversion
                 if self.use_log10:
-                    thresh = new_thresh[j,:,:] - b
-                else: # original
-                    thresh = self.thresholds[j,:,:]/b
-                
+                    thresh = new_thresh[j, :, :] - b
+                else:  # original
+                    thresh = self.thresholds[j, :, :] / b
+
                 if j==0:
                     self.b_fractions[:,:,i] = self.beam_o[i]*w*self.array_cum_lf(
                         thresh,Emin,Emax,
@@ -289,8 +287,7 @@ class Grid:
                     self.b_fractions[:,:,i] += self.beam_o[i]*w*self.array_cum_lf(
                         thresh,Emin,Emax,
                         self.state.energy.gamma, self.use_log10)
-        
-                
+                        
         # here, b-fractions are unweighted according to the value of b.
         self.fractions = np.sum(
             self.b_fractions, axis=2
@@ -376,10 +373,9 @@ class Grid:
         # FRB width (nthresh) and DM.
         # We loop over nthesh and generate a NDM x Nz array for each
         for i in np.arange(self.nthresh):
-            self.thresholds[i,:,:]=np.outer(self.FtoE,Eff_thresh[i,:])
-        
-        
-    def smear_dm(self,smear:np.ndarray):#,mean:float,sigma:float):
+            self.thresholds[i, :, :] = np.outer(self.FtoE, Eff_thresh[i, :])
+
+    def smear_dm(self, smear: np.ndarray):  # ,mean:float,sigma:float):
         """ Smears DM using the supplied array.
         Example use: DMX contribution
 
@@ -695,7 +691,7 @@ class Grid:
             new_sfr_smear = True
 
         # IGM
-        if self.chk_upd_param("F", vparams, update=True):
+        if self.chk_upd_param("logF", vparams, update=True):
             get_zdm = True
             smear_dm = True
             # calc_thresh = False  # JMB
@@ -799,10 +795,12 @@ class Grid:
 
         if calc_thresh or ALL:
             self.calc_thresholds(
-                self.F0,self.eff_table, bandwidth=self.bandwidth,
-                weights=self.eff_weights)
-            
-        
+                self.F0,
+                self.eff_table,
+                bandwidth=self.bandwidth,
+                weights=self.eff_weights,
+            )
+
         if calc_pdv or ALL:
             self.calc_pdv()
 
