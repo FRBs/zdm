@@ -38,6 +38,17 @@ def main(pargs):
             input_file, prefix, "Cubes/craco_H0_logF_cube.npz", nsurveys
         )
 
+    elif pargs.run == "logF_full":
+        # Emax
+        input_file = "Cubes/craco_full_cube.json"
+        prefix = "Cloud/OutputFull/craco_full"
+        nsurveys = 1
+
+        # Run it
+        analyze_cube.slurp_cube(
+            input_file, prefix, "Cubes/craco_full_cube.npz", nsurveys
+        )
+
     elif pargs.run == "lmF":
         # Emax
         input_file = "Cubes/craco_lm_F_cube.json"
