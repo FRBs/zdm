@@ -25,6 +25,7 @@ def fig_craco_varyF_zDM(
     Aconts=[0.05],
     fuss_with_ticks: bool = False,
     suppress_DM_host=False,
+    iFRB=0,
 ):
     """_summary_
 
@@ -38,7 +39,7 @@ def fig_craco_varyF_zDM(
         fuss_with_ticks (bool, optional): _description_. Defaults to False.
     """
     # Generate the grid
-    survey, grid = analy_F_I.craco_mc_survey_grid()
+    survey, grid = analy_F_I.craco_mc_survey_grid(iFRB=iFRB)
 
     fiducial_Emax = grid.state.energy.lEmax
     fiducial_H0 = grid.state.cosmo.H0
@@ -79,7 +80,7 @@ def fig_craco_varyF_zDM(
 
         # Update grid
         vparams = {}
-        vparams["F"] = F
+        vparams["logF"] = F
 
         # Sets the log-normal distribution for DM_host to ~0.
         if suppress_DM_host:
@@ -163,6 +164,27 @@ def fig_craco_varyF_zDM(
 
     ax.legend(legend_lines, labels, loc="lower right")
 
+    # put the FRBs in
+
+    FRBZ = survey.frbs["Z"]
+    FRBDM = survey.DMEGs
+
+    # Cut down grid
+    zvals, dmvals, zDMgrid = figures.proc_pgrid(
+        full_zDMgrid, zvals, (0, zmax), dmvals, (0, DMmax)
+    )
+    ddm = dmvals[1] - dmvals[0]
+    dz = zvals[1] - zvals[0]
+    nz, ndm = zDMgrid.shape
+
+    ##### add FRB host galaxies at some DM/redshift #####
+    if FRBZ is not None:
+        iDMs = FRBDM / ddm
+        iZ = FRBZ / dz
+        # Restrict to plot range
+        gd = (FRBDM < DMmax) & (FRBZ < zmax)
+        ax.plot(iZ[gd], iDMs[gd], "ko", linestyle="", markersize=2.0)
+
     # Fontsize
     fig_utils.set_fontsize(ax, 16.0)
 
@@ -201,9 +223,10 @@ def fig_varyF(
     lstyles=["-"],
     zticks=None,
     ylim=None,
+    iFRB=0,
 ):
 
-    survey, grid = analy_F_I.craco_mc_survey_grid()
+    survey, grid = analy_F_I.craco_mc_survey_grid(iFRB=iFRB)
 
     fiducial_F = grid.state.IGM.logF
     fiducial_Emax = grid.state.energy.lEmax
@@ -226,7 +249,7 @@ def fig_varyF(
         if F is None:
             F = fiducial_F
 
-        vparams["F"] = F
+        vparams["logF"] = F
 
         if other_param == "H0":
             if other == None:
@@ -323,6 +346,23 @@ def fig_varyF(
     # legend_lines.append(l_mqr[0])
     # labels.append("Macquart Relation")
 
+    # put down FRBs
+
+    FRBZ = survey.frbs["Z"]
+    FRBDM = survey.DMEGs
+
+    ddm = dmvals[1] - dmvals[0]
+    dz = zvals[1] - zvals[0]
+    nz, ndm = zDMgrid.shape
+
+    ##### add FRB host galaxies at some DM/redshift #####
+    if FRBZ is not None:
+        iDMs = FRBDM / ddm
+        iZ = FRBZ / dz
+        # Restrict to plot range
+        gd = (FRBDM < DMmax) & (FRBZ < zmax)
+        ax.plot(iZ[gd], iDMs[gd], "ko", linestyle="", markersize=2.0)
+
     ax.legend(legend_lines, labels, loc="lower right")
 
     # Fontsize
@@ -351,9 +391,9 @@ def fig_craco_fiducial_F(
     vmnx=(None, None),
     grid=None,
     survey=None,
-    F=0.03,
+    F=-0.49,
     H0=None,
-    iFRB=100,
+    iFRB=0,
     suppress_DM_host=False,
 ):
     """
@@ -384,10 +424,10 @@ def fig_craco_fiducial_F(
 
     fiducial_H0 = grid.state.cosmo.H0
 
-    vparams = {"H0": fiducial_H0, "logF": F}
+    if H0 is None:
+        H0 = fiducial_H0
 
-    if H0 is not None:
-        vparams["H0"] = H0
+    vparams = {"H0": H0, "logF": F}
 
     if suppress_DM_host:
         # Sets the log-normal distribution for DM_host to ~0.
@@ -447,7 +487,7 @@ def fig_craco_fiducial_F(
 
     ax = plt.gca()
 
-    ax.set_title(rf"$\log F = {F}$")
+    ax.set_title(rf"$\log F = {F}$, $H_0$ = {H0}")
 
     muDMhost = np.log(10 ** grid.state.host.lmean)
     sigmaDMhost = np.log(10 ** grid.state.host.lsigma)
@@ -533,14 +573,6 @@ def fig_craco_fiducial_F(
 #     suppress_DM_host=False,
 # )
 
-fig_craco_fiducial_F(
-    "fig_craco_logF_-1.51_H0_56.png",
-    show_Macquart=False,
-    F=-1.51,
-    H0=56,
-    suppress_DM_host=False,
-)
-
 ####
 
 # fig_craco_varyF_zDM("contours_varyF_H0.pdf", other_param="H0")
@@ -605,16 +637,6 @@ fig_craco_fiducial_F(
 #     DMmax=1800,
 # )
 
-# fig_varyF(
-#     "fig_varyingH0.png",
-#     other_param="H0",
-#     F_values=[0.32, 0.32, 0.32],
-#     other_values=[55, 67.4, 80],
-#     lcolors=["#f72585", "#f8961e", "#4895ef"],
-#     lstyles=["-", "-", "-"],
-#     DMmax=1800,
-# )
-
 ###
 
 # fig_varyF(
@@ -634,3 +656,51 @@ fig_craco_fiducial_F(
 # iFRB = 0
 # fig_craco_fiducial_F("fig_craco_fiducial_dmhost_F_0.99_H0_55_i0.png", show_Macquart=False, F=0.99, H0=55., suppress_DM_host=False, iFRB=0)
 # fig_craco_fiducial_F("fig_craco_fiducial_dmhost_F_0.32_i0.png", show_Macquart=False, F=0.32, suppress_DM_host=False, iFRB=0)
+
+# diagnostics oct 22
+
+logfs = [-1.5, -1.5, -1.5]
+h0s = [62.5, 64, 67]
+
+
+for h0, logF in zip(h0s, logfs):
+    fig_craco_fiducial_F(
+        f"diagnostic/fig_craco_logF_{logF}_H0_{h0}.png",
+        show_Macquart=True,
+        F=logF,
+        H0=h0,
+        suppress_DM_host=False,
+    )
+
+# fig_varyF(
+#     "../diagnostic/varying_a_lot.png",
+#     other_param="H0",
+#     F_values=[-1.4, -0.6, -1.4, -0.6],
+#     other_values=[62.5, 62.5, 70, 70],
+#     lcolors=["#f72585", "#f8961e", "#4895ef", "#111111"],
+#     lstyles=["-", "-", "-", "-"],
+#     DMmax=1800,
+# )
+
+# fig_varyF(
+#     "fig_varyF_H0_60.png",
+#     other_param="H0",
+#     F_values=[-1.7, -1.2, -0.8],
+#     other_values=[60.0, 60.0, 60.0],
+#     lcolors=["#f72585", "#f8961e", "#4895ef"],
+#     lstyles=["-", "-", "-"],
+#     DMmax=1800,
+#     Aconts=[0.01],
+# )
+
+# fig_varyF(
+#     "fig_varyF_H0_64.png",
+#     other_param="H0",
+#     F_values=[-1.7, -1.2, -0.8],
+#     other_values=[64.0, 64.0, 64.0],
+#     lcolors=["#f72585", "#f8961e", "#4895ef"],
+#     lstyles=["-", "-", "-"],
+#     DMmax=1800,
+#     Aconts=[0.01],
+# )
+
