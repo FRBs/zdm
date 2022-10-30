@@ -79,7 +79,7 @@ def fig_craco_varyF_zDM(
 
         # Update grid
         vparams = {}
-        vparams["F"] = F
+        vparams["logF"] = F
 
         # Sets the log-normal distribution for DM_host to ~0.
         if suppress_DM_host:
@@ -226,7 +226,7 @@ def fig_varyF(
         if F is None:
             F = fiducial_F
 
-        vparams["F"] = F
+        vparams["logF"] = F
 
         if other_param == "H0":
             if other == None:
@@ -533,13 +533,13 @@ def fig_craco_fiducial_F(
 #     suppress_DM_host=False,
 # )
 
-fig_craco_fiducial_F(
-    "fig_craco_logF_-1.51_H0_56.png",
-    show_Macquart=False,
-    F=-1.51,
-    H0=56,
-    suppress_DM_host=False,
-)
+# fig_craco_fiducial_F(
+#     "fig_craco_logF_-1.51_H0_56.png",
+#     show_Macquart=False,
+#     F=-1.51,
+#     H0=56,
+#     suppress_DM_host=False,
+# )
 
 ####
 
