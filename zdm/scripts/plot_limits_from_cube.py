@@ -31,7 +31,7 @@ def main(verbose=False):
     Reiss_sigma = 1.42
 
     ##### loads cube data #####
-    cube = "craco_mini_cube.npz"
+    cube = "../../papers/F/Analysis/CRACO/Cubes/craco_full_cube.npz"
     data = np.load(cube)
     if verbose:
         for thing in data:
@@ -54,7 +54,7 @@ def main(verbose=False):
         tag="",
         log=False,
         logspline=False,
-        kind="linear",
+        # kind="linear",
         truth=None,
         dolevels=True,
         latexnames=latexnames,
