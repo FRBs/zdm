@@ -132,12 +132,15 @@ def fig_craco_varyF_zDM(
         # Label
         if other_param == "Emax":
             labels.append(
-                r"$F = $" + f"{F}, log " + r"$E_{\rm max}$" + f"= {vparams['lEmax']}"
+                r"$\\log_\{10\} F = $"
+                + f"{F}, log "
+                + r"$E_{\rm max}$"
+                + f"= {vparams['lEmax']}"
             )
         elif other_param == "H0":
-            labels.append(r"$F = $" + f"{F}, H0 = {vparams['H0']}")
+            labels.append(r"$\\log_\{10\} F = " + f"{F}, H0 = {vparams['H0']}")
         elif other_param == "lmean":
-            labels.append(r"$F = $" + f"{F}, $\mu =$ {vparams['lmean']}")
+            labels.append(r"$\\log_\{10\} F = " + f"{F}, $\mu =$ {vparams['lmean']}")
 
     ###### gets decent axis labels, down to 1 decimal place #######
     ax = plt.gca()
@@ -318,12 +321,15 @@ def fig_varyF(
 
         if other_param == "Emax":
             labels.append(
-                r"$F = $" + f"{F}, log " + r"$E_{\rm max}$" + f"= {vparams['lEmax']}"
+                r"$\\log_\{10\} F = $"
+                + f"{F}, log "
+                + r"$E_{\rm max}$"
+                + f"= {vparams['lEmax']}"
             )
         elif other_param == "H0":
-            labels.append(r"$F = $" + f"{F}, H0 = {vparams['H0']}")
+            labels.append(r"$\\log_\{10\} F = $" + f"{F}, H0 = {vparams['H0']}")
         elif other_param == "lmean":
-            labels.append(r"$F = $" + f"{F}, $\mu =$ {vparams['lmean']}")
+            labels.append(r"$\\log_\{10\} F = $" + f"{F}, $\mu =$ {vparams['lmean']}")
 
     # # Interpolators
     # f_DM = interp1d(
@@ -565,130 +571,18 @@ def fig_craco_fiducial_F(
 
 ### tests
 
-# fig_craco_fiducial_F(
-#     "fig_craco_logF_-.5_H0_56.png",
-#     show_Macquart=False,
-#     F=-0.5,
-#     H0=56,
-#     suppress_DM_host=False,
-# )
-
-# fig_craco_fiducial_F(
-#     "fig_craco_logF_-1.51_H0_56.png",
-#     show_Macquart=False,
-#     F=-1.51,
-#     H0=56,
-#     suppress_DM_host=False,
-# )
-
-####
-
-# fig_craco_varyF_zDM("contours_varyF_H0.pdf", other_param="H0")
-# fig_craco_varyF_zDM(
-#     "contours_varyF_H0_dmhost_suppressed.pdf", other_param="H0", suppress_DM_host=True
-# )
-
-# fig_craco_fiducial_F(
-#     "fig_craco_F_0.32_dmhost_suppressed.png",
-#     show_Macquart=True,
-#     F=0.32,
-#     suppress_DM_host=True,
-# )
-# fig_craco_fiducial_F(
-#     "fig_craco_F_0.01_dmhost_suppressed.png",
-#     show_Macquart=True,
-#     F=0.01,
-#     suppress_DM_host=True,
-# )
-# fig_craco_fiducial_F(
-#     "fig_craco_F_0.9_dmhost_suppressed.png",
-#     show_Macquart=True,
-#     F=0.9,
-#     suppress_DM_host=True,
-# )
-
-# fig_craco_fiducial_F(
-#     "fig_craco_F_0.32.png", show_Macquart=False, F=0.32, suppress_DM_host=False
-# )
-
-# fig_craco_fiducial_F(
-#     "fig_craco_F_0.82_H0_55.png",
-#     show_Macquart=False,
-#     F=0.82,
-#     H0=55.0,
-#     suppress_DM_host=False,
-# )
-# fig_craco_fiducial_F(
-#     "fig_craco_F_0.01.png", show_Macquart=True, F=0.01, suppress_DM_host=False
-# )
-# fig_craco_fiducial_F(
-#     "fig_craco_F_0.9.png", show_Macquart=True, F=0.9, suppress_DM_host=False
-# )
-
-# fig_varyF(
-#     "fig_lmean_degeneracy_varyF.png",
-#     other_param="lmean",
-#     F_values=[0.01, 0.9],
-#     other_values=[None, None],
-#     lcolors=["r", "b"],
-#     lstyles=["-", "-"],
-#     DMmax=1800,
-# )
-
-# fig_varyF(
-#     "fig_lmean_degeneracy_varylm.png",
-#     other_param="lmean",
-#     F_values=[None, None],
-#     other_values=[2.5, 1.5],
-#     lcolors=["#e07a5f", "#81b29a"],
-#     lstyles=["-", "-"],
-#     DMmax=1800,
-# )
-
-###
-
-# fig_varyF(
-#     "test.png",
-#     other_param="lmean",
-#     F_values=[None, None],
-#     other_values=[1.0, 3.0],
-#     lcolors=["#e07a5f", "#81b29a"],
-#     lstyles=["-", "-"],
-#     DMmax=1800,
-# )
-
-# Fussing on the square
-# fig_craco_fiducial_F("fig_craco_fiducial_dmhost_F_0.32.png", show_Macquart=False, F=0.32, suppress_DM_host=False)
-# fig_craco_fiducial_F("fig_craco_fiducial_dmhost_F_0.82_H0_55.png", show_Macquart=False, F=0.82, H0=55., suppress_DM_host=False)
-
-# iFRB = 0
-# fig_craco_fiducial_F("fig_craco_fiducial_dmhost_F_0.99_H0_55_i0.png", show_Macquart=False, F=0.99, H0=55., suppress_DM_host=False, iFRB=0)
-# fig_craco_fiducial_F("fig_craco_fiducial_dmhost_F_0.32_i0.png", show_Macquart=False, F=0.32, suppress_DM_host=False, iFRB=0)
-
-# diagnostics oct 22
-
-logfs = [-1.5, -1.5, -1.5]
-h0s = [62.5, 64, 67]
+# logfs = [-1.5, -1.5, -1.5]
+# h0s = [62.5, 64, 67]
 
 
-for h0, logF in zip(h0s, logfs):
-    fig_craco_fiducial_F(
-        f"diagnostic/fig_craco_logF_{logF}_H0_{h0}.png",
-        show_Macquart=True,
-        F=logF,
-        H0=h0,
-        suppress_DM_host=False,
-    )
-
-# fig_varyF(
-#     "../diagnostic/varying_a_lot.png",
-#     other_param="H0",
-#     F_values=[-1.4, -0.6, -1.4, -0.6],
-#     other_values=[62.5, 62.5, 70, 70],
-#     lcolors=["#f72585", "#f8961e", "#4895ef", "#111111"],
-#     lstyles=["-", "-", "-", "-"],
-#     DMmax=1800,
-# )
+# for h0, logF in zip(h0s, logfs):
+#     fig_craco_fiducial_F(
+#         f"diagnostic/fig_craco_logF_{logF}_H0_{h0}.png",
+#         show_Macquart=True,
+#         F=logF,
+#         H0=h0,
+#         suppress_DM_host=False,
+#     )
 
 # fig_varyF(
 #     "fig_varyF_H0_60.png",
@@ -701,14 +595,12 @@ for h0, logF in zip(h0s, logfs):
 #     Aconts=[0.01],
 # )
 
-# fig_varyF(
-#     "fig_varyF_H0_64.png",
-#     other_param="H0",
-#     F_values=[-1.7, -1.2, -0.8],
-#     other_values=[64.0, 64.0, 64.0],
-#     lcolors=["#f72585", "#f8961e", "#4895ef"],
-#     lstyles=["-", "-", "-"],
-#     DMmax=1800,
-#     Aconts=[0.01],
-# )
+fig_craco_fiducial_F(
+    f"figs/fiducial.png",
+    show_Macquart=True,
+    F=np.round(np.log10(0.32), 3),
+    H0=None,
+    suppress_DM_host=False,
+    iFRB=100,
+)
 
