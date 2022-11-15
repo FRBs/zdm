@@ -84,7 +84,7 @@ def set_state(alpha_method=1, cosmo=Planck18):
     return state
 
 
-def surveys_and_grids(init_state=None, alpha_method=1): 
+def surveys_and_grids(init_state=None, alpha_method=1, add_20220610A=False): 
     """ Load up a survey and grid for a CRACO mock dataset
 
     Args:
@@ -93,6 +93,8 @@ def surveys_and_grids(init_state=None, alpha_method=1):
         survey_name (str, optional):  Defaults to 'CRAFT/CRACO_1_5000'.
         state_dict (dict, optional):
             Used to init state instead of alpha_method, lum_func parameters
+        add_20220610A (bool, optional):
+            Include this FRB (a bit of a hack)
 
     Raises:
         IOError: [description]
@@ -121,9 +123,13 @@ def surveys_and_grids(init_state=None, alpha_method=1):
                     'private_CRAFT_ICS_892', 
                     'private_CRAFT_ICS',
                     'PKS/Mb']
+    if add_20220610A:
+        survey_names[3] = 'CRAFT_ICS_w_220610'
+
     beams = [5,5,5,5,10]
     surveys = []
     for nbeam, survey_name in zip(beams, survey_names):
+        print(f"Initializing {survey_name}")
         surveys.append(survey.load_survey(survey_name, 
                                           state, dmvals,
                                           Nbeams=nbeam))

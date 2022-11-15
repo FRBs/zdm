@@ -71,7 +71,7 @@ def print_cosmology(params):
     The current values of cosmological parameters are printed.
     """
     print("Hubble constant in default cosmology, H0: ",params['cosmo'].H0," [km/s/Mpc]")
-    print("Hubble constant in current epoch, H0: ",params['cosmo'].current_H0," [km/s/Mpc]")
+    #print("Hubble constant in current epoch, H0: ",params['cosmo'].current_H0," [km/s/Mpc]")
 
 def set_cosmology(params):
     global cosmo

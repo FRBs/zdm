@@ -1940,35 +1940,11 @@ def initialise_grids(
     )
     grids = []
     for survey in surveys:
-        """
-        if wdist:
-            efficiencies=survey.efficiencies # two dimensions
-            weights=survey.wplist
-        else:
-            efficiencies=survey.mean_efficiencies
-            weights=None
-            #efficiencies=survey.get_efficiency(dmvals)
-        """
+        print(f"Working on {survey.name}")
 
         grid = zdm_grid.Grid(
             survey, copy.deepcopy(state), zDMgrid, zvals, dmvals, mask, wdist
         )
-        """
-        grid.pass_grid(zDMgrid,zvals,dmvals)
-        grid.smear_dm(mask)#,logmean,logsigma)
-        
-        # TODO -- avoid code duplication with grid.update_grid()
-        # note - survey frequencies in MHz
-        grid.calc_thresholds(survey.meta['THRESH'],
-                             efficiencies,
-                             weights=weights,
-                             nuObs=survey.meta['FBAR']*1e6)
-        grid.calc_dV()
-        grid.calc_pdv()#survey.beam_b,
-                      #survey.beam_o) # calculates volumetric-weighted probabilities
-        grid.set_evolution() # sets star-formation rate scaling with z - here, no evoltion...
-        grid.calc_rates() # calculates rates by multiplying above with pdm plot
-        """
         grids.append(grid)
 
     return grids
@@ -2513,6 +2489,7 @@ def plot_grid_2(
     showplot=False,
     DMlines=None,
     data_clr="red",
+    special=None,
 ):
     """
     Very complicated routine for plotting 2D zdm grids 
@@ -2540,6 +2517,7 @@ def plot_grid_2(
         showplot (bool, optional): [description]. Defaults to False.
         cmap (str, optional): Alternate color map for PDF
         data_clr (str, optional): Alternate color for data
+        special: list of [z,dm] values to show as a special big star
     """
     if H0 is None:
         H0 = cos.cosmo.H0
@@ -2813,6 +2791,11 @@ def plot_grid_2(
         iZ = FRBZ / dz
         OK = np.where(FRBZ > 0)[0]
         plt.plot(iZ[OK], iDMs[OK], "o", color=data_clr, linestyle="")
+
+    if special is not None:
+        iDM = special[0] / ddm
+        iz = special[1] / dz
+        plt.plot([iz], [iDM], "*", markersize=10, color="blue", linestyle="")
 
     # do 1-D projected plots
     if project:

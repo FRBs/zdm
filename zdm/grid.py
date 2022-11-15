@@ -68,6 +68,7 @@ class Grid:
         self.efficiencies = efficiencies
         self.weights = weights
         self.calc_thresholds(survey.meta["THRESH"], efficiencies, weights=weights)
+        # Calculate
         self.calc_pdv()
         self.set_evolution()  # sets star-formation rate scaling with z - here, no evoltion...
         self.calc_rates()  # includes sfr smearing factors and pdv mult
@@ -267,27 +268,36 @@ class Grid:
 
         # call log10 beam
         if self.use_log10:
-            new_thresh = np.log10(self.thresholds)  # use when calling in log10 space conversion
+            new_thresh = np.log10(
+                self.thresholds
+            )  # use when calling in log10 space conversion
             main_beam_b = np.log10(main_beam_b)
 
         for i, b in enumerate(main_beam_b):
             for j, w in enumerate(self.eff_weights):
-
                 # using log10 space conversion
                 if self.use_log10:
                     thresh = new_thresh[j, :, :] - b
                 else:  # original
                     thresh = self.thresholds[j, :, :] / b
 
-                if j==0:
-                    self.b_fractions[:,:,i] = self.beam_o[i]*w*self.array_cum_lf(
-                        thresh,Emin,Emax,
-                        self.state.energy.gamma, self.use_log10)
+                if j == 0:
+                    self.b_fractions[:, :, i] = (
+                        self.beam_o[i]
+                        * w
+                        * self.array_cum_lf(
+                            thresh, Emin, Emax, self.state.energy.gamma, self.use_log10
+                        )
+                    )
                 else:
-                    self.b_fractions[:,:,i] += self.beam_o[i]*w*self.array_cum_lf(
-                        thresh,Emin,Emax,
-                        self.state.energy.gamma, self.use_log10)
-                        
+                    self.b_fractions[:, :, i] += (
+                        self.beam_o[i]
+                        * w
+                        * self.array_cum_lf(
+                            thresh, Emin, Emax, self.state.energy.gamma, self.use_log10
+                        )
+                    )
+
         # here, b-fractions are unweighted according to the value of b.
         self.fractions = np.sum(
             self.b_fractions, axis=2
