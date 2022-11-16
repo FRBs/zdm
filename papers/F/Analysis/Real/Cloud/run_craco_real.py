@@ -17,10 +17,7 @@ from IPython import embed
 
 
 def main(
-    pargs,
-    pfile: str,
-    oproot: str,
-    outdir: str = "Output",
+    pargs, pfile: str, oproot: str, outdir: str = "Output",
 ):
 
     # Generate the folder?
@@ -64,12 +61,6 @@ def main(
             "-p",
             f"{pfile}",
         ]
-        # NFRB?
-        if NFRB is not None:
-            line += [f"--NFRB", f"{NFRB}"]
-        # iFRB?
-        if iFRB > 0:
-            line += [f"--iFRB", f"{iFRB}"]
         # Finish
         # line += ' & \n'
         commands.append(line)
