@@ -54,6 +54,7 @@ def main(
         outfile = os.path.join(outdir, oproot.replace(".csv", f"{iCPU+1}.csv"))
         # Command
         line = [
+            'python',
             "../py/build_real_cube.py",
             "-n",
             f"{iCPU+1}",
