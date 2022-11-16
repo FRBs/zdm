@@ -54,7 +54,7 @@ def main(
         outfile = os.path.join(outdir, oproot.replace(".csv", f"{iCPU+1}.csv"))
         # Command
         line = [
-            'python',
+            "python",
             "../py/build_real_cube.py",
             "-n",
             f"{iCPU+1}",
@@ -112,8 +112,10 @@ def parse_option():
     parser.add_argument(
         "-b", "--batch", type=int, default=1, required=False, help="Batch number"
     )
-    # parser.add_argument('--NFRB',type=int,required=False,help="Number of FRBs to analzye")
-    # parser.add_argument('--iFRB',type=int,default=0,help="Initial FRB to run from")
+    parser.add_argument(
+        "--NFRB", type=int, required=False, help="Number of FRBs to analzye"
+    )
+    parser.add_argument("--iFRB", type=int, default=0, help="Initial FRB to run from")
     args = parser.parse_args()
 
     return args
@@ -122,6 +124,6 @@ def parse_option():
 if __name__ == "__main__":
     # get the argument of training.
     pfile = "../Cubes/craco_real_cube.json"
-    oproot = "craco_full.csv"
+    oproot = "craco_real.csv"
     pargs = parse_option()
     main(pargs, pfile, oproot, NFRB=100, iFRB=100)
