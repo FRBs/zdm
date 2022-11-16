@@ -20,8 +20,6 @@ def main(
     pargs,
     pfile: str,
     oproot: str,
-    NFRB: int = None,
-    iFRB: int = 0,
     outdir: str = "Output",
 ):
 
@@ -112,10 +110,6 @@ def parse_option():
     parser.add_argument(
         "-b", "--batch", type=int, default=1, required=False, help="Batch number"
     )
-    parser.add_argument(
-        "--NFRB", type=int, required=False, help="Number of FRBs to analzye"
-    )
-    parser.add_argument("--iFRB", type=int, default=0, help="Initial FRB to run from")
     args = parser.parse_args()
 
     return args
@@ -126,4 +120,4 @@ if __name__ == "__main__":
     pfile = "../Cubes/craco_real_cube.json"
     oproot = "craco_real.csv"
     pargs = parse_option()
-    main(pargs, pfile, oproot, NFRB=100, iFRB=100)
+    main(pargs, pfile, oproot)
