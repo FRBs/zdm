@@ -46,9 +46,6 @@ def main(
     if int(ntotal / total_ncpu) != nper_cpu:
         raise IOError(f"Ncpu={total_ncpu} must divide evenly into ntotal={ntotal}")
 
-    survey_file = os.path.join(
-        resource_filename("zdm", "craco"), "MC_F", "Surveys", "F_0.32_survey"
-    )
     commands = []
     for kk in range(pargs.ncpu):
         line = []
@@ -123,7 +120,7 @@ def parse_option():
 
 if __name__ == "__main__":
     # get the argument of training.
-    pfile = "../Cubes/craco_full_cube.json"
+    pfile = "../Cubes/craco_real_cube.json"
     oproot = "craco_full.csv"
     pargs = parse_option()
     main(pargs, pfile, oproot, NFRB=100, iFRB=100)
