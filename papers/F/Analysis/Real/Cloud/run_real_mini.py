@@ -76,7 +76,8 @@ def main(
 
     # Wait on em!
     for pw in processes:
-        pw.wait()
+        exit_code = pw.wait()
+        print(exit_code)
 
     print("All done!")
 
