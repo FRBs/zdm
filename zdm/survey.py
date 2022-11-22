@@ -165,7 +165,7 @@ class Survey:
         self.frblist=self.find(keys,'FRB')
         if NFRB is not None:
             # Take the first set - ensures we do not overrun the total number of FRBs
-            if self.NFRB < NFRB+iFRB:
+            if self.NFRB > NFRB+iFRB:
                 raise ValueError("Cannot return sufficient FRBs, did you mean NFRB=None?")
             themax = min(NFRB+iFRB,self.NFRB)
             self.frblist=self.frblist[iFRB:themax]
