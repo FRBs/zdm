@@ -767,7 +767,10 @@ def refactor_old_survey_file(survey_name:str, outfile:str):
     isurvey = load_survey(survey_name, state,
                          np.linspace(0., 2000., 1000))
 
-    # Fill in
+    # FRBs
+    frbs = pandas.DataFrame(isurvey.frbs)
+
+    # Fill in survey_data
 
     # Time and Frequency
     srvy_data.timefrequency.BW = isurvey.BWs[0]
@@ -776,16 +779,30 @@ def refactor_old_survey_file(survey_name:str, outfile:str):
 
     # Telescope
     srvy_data.telescope.BEAM = isurvey.meta['BEAM']
-    srvy_data.telescope.DIAM = isurvey.meta['DIAM']
+    if 'DIAM' in isurvey.meta:
+        srvy_data.telescope.DIAM = isurvey.meta['DIAM'] 
     srvy_data.telescope.NBEAMS = int(isurvey.meta['NBEAMS'])
     srvy_data.telescope.SNRTHRESH = isurvey.meta['SNRTHRESH']
     srvy_data.telescope.THRESH = isurvey.meta['THRESH']
 
     # Observing
-    srvy_data.observing.TOBS = isurvey.TOBS
+    if 'TOBS' in isurvey.meta:
+        srvy_data.observing.TOBS = isurvey.meta['TOBS'] 
+    if 'NORM_FRB' in isurvey.meta:
+        srvy_data.observing.NORM_FRB = isurvey.meta['NORM_FRB']
+    else:
+        srvy_data.observing.NORM_FRB = len(frbs)
 
-    # FRBs
-    frbs = pandas.DataFrame(isurvey.frbs)
+
+    # Trim down
+    for key in srvy_data.to_dict().keys():
+        for key2 in srvy_data.to_dict()[key]:
+            if key2 in frbs.keys():
+                frbs.drop(columns=[key2], inplace=True)
+
+    embed(header='791 of survey')
+
+    # Convert for I/O
     frbs = Table.from_pandas(frbs)
 
     # Meta

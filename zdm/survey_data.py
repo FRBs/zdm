@@ -58,6 +58,12 @@ class Telescope(data_class.myDataClass):
 
 @dataclass
 class Observing(data_class.myDataClass):
+    NORM_FRB: int = field(
+        default=0, 
+        metadata={'help': "Number of FRBs for TOBS", 
+                  'unit': '', 
+                  'Notation': '',
+                  })
     TOBS: float = field(
         default=0., 
         metadata={'help': "Total observing time", 

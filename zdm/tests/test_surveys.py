@@ -13,20 +13,20 @@ from zdm.tests import tstutils
 import pytest
 
 
-def test_refactor():
-    # Generate
-    survey.refactor_old_survey_file(
-        'CRAFT/FE', tstutils.data_path('tmp.ecsv'))
-    # Read
-    tbl = Table.read(tstutils.data_path('tmp.ecsv'), 
-                     format='ascii.ecsv')
-    srvy_data = survey_data.SurveyData.from_jsonstr(
-        tbl.meta['survey_data'])
-    # Test
-    assert np.isclose(srvy_data.observing.TOBS, 1274.6) 
+#def test_refactor():
+# Generate
+survey.refactor_old_survey_file(
+    'CRAFT/FE', tstutils.data_path('tmp.ecsv'))
+# Read
+tbl = Table.read(tstutils.data_path('tmp.ecsv'), 
+                    format='ascii.ecsv')
+srvy_data = survey_data.SurveyData.from_jsonstr(
+    tbl.meta['survey_data'])
+# Test
+assert np.isclose(srvy_data.observing.TOBS, 1274.6) 
 
-    # Clean up
-    os.remove(tstutils.data_path('tmp.ecsv'))
+# Clean up
+os.remove(tstutils.data_path('tmp.ecsv'))
     
     
 
