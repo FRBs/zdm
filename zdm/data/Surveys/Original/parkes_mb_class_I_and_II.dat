@@ -10,7 +10,7 @@ NFRB 28 #Number of FRBs
 NORM_FRB 12 #number corresponding to Tobs
 THRESH 0.5 #Jy ms to a 1 ms burst
 SNRTHRESH 10 # signal-to-noise threshold: scales jy ms to snr
-KEY    ID       XA    XB        XC    XD        XE    Gl     Gb    DM    WIDTH   SNR    SNRth    DMG
+KEY    ID       XA    XB        XC    XRA        XDec    Gl     Gb    DM    WIDTH   SNR    SNRth    DMG
 #SUPERB part of 1115+907 hr on sky
 FRB 151230   2015/12/30 16:15:46.525   parkes   09:40:50   -03:27:05   239   34.8   960.4   4.4   17        10    48
 FRB 160102   2016/01/02 08:28:39.374   parkes   22:38:49   -30:10:50   18.9   -60.8   2596.1   3.4   16        10    36
