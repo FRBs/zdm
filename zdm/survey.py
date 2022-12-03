@@ -213,7 +213,7 @@ class Survey:
             self.do_keyword('Gl',which,None) # Galactic longitude
             self.do_keyword('Gb',which,None) # Galactic latitude
             #
-            self.do_keyword_char('XRa',which,None, dtype='str') # obviously we don't need names,!
+            self.do_keyword_char('XRA',which,None, dtype='str') # obviously we don't need names,!
             self.do_keyword_char('XDec',which,None, dtype='str') # obviously we don't need names,!
             
             self.do_keyword('Z',which,None)
@@ -275,7 +275,6 @@ class Survey:
         self.FRESs=self.frbs['FRES']
         self.FBARs=self.frbs['FBAR']
         self.BWs=self.frbs['BW']
-
         self.THRESHs=self.meta['THRESH']
         self.SNRTHRESHs=self.meta['SNRTHRESH']
         
@@ -760,7 +759,7 @@ def load_survey(survey_name:str, state:parameters.State,
         dfile = 'CRAFT_class_I_and_II'
         nbins = 5
     elif survey_name == 'CRAFT/ICS':
-        dfile = 'CRAFT_ICS.dat'
+        dfile = 'CRAFT_ICS'
         nbins = 5
     elif survey_name == 'CRAFT/ICS892':
         dfile = 'CRAFT_ICS_892'
@@ -803,12 +802,11 @@ def load_survey(survey_name:str, state:parameters.State,
     return srvy
 
 def refactor_old_survey_file(survey_name:str, outfile:str, 
-                             clobber:bool=False,
-                             sdir:str=None):
+                             clobber:bool=False):
     state = parameters.State()
     srvy_data = survey_data.SurveyData()
     
-    # Load up
+    # Load up original
     isurvey = load_survey(survey_name, state, 
                          np.linspace(0., 2000., 1000),
                          original=True)
@@ -819,11 +817,13 @@ def refactor_old_survey_file(survey_name:str, outfile:str,
     # Fill in fixed survey_data from meta
     # Telescope
     for field in srvy_data.telescope.fields:
+        print(f"Ingesting {field}")
         setattr(srvy_data.telescope,field, srvy_data.telescope.__dataclass_fields__[field].type(
-            isurvey.meta[field]))
+                isurvey.meta[field]))
 
     # Observing
     for field in srvy_data.observing.fields:
+        print(f"Ingesting {field}")
         if field !='NORM_FRB' or 'NORM_FRB' in isurvey.meta:
             setattr(srvy_data.observing,field, srvy_data.observing.__dataclass_fields__[field].type(
                 isurvey.meta[field]))
@@ -863,6 +863,7 @@ def refactor_old_survey_file(survey_name:str, outfile:str,
 
     # Write me
     frbs.write(outfile, overwrite=clobber)
+    print(f"Wrote: {outfile}")
 
 def vet_frb_table(frb_tbl:pandas.DataFrame,
                   mandatory:bool=False,
