@@ -1,4 +1,4 @@
-################ COSMOLOGY.PY ###############
+# ############### COSMOLOGY.PY ###############
 
 # Author: Clancy W. James
 # clancy.w.james@gmail.com
@@ -8,10 +8,10 @@
 # Essentially, this is relevant when multiple
 # FRBs are discovered by the same instrument
 
-##############################################
+# #############################################
 
 
-from IPython.terminal.embed import embed
+from IPython import embed
 import numpy as np
 import os
 from pkg_resources import resource_filename
@@ -67,7 +67,9 @@ class Survey:
         self.mean_efficiencies=mean_efficiencies
         return efficiencies
     
-    def get_efficiency_from_wlist(self,DMlist,wlist,plist,model="Quadrature",addGalacticDM=True):
+    def get_efficiency_from_wlist(self,DMlist,wlist,plist, 
+                                  model="Quadrature", 
+                                  addGalacticDM=True):
         """ Gets efficiency to FRBs
         Returns a list of relative efficiencies
         as a function of dispersion measure for each width given in wlist
@@ -98,7 +100,13 @@ class Survey:
             toAdd = 0.
         
         for i,w in enumerate(wlist):
-            efficiencies[i,:]=calc_relative_sensitivity(None,DMlist+toAdd,w,self.meta["FBAR"],self.meta["TRES"],self.meta["FRES"],model=model,dsmear=False)
+            efficiencies[i,:]=calc_relative_sensitivity(
+                None,DMlist+toAdd,w,
+                np.median(self.frbs['FBAR']),
+                np.median(self.frbs['TRES']),
+                np.median(self.frbs['FRES']),
+                model=model,
+                dsmear=False)
         # keep an internal record of this
         self.efficiencies=efficiencies
         self.wplist=plist
@@ -109,7 +117,7 @@ class Survey:
         return efficiencies
     
     def process_survey_file(self,filename:str, NFRB:int=None,
-                            iFRB:int=0):
+                            iFRB:int=0, original:bool=False):
         """ Loads a survey file, then creates 
         dictionaries of the loaded variables 
 
@@ -120,6 +128,7 @@ class Survey:
             iFRB (int, optional): Start grabbing FRBs at this index
                 Mainly used for Monte Carlo analysis
                 Requires that NFRB be set
+            original (bool, optional):
         """
         info=[]
         keys=[]
@@ -128,89 +137,107 @@ class Survey:
         basename=os.path.basename(filename)
         name=os.path.splitext(basename)[0]
         self.name=name
-        # read in raw data from survey file
-        nlines=0
-        with open(filename) as infile:
-            i=-1
-            for line in infile:
-                # initial split. Identifies keys and removes blank and comment lines
-                i += 1
-                line=line.strip()
-                if line=="": #remove comment lines
-                    continue
-                elif line[0]=='#': #remove blank lines
-                    continue
-                else:
-                    nocomments=line.split("#")[0]
-                    words=nocomments.split()
-                    key=words[0]
-                    keys.append(key)
-                    rest=words[1:]
-                    info.append(rest)
-                    nlines+=1
-        
-        #### Find the number of FRBs in the file ###
-        self.info=info
-        self.keys=keys
-
-        # 
-        if NFRB is None:
-            self.NFRB=keys.count('FRB')
-        else:
-            self.NFRB = NFRB
-        if self.NFRB==0:
-            raise ValueError('No FRBs found in file '+filename) #change this?
-
         self.iFRB = iFRB
+        self.NFRB = NFRB
 
+        if original:
+            # read in raw data from survey file
+            nlines=0
+            with open(filename) as infile:
+                i=-1
+                for line in infile:
+                    # initial split. Identifies keys and removes blank and comment lines
+                    i += 1
+                    line=line.strip()
+                    if line=="": #remove comment lines
+                        continue
+                    elif line[0]=='#': #remove blank lines
+                        continue
+                    else:
+                        nocomments=line.split("#")[0]
+                        words=nocomments.split()
+                        key=words[0]
+                        keys.append(key)
+                        rest=words[1:]
+                        info.append(rest)
+                        nlines+=1
+            
+            #### Find the number of FRBs in the file ###
+            self.info=info
+            self.keys=keys
 
-        self.meta['NFRB']=self.NFRB
-        
-        #### separates FRB and non-FRB keys
-        self.frblist=self.find(keys,'FRB')
+            # NFRB
+            if self.NFRB is None:
+                self.NFRB=keys.count('FRB')
 
-        if NFRB is not None:
-            # Take the first set
-            self.frblist=self.frblist[iFRB:NFRB+iFRB]
-        
-        ### first check for the key list to interpret the FRB table
-        iKEY=self.do_metakey('KEY')
-        self.keylist=info[iKEY]
-        
-        # the following can only be metadata
-        which=1
-        self.do_keyword_char('BEAM',which,None) # prefix of beam file
-        self.do_keyword('TOBS',which,None) # total observation time, hr
-        self.do_keyword('DIAM',which,None) # Telescope diamater (in case of Gauss beam)
-        self.do_keyword('NBEAMS',which,1) # Number of beams (multiplies sr)
-        self.do_keyword('NORM_FRB',which,self.NFRB) # number of FRBs to norm obs time by
-        
-        self.NORM_FRB=self.meta['NORM_FRB']
-        # the following properties can either be FRB-by-FRB, or metadata
-        which=3
-        
-        self.do_keyword('THRESH',which)
-        self.do_keyword('TRES',which,1.265)
-        self.do_keyword('FRES',which,1)
-        self.do_keyword('FBAR',which,1196)
-        self.do_keyword('BW',which,336)
-        self.do_keyword('SNRTHRESH',which,9.5)
-        self.do_keyword('DMG',which,None) # Galactic contribution to DM
-        
-        
-        # The following properties can only be FRB-by-FRB
-        which=2
-        self.do_keyword('SNR',which)
-        self.do_keyword('DM',which)
-        self.do_keyword('WIDTH',which,0.1) # defaults to unresolved width in time
-        self.do_keyword_char('ID',which,None, dtype='str') # obviously we don't need names,!
-        self.do_keyword('Gl',which,None) # Galactic longitude
-        self.do_keyword('Gb',which,None) # Galactic latitude
-        #
-        self.do_keyword_char('XRa',which,None, dtype='str') # obviously we don't need names,!
-        self.do_keyword_char('XDec',which,None, dtype='str') # obviously we don't need names,!
-        
-        self.do_keyword('Z',which,None)
+            self.meta['NFRB']=self.NFRB
+            
+            #### separates FRB and non-FRB keys
+            self.frblist=self.find(keys,'FRB')
+
+            if NFRB is not None:
+                # Take the first set
+                self.frblist=self.frblist[iFRB:NFRB+iFRB]
+            
+            ### first check for the key list to interpret the FRB table
+            iKEY=self.do_metakey('KEY')
+            self.keylist=info[iKEY]
+            
+            # the following can only be metadata
+            which=1
+            self.do_keyword_char('BEAM',which,None) # prefix of beam file
+            self.do_keyword('TOBS',which,None) # total observation time, hr
+            self.do_keyword('DIAM',which,None) # Telescope diamater (in case of Gauss beam)
+            self.do_keyword('NBEAMS',which,1) # Number of beams (multiplies sr)
+            self.do_keyword('NORM_FRB',which,self.NFRB) # number of FRBs to norm obs time by
+            
+            self.NORM_FRB=self.meta['NORM_FRB']
+            # the following properties can either be FRB-by-FRB, or metadata
+            which=3
+            
+            self.do_keyword('THRESH',which)
+            self.do_keyword('TRES',which,1.265)
+            self.do_keyword('FRES',which,1)
+            self.do_keyword('FBAR',which,1196)
+            self.do_keyword('BW',which,336)
+            self.do_keyword('SNRTHRESH',which,9.5)
+            self.do_keyword('DMG',which,None) # Galactic contribution to DM
+            
+            
+            # The following properties can only be FRB-by-FRB
+            which=2
+            self.do_keyword('SNR',which)
+            self.do_keyword('DM',which)
+            self.do_keyword('WIDTH',which,0.1) # defaults to unresolved width in time
+            self.do_keyword_char('ID',which,None, dtype='str') # obviously we don't need names,!
+            self.do_keyword('Gl',which,None) # Galactic longitude
+            self.do_keyword('Gb',which,None) # Galactic latitude
+            #
+            self.do_keyword_char('XRa',which,None, dtype='str') # obviously we don't need names,!
+            self.do_keyword_char('XDec',which,None, dtype='str') # obviously we don't need names,!
+            
+            self.do_keyword('Z',which,None)
+        else:
+            # Read
+            frb_tbl = Table.read(filename,
+                        format='ascii.ecsv')
+            # Survey Data
+            self.survey_data = survey_data.SurveyData.from_jsonstr(
+                frb_tbl.meta['survey_data'])
+            # Meta -- for convenience for now;  best to migrate away from this
+            for key in self.survey_data.params:
+                DC = self.survey_data.params[key]
+                self.meta[key] = getattr(self.survey_data[DC],key)
+            # FRB data
+            self.frbs = frb_tbl.to_pandas()
+            # Cut down?
+            if self.NFRB is None:
+                self.NFRB=len(self.frbs)
+            else:
+                self.frbs =self.frbs[self.iFRB:self.NFRB+self.iFRB]
+            # Vet
+            vet_frb_table(self.frbs, mandatory=True)
+
         if self.frbs["Z"] is not None:
             
             self.Zs=self.frbs["Z"]
@@ -244,12 +271,13 @@ class Survey:
         self.DMGs=self.frbs['DMG']
         self.SNRs=self.frbs['SNR']
         self.WIDTHs=self.frbs['WIDTH']
-        self.THRESHs=self.frbs['THRESH']
         self.TRESs=self.frbs['TRES']
         self.FRESs=self.frbs['FRES']
         self.FBARs=self.frbs['FBAR']
         self.BWs=self.frbs['BW']
-        self.SNRTHRESHs=self.frbs['SNRTHRESH']
+
+        self.THRESHs=self.meta['THRESH']
+        self.SNRTHRESHs=self.meta['SNRTHRESH']
         
         self.Ss=self.SNRs/self.SNRTHRESHs
         self.TOBS=self.meta['TOBS']
@@ -558,14 +586,10 @@ def geometric_lognormals(lmu1,ls1,lmu2,ls2,bins=None,
     
 def make_widths(s:Survey,state):
     """
+    WHAT DOES THIS METHOD DO?
 
     Args:
         s (Survey): [description]
-        wlogmean ([type]): [description]
-        wlogsigma ([type]): [description]
-        nbins ([type]): [description]
-        scale (int, optional): [description]. Defaults to 2.
-        thresh (float, optional): [description]. Defaults to 0.5.
 
     Returns:
         [type]: [description]
@@ -587,9 +611,14 @@ def make_widths(s:Survey,state):
     # constant of DM
     k_DM=4.149 #ms GHz^2 pc^-1 cm^3
     
-    tres=s.meta['TRES']
-    nu_res=s.meta['FRES']
-    fbar=s.meta['FBAR']
+    # Parse
+    # OLD
+    #    tres=s.meta['TRES']
+    #    nu_res=s.meta['FRES']
+    #    fbar=s.meta['FBAR']
+    tres=np.median(s.frbs['TRES'])
+    nu_res=np.median(s.frbs['FRES'])
+    fbar=np.median(s.frbs['FBAR'])
     
     ###### calculate a characteristic scaling pulse width ########
     
@@ -630,7 +659,7 @@ def make_widths(s:Survey,state):
     elif width_method==2:
         # include scattering distribution
         # scale scattering time according to frequency in logspace
-        slogmean = slogmean + sfpower*np.log(s.meta['FBAR']/sfnorm)
+        slogmean = slogmean + sfpower*np.log(fbar/sfnorm)
         
         #gets cumulative hist and bin edges
         dist,cdist,cbins=geometric_lognormals(wlogmean,
@@ -694,7 +723,7 @@ def make_widths(s:Survey,state):
 def load_survey(survey_name:str, state:parameters.State, 
                 dmvals:np.ndarray,
                 sdir:str=None, NFRB:int=None, 
-                Nbeams=None, iFRB:int=0):
+                nbins=None, iFRB:int=0, original:bool=False):
     """Load a survey
 
     Args:
@@ -703,11 +732,15 @@ def load_survey(survey_name:str, state:parameters.State,
         state (parameters.State): Parameters for the state
         dmvals (np.ndarray): DM values
         sdir (str, optional): Path to survey files. Defaults to None.
+        nbins (int, optional):  Sets number of bins for Beam analysis
+            [was NBeams]
         NFRB (int, optional): Cut the total survey down to a random
             subset [useful for testing]
         iFRB (int, optional): Start grabbing FRBs at this index
             Mainly used for Monte Carlo analysis
             Requires that NFRB be set
+        original (bool, optional): 
+            Load the original survey file (not recommended)
 
     Raises:
         IOError: [description]
@@ -717,45 +750,55 @@ def load_survey(survey_name:str, state:parameters.State,
     """
     print(f"Loading survey: {survey_name}")
     if sdir is None:
-        sdir = os.path.join(resource_filename('zdm', 'data'), 'Surveys')
+        sdir = os.path.join(
+            resource_filename('zdm', 'data'), 'Surveys')
+        if original:
+            sdir = os.path.join(sdir, 'Original')
 
     # Hard code real surveys
     if survey_name == 'CRAFT/FE':
-        dfile = 'CRAFT_class_I_and_II.dat'
-        Nbeams = 5
+        dfile = 'CRAFT_class_I_and_II'
+        nbins = 5
     elif survey_name == 'CRAFT/ICS':
         dfile = 'CRAFT_ICS.dat'
-        Nbeams = 5
+        nbins = 5
     elif survey_name == 'CRAFT/ICS892':
-        dfile = 'CRAFT_ICS_892.dat'
-        Nbeams = 5
+        dfile = 'CRAFT_ICS_892'
+        nbins = 5
     elif survey_name == 'CRAFT/ICS1632':
-        dfile = 'CRAFT_ICS_1632.dat'
-        Nbeams = 5
+        dfile = 'CRAFT_ICS_1632'
+        nbins = 5
     elif survey_name == 'PKS/Mb':
-        dfile = 'parkes_mb_class_I_and_II.dat'
-        Nbeams = 10
+        dfile = 'parkes_mb_class_I_and_II'
+        nbins = 10
     elif 'private' in survey_name: 
-        dfile = survey_name+'.dat'
-        if Nbeams is None:
-            raise IOError("You must specify Nbeams with a private survey file")
+        dfile = survey_name
+        if nbins is None:
+            raise IOError("You must specify nbins with a private survey file")
     else: # Should only be used for MC analysis
-        dfile = survey_name+'.dat'
-        if Nbeams is None:
-            Nbeams = 5
+        dfile = survey_name
+        if nbins is None:
+            nbins = 5
         else:
-            Nbeams=Nbeams
+            nbins=nbins
+
+    if original:
+        dfile += '.dat'
+    else:
+        dfile += '.ecsv'
 
     # Do it
     srvy=Survey()
     srvy.name = survey_name
-    srvy.process_survey_file(os.path.join(sdir, dfile), NFRB=NFRB, iFRB=iFRB)
+    srvy.process_survey_file(os.path.join(sdir, dfile), 
+                             NFRB=NFRB, iFRB=iFRB, original=original)
     #srvy.process_survey_file(os.path.join(sdir, dfile), NFRB=NFRB, iFRB=iFRB)
     srvy.init_DMEG(state.MW.DMhalo)
-    srvy.init_beam(nbins=Nbeams, method=state.beam.Bmethod, plot=False,
+    srvy.init_beam(nbins=nbins, method=state.beam.Bmethod, plot=False,
                 thresh=state.beam.Bthresh) # tells the survey to use the beam file
     pwidths,pprobs=make_widths(srvy,state)
-    _ = srvy.get_efficiency_from_wlist(dmvals,pwidths,pprobs)
+    _ = srvy.get_efficiency_from_wlist(dmvals,
+                                       pwidths,pprobs) 
 
     return srvy
 
@@ -768,59 +811,38 @@ def refactor_old_survey_file(survey_name:str, outfile:str,
     # Load up
     isurvey = load_survey(survey_name, state, 
                          np.linspace(0., 2000., 1000),
-                         sdir=sdir)
+                         original=True)
 
     # FRBs
     frbs = pandas.DataFrame(isurvey.frbs)
 
-    # Fill in fixed survey_data
-
-    # Time and Frequency
-    #srvy_data.timefrequency.BW = isurvey.BWs[0]
-    #srvy_data.timefrequency.FRES = isurvey.FRESs[0]
-    #srvy_data.timefrequency.TRES = isurvey.TRESs[0]
-
+    # Fill in fixed survey_data from meta
     # Telescope
-    srvy_data.telescope.BEAM = isurvey.meta['BEAM']
-    srvy_data.telescope.DIAM = isurvey.meta['DIAM'] 
-    srvy_data.telescope.NBEAMS = int(isurvey.meta['NBEAMS'])
-    #srvy_data.telescope.SNRTHRESH = isurvey.meta['SNRTHRESH']
-    #srvy_data.telescope.THRESH = isurvey.meta['THRESH']
+    for field in srvy_data.telescope.fields:
+        setattr(srvy_data.telescope,field, srvy_data.telescope.__dataclass_fields__[field].type(
+            isurvey.meta[field]))
 
     # Observing
-    srvy_data.observing.TOBS = isurvey.meta['TOBS'] 
-    if 'NORM_FRB' in isurvey.meta:
-        srvy_data.observing.NORM_FRB = isurvey.meta['NORM_FRB']
-    else:
-        srvy_data.observing.NORM_FRB = len(frbs)
+    for field in srvy_data.observing.fields:
+        if field !='NORM_FRB' or 'NORM_FRB' in isurvey.meta:
+            setattr(srvy_data.observing,field, srvy_data.observing.__dataclass_fields__[field].type(
+                isurvey.meta[field]))
+        else:
+            srvy_data.observing.NORM_FRB = len(frbs)
 
-
-    # Trim down
+    # Trim down FRB table
     for key in srvy_data.to_dict().keys():
         for key2 in srvy_data.to_dict()[key]:
             if key2 in frbs.keys():
                 frbs.drop(columns=[key2], inplace=True)
 
-    # Rename ID
+    # Rename ID to TNS
     frbs.rename(columns={'ID':'TNS'}, inplace=True)
 
-    #frb_data = survey_data.FRB()
-    #for field in frb_data.__dataclass_fields__.keys():
-    #    if field in frbs.keys():
-    #        not_none = frbs[field].values != None
-    #        if np.any(not_none):
-    #            idx0 = np.where(not_none)[0][0]
-    #            assert isinstance(
-    #                frbs.iloc[idx0][field], 
-    #                frb_data.__dataclass_fields__[field].type), \
-    #                    f'Bad data type for {field}'
-    #    else:
-    #        frbs[field] = None
-    
     # Vet+populate the FRBs
     vet_frb_table(frbs, mandatory=False, fill=True)
 
-    # Add X columns
+    # Add X columns (ancillay)
     for letter in ['A', 'B', 'C', 'D', 'E', 'F', 
                    'G', 'H', 'I', 'J', 'K']:
         # Add it 

@@ -28,7 +28,7 @@ class FRB(data_class.myDataClass):
     FBAR: float = field( 
         default=0., 
         metadata={'help': "Mean frequency",
-                  'unit': 'GHz', 
+                  'unit': 'MHz', 
                   'Notation': '',
                   })
     FRES: float = field( 
@@ -55,12 +55,6 @@ class FRB(data_class.myDataClass):
                   'unit': '', 
                   'Notation': '',
                   })
-    SNRTHRESH: float = field( 
-        default=0., 
-        metadata={'help': "S/N threshold", 
-                  'unit': '', 
-                  'Notation': '',
-                  })
     TNS: str = field(
         default='', 
         metadata={'help': "TNS Name", 
@@ -69,12 +63,6 @@ class FRB(data_class.myDataClass):
         default=0., 
         metadata={'help': "Time resolution",
                   'unit': 'ms', 
-                  'Notation': '',
-                  })
-    THRESH: float = field( 
-        default=0., 
-        metadata={'help': "Threshold fluence", 
-                  'unit': 'Jy ms', 
                   'Notation': '',
                   })
     WIDTH: float = field( 
@@ -92,6 +80,10 @@ class FRB(data_class.myDataClass):
 
 @dataclass
 class Telescope(data_class.myDataClass):
+    BEAM: str = field(
+        default='', 
+        metadata={'help': "Beam file", 
+                  })
     DIAM: float = field(
         default=0., 
         metadata={'help': "Individual antenna diameter", 
@@ -104,9 +96,17 @@ class Telescope(data_class.myDataClass):
                   'unit': '', 
                   'Notation': '',
                   })
-    BEAM: str = field(
-        default='', 
-        metadata={'help': "Beam file", 
+    SNRTHRESH: float = field( 
+        default=0., 
+        metadata={'help': "S/N threshold", 
+                  'unit': '', 
+                  'Notation': '',
+                  })
+    THRESH: float = field( 
+        default=0., 
+        metadata={'help': "Threshold fluence", 
+                  'unit': 'Jy ms', 
+                  'Notation': '',
                   })
 
 @dataclass
@@ -128,8 +128,11 @@ class SurveyData(data_class.myData):
     """ Hold the SurveyData in a convenient object
 
     """
+
     def set_dataclasses(self):
 
         self.observing = Observing()
         self.telescope = Telescope()
         # FRBs -- Will need one per FRB
+
+        # Finish init

@@ -9,6 +9,9 @@ from dataclasses import dataclass, field, asdict
 # Add a few methods to be shared by them all
 @dataclass
 class myDataClass:
+    @property
+    def fields(self):
+        return list(self.__dataclass_fields__.keys())
     def meta(self, attribute_name):
         return self.__dataclass_fields__[attribute_name].metadata
     def chk_options(self, attribute_name):
