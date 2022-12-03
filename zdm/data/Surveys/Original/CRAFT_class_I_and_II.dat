@@ -10,7 +10,7 @@ NORM_FRB 20 #Number corresponding to Tobs
 TOBS 1274.6
 THRESH 22 #Jy ms to a 1 ms burst
 SNRTHRESH 9.5 # signal-to-noise threshold: scales jy ms to snr
-KEY ID 		TIME	    DM    X     	X        	X	X	X    WIDTH  SNR        X        X        FIELD   ANT  	X	DMG   X		XWIDTH  
+KEY ID 		TIME	    DM    XA     	XB        	XC	XD	XE    WIDTH  SNR        XF        XG        FIELD   ANT  	XH	DMG   XI		XWIDTH  
 FRB 170107  20:05:45.1393  609.5  58  		11:23.3 	-05:00  266.0	54.1  2.4   16.0      	27.9   15 	G264+50	13	0.163	37      MISSING	0.98
 FRB 170416  23:11:49.7994  523.2   97  		22:13  		-55:02  337.6	-50.0  5.0 13.0  	16.2  31 	G339-50	21	0.332	39.7	27.5	2.45
 FRB 170428  18:03:11.7003  991.7  34  		21:47  		-41:51 359.2	-49.9  4.4   10.5  	31.6  22	G357-50	19	0.041	40.0	27.4	1.35

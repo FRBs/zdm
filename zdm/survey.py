@@ -759,13 +759,16 @@ def load_survey(survey_name:str, state:parameters.State,
 
     return srvy
 
-def refactor_old_survey_file(survey_name:str, outfile:str):
+def refactor_old_survey_file(survey_name:str, outfile:str, 
+                             clobber:bool=False,
+                             sdir:str=None):
     state = parameters.State()
     srvy_data = survey_data.SurveyData()
     
     # Load up
-    isurvey = load_survey(survey_name, state,
-                         np.linspace(0., 2000., 1000))
+    isurvey = load_survey(survey_name, state, 
+                         np.linspace(0., 2000., 1000),
+                         sdir=sdir)
 
     # FRBs
     frbs = pandas.DataFrame(isurvey.frbs)
@@ -801,19 +804,32 @@ def refactor_old_survey_file(survey_name:str, outfile:str):
     # Rename ID
     frbs.rename(columns={'ID':'TNS'}, inplace=True)
 
-    # Vet/populate the FRBs
-    frb_data = survey_data.FRB()
-    for field in frb_data.__dataclass_fields__.keys():
-        if field in frbs.keys():
-            not_none = frbs[field].values != None
-            if np.any(not_none):
-                idx0 = np.where(not_none)[0][0]
-                assert isinstance(
-                    frbs.iloc[idx0][field], 
-                    frb_data.__dataclass_fields__[field].type), \
-                        f'Bad data type for {field}'
-        else:
-            frbs[field] = None
+    #frb_data = survey_data.FRB()
+    #for field in frb_data.__dataclass_fields__.keys():
+    #    if field in frbs.keys():
+    #        not_none = frbs[field].values != None
+    #        if np.any(not_none):
+    #            idx0 = np.where(not_none)[0][0]
+    #            assert isinstance(
+    #                frbs.iloc[idx0][field], 
+    #                frb_data.__dataclass_fields__[field].type), \
+    #                    f'Bad data type for {field}'
+    #    else:
+    #        frbs[field] = None
+    
+    # Vet+populate the FRBs
+    vet_frb_table(frbs, mandatory=False, fill=True)
+
+    # Add X columns
+    for letter in ['A', 'B', 'C', 'D', 'E', 'F', 
+                   'G', 'H', 'I', 'J', 'K']:
+        # Add it 
+        key = f'X{letter}'
+        isurvey.do_keyword_char(key,3,None, dtype='str')
+        if isurvey.frbs[key] is None:
+            continue
+        # Add it
+        frbs[key] = isurvey.frbs[key]
 
     # Convert for I/O
     frbs = Table.from_pandas(frbs)
@@ -824,5 +840,23 @@ def refactor_old_survey_file(survey_name:str, outfile:str):
         separators=(',', ': '))
 
     # Write me
-    frbs.write(outfile, overwrite=True)
-    print(f'Wrote:; {outfile}')
+    frbs.write(outfile, overwrite=clobber)
+
+def vet_frb_table(frb_tbl:pandas.DataFrame,
+                  mandatory:bool=False,
+                  fill:bool=False):
+    frb_data = survey_data.FRB()
+    # Loop on the stadnard fields
+    for field in frb_data.__dataclass_fields__.keys():
+        if field in frb_tbl.keys():
+            not_none = frb_tbl[field].values != None
+            if np.any(not_none):
+                idx0 = np.where(not_none)[0][0]
+                assert isinstance(
+                    frb_tbl.iloc[idx0][field], 
+                    frb_data.__dataclass_fields__[field].type), \
+                        f'Bad data type for {field}'
+        elif mandatory:
+            raise ValueError(f'{field} is missing in your table!')
+        elif fill:
+            frb_tbl[field] = None
