@@ -15,6 +15,12 @@ from zdm import misc_functions
 
 import pytest
 
+# TODO
+#  Update all TNS
+#  Confirm THRESH and SNRTHESH
+#  Confirm X columns
+#  SNRth in Parkes
+
 def test_load_new_grid():
     state = parameters.State()
     # Cosmology
