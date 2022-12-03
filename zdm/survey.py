@@ -1,17 +1,9 @@
-# ############### COSMOLOGY.PY ###############
-
-# Author: Clancy W. James
-# clancy.w.james@gmail.com
-
-
+# ###############################################
 # This file defines a class to hold an FRB survey
 # Essentially, this is relevant when multiple
 # FRBs are discovered by the same instrument
+# ##############################################
 
-# #############################################
-
-
-from IPython import embed
 import numpy as np
 import os
 from pkg_resources import resource_filename
@@ -21,13 +13,16 @@ import pandas
 from astropy.table import Table
 import json
 
-from typing import IO
+
+from ne2001 import density
 
 from zdm import beams, parameters
 from zdm import pcosmic
 from zdm import survey_data
 
 import matplotlib.pyplot as plt
+
+from IPython import embed
 
 class Survey:
     """A class to hold an FRB survey
@@ -36,8 +31,6 @@ class Survey:
         frbs (dict): Holds the data for the FRBs
 
     """
-    
-    
     def __init__(self):
         self.init=False
         self.do_beam=False
@@ -412,8 +405,6 @@ class Survey:
                     Please enter Galactic coordinates, or else manually enter \
                     it as DMG')
             print("Calculating DMG from NE2001. Please record this, it takes a while!")
-            import ne2001
-            from ne2001 import density
             ne = density.ElectronDensity() #default position is the sun
             DMGs=np.zeros([self.NFRB])
             for i,l in enumerate(self.frbs["Gl"]):
@@ -473,6 +464,232 @@ class Survey:
         return repr
     
 
+class NewSurvey:
+    def __init__(self, state, survey_name:str, 
+                 filename:str, nbins:int, 
+                 dmvals:np.ndarray,
+                 NFRB:int=None, 
+                 iFRB:int=0):
+        # Proceed
+        self.name = survey_name
+        # Load up
+        self.process_survey_file(filename, NFRB, iFRB)
+        # DM EG
+        self.init_DMEG(state.MW.DMhalo)
+        # Beam
+        self.init_beam(nbins=nbins, 
+                       method=state.beam.Bmethod, 
+                       plot=False, 
+                       thresh=state.beam.Bthresh) # tells the survey to use the beam file
+        # Efficiency
+        pwidths,pprobs=make_widths(self, state)
+        _ = self.get_efficiency_from_wlist(dmvals,
+                                       pwidths,pprobs) 
+
+    def init_DMEG(self,DMhalo):
+        """ Calculates extragalactic DMs assuming halo DM """
+        self.DMhalo=DMhalo
+        self.DMEGs=self.DMs-self.DMGs-DMhalo
+
+    def process_survey_file(self,filename:str, 
+                            NFRB:int=None,
+                            iFRB:int=0): 
+        """ Loads a survey file, then creates 
+        dictionaries of the loaded variables 
+
+        Args:
+            filename (str): Survey filename
+            NFRB (int, optional): Use only a subset of the FRBs in the Survey file.
+                Mainly used for Monte Carlo analysis
+            iFRB (int, optional): Start grabbing FRBs at this index
+                Mainly used for Monte Carlo analysis
+                Requires that NFRB be set
+            original (bool, optional):
+        """
+        self.iFRB = iFRB
+        self.NFRB = NFRB
+        self.meta = {}
+
+        # Read
+        frb_tbl = Table.read(filename, format='ascii.ecsv')
+        # Survey Data
+        self.survey_data = survey_data.SurveyData.from_jsonstr(
+            frb_tbl.meta['survey_data'])
+        # Meta -- for convenience for now;  best to migrate away from this
+        for key in self.survey_data.params:
+            DC = self.survey_data.params[key]
+            self.meta[key] = getattr(self.survey_data[DC],key)
+        # FRB data
+        self.frbs = frb_tbl.to_pandas()
+        # Cut down?
+        if self.NFRB is None:
+            self.NFRB=len(self.frbs)
+        else:
+            self.frbs =self.frbs[self.iFRB:self.NFRB+self.iFRB]
+        # Vet
+        vet_frb_table(self.frbs, mandatory=True)
+
+        if self.frbs["Z"] is not None:
+            
+            self.Zs=self.frbs["Z"]
+            # checks for any redhsifts identically equal to zero
+            #exactly zero can be bad... only happens in MC generation
+            # 0.001 is chosen as smallest redshift in original fit
+            zeroz = np.where(self.Zs == 0.)[0]
+            if len(zeroz) >0:
+                self.Zs[zeroz]=0.001
+            
+            # checks to see if there are any FRBs which are localised
+            self.zlist = np.where(self.Zs > 0.)[0]
+            if len(self.zlist) < self.NFRB:
+                self.nozlist = np.where(self.Zs < 0.)[0]
+                self.nD=3 # code for both
+            else:
+                self.nozlist = None
+                self.nD=2
+        else:
+            self.nD=1
+            self.Zs=None
+            self.nozlist=np.arange(self.NFRB)
+            self.zlist=None
+        
+        ### processes galactic contributions
+        self.process_dmg()
+        
+        ### get pointers to correct results ,for better access
+        self.DMs=self.frbs['DM']
+        self.DMGs=self.frbs['DMG']
+        self.SNRs=self.frbs['SNR']
+        self.WIDTHs=self.frbs['WIDTH']
+        self.TRESs=self.frbs['TRES']
+        self.FRESs=self.frbs['FRES']
+        self.FBARs=self.frbs['FBAR']
+        self.BWs=self.frbs['BW']
+        self.THRESHs=self.meta['THRESH']
+        self.SNRTHRESHs=self.meta['SNRTHRESH']
+        
+        self.Ss=self.SNRs/self.SNRTHRESHs
+        self.TOBS=self.meta['TOBS']
+        self.Ss[np.where(self.Ss < 1.)[0]]=1
+        
+        # sets the 'beam' values to unity by default
+        self.beam_b=np.array([1])
+        self.beam_o=np.array([1])
+        self.NBEAMS=1
+        
+        print("FRB survey sucessfully initialised with ",self.NFRB," FRBs starting from", self.iFRB)
+
+    def process_dmg(self):
+        """ Estimates galactic DM according to
+        Galactic lat and lon only if not otherwise provided
+        """
+        if self.frbs["DMG"] is None:
+            if self.frbs["Gl"] is None or self.frbs["Gb"] is None:
+                raise ValueError('Can not estimate Galactic contributions.\
+                    Please enter Galactic coordinates, or else manually enter \
+                    it as DMG')
+            print("Calculating DMG from NE2001. Please record this, it takes a while!")
+            ne = density.ElectronDensity()
+            DMGs=np.zeros([self.NFRB])
+            for i,l in enumerate(self.frbs["Gl"]):
+                b=self.frbs["Gb"][i]
+                
+                ismDM = ne.DM(l, b, 100.)
+            
+                print(i,l,b,ismDM)
+            DMGs=np.array(DMGs)
+            self.frbs["DMG"]=DMGs
+            self.DMGs=DMGs
+
+    def init_beam(self,nbins=10,plot=False,
+                  method=1,thresh=1e-3,Gauss=False):
+        """ Initialises the beam """
+        if Gauss:
+            b,omegab=beams.gauss_beam(thresh=thresh,nbins=nbins,freq=self.meta["FBAR"],D=self.meta["DIAM"])
+            self.beam_b=b
+            self.beam_o=omegab*self.meta["NBEAMS"]
+            self.orig_beam_b=self.beam_b
+            self.orig_beam_o=self.beam_o
+            
+        elif self.meta["BEAM"] is not None:
+            
+            logb,omegab=beams.load_beam(self.meta["BEAM"])
+            self.orig_beam_b=10**logb
+            self.orig_beam_o=omegab
+            if plot:
+                savename='Plots/Beams/'+self.name+'_'+self.meta["BEAM"]+'_'+str(method)+'_'+str(thresh)+'_beam.pdf'
+            else:
+                savename=None
+            b2,o2=beams.simplify_beam(logb,omegab,nbins,savename=savename,method=method,thresh=thresh)
+            self.beam_b=b2
+            self.beam_o=o2
+            self.do_beam=True
+            # sets the 'beam' values to unity by default
+            self.NBEAMS=b2.size
+            
+        else:
+            print("No beam found to initialise...")
+
+    def get_efficiency_from_wlist(self,DMlist,wlist,plist, 
+                                  model="Quadrature", 
+                                  addGalacticDM=True):
+        """ Gets efficiency to FRBs
+        Returns a list of relative efficiencies
+        as a function of dispersion measure for each width given in wlist
+        
+        
+        DMlist:
+            - list of dispersion measures (pc/cm3) at which to calculate efficiency
+        
+        wlist:
+            list of intrinsic FRB widths
+        
+        plist:
+            list of relative probabilities for FRBs to have widths of wlist
+        
+        model: method of estimating efficiency as function of width, DM, and time resolution
+            Takes values of "Quadrature" or "Sammons" (from Mawson Sammons summer project)
+        
+        addGalacticDM:
+            - True: this routine adds in contributions from the MW Halo and ISM, i.e.
+                it acts like DMlist is an extragalactic DM
+            - False: just used the supplied DMlist
+        
+        """
+        efficiencies=np.zeros([wlist.size,DMlist.size])
+        if addGalacticDM:
+            toAdd = self.DMhalo + np.mean(self.DMGs)
+        else:
+            toAdd = 0.
+        
+        for i,w in enumerate(wlist):
+            efficiencies[i,:]=calc_relative_sensitivity(
+                None,DMlist+toAdd,w,
+                np.median(self.frbs['FBAR']),
+                np.median(self.frbs['TRES']),
+                np.median(self.frbs['FRES']),
+                model=model,
+                dsmear=False)
+        # keep an internal record of this
+        self.efficiencies=efficiencies
+        self.wplist=plist
+        self.wlist=wlist
+        self.DMlist=DMlist
+        mean_efficiencies=np.mean(efficiencies,axis=0)
+        self.mean_efficiencies=mean_efficiencies #be careful here!!! This may not be what we want!
+        return efficiencies
+    
+            
+    def __repr__(self):
+        """ Over-ride print representation
+
+        Returns:
+            str: Items of the FURBY
+        """
+        repr = '<{:s}: \n'.format(self.__class__.__name__)
+        repr += f'name={self.name}'
+        return repr
+        
 # implements something like Mawson's formula for sensitivity
 # t_res in ms
 def calc_relative_sensitivity(DM_frb,DM,w,fbar,t_res,nu_res,model='Quadrature',dsmear=True):
@@ -787,17 +1004,25 @@ def load_survey(survey_name:str, state:parameters.State,
         dfile += '.ecsv'
 
     # Do it
-    srvy=Survey()
-    srvy.name = survey_name
-    srvy.process_survey_file(os.path.join(sdir, dfile), 
-                             NFRB=NFRB, iFRB=iFRB, original=original)
-    #srvy.process_survey_file(os.path.join(sdir, dfile), NFRB=NFRB, iFRB=iFRB)
-    srvy.init_DMEG(state.MW.DMhalo)
-    srvy.init_beam(nbins=nbins, method=state.beam.Bmethod, plot=False,
-                thresh=state.beam.Bthresh) # tells the survey to use the beam file
-    pwidths,pprobs=make_widths(srvy,state)
-    _ = srvy.get_efficiency_from_wlist(dmvals,
-                                       pwidths,pprobs) 
+    if original:
+        srvy=Survey()
+        srvy.name = survey_name
+        srvy.process_survey_file(os.path.join(sdir, dfile), 
+                                NFRB=NFRB, iFRB=iFRB, original=original)
+        #srvy.process_survey_file(os.path.join(sdir, dfile), NFRB=NFRB, iFRB=iFRB)
+        srvy.init_DMEG(state.MW.DMhalo)
+        srvy.init_beam(nbins=nbins, method=state.beam.Bmethod, plot=False,
+                    thresh=state.beam.Bthresh) # tells the survey to use the beam file
+        pwidths,pprobs=make_widths(srvy,state)
+        _ = srvy.get_efficiency_from_wlist(dmvals,
+                                        pwidths,pprobs) 
+    else:                                
+        srvy = NewSurvey(state, 
+                         survey_name, 
+                         os.path.join(sdir, dfile), 
+                         nbins,
+                         dmvals,
+                         NFRB=NFRB, iFRB=iFRB)
 
     return srvy
 

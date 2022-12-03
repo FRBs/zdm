@@ -20,6 +20,8 @@ import pytest
 #  Confirm THRESH and SNRTHESH
 #  Confirm X columns
 #  SNRth in Parkes
+#  Move all of init into __init__()
+#  Refactor the rest of Survey
 
 def test_load_new_grid():
     state = parameters.State()
