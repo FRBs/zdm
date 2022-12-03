@@ -26,7 +26,7 @@ srvy_data = survey_data.SurveyData.from_jsonstr(
 assert np.isclose(srvy_data.observing.TOBS, 1274.6) 
 
 # Clean up
-os.remove(tstutils.data_path('tmp.ecsv'))
+#os.remove(tstutils.data_path('tmp.ecsv'))
     
     
 

@@ -204,8 +204,8 @@ class Survey:
         self.do_keyword('DM',which)
         self.do_keyword('WIDTH',which,0.1) # defaults to unresolved width in time
         self.do_keyword_char('ID',which,None, dtype='str') # obviously we don't need names,!
-        self.do_keyword('Gl',which,None) # Galactic latitude
-        self.do_keyword('Gb',which,None) # Galactic longitude
+        self.do_keyword('Gl',which,None) # Galactic longitude
+        self.do_keyword('Gb',which,None) # Galactic latitude
         #
         self.do_keyword_char('XRa',which,None, dtype='str') # obviously we don't need names,!
         self.do_keyword_char('XDec',which,None, dtype='str') # obviously we don't need names,!
@@ -770,24 +770,22 @@ def refactor_old_survey_file(survey_name:str, outfile:str):
     # FRBs
     frbs = pandas.DataFrame(isurvey.frbs)
 
-    # Fill in survey_data
+    # Fill in fixed survey_data
 
     # Time and Frequency
-    srvy_data.timefrequency.BW = isurvey.BWs[0]
-    srvy_data.timefrequency.FRES = isurvey.FRESs[0]
-    srvy_data.timefrequency.TRES = isurvey.TRESs[0]
+    #srvy_data.timefrequency.BW = isurvey.BWs[0]
+    #srvy_data.timefrequency.FRES = isurvey.FRESs[0]
+    #srvy_data.timefrequency.TRES = isurvey.TRESs[0]
 
     # Telescope
     srvy_data.telescope.BEAM = isurvey.meta['BEAM']
-    if 'DIAM' in isurvey.meta:
-        srvy_data.telescope.DIAM = isurvey.meta['DIAM'] 
+    srvy_data.telescope.DIAM = isurvey.meta['DIAM'] 
     srvy_data.telescope.NBEAMS = int(isurvey.meta['NBEAMS'])
-    srvy_data.telescope.SNRTHRESH = isurvey.meta['SNRTHRESH']
-    srvy_data.telescope.THRESH = isurvey.meta['THRESH']
+    #srvy_data.telescope.SNRTHRESH = isurvey.meta['SNRTHRESH']
+    #srvy_data.telescope.THRESH = isurvey.meta['THRESH']
 
     # Observing
-    if 'TOBS' in isurvey.meta:
-        srvy_data.observing.TOBS = isurvey.meta['TOBS'] 
+    srvy_data.observing.TOBS = isurvey.meta['TOBS'] 
     if 'NORM_FRB' in isurvey.meta:
         srvy_data.observing.NORM_FRB = isurvey.meta['NORM_FRB']
     else:
@@ -800,7 +798,22 @@ def refactor_old_survey_file(survey_name:str, outfile:str):
             if key2 in frbs.keys():
                 frbs.drop(columns=[key2], inplace=True)
 
-    embed(header='791 of survey')
+    # Rename ID
+    frbs.rename(columns={'ID':'TNS'}, inplace=True)
+
+    # Vet/populate the FRBs
+    frb_data = survey_data.FRB()
+    for field in frb_data.__dataclass_fields__.keys():
+        if field in frbs.keys():
+            not_none = frbs[field].values != None
+            if np.any(not_none):
+                idx0 = np.where(not_none)[0][0]
+                assert isinstance(
+                    frbs.iloc[idx0][field], 
+                    frb_data.__dataclass_fields__[field].type), \
+                        f'Bad data type for {field}'
+        else:
+            frbs[field] = None
 
     # Convert for I/O
     frbs = Table.from_pandas(frbs)
@@ -812,3 +825,4 @@ def refactor_old_survey_file(survey_name:str, outfile:str):
 
     # Write me
     frbs.write(outfile, overwrite=True)
+    print(f'Wrote:; {outfile}')

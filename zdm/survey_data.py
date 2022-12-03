@@ -5,23 +5,88 @@ from dataclasses import dataclass, field
 from zdm import data_class
 
 @dataclass
-class TimeFrequency(data_class.myDataClass):
-    BW: float = field(
+class FRB(data_class.myDataClass):
+    # None of the fields should start with an X
+    BW: float = field( 
         default=0., 
         metadata={'help': "Mean Frequency (observed)", 
                   'unit': 'MHz', 
                   'Notation': '',
                   })
-    FRES: float = field(
+    DM: float = field( 
+        default=0., 
+        metadata={'help': "Measured DM",
+                  'unit': 'pc/cm**3', 
+                  'Notation': '',
+                  })
+    DMG: float = field( 
+        default=0., 
+        metadata={'help': "Galactic contribution to DM",
+                  'unit': 'pc/cm**3', 
+                  'Notation': '',
+                  })
+    FBAR: float = field( 
+        default=0., 
+        metadata={'help': "Mean frequency",
+                  'unit': 'GHz', 
+                  'Notation': '',
+                  })
+    FRES: float = field( 
         default=1., 
         metadata={'help': "Frequency resolution",
                   'unit': 'MHz', 
                   'Notation': '',
                   })
-    TRES: float = field(
+    Gb: float = field( 
+        default=1., 
+        metadata={'help': "Galactic latitude",
+                  'unit': 'deg', 
+                  'Notation': '',
+                  })
+    Gl: float = field( 
+        default=1., 
+        metadata={'help': "Galactic longitude",
+                  'unit': 'deg', 
+                  'Notation': '',
+                  })
+    SNR: float = field( 
+        default=0., 
+        metadata={'help': "S/N", 
+                  'unit': '', 
+                  'Notation': '',
+                  })
+    SNRTHRESH: float = field( 
+        default=0., 
+        metadata={'help': "S/N threshold", 
+                  'unit': '', 
+                  'Notation': '',
+                  })
+    TNS: str = field(
+        default='', 
+        metadata={'help': "TNS Name", 
+                  })
+    TRES: float = field( 
         default=0., 
         metadata={'help': "Time resolution",
                   'unit': 'ms', 
+                  'Notation': '',
+                  })
+    THRESH: float = field( 
+        default=0., 
+        metadata={'help': "Threshold fluence", 
+                  'unit': 'Jy ms', 
+                  'Notation': '',
+                  })
+    WIDTH: float = field( 
+        default=0.1, 
+        metadata={'help': "Width of the event (intrinsic??)", 
+                  'unit': 'ms', 
+                  'Notation': '',
+                  })
+    Z: float = field( 
+        default=0.1, 
+        metadata={'help': "redshift", 
+                  'unit': '', 
                   'Notation': '',
                   })
 
@@ -43,18 +108,6 @@ class Telescope(data_class.myDataClass):
         default='', 
         metadata={'help': "Beam file", 
                   })
-    THRESH: float = field(
-        default=0., 
-        metadata={'help': "Threshold fluence", 
-                  'unit': 'Jy ms', 
-                  'Notation': '',
-                  })
-    SNRTHRESH: float = field(
-        default=0., 
-        metadata={'help': "S/N threshold", 
-                  'unit': '', 
-                  'Notation': '',
-                  })
 
 @dataclass
 class Observing(data_class.myDataClass):
@@ -72,12 +125,11 @@ class Observing(data_class.myDataClass):
                   })
 
 class SurveyData(data_class.myData):
-    """ Hold the SurveyData in a convenient
-    object
+    """ Hold the SurveyData in a convenient object
 
     """
     def set_dataclasses(self):
 
-        self.timefrequency = TimeFrequency()
         self.observing = Observing()
         self.telescope = Telescope()
+        # FRBs -- Will need one per FRB
