@@ -470,6 +470,18 @@ class NewSurvey:
                  dmvals:np.ndarray,
                  NFRB:int=None, 
                  iFRB:int=0):
+        """ Init an FRB Survey class
+
+        Args:
+            state (_type_): _description_
+            survey_name (str): 
+                Name of the survey
+            filename (str): _description_
+            nbins (int): _description_
+            dmvals (np.ndarray): _description_
+            NFRB (int, optional): _description_. Defaults to None.
+            iFRB (int, optional): _description_. Defaults to 0.
+        """
         # Proceed
         self.name = survey_name
         # Load up
