@@ -187,6 +187,18 @@ def plot_expectations(name,sdir,vparams,opfile):
         dmdist210117 = dmdist210117[iOK]
         dmdist210117 /= np.sum(dmdist210117) * ddm #normalisation to a probability distribution
         
+        # gets 1 sigma limits
+        from zdm import analyze_cube as ac
+        xvals=dmhost210117*(1.+z210117)
+        l0,l1,k0,k1=ac.extract_limits(xvals,dmdist210117,(1.-0.6827)/2.)
+        print("68% limits are ",l0,l1)
+        imax=np.argmax(dmdist210117)
+        print("max is ",dmhost210117[imax]*(1.+z210117))
+        cdf=np.cumsum(dmdist210117)
+        cdf /= cdf[-1]
+        icdf = np.where(cdf>0.5)[0][0]
+        print("median is ",dmhost210117[icdf]*(1.+z210117))
+        
         #v1,v2,k1,k2=ac.extract_limits(dmhost210117,dmdist210117,0.16) # 0.16 = (1-68%)/2
         #print("210117: 1 sigma bounds are ",v1*(1+z210117),v2*(1+z210117))
         #v1,v2,k1,k2=ac.extract_limits(dmhost210117,dmdist210117,0.42) # 0.49 ~ (1-0)/2
@@ -205,7 +217,6 @@ def plot_expectations(name,sdir,vparams,opfile):
         plt.xlim(0,2000)
         plt.xlabel('Rest frame ${\\rm DM}_{\\rm host}~[{\\rm pc\\,cm}^{-3}]$')
         plt.ylabel('$p({\\rm DM}_{\\rm host})$')
-        
         plt.plot(dmhost210117*(1.+z210117),dmdist210117/(1.+z210117),label="FRB 20210117",linestyle='-')
         plt.plot(dmhost*(1.+Z220610),dmdist/(1.+Z220610),label="FRB 20220610A",linestyle=':')
         plt.plot(dmhostFAST*(1.+zFAST),dmdistFAST/(1.+zFAST),label="FRB 20190520B",linestyle='--')
