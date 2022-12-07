@@ -531,9 +531,10 @@ class Survey:
         # Vet
         vet_frb_table(self.frbs, mandatory=True)
 
-        if self.frbs["Z"] is not None:
+        # Pandas resolves None to Nan
+        if np.isfinite(self.frbs["Z"][0]):
             
-            self.Zs=self.frbs["Z"]
+            self.Zs=self.frbs["Z"].values
             # checks for any redhsifts identically equal to zero
             #exactly zero can be bad... only happens in MC generation
             # 0.001 is chosen as smallest redshift in original fit
@@ -559,16 +560,16 @@ class Survey:
         self.process_dmg()
         
         ### get pointers to correct results ,for better access
-        self.DMs=self.frbs['DM']
-        self.DMGs=self.frbs['DMG']
-        self.SNRs=self.frbs['SNR']
-        self.WIDTHs=self.frbs['WIDTH']
-        self.TRESs=self.frbs['TRES']
-        self.FRESs=self.frbs['FRES']
-        self.FBARs=self.frbs['FBAR']
-        self.BWs=self.frbs['BW']
-        self.THRESHs=self.frbs['THRESH']
-        self.SNRTHRESHs=self.frbs['SNRTHRESH']
+        self.DMs=self.frbs['DM'].values
+        self.DMGs=self.frbs['DMG'].values
+        self.SNRs=self.frbs['SNR'].values
+        self.WIDTHs=self.frbs['WIDTH'].values
+        self.TRESs=self.frbs['TRES'].values
+        self.FRESs=self.frbs['FRES'].values
+        self.FBARs=self.frbs['FBAR'].values
+        self.BWs=self.frbs['BW'].values
+        self.THRESHs=self.frbs['THRESH'].values
+        self.SNRTHRESHs=self.frbs['SNRTHRESH'].values
         
         self.Ss=self.SNRs/self.SNRTHRESHs
         self.TOBS=self.meta['TOBS']

@@ -73,7 +73,7 @@ def test_cube_run():
     current = [item//2 for item in cube_shape]
     run = np.ravel_multi_index(current, cube_shape, order='F')
 
-    pytest.set_trace()
+    #pytest.set_trace()
     it.cube_likelihoods(grids,surveys,vparam_dict, cube_dict,run,howmany,outfile)
     
     # now we check that the output file exists
