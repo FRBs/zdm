@@ -110,7 +110,7 @@ class OldSurvey:
         return efficiencies
     
     def process_survey_file(self,filename:str, NFRB:int=None,
-                            iFRB:int=0, original:bool=False):
+                            iFRB:int=0):
         """ Loads a survey file, then creates 
         dictionaries of the loaded variables 
 
@@ -121,7 +121,6 @@ class OldSurvey:
             iFRB (int, optional): Start grabbing FRBs at this index
                 Mainly used for Monte Carlo analysis
                 Requires that NFRB be set
-            original (bool, optional):
         """
         info=[]
         keys=[]
@@ -131,105 +130,90 @@ class OldSurvey:
         name=os.path.splitext(basename)[0]
         self.name=name
         self.iFRB = iFRB
-        self.NFRB = NFRB
 
-        if original:
-            # read in raw data from survey file
-            nlines=0
-            with open(filename) as infile:
-                i=-1
-                for line in infile:
-                    # initial split. Identifies keys and removes blank and comment lines
-                    i += 1
-                    line=line.strip()
-                    if line=="": #remove comment lines
-                        continue
-                    elif line[0]=='#': #remove blank lines
-                        continue
-                    else:
-                        nocomments=line.split("#")[0]
-                        words=nocomments.split()
-                        key=words[0]
-                        keys.append(key)
-                        rest=words[1:]
-                        info.append(rest)
-                        nlines+=1
-            
-            #### Find the number of FRBs in the file ###
-            self.info=info
-            self.keys=keys
+        # read in raw data from survey file
+        nlines=0
+        with open(filename) as infile:
+            i=-1
+            for line in infile:
+                # initial split. Identifies keys and removes blank and comment lines
+                i += 1
+                line=line.strip()
+                if line=="": #remove comment lines
+                    continue
+                elif line[0]=='#': #remove blank lines
+                    continue
+                else:
+                    nocomments=line.split("#")[0]
+                    words=nocomments.split()
+                    key=words[0]
+                    keys.append(key)
+                    rest=words[1:]
+                    info.append(rest)
+                    nlines+=1
+        
+        #### Find the number of FRBs in the file ###
+        self.info=info
+        self.keys=keys
 
-            # NFRB
-            if self.NFRB is None:
-                self.NFRB=keys.count('FRB')
-
-            self.meta['NFRB']=self.NFRB
-            
-            #### separates FRB and non-FRB keys
-            self.frblist=self.find(keys,'FRB')
-
-            if NFRB is not None:
-                # Take the first set
-                self.frblist=self.frblist[iFRB:NFRB+iFRB]
-            
-            ### first check for the key list to interpret the FRB table
-            iKEY=self.do_metakey('KEY')
-            self.keylist=info[iKEY]
-            
-            # the following can only be metadata
-            which=1
-            self.do_keyword_char('BEAM',which,None) # prefix of beam file
-            self.do_keyword('TOBS',which,None) # total observation time, hr
-            self.do_keyword('DIAM',which,None) # Telescope diamater (in case of Gauss beam)
-            self.do_keyword('NBEAMS',which,1) # Number of beams (multiplies sr)
-            self.do_keyword('NORM_FRB',which,self.NFRB) # number of FRBs to norm obs time by
-            
-            self.NORM_FRB=self.meta['NORM_FRB']
-            # the following properties can either be FRB-by-FRB, or metadata
-            which=3
-            
-            self.do_keyword('THRESH',which)
-            self.do_keyword('TRES',which,1.265)
-            self.do_keyword('FRES',which,1)
-            self.do_keyword('FBAR',which,1196)
-            self.do_keyword('BW',which,336)
-            self.do_keyword('SNRTHRESH',which,9.5)
-            self.do_keyword('DMG',which,None) # Galactic contribution to DM
-            
-            
-            # The following properties can only be FRB-by-FRB
-            which=2
-            self.do_keyword('SNR',which)
-            self.do_keyword('DM',which)
-            self.do_keyword('WIDTH',which,0.1) # defaults to unresolved width in time
-            self.do_keyword_char('ID',which,None, dtype='str') # obviously we don't need names,!
-            self.do_keyword('Gl',which,None) # Galactic longitude
-            self.do_keyword('Gb',which,None) # Galactic latitude
-            #
-            self.do_keyword_char('XRA',which,None, dtype='str') # obviously we don't need names,!
-            self.do_keyword_char('XDec',which,None, dtype='str') # obviously we don't need names,!
-            
-            self.do_keyword('Z',which,None)
+        # NFRB
+        if NFRB is None:
+            self.NFRB=keys.count('FRB')
         else:
-            # Read
-            frb_tbl = Table.read(filename,
-                        format='ascii.ecsv')
-            # Survey Data
-            self.survey_data = survey_data.SurveyData.from_jsonstr(
-                frb_tbl.meta['survey_data'])
-            # Meta -- for convenience for now;  best to migrate away from this
-            for key in self.survey_data.params:
-                DC = self.survey_data.params[key]
-                self.meta[key] = getattr(self.survey_data[DC],key)
-            # FRB data
-            self.frbs = frb_tbl.to_pandas()
-            # Cut down?
-            if self.NFRB is None:
-                self.NFRB=len(self.frbs)
-            else:
-                self.frbs =self.frbs[self.iFRB:self.NFRB+self.iFRB]
-            # Vet
-            vet_frb_table(self.frbs, mandatory=True)
+            self.NFRB = min(keys.count('FRB'),NFRB)
+        if self.NFRB==0:
+            raise ValueError('No FRBs found in file '+filename) #change this?
+
+        self.meta['NFRB']=self.NFRB
+        
+        #### separates FRB and non-FRB keys
+        self.frblist=self.find(keys,'FRB')
+
+        if NFRB is not None:
+            # Take the first set - ensures we do not overrun the total number of FRBs
+            if self.NFRB < NFRB+iFRB:
+                raise ValueError("Cannot return sufficient FRBs, did you mean NFRB=None?")
+            themax = min(NFRB+iFRB,self.NFRB)
+            self.frblist=self.frblist[iFRB:themax]
+        
+        ### first check for the key list to interpret the FRB table
+        iKEY=self.do_metakey('KEY')
+        self.keylist=info[iKEY]
+        
+        # the following can only be metadata
+        which=1
+        self.do_keyword_char('BEAM',which,None) # prefix of beam file
+        self.do_keyword('TOBS',which,None) # total observation time, hr
+        self.do_keyword('DIAM',which,None) # Telescope diamater (in case of Gauss beam)
+        self.do_keyword('NBEAMS',which,1) # Number of beams (multiplies sr)
+        self.do_keyword('NORM_FRB',which,self.NFRB) # number of FRBs to norm obs time by
+        
+        self.NORM_FRB=self.meta['NORM_FRB']
+        # the following properties can either be FRB-by-FRB, or metadata
+        which=3
+        
+        self.do_keyword('THRESH',which)
+        self.do_keyword('TRES',which,1.265)
+        self.do_keyword('FRES',which,1)
+        self.do_keyword('FBAR',which,1196)
+        self.do_keyword('BW',which,336)
+        self.do_keyword('SNRTHRESH',which,9.5)
+        self.do_keyword('DMG',which,None) # Galactic contribution to DM
+        
+        
+        # The following properties can only be FRB-by-FRB
+        which=2
+        self.do_keyword('SNR',which)
+        self.do_keyword('DM',which)
+        self.do_keyword('WIDTH',which,0.1) # defaults to unresolved width in time
+        self.do_keyword_char('ID',which,None, dtype='str') # obviously we don't need names,!
+        self.do_keyword('Gl',which,None) # Galactic longitude
+        self.do_keyword('Gb',which,None) # Galactic latitude
+        #
+        self.do_keyword_char('XRA',which,None, dtype='str') # obviously we don't need names,!
+        self.do_keyword_char('XDec',which,None, dtype='str') # obviously we don't need names,!
+        
+        self.do_keyword('Z',which,None)
 
         if self.frbs["Z"] is not None:
             
