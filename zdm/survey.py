@@ -188,7 +188,6 @@ class OldSurvey:
         self.do_keyword('NBEAMS',which,1) # Number of beams (multiplies sr)
         self.do_keyword('NORM_FRB',which,self.NFRB) # number of FRBs to norm obs time by
         
-        self.NORM_FRB=self.meta['NORM_FRB']
         # the following properties can either be FRB-by-FRB, or metadata
         which=3
         
@@ -254,6 +253,7 @@ class OldSurvey:
         self.BWs=self.frbs['BW']
         self.THRESHs=self.meta['THRESH']
         self.SNRTHRESHs=self.meta['SNRTHRESH']
+        self.NORM_FRB=self.meta['NORM_FRB']
         
         self.Ss=self.SNRs/self.SNRTHRESHs
         self.TOBS=self.meta['TOBS']
@@ -572,6 +572,7 @@ class Survey:
         
         self.Ss=self.SNRs/self.SNRTHRESHs
         self.TOBS=self.meta['TOBS']
+        self.NORM_FRB=self.meta['NORM_FRB']
         self.Ss[np.where(self.Ss < 1.)[0]]=1
         
         # sets the 'beam' values to unity by default

@@ -35,6 +35,7 @@ def test_cube_run():
     surveys=[]
     grids=[]
     for name in names:
+        # We should be using real_loading
         s,g = loading.survey_and_grid(
             survey_name=name,NFRB=None,sdir=sdir) # should be equal to actual number of FRBs, but for this purpose it doesn't matter
         surveys.append(s)
@@ -72,9 +73,8 @@ def test_cube_run():
     current = [item//2 for item in cube_shape]
     run = np.ravel_multi_index(current, cube_shape, order='F')
 
-    it.cube_likelihoods(
-        grids,surveys,vparam_dict,
-        cube_dict,run,howmany,outfile)
+    pytest.set_trace()
+    it.cube_likelihoods(grids,surveys,vparam_dict, cube_dict,run,howmany,outfile)
     
     # now we check that the output file exists
     #assert os.path.exists(outfile)
