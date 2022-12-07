@@ -55,6 +55,18 @@ class FRB(data_class.myDataClass):
                   'unit': '', 
                   'Notation': '',
                   })
+    SNRTHRESH: float = field( 
+        default=0., 
+        metadata={'help': "S/N threshold to detect an FRB", 
+                  'unit': '', 
+                  'Notation': '',
+                  })
+    THRESH: float = field( 
+        default=0., 
+        metadata={'help': "Threshold fluence used to detect an FRB", 
+                  'unit': 'Jy ms', 
+                  'Notation': '',
+                  })
     TNS: str = field(
         default='', 
         metadata={'help': "TNS Name", 
@@ -94,18 +106,6 @@ class Telescope(data_class.myDataClass):
         default=0, 
         metadata={'help': "Number of beams/antennae", 
                   'unit': '', 
-                  'Notation': '',
-                  })
-    SNRTHRESH: float = field( 
-        default=0., 
-        metadata={'help': "S/N threshold", 
-                  'unit': '', 
-                  'Notation': '',
-                  })
-    THRESH: float = field( 
-        default=0., 
-        metadata={'help': "Threshold fluence", 
-                  'unit': 'Jy ms', 
                   'Notation': '',
                   })
 

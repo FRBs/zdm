@@ -1040,6 +1040,14 @@ def load_survey(survey_name:str, state:parameters.State,
 
 def refactor_old_survey_file(survey_name:str, outfile:str, 
                              clobber:bool=False):
+    """Refactor an old survey file to the new format
+
+    Args:
+        survey_name (str): Name of the survey
+        outfile (str): Name of the output file
+        clbover (bool, optional): Clobber the output file. Defaults to False.
+    """
+    
     state = parameters.State()
     srvy_data = survey_data.SurveyData()
     
@@ -1089,6 +1097,13 @@ def refactor_old_survey_file(survey_name:str, outfile:str,
             continue
         # Add it
         frbs[key] = isurvey.frbs[key]
+
+    # Order the columns
+    frbs = frbs.reindex(sorted(frbs.columns), axis=1)
+
+    # Move TNS to the front
+    col = frbs.pop("TNS")
+    frbs.insert(0, col.name, col)
 
     # Convert for I/O
     frbs = Table.from_pandas(frbs)
