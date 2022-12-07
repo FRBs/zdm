@@ -1,25 +1,26 @@
 # %ECSV 1.0
 # ---
 # datatype:
-# - {name: TRES, datatype: float64}
-# - {name: FRES, datatype: float64}
-# - {name: FBAR, datatype: float64}
-# - {name: BW, datatype: float64}
-# - {name: DMG, datatype: float64}
-# - {name: SNR, datatype: float64}
-# - {name: DM, datatype: float64}
-# - {name: WIDTH, datatype: float64}
 # - {name: TNS, datatype: string}
-# - {name: Gl, datatype: string, subtype: 'float64[null]'}
+# - {name: BW, datatype: float64}
+# - {name: DM, datatype: float64}
+# - {name: DMG, datatype: float64}
+# - {name: FBAR, datatype: float64}
+# - {name: FRES, datatype: float64}
 # - {name: Gb, datatype: string, subtype: 'float64[null]'}
-# - {name: XRA, datatype: string}
-# - {name: XDec, datatype: string}
-# - {name: Z, datatype: float64}
+# - {name: Gl, datatype: string, subtype: 'float64[null]'}
+# - {name: SNR, datatype: float64}
+# - {name: SNRTHRESH, datatype: float64}
+# - {name: THRESH, datatype: float64}
+# - {name: TRES, datatype: float64}
+# - {name: WIDTH, datatype: float64}
 # - {name: XC, datatype: string}
+# - {name: XDec, datatype: string}
+# - {name: XRA, datatype: string}
+# - {name: Z, datatype: float64}
 # meta: !!omap
 # - {survey_data: "{\n    \"observing\": {\n        \"NORM_FRB\": 1,\n        \"TOBS\": 8.07\n    },\n    \"telescope\": {\n        \"\
-#     BEAM\": \"lat50_log\",\n        \"DIAM\": 12.0,\n        \"NBEAMS\": 1,\n        \"SNRTHRESH\": 9.0,\n        \"THRESH\": 4.4\n\
-#     \    }\n}"}
+#     BEAM\": \"lat50_log\",\n        \"DIAM\": 12.0,\n        \"NBEAMS\": 1\n    }\n}"}
 # schema: astropy-2.0
-TRES FRES FBAR BW DMG SNR DM WIDTH TNS Gl Gb XRA XDec Z XC
-1.182 1.0 1632.5 336.0 27.1 12.8 206.0 2.7 20211212 "" "" 10:30:40.7 01:40:36.8 0.0715 closepack36/45/0.9
+TNS BW DM DMG FBAR FRES Gb Gl SNR SNRTHRESH THRESH TRES WIDTH XC XDec XRA Z
+20211212 336.0 206.0 27.1 1632.5 1.0 "" "" 12.8 9.0 4.4 1.182 2.7 closepack36/45/0.9 01:40:36.8 10:30:40.7 0.0715

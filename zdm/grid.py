@@ -69,7 +69,8 @@ class Grid:
             weights=None
         self.efficiencies=efficiencies
         self.weights=weights
-        self.calc_thresholds(survey.meta['THRESH'],
+        # Warning -- THRESH could be different for each FRB, but we don't treat it that way
+        self.calc_thresholds(np.median(survey.frbs['THRESH']),
                              efficiencies,
                              weights=weights)
         # Calculate

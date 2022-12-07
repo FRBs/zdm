@@ -13,7 +13,6 @@ if __name__ == "__main__":
         'PKS/Mb', 'parkes_mb_class_I_and_II.ecsv',
         clobber=False)
 
-    '''
     # CRAFT ICS
     survey.refactor_old_survey_file(
         'CRAFT/ICS', 'CRAFT_ICS.ecsv', 
@@ -33,4 +32,3 @@ if __name__ == "__main__":
     survey.refactor_old_survey_file(
         'CRAFT/ICS1632', 'CRAFT_ICS_1632.ecsv', 
         clobber=False)
-    '''

@@ -24,7 +24,7 @@ import matplotlib.pyplot as plt
 
 from IPython import embed
 
-class Survey:
+class OldSurvey:
     """A class to hold an FRB survey
 
     Attributes:
@@ -464,7 +464,7 @@ class Survey:
         return repr
     
 
-class NewSurvey:
+class Survey:
     def __init__(self, state, survey_name:str, 
                  filename:str, nbins:int, 
                  dmvals:np.ndarray,
@@ -577,8 +577,8 @@ class NewSurvey:
         self.FRESs=self.frbs['FRES']
         self.FBARs=self.frbs['FBAR']
         self.BWs=self.frbs['BW']
-        self.THRESHs=self.meta['THRESH']
-        self.SNRTHRESHs=self.meta['SNRTHRESH']
+        self.THRESHs=self.frbs['THRESH']
+        self.SNRTHRESHs=self.frbs['SNRTHRESH']
         
         self.Ss=self.SNRs/self.SNRTHRESHs
         self.TOBS=self.meta['TOBS']
@@ -1017,7 +1017,7 @@ def load_survey(survey_name:str, state:parameters.State,
 
     # Do it
     if original:
-        srvy=Survey()
+        srvy=OldSurvey()
         srvy.name = survey_name
         srvy.process_survey_file(os.path.join(sdir, dfile), 
                                 NFRB=NFRB, iFRB=iFRB, original=original)
@@ -1029,7 +1029,7 @@ def load_survey(survey_name:str, state:parameters.State,
         _ = srvy.get_efficiency_from_wlist(dmvals,
                                         pwidths,pprobs) 
     else:                                
-        srvy = NewSurvey(state, 
+        srvy = Survey(state, 
                          survey_name, 
                          os.path.join(sdir, dfile), 
                          nbins,
