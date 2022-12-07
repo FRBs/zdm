@@ -1,4 +1,4 @@
-from IPython.terminal.embed import embed
+from IPython import embed
 import numpy as np
 from dataclasses import dataclass, field
 from typing import IO, List

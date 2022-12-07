@@ -517,11 +517,17 @@ class Survey:
             self.meta[key] = getattr(self.survey_data[DC],key)
         # FRB data
         self.frbs = frb_tbl.to_pandas()
+
         # Cut down?
         if self.NFRB is None:
             self.NFRB=len(self.frbs)
         else:
-            self.frbs =self.frbs[self.iFRB:self.NFRB+self.iFRB]
+            self.NFRB=min(len(self.frbs), NFRB)
+            if self.NFRB < NFRB+iFRB:
+                raise ValueError("Cannot return sufficient FRBs, did you mean NFRB=None?")
+            # Not sure the following linematters given the Error above
+            themax = min(NFRB+iFRB,self.NFRB)
+            self.frbs=self.frbs[iFRB:themax]
         # Vet
         vet_frb_table(self.frbs, mandatory=True)
 
@@ -1004,7 +1010,7 @@ def load_survey(survey_name:str, state:parameters.State,
         srvy=OldSurvey()
         srvy.name = survey_name
         srvy.process_survey_file(os.path.join(sdir, dfile), 
-                                NFRB=NFRB, iFRB=iFRB, original=original)
+                                NFRB=NFRB, iFRB=iFRB)
         #srvy.process_survey_file(os.path.join(sdir, dfile), NFRB=NFRB, iFRB=iFRB)
         srvy.init_DMEG(state.MW.DMhalo)
         srvy.init_beam(nbins=nbins, method=state.beam.Bmethod, plot=False,
