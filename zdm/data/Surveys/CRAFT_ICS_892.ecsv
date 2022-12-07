@@ -1,0 +1,33 @@
+# %ECSV 1.0
+# ---
+# datatype:
+# - {name: TNS, datatype: string}
+# - {name: BW, datatype: float64}
+# - {name: DM, datatype: float64}
+# - {name: DMG, datatype: float64}
+# - {name: FBAR, datatype: float64}
+# - {name: FRES, datatype: float64}
+# - {name: Gb, datatype: string, subtype: 'float64[null]'}
+# - {name: Gl, datatype: string, subtype: 'float64[null]'}
+# - {name: SNR, datatype: float64}
+# - {name: SNRTHRESH, datatype: float64}
+# - {name: THRESH, datatype: float64}
+# - {name: TRES, datatype: float64}
+# - {name: WIDTH, datatype: float64}
+# - {name: XC, datatype: string}
+# - {name: XDec, datatype: string}
+# - {name: XRA, datatype: string}
+# - {name: Z, datatype: float64}
+# meta: !!omap
+# - {survey_data: "{\n    \"observing\": {\n        \"NORM_FRB\": 8,\n        \"TOBS\": 62.0\n    },\n    \"telescope\": {\n        \"\
+#     BEAM\": \"ASKAP_892\",\n        \"DIAM\": 12.0,\n        \"NBEAMS\": 1\n    }\n}"}
+# schema: astropy-2.0
+TNS BW DM DMG FBAR FRES Gb Gl SNR SNRTHRESH THRESH TRES WIDTH XC XDec XRA Z
+20191001A 336.0 506.92 44.2 919.5 1.0 "" "" 62.0 9.0 4.4 1.728 4.2 closepack36/45 -54:44:54 21:33:24 0.23
+20200430A 336.0 380.1 27.0 864.5 1.0 "" "" 16.0 9.0 4.4 1.728 6.5 square_6x6 12:22:34.007 15:18:49.581 0.161
+20200627 336.0 294.0 40.0 920.5 1.0 "" "" 11.0 9.0 4.4 1.728 2.9 closepack36 -39:29:05.0 21:46:47.0 -1.0
+20200906A 336.0 577.8 35.9 864.5 1.0 "" "" 19.2 9.0 4.4 1.728 6.0 closepack36 -14:04:59.9136 03:33:58.9364 0.36879
+20210320 336.0 384.8 42.2 864.5 1.0 "" "" 15.3 9.0 4.4 1.728 5.4 square_6x6/45/1.05 -16:09:05.1 13:37:50.08605 0.28
+20210807 336.0 251.9 121.2 920.5 1.0 "" "" 47.1 9.0 4.4 1.182 10.0 square6x6/45/0.9 -00:45:44.5 19:56:53.144 0.12969
+20210809 336.0 651.5 190.1 920.5 1.0 "" "" 16.8 9.0 4.4 1.182 14.2 square6x6/45/0.9 01:19:43.5 18:04:37.7 -1.0
+20211203 336.0 636.2 63.4 920.5 1.0 "" "" 14.2 9.0 4.4 1.182 9.6 closepack36/45/0.9 -31:22:04.0 13:37:52.8 0.34386

@@ -53,7 +53,8 @@ class Grid:
         self.luminosity_function = self.state.energy.luminosity_function
         self.init_luminosity_functions()
 
-        self.nuObs = survey.meta["FBAR"] * 1e6  # from MHz to Hz
+        #self.nuObs=survey.meta['FBAR']*1e6 #from MHz to Hz
+        self.nuObs= np.median(survey.frbs['FBAR'])*1e6 #from MHz to Hz
         # Init the grid
         #   THESE SHOULD BE THE SAME ORDER AS self.update()
         self.parse_grid(zDMgrid.copy(), zvals.copy(), dmvals.copy())
@@ -65,9 +66,13 @@ class Grid:
         else:
             efficiencies = survey.mean_efficiencies
             weights = None
-        self.efficiencies = efficiencies
-        self.weights = weights
         self.calc_thresholds(survey.meta["THRESH"], efficiencies, weights=weights)
+            efficiencies=survey.mean_efficiencies
+            weights=None
+        # Warning -- THRESH could be different for each FRB, but we don't treat it that way
+        self.calc_thresholds(np.median(survey.frbs['THRESH']),
+                             efficiencies,
+                             weights=weights)
         # Calculate
         self.calc_pdv()
         self.set_evolution()  # sets star-formation rate scaling with z - here, no evoltion...
@@ -329,9 +334,10 @@ class Grid:
 
         self.rates = self.pdv * self.sfr_smear
 
-    def calc_thresholds(
-        self, F0: float, eff_table, bandwidth=1e9, nuRef=1.3e9, weights=None
-    ):
+    def calc_thresholds(self, F0:float, 
+                        eff_table, 
+                        bandwidth=1e9, 
+                        nuRef=1.3e9, weights=None):
         """ Sets the effective survey threshold on the zdm grid
 
         Args:
