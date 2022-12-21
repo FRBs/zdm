@@ -22,7 +22,7 @@
 # - {name: Z, datatype: string, subtype: 'float64[null]'}
 # meta: !!omap
 # - {survey_data: "{\n    \"observing\": {\n        \"NORM_FRB\": 12,\n        \"TOBS\": 164.4\n    },\n    \"telescope\": {\n       \
-#     \ \"BEAM\": \"parkes_mb_log\",\n        \"DIAM\": 64.0,\n        \"NBEAMS\": 13\n    }\n}"}
+#     \ \"BEAM\": \"parkes_mb_log\",\n        \"DIAM\": 64.0,\n        \"NBEAMS\": 13,\n        \"NBINS\": 10\n    }\n}"}
 # schema: astropy-2.0
 TNS BW DM DMG FBAR FRES Gb Gl SNR SNRTHRESH THRESH TRES WIDTH XA XB XC XDec XRA Z
 151230 337.0 960.4 48.0 1382.0 0.390625 34.8 239.0 17.0 10.0 0.5 0.128 4.4 2015/12/30 16:15:46.525 parkes -03:27:05 09:40:50 ""

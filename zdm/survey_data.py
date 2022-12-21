@@ -108,6 +108,12 @@ class Telescope(data_class.myDataClass):
                   'unit': '', 
                   'Notation': '',
                   })
+    NBINS: int = field(
+        default=0, 
+        metadata={'help': "Number of bins for width analysis", 
+                  'unit': '', 
+                  'Notation': '',
+                  })
 
 @dataclass
 class Observing(data_class.myDataClass):
