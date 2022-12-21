@@ -5,6 +5,7 @@ NORMFRB 13 #half true number to account for SNR issue
 TOBS 92.7 #in days
 DIAM 12
 NBEAMS 36
+NBINS 5
 BEAM lat50_log #prefix of beam file
 THRESH 4.4 #Jy ms to a 1 ms burst, very basic. Likely higher
 SNRTHRESH 9 # signal-to-noise threshold: scales jy ms to snr

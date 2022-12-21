@@ -4,6 +4,7 @@ FRES  1 #MHz
 TRES  1.265 #ms
 DIAM 12
 NBEAMS 36
+NBINS 5
 BEAM lat50_log #prefix of beam file
 NFRB 26 #Number of FRBs
 NORM_FRB 20 #Number corresponding to Tobs
