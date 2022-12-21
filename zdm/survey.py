@@ -1,38 +1,36 @@
-################ COSMOLOGY.PY ###############
-
-# Author: Clancy W. James
-# clancy.w.james@gmail.com
-
-
+# ###############################################
 # This file defines a class to hold an FRB survey
 # Essentially, this is relevant when multiple
 # FRBs are discovered by the same instrument
+# ##############################################
 
-##############################################
-
-
-from IPython.terminal.embed import embed
 import numpy as np
 import os
 from pkg_resources import resource_filename
 from scipy.integrate import quad
 
-from typing import IO
+import pandas
+from astropy.table import Table
+import json
+
+
+from ne2001 import density
 
 from zdm import beams, parameters
 from zdm import pcosmic
+from zdm import survey_data
 
 import matplotlib.pyplot as plt
 
-class Survey:
+from IPython import embed
+
+class OldSurvey:
     """A class to hold an FRB survey
 
     Attributes:
         frbs (dict): Holds the data for the FRBs
 
     """
-    
-    
     def __init__(self):
         self.init=False
         self.do_beam=False
@@ -62,7 +60,9 @@ class Survey:
         self.mean_efficiencies=mean_efficiencies
         return efficiencies
     
-    def get_efficiency_from_wlist(self,DMlist,wlist,plist,model="Quadrature",addGalacticDM=True):
+    def get_efficiency_from_wlist(self,DMlist,wlist,plist, 
+                                  model="Quadrature", 
+                                  addGalacticDM=True):
         """ Gets efficiency to FRBs
         Returns a list of relative efficiencies
         as a function of dispersion measure for each width given in wlist
@@ -93,7 +93,13 @@ class Survey:
             toAdd = 0.
         
         for i,w in enumerate(wlist):
-            efficiencies[i,:]=calc_relative_sensitivity(None,DMlist+toAdd,w,self.meta["FBAR"],self.meta["TRES"],self.meta["FRES"],model=model,dsmear=False)
+            efficiencies[i,:]=calc_relative_sensitivity(
+                None,DMlist+toAdd,w,
+                np.median(self.frbs['FBAR']),
+                np.median(self.frbs['TRES']),
+                np.median(self.frbs['FRES']),
+                model=model,
+                dsmear=False)
         # keep an internal record of this
         self.efficiencies=efficiencies
         self.wplist=plist
@@ -123,6 +129,8 @@ class Survey:
         basename=os.path.basename(filename)
         name=os.path.splitext(basename)[0]
         self.name=name
+        self.iFRB = iFRB
+
         # read in raw data from survey file
         nlines=0
         with open(filename) as infile:
@@ -148,7 +156,7 @@ class Survey:
         self.info=info
         self.keys=keys
 
-        # 
+        # NFRB
         if NFRB is None:
             self.NFRB=keys.count('FRB')
         else:
@@ -156,13 +164,11 @@ class Survey:
         if self.NFRB==0:
             raise ValueError('No FRBs found in file '+filename) #change this?
 
-        self.iFRB = iFRB
-
-
         self.meta['NFRB']=self.NFRB
         
         #### separates FRB and non-FRB keys
         self.frblist=self.find(keys,'FRB')
+
         if NFRB is not None:
             # Take the first set - ensures we do not overrun the total number of FRBs
             if self.NFRB < NFRB+iFRB:
@@ -170,7 +176,7 @@ class Survey:
             themax = min(NFRB+iFRB,self.NFRB)
             self.frblist=self.frblist[iFRB:themax]
         
-        ### first check for the key list to interpret the FRB table
+        ### first check for the key li        self.meta['NBINS']=int(self.meta['NBINS'])et the FRB table
         iKEY=self.do_metakey('KEY')
         self.keylist=info[iKEY]
         
@@ -181,8 +187,10 @@ class Survey:
         self.do_keyword('DIAM',which,None) # Telescope diamater (in case of Gauss beam)
         self.do_keyword('NBEAMS',which,1) # Number of beams (multiplies sr)
         self.do_keyword('NORM_FRB',which,self.NFRB) # number of FRBs to norm obs time by
+        self.do_keyword('NBINS',which,-1) # Number of bins for the analysis
+        # Hack to recast as int
+        self.meta['NBINS']=int(self.meta['NBINS'])
         
-        self.NORM_FRB=self.meta['NORM_FRB']
         # the following properties can either be FRB-by-FRB, or metadata
         which=3
         
@@ -201,14 +209,14 @@ class Survey:
         self.do_keyword('DM',which)
         self.do_keyword('WIDTH',which,0.1) # defaults to unresolved width in time
         self.do_keyword_char('ID',which,None, dtype='str') # obviously we don't need names,!
-        self.do_keyword('Gl',which,None) # Galactic latitude
-        self.do_keyword('Gb',which,None) # Galactic longitude
+        self.do_keyword('Gl',which,None) # Galactic longitude
+        self.do_keyword('Gb',which,None) # Galactic latitude
         #
-        self.do_keyword_char('XRa',which,None, dtype='str') # obviously we don't need names,!
+        self.do_keyword_char('XRA',which,None, dtype='str') # obviously we don't need names,!
         self.do_keyword_char('XDec',which,None, dtype='str') # obviously we don't need names,!
         
         self.do_keyword('Z',which,None)
-        
+
         if self.frbs["Z"] is not None:
             
             self.Zs=self.frbs["Z"]
@@ -242,12 +250,13 @@ class Survey:
         self.DMGs=self.frbs['DMG']
         self.SNRs=self.frbs['SNR']
         self.WIDTHs=self.frbs['WIDTH']
-        self.THRESHs=self.frbs['THRESH']
         self.TRESs=self.frbs['TRES']
         self.FRESs=self.frbs['FRES']
         self.FBARs=self.frbs['FBAR']
         self.BWs=self.frbs['BW']
-        self.SNRTHRESHs=self.frbs['SNRTHRESH']
+        self.THRESHs=self.meta['THRESH']
+        self.SNRTHRESHs=self.meta['SNRTHRESH']
+        self.NORM_FRB=self.meta['NORM_FRB']
         
         self.Ss=self.SNRs/self.SNRTHRESHs
         self.TOBS=self.meta['TOBS']
@@ -383,8 +392,6 @@ class Survey:
                     Please enter Galactic coordinates, or else manually enter \
                     it as DMG')
             print("Calculating DMG from NE2001. Please record this, it takes a while!")
-            import ne2001
-            from ne2001 import density
             ne = density.ElectronDensity() #default position is the sun
             DMGs=np.zeros([self.NFRB])
             for i,l in enumerate(self.frbs["Gl"]):
@@ -405,10 +412,12 @@ class Survey:
         if key in self.keys:
             return self.keys
     
-    def init_beam(self,nbins=10,plot=False,method=1,thresh=1e-3,Gauss=False):
+    def init_beam(self,plot=False,method=1,thresh=1e-3,Gauss=False):
         """ Initialises the beam """
         if Gauss:
-            b,omegab=beams.gauss_beam(thresh=thresh,nbins=nbins,freq=self.meta["FBAR"],D=self.meta["DIAM"])
+            b,omegab=beams.gauss_beam(thresh=thresh,
+                                      nbins=self.meta['NBINS'],
+                                      freq=self.meta["FBAR"],D=self.meta["DIAM"])
             self.beam_b=b
             self.beam_o=omegab*self.meta["NBEAMS"]
             self.orig_beam_b=self.beam_b
@@ -423,7 +432,8 @@ class Survey:
                 savename='Plots/Beams/'+self.name+'_'+self.meta["BEAM"]+'_'+str(method)+'_'+str(thresh)+'_beam.pdf'
             else:
                 savename=None
-            b2,o2=beams.simplify_beam(logb,omegab,nbins,savename=savename,method=method,thresh=thresh)
+            b2,o2=beams.simplify_beam(logb,omegab,self.meta['NBINS'],
+                                      savename=savename,method=method,thresh=thresh)
             self.beam_b=b2
             self.beam_o=o2
             self.do_beam=True
@@ -444,6 +454,254 @@ class Survey:
         return repr
     
 
+class Survey:
+    def __init__(self, state, survey_name:str, 
+                 filename:str, 
+                 dmvals:np.ndarray,
+                 NFRB:int=None, 
+                 iFRB:int=0):
+        """ Init an FRB Survey class
+
+        Args:
+            state (_type_): _description_
+            survey_name (str): 
+                Name of the survey
+            filename (str): _description_
+            dmvals (np.ndarray): _description_
+            NFRB (int, optional): _description_. Defaults to None.
+            iFRB (int, optional): _description_. Defaults to 0.
+        """
+        # Proceed
+        self.name = survey_name
+        # Load up
+        self.process_survey_file(filename, NFRB, iFRB)
+        # DM EG
+        self.init_DMEG(state.MW.DMhalo)
+        # Beam
+        self.init_beam(
+                       method=state.beam.Bmethod, 
+                       plot=False, 
+                       thresh=state.beam.Bthresh) # tells the survey to use the beam file
+        # Efficiency
+        pwidths,pprobs=make_widths(self, state)
+        _ = self.get_efficiency_from_wlist(dmvals,
+                                       pwidths,pprobs) 
+
+    def init_DMEG(self,DMhalo):
+        """ Calculates extragalactic DMs assuming halo DM """
+        self.DMhalo=DMhalo
+        self.DMEGs=self.DMs-self.DMGs-DMhalo
+
+    def process_survey_file(self,filename:str, 
+                            NFRB:int=None,
+                            iFRB:int=0): 
+        """ Loads a survey file, then creates 
+        dictionaries of the loaded variables 
+
+        Args:
+            filename (str): Survey filename
+            NFRB (int, optional): Use only a subset of the FRBs in the Survey file.
+                Mainly used for Monte Carlo analysis
+            iFRB (int, optional): Start grabbing FRBs at this index
+                Mainly used for Monte Carlo analysis
+                Requires that NFRB be set
+            original (bool, optional):
+        """
+        self.iFRB = iFRB
+        self.NFRB = NFRB
+        self.meta = {}
+
+        # Read
+        frb_tbl = Table.read(filename, format='ascii.ecsv')
+        # Survey Data
+        self.survey_data = survey_data.SurveyData.from_jsonstr(
+            frb_tbl.meta['survey_data'])
+        # Meta -- for convenience for now;  best to migrate away from this
+        for key in self.survey_data.params:
+            DC = self.survey_data.params[key]
+            self.meta[key] = getattr(self.survey_data[DC],key)
+        # FRB data
+        self.frbs = frb_tbl.to_pandas()
+
+        # Cut down?
+        if self.NFRB is None:
+            self.NFRB=len(self.frbs)
+        else:
+            self.NFRB=min(len(self.frbs), NFRB)
+            if self.NFRB < NFRB+iFRB:
+                raise ValueError("Cannot return sufficient FRBs, did you mean NFRB=None?")
+            # Not sure the following linematters given the Error above
+            themax = min(NFRB+iFRB,self.NFRB)
+            self.frbs=self.frbs[iFRB:themax]
+        # Vet
+        vet_frb_table(self.frbs, mandatory=True)
+
+        # Pandas resolves None to Nan
+        if np.isfinite(self.frbs["Z"][0]):
+            
+            self.Zs=self.frbs["Z"].values
+            # checks for any redhsifts identically equal to zero
+            #exactly zero can be bad... only happens in MC generation
+            # 0.001 is chosen as smallest redshift in original fit
+            zeroz = np.where(self.Zs == 0.)[0]
+            if len(zeroz) >0:
+                self.Zs[zeroz]=0.001
+            
+            # checks to see if there are any FRBs which are localised
+            self.zlist = np.where(self.Zs > 0.)[0]
+            if len(self.zlist) < self.NFRB:
+                self.nozlist = np.where(self.Zs < 0.)[0]
+                self.nD=3 # code for both
+            else:
+                self.nozlist = None
+                self.nD=2
+        else:
+            self.nD=1
+            self.Zs=None
+            self.nozlist=np.arange(self.NFRB)
+            self.zlist=None
+        
+        ### processes galactic contributions
+        self.process_dmg()
+        
+        ### get pointers to correct results ,for better access
+        self.DMs=self.frbs['DM'].values
+        self.DMGs=self.frbs['DMG'].values
+        self.SNRs=self.frbs['SNR'].values
+        self.WIDTHs=self.frbs['WIDTH'].values
+        self.TRESs=self.frbs['TRES'].values
+        self.FRESs=self.frbs['FRES'].values
+        self.FBARs=self.frbs['FBAR'].values
+        self.BWs=self.frbs['BW'].values
+        self.THRESHs=self.frbs['THRESH'].values
+        self.SNRTHRESHs=self.frbs['SNRTHRESH'].values
+        
+        self.Ss=self.SNRs/self.SNRTHRESHs
+        self.TOBS=self.meta['TOBS']
+        self.NORM_FRB=self.meta['NORM_FRB']
+        self.Ss[np.where(self.Ss < 1.)[0]]=1
+        
+        # sets the 'beam' values to unity by default
+        self.beam_b=np.array([1])
+        self.beam_o=np.array([1])
+        self.NBEAMS=1
+        
+        print("FRB survey sucessfully initialised with ",self.NFRB," FRBs starting from", self.iFRB)
+
+    def process_dmg(self):
+        """ Estimates galactic DM according to
+        Galactic lat and lon only if not otherwise provided
+        """
+        if self.frbs["DMG"] is None:
+            if self.frbs["Gl"] is None or self.frbs["Gb"] is None:
+                raise ValueError('Can not estimate Galactic contributions.\
+                    Please enter Galactic coordinates, or else manually enter \
+                    it as DMG')
+            print("Calculating DMG from NE2001. Please record this, it takes a while!")
+            ne = density.ElectronDensity()
+            DMGs=np.zeros([self.NFRB])
+            for i,l in enumerate(self.frbs["Gl"]):
+                b=self.frbs["Gb"][i]
+                
+                ismDM = ne.DM(l, b, 100.)
+            
+                print(i,l,b,ismDM)
+            DMGs=np.array(DMGs)
+            self.frbs["DMG"]=DMGs
+            self.DMGs=DMGs
+
+    def init_beam(self,plot=False,
+                  method=1,thresh=1e-3,Gauss=False):
+        """ Initialises the beam """
+        if Gauss:
+            b,omegab=beams.gauss_beam(thresh=thresh,
+                                      nbins=self.meta["NBINS"],
+                                      freq=self.meta["FBAR"],D=self.meta["DIAM"])
+            self.beam_b=b
+            self.beam_o=omegab*self.meta["NBEAMS"]
+            self.orig_beam_b=self.beam_b
+            self.orig_beam_o=self.beam_o
+            
+        elif self.meta["BEAM"] is not None:
+            
+            logb,omegab=beams.load_beam(self.meta["BEAM"])
+            self.orig_beam_b=10**logb
+            self.orig_beam_o=omegab
+            if plot:
+                savename='Plots/Beams/'+self.name+'_'+self.meta["BEAM"]+'_'+str(method)+'_'+str(thresh)+'_beam.pdf'
+            else:
+                savename=None
+            b2,o2=beams.simplify_beam(logb,omegab,self.meta["NBINS"],
+                                      savename=savename,method=method,thresh=thresh)
+            self.beam_b=b2
+            self.beam_o=o2
+            self.do_beam=True
+            # sets the 'beam' values to unity by default
+            self.NBEAMS=b2.size
+            
+        else:
+            print("No beam found to initialise...")
+
+    def get_efficiency_from_wlist(self,DMlist,wlist,plist, 
+                                  model="Quadrature", 
+                                  addGalacticDM=True):
+        """ Gets efficiency to FRBs
+        Returns a list of relative efficiencies
+        as a function of dispersion measure for each width given in wlist
+        
+        
+        DMlist:
+            - list of dispersion measures (pc/cm3) at which to calculate efficiency
+        
+        wlist:
+            list of intrinsic FRB widths
+        
+        plist:
+            list of relative probabilities for FRBs to have widths of wlist
+        
+        model: method of estimating efficiency as function of width, DM, and time resolution
+            Takes values of "Quadrature" or "Sammons" (from Mawson Sammons summer project)
+        
+        addGalacticDM:
+            - True: this routine adds in contributions from the MW Halo and ISM, i.e.
+                it acts like DMlist is an extragalactic DM
+            - False: just used the supplied DMlist
+        
+        """
+        efficiencies=np.zeros([wlist.size,DMlist.size])
+        if addGalacticDM:
+            toAdd = self.DMhalo + np.mean(self.DMGs)
+        else:
+            toAdd = 0.
+        
+        for i,w in enumerate(wlist):
+            efficiencies[i,:]=calc_relative_sensitivity(
+                None,DMlist+toAdd,w,
+                np.median(self.frbs['FBAR']),
+                np.median(self.frbs['TRES']),
+                np.median(self.frbs['FRES']),
+                model=model,
+                dsmear=False)
+        # keep an internal record of this
+        self.efficiencies=efficiencies
+        self.wplist=plist
+        self.wlist=wlist
+        self.DMlist=DMlist
+        mean_efficiencies=np.mean(efficiencies,axis=0)
+        self.mean_efficiencies=mean_efficiencies #be careful here!!! This may not be what we want!
+        return efficiencies
+    
+            
+    def __repr__(self):
+        """ Over-ride print representation
+
+        Returns:
+            str: Items of the FURBY
+        """
+        repr = '<{:s}: \n'.format(self.__class__.__name__)
+        repr += f'name={self.name}'
+        return repr
+        
 # implements something like Mawson's formula for sensitivity
 # t_res in ms
 def calc_relative_sensitivity(DM_frb,DM,w,fbar,t_res,nu_res,model='Quadrature',dsmear=True):
@@ -556,17 +814,19 @@ def geometric_lognormals(lmu1,ls1,lmu2,ls2,bins=None,
     
 def make_widths(s:Survey,state):
     """
+    This method takes a distribution of intrinsic FRB widths 
+    (lognormal, defined by wlogmean and wlogsigma), and returns 
+    a list of w_i, p(w_i), where the w_i are i=1...N values of 
+    width, and p(w_i) are statistical weights associated with each. 
+
+    The \sum_i p(w_i) should sum to unity always. Each w_i is used 
+    to calculate a separate efficiency table.
 
     Args:
-        s (Survey): [description]
-        wlogmean ([type]): [description]
-        wlogsigma ([type]): [description]
-        nbins ([type]): [description]
-        scale (int, optional): [description]. Defaults to 2.
-        thresh (float, optional): [description]. Defaults to 0.5.
+        s (Survey): 
 
     Returns:
-        [type]: [description]
+        list: list of widths
     """
     # just extracting for now toget thrings straight
     nbins=state.width.Wbins
@@ -585,9 +845,14 @@ def make_widths(s:Survey,state):
     # constant of DM
     k_DM=4.149 #ms GHz^2 pc^-1 cm^3
     
-    tres=s.meta['TRES']
-    nu_res=s.meta['FRES']
-    fbar=s.meta['FBAR']
+    # Parse
+    # OLD
+    #    tres=s.meta['TRES']
+    #    nu_res=s.meta['FRES']
+    #    fbar=s.meta['FBAR']
+    tres=np.median(s.frbs['TRES'])
+    nu_res=np.median(s.frbs['FRES'])
+    fbar=np.median(s.frbs['FBAR'])
     
     ###### calculate a characteristic scaling pulse width ########
     
@@ -628,7 +893,7 @@ def make_widths(s:Survey,state):
     elif width_method==2:
         # include scattering distribution
         # scale scattering time according to frequency in logspace
-        slogmean = slogmean + sfpower*np.log(s.meta['FBAR']/sfnorm)
+        slogmean = slogmean + sfpower*np.log(fbar/sfnorm)
         
         #gets cumulative hist and bin edges
         dist,cdist,cbins=geometric_lognormals(wlogmean,
@@ -689,8 +954,10 @@ def make_widths(s:Survey,state):
     return widths,weights
 
 
-def load_survey(survey_name:str, state:parameters.State, dmvals:np.ndarray,
-                sdir:str=None, NFRB:int=None, Nbeams=None, iFRB:int=0):
+def load_survey(survey_name:str, state:parameters.State, 
+                dmvals:np.ndarray,
+                sdir:str=None, NFRB:int=None, 
+                nbins=None, iFRB:int=0, original:bool=False):
     """Load a survey
 
     Args:
@@ -699,11 +966,15 @@ def load_survey(survey_name:str, state:parameters.State, dmvals:np.ndarray,
         state (parameters.State): Parameters for the state
         dmvals (np.ndarray): DM values
         sdir (str, optional): Path to survey files. Defaults to None.
+        nbins (int, optional):  Sets number of bins for Beam analysis
+            [was NBeams]
         NFRB (int, optional): Cut the total survey down to a random
             subset [useful for testing]
         iFRB (int, optional): Start grabbing FRBs at this index
             Mainly used for Monte Carlo analysis
             Requires that NFRB be set
+        original (bool, optional): 
+            Load the original survey file (not recommended)
 
     Raises:
         IOError: [description]
@@ -713,44 +984,155 @@ def load_survey(survey_name:str, state:parameters.State, dmvals:np.ndarray,
     """
     print(f"Loading survey: {survey_name}")
     if sdir is None:
-        sdir = os.path.join(resource_filename('zdm', 'data'), 'Surveys')
+        sdir = os.path.join(
+            resource_filename('zdm', 'data'), 'Surveys')
+        if original:
+            sdir = os.path.join(sdir, 'Original')
 
     # Hard code real surveys
     if survey_name == 'CRAFT/FE':
-        dfile = 'CRAFT_class_I_and_II.dat'
-        Nbeams = 5
+        dfile = 'CRAFT_class_I_and_II'
     elif survey_name == 'CRAFT/ICS':
-        dfile = 'CRAFT_ICS.dat'
-        Nbeams = 5
+        dfile = 'CRAFT_ICS'
     elif survey_name == 'CRAFT/ICS892':
-        dfile = 'CRAFT_ICS_892.dat'
-        Nbeams = 5
+        dfile = 'CRAFT_ICS_892'
     elif survey_name == 'CRAFT/ICS1632':
-        dfile = 'CRAFT_ICS_1632.dat'
-        Nbeams = 5
+        dfile = 'CRAFT_ICS_1632'
     elif survey_name == 'PKS/Mb':
-        dfile = 'parkes_mb_class_I_and_II.dat'
-        Nbeams = 10
+        dfile = 'parkes_mb_class_I_and_II'
     elif 'private' in survey_name: 
-        dfile = survey_name+'.dat'
-        if Nbeams is None:
-            raise IOError("You must specify Nbeams with a private survey file")
+        dfile = survey_name
+        if nbins is None:
+            raise IOError("You must specify nbins with a private survey file")
     else: # Should only be used for MC analysis
-        dfile = survey_name+'.dat'
-        if Nbeams is None:
-            Nbeams = 5
+        dfile = survey_name
+        if nbins is None:
+            nbins = 5
         else:
-            Nbeams=Nbeams
+            nbins=nbins
+
+    if original:
+        dfile += '.dat'
+    else:
+        dfile += '.ecsv'
 
     # Do it
-    srvy=Survey()
-    srvy.name = survey_name
-    srvy.process_survey_file(os.path.join(sdir, dfile), NFRB=NFRB, iFRB=iFRB)
-    #srvy.process_survey_file(os.path.join(sdir, dfile), NFRB=NFRB, iFRB=iFRB)
-    srvy.init_DMEG(state.MW.DMhalo)
-    srvy.init_beam(nbins=Nbeams, method=state.beam.Bmethod, plot=False,
-                thresh=state.beam.Bthresh) # tells the survey to use the beam file
-    pwidths,pprobs=make_widths(srvy,state)
-    _ = srvy.get_efficiency_from_wlist(dmvals,pwidths,pprobs)
+    if original:
+        srvy=OldSurvey()
+        srvy.name = survey_name
+        srvy.process_survey_file(os.path.join(sdir, dfile), 
+                                NFRB=NFRB, iFRB=iFRB)
+        #srvy.process_survey_file(os.path.join(sdir, dfile), NFRB=NFRB, iFRB=iFRB)
+        srvy.init_DMEG(state.MW.DMhalo)
+        srvy.init_beam(method=state.beam.Bmethod, plot=False,
+                    thresh=state.beam.Bthresh) # tells the survey to use the beam file
+        pwidths,pprobs=make_widths(srvy,state)
+        _ = srvy.get_efficiency_from_wlist(dmvals,
+                                        pwidths,pprobs) 
+    else:                                
+        srvy = Survey(state, 
+                         survey_name, 
+                         os.path.join(sdir, dfile), 
+                         dmvals,
+                         NFRB=NFRB, iFRB=iFRB)
 
     return srvy
+
+def refactor_old_survey_file(survey_name:str, outfile:str, 
+                             clobber:bool=False):
+    """Refactor an old survey file to the new format
+
+    Args:
+        survey_name (str): Name of the survey
+        outfile (str): Name of the output file
+        clbover (bool, optional): Clobber the output file. Defaults to False.
+    """
+    
+    state = parameters.State()
+    srvy_data = survey_data.SurveyData()
+    
+    # Load up original
+    isurvey = load_survey(survey_name, state, 
+                         np.linspace(0., 2000., 1000),
+                         original=True)
+
+    # FRBs
+    frbs = pandas.DataFrame(isurvey.frbs)
+
+    # Fill in fixed survey_data from meta
+    # Telescope
+    for field in srvy_data.telescope.fields:
+        print(f"Ingesting {field}")
+        setattr(srvy_data.telescope,field, srvy_data.telescope.__dataclass_fields__[field].type(
+                isurvey.meta[field]))
+
+    # Observing
+    for field in srvy_data.observing.fields:
+        print(f"Ingesting {field}")
+        if field !='NORM_FRB' or 'NORM_FRB' in isurvey.meta:
+            setattr(srvy_data.observing,field, srvy_data.observing.__dataclass_fields__[field].type(
+                isurvey.meta[field]))
+        else:
+            srvy_data.observing.NORM_FRB = len(frbs)
+
+
+    # Trim down FRB table
+    for key in srvy_data.to_dict().keys():
+        for key2 in srvy_data.to_dict()[key]:
+            if key2 in frbs.keys():
+                frbs.drop(columns=[key2], inplace=True)
+
+    # Rename ID to TNS
+    frbs.rename(columns={'ID':'TNS'}, inplace=True)
+
+    # Vet+populate the FRBs
+    vet_frb_table(frbs, mandatory=False, fill=True)
+
+    # Add X columns (ancillay)
+    for letter in ['A', 'B', 'C', 'D', 'E', 'F', 
+                   'G', 'H', 'I', 'J', 'K']:
+        # Add it 
+        key = f'X{letter}'
+        isurvey.do_keyword_char(key,3,None, dtype='str')
+        if isurvey.frbs[key] is None:
+            continue
+        # Add it
+        frbs[key] = isurvey.frbs[key]
+
+    # Order the columns
+    frbs = frbs.reindex(sorted(frbs.columns), axis=1)
+
+    # Move TNS to the front
+    col = frbs.pop("TNS")
+    frbs.insert(0, col.name, col)
+
+    # Convert for I/O
+    frbs = Table.from_pandas(frbs)
+
+    # Meta
+    frbs.meta['survey_data'] = json.dumps(
+        srvy_data.to_dict(), sort_keys=True, indent=4, 
+        separators=(',', ': '))
+
+    # Write me
+    frbs.write(outfile, overwrite=clobber)
+    print(f"Wrote: {outfile}")
+
+def vet_frb_table(frb_tbl:pandas.DataFrame,
+                  mandatory:bool=False,
+                  fill:bool=False):
+    frb_data = survey_data.FRB()
+    # Loop on the stadnard fields
+    for field in frb_data.__dataclass_fields__.keys():
+        if field in frb_tbl.keys():
+            not_none = frb_tbl[field].values != None
+            if np.any(not_none):
+                idx0 = np.where(not_none)[0][0]
+                assert isinstance(
+                    frb_tbl.iloc[idx0][field], 
+                    frb_data.__dataclass_fields__[field].type), \
+                        f'Bad data type for {field}'
+        elif mandatory:
+            raise ValueError(f'{field} is missing in your table!')
+        elif fill:
+            frb_tbl[field] = None

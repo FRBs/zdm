@@ -1,4 +1,4 @@
-from IPython.terminal.embed import embed
+from IPython import embed
 import numpy as np
 from dataclasses import dataclass, field
 from typing import IO, List
@@ -238,7 +238,6 @@ class State(data_class.myData):
     def __init__(self):
 
         self.set_dataclasses()
-
         self.set_params()
 
 
