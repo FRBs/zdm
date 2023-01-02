@@ -1,6 +1,34 @@
 
 """
 Class definition for repeating FRBs
+
+
+
+
+Some notes regarding time dilation:
+    
+    #1: dVdtau
+        grid.py includes the time-dilation effect, dVdtau, in grid.dV.
+        We need to undo this: the number of repeaters does not change
+        with dtau, just the rate per repeater. Hence, all instances
+        of dV need to have an extra multiple of (1+z) attached, to undo
+        the time-dilation effect.
+    
+    #2: Rmult. When alpha method == 1, we use "rate scaling". This means
+            that the rate *per repeater* must change with frequency,
+            since otherwise the number of progenitors is frequency-
+            dependent, which is nonsense. This should be handled
+            under "Rmult", and implies two corrections:
+                - correct from nominal frequency to central frequency
+                - correct for (1+z) factor
+    
+    #3: sfr factor
+        grid.sfr, if alpha_method=0, includes the rate scaling with alpha
+        However, here we use this to calculate the number of progenitors,
+        thus we must calculate sfr from first principles if alpha_method=1.
+        This is now handled by assigning self.use_sfr to be self.grid.sfr
+        when alpha_method=0, or it is recalculated if alpha_method=1
+        
 """
 
 from zdm import grid
@@ -12,7 +40,12 @@ import mpmath
 from scipy import interpolate
 import time
 
-SET_REP_ZERO=1e-4 # forces p(n=0) bursts to be unity when a maximally repeating FRB has SET_REP_ZERO expected events
+SET_REP_ZERO=1e-4 # forces p(n=0) bursts to be unity when a maximally repeating FRB has SET_REP_ZERO expected events or less
+# the above is crazy, the problem is it should zet p_zero + p_single to be unity, i.e. chance of double to be zero
+# but how do we do this? presumably it's the total minus psingle?
+
+
+
 
 class repeat_Grid:
     """
@@ -33,13 +66,19 @@ class repeat_Grid:
     """
     
     
-    def __init__(self,grid,Tfield=None,Nfields=None,opdir=None,MC=False,verbose=False):
+    def __init__(self,grid,Tfield=None,Nfields=None,opdir=None,Exact=True,
+        MC=False,verbose=False,bmethod=1):
         """
         Initialises repeater class
         Args:
             grid: zdm grid class object
             Nfields: number of separate pointings by the survey
             Tfield: time spent on each field
+            bmethod: int (1 or 2)
+                1: beam represents solid angle viewed at each value of b,
+                    for time Tfield
+                2: beam represents time (in days) spent on any given source
+                    at sensitivity level b. Tfield is solid angle.
         """
         
         # inherets key properties from the grid's state parameters
@@ -57,6 +96,9 @@ class repeat_Grid:
         self.Emin = 10**self.grid.state.energy.lEmin
         self.Emax = 10**self.grid.state.energy.lEmax
         self.gamma= self.grid.state.energy.gamma
+        
+        self.Rmults=None
+        self.Rmult=None
         
         # handles plotting
         if opdir is not None:
@@ -89,16 +131,26 @@ class repeat_Grid:
             raise ValueError("Tfield not specified")
         
         # calculates constant Rc in front of dN/dR = Rc R^Rgamma
-        self.Rc,self.NRtot=self.calc_constant(verbose=True)
+        self.Rc,self.NRtot=self.calc_constant(verbose=verbose)
         grid.state.rep.RC=self.Rc
         if verbose:
             print("Calculated constant as ",self.Rc)
         
         # number of expected FRBs per volume in a given field
         self.Nexp_field = self.grid.dV*self.Rc
+        ##### NEW NEW NEW NEW #####
+        # undoes the time-dilation effect, which is included in the FRB rate scaling
+        self.Nexp_field *= (1.+self.grid.zvals) # previously was reduced by this amount
         self.Nexp = self.Nexp_field * self.Nfields
         
-        self.calc_Rthresh(MC=MC,doplots=doplots)
+        # NEW NEW NEW NEW NEW
+        # to remove alpha effect from grid.sfr if alpha_method==1
+        if self.grid.state.FRBdemo.alpha_method==1:
+            self.use_sfr = self.grid.source_function(self.grid.zvals,self.grid.state.FRBdemo.sfr_n)
+        else:
+            self.use_sfr = self.grid.sfr
+        
+        self.calc_Rthresh(Exact=Exact,MC=MC,doplots=doplots,bmethod=bmethod)
         
     def calc_constant(self,verbose=False):
         """
@@ -111,6 +163,12 @@ class repeat_Grid:
         By definition, \int_{R=Rmin}^{R=Rmax} R d\Phi(R)/dR dR = C
         Hence, C=Cr * (power+2)^-1 (R_max^(power+2)-R_min^(power+2))
         and thus Cr = C * (power+2)/(R_max^(power+2)-R_min^(power+2))
+        
+        We also need to account for frequency dependence.
+        The default frequency for FRB properties is 1.3 GHz.
+        Under the rate approximation, the rate per repeater changes with frequency
+        Under the spectral index approximation, FRBs become brighter/dimmer.
+        This MUST therefore factor into calculations!
         
         """
         
@@ -138,7 +196,7 @@ class repeat_Grid:
         return Rc,Ntot
     
     
-    def calc_Rthresh(self,MC=False,Pthresh=0.01,doplots=False):
+    def calc_Rthresh(self,Exact=True,MC=False,Pthresh=0.01,doplots=False,bmethod=1):
         """
         For FRBs on a zdm grid, calculate the repeater rates below
         which we can reasonably treat the distribution as continuous
@@ -153,7 +211,12 @@ class repeat_Grid:
         
         Pthresh: only if MC is true
             threshold above which to allow progenitors to produce multilke bursts
+        
+        Bmethod: int
+            1: beam values represent different positions on the sky, Sum them.
+            2: beam values represent passes on the same position on the sky. Have fun!
         """
+        
         
         # calculates rate corresponding to Pthresh
         # P = 1.-(1+R) * np.exp(-R)
@@ -161,28 +224,75 @@ class repeat_Grid:
         # P = 0.5 R^2 # assumes R is small to get
         # R = (2P)**0.5
         Rthresh = (2.*Pthresh)**0.5 #only works for small rates
-        # we loop over beam values
-        for ib,b in enumerate(self.grid.beam_b):
-            if ib==0:
+        # we loop over beam values. Sets up Rmults array to hold these
+        self.Nbeams = self.grid.beam_b.size
+        # create a list of rate multipliers
+        if self.Rmults is None:
+            
+            nb = self.grid.beam_b.size
+            nz = self.grid.zvals.size
+            ndm = self.grid.dmvals.size
+            
+            self.Rmults = np.zeros([nb,nz,ndm])
+            
+            for ib,b in enumerate(self.grid.beam_b):
+                if bmethod==1:
+                    time=self.Tfield # here, time is total time on field
+                else:
+                    time=self.grid.beam_o[ib] # here, o is time on field, not solid angle
+                Rmult=self.calcRmult(b,time)
+                # keeps a record of this Rmult, and sets the current value
+                self.Rmults[ib,:,:] = Rmult
                 
-                exactset,MCset = self.sim_repeaters(Rthresh,b,self.grid.beam_o[ib],doplots,MC)
+        if bmethod==2:
+            summed_Rmult = np.sum(self.Rmults,axis=0) # just sums the multipliers over the beam axis
+            solid_unit = self.Tfield # this value is "per steradian" factor, since beam is time
+            exactset,MCset = self.sim_repeaters(Rthresh,b,solid_unit,doplots=doplots,Exact=Exact,
+                    MC=MC,Rmult=summed_Rmult)
+            if Exact:
                 exact_singles,exact_zeroes,exact_rep_bursts,exact_reps = exactset
-                if MC:
-                    expNrep,Nreps,single_array,mult_array,summed_array,exp_array,poisson_rates = MCset
-            else:
-                exactset,MCset = self.sim_repeaters(Rthresh,b,self.grid.beam_o[ib],doplots,MC)
-                exact_singles += exactset[0]
-                exact_zeroes  += exactset[1]
-                exact_rep_bursts  += exactset[2]
-                exact_reps += exactset[3]
-                if MC:
-                    expNrep += MCset[0]
-                    Nreps += MCset[1]
-                    single_array += MCset[2]
-                    mult_array += MCset[3]
-                    summed_array += MCset[4]
-                    exp_array += MCset[5]
-                    poisson_rates += MCset[6]
+            if MC:
+                expNrep,Nreps,single_array,mult_array,summed_array,exp_array,poisson_rates = MCset
+        else: 
+            for ib,b in enumerate(self.grid.beam_b):
+                exactset,MCset = self.sim_repeaters(Rthresh,b,self.grid.beam_o[ib],doplots=doplots,Exact=Exact,
+                    MC=MC,Rmult=self.Rmults[ib])
+                if ib==0:
+                    if Exact:
+                        exact_singles,exact_zeroes,exact_rep_bursts,exact_reps = exactset
+                    if MC:
+                        expNrep,Nreps,single_array,mult_array,summed_array,exp_array,poisson_rates = MCset
+                else:
+                    if Exact:
+                        exact_singles += exactset[0]
+                        exact_zeroes  += exactset[1]
+                        exact_rep_bursts  += exactset[2]
+                        exact_reps += exactset[3]
+                    if MC:
+                        expNrep += MCset[0]
+                        Nreps += MCset[1]
+                        single_array += MCset[2]
+                        mult_array += MCset[3]
+                        summed_array += MCset[4]
+                        exp_array += MCset[5]
+                        poisson_rates += MCset[6]
+        
+        if Exact:
+            # sets self values of these arrays
+            self.exact_singles = exact_singles
+            self.exact_zeroes = exact_zeroes
+            self.exact_rep_bursts = exact_rep_bursts
+            self.exact_reps = exact_reps
+        
+        if MC:
+            self.MC_expprogenitors = expNrep
+            self.MC_Nprogenitors = Nreps
+            self.MC_singles = single_array
+            self.MC_reps = mult_array
+            self.MC_rep_bursts = summed_array
+            self.MC_exp_bursts = exp_array
+            self.MC_poisson_rates = poisson_rates
+            
         
         if MC:
             ####### we now make summary plots of the total number of bursts as a function of redshift
@@ -200,7 +310,7 @@ class repeat_Grid:
         no_repeaters = self.grid.rates * self.Tfield * 10**(self.grid.state.FRBdemo.lC)
         
         
-        if doplots:
+        if doplots and Exact:
             opdir=self.opdir
             self.do_2D_plot(exact_singles,opdir+'exact_singles.pdf',clabel='Expected number of single FRBs')
             self.do_2D_plot(exact_reps,opdir+'exact_repeaters.pdf',clabel='Expected number of repeating FRBs')
@@ -208,11 +318,12 @@ class repeat_Grid:
             self.do_2D_plot(exact_zeroes,opdir+'exact_zeroes.pdf',clabel='Expected number of FRBs with zero bursts')
             
             exact_total = exact_singles + exact_rep_bursts
-            self.do_z_plot([exact_singles,exact_rep_bursts,exact_total],opdir+'exact_bursts_fz.pdf',
-                log=False,label=['single bursts','repeat bursts','total_bursts'])
+            self.do_z_plot([exact_singles,exact_reps,exact_rep_bursts,exact_total],opdir+'exact_bursts_fz.pdf',
+                log=False,label=['single bursts','repeaters','bursts from repeaters','total_bursts'])
             
             
         if doplots and MC:
+            opdir=self.opdir
             #self.do_2D_plot(use_thresh,opdir+'erg_threshold.pdf',clabel='Detection threshold [erg]')
             #self.do_2D_plot(Rmult,opdir+'Rmult.pdf',clabel='Rate multiplier Rmult')
             #self.do_2D_plot(dmzRthresh,opdir+'Req_rate.pdf',clabel='Required rate at 1e38 erg')
@@ -281,7 +392,7 @@ class repeat_Grid:
             #plt.savefig(opdir+'total_norep_bursts_fz_ratio.pdf')
             #plt.close()
     
-    def perform_exact_calculations(self,Rmult,volume_grid,slow=False):
+    def perform_exact_calculations(self,slow=False):
         """
         Performs exact calculations of:
             - <single bursts>
@@ -289,31 +400,31 @@ class repeat_Grid:
             - < progenitors with N>2 bursts>
             - < number of N>2 bursts>
         """
-        exact_singles = self.calc_singles_exactly(Rmult)
-        exact_zeroes = self.calc_zeroes_exactly(Rmult)
-        exact_rep_bursts = self.calc_expected_repeat_bursts(Rmult,exact_singles)
-        exact_reps = self.calc_expected_repeaters(Rmult,exact_singles,exact_zeroes)
+        exact_singles = self.calc_singles_exactly()
+        exact_zeroes = self.calc_zeroes_exactly(exact_singles)
+        exact_rep_bursts = self.calc_expected_repeat_bursts(exact_singles)
+        exact_reps = self.calc_expected_repeaters(exact_singles,exact_zeroes)
         
         # the below is a simple slow loop which is good for test purposes
         # it does not use spline interpolation
         # testing so results are good to ~10^-12 differences
         if slow:
-            s,z,m,n,t=self.slow_exact_calculation(Rmult,exact_singles,exact_zeroes,exact_rep_bursts,exact_reps)
+            s,z,m,n,t=self.slow_exact_calculation(exact_singles,exact_zeroes,exact_rep_bursts,exact_reps)
             
         
-        exact_singles = exact_singles*volume_grid
-        exact_zeroes = exact_zeroes*volume_grid
-        exact_rep_bursts = exact_rep_bursts*volume_grid
-        exact_reps = exact_reps*volume_grid
+        exact_singles = exact_singles*self.volume_grid
+        exact_zeroes = exact_zeroes*self.volume_grid
+        exact_rep_bursts = exact_rep_bursts*self.volume_grid
+        exact_reps = exact_reps*self.volume_grid
         
-        exact_singles = (exact_singles.T * self.grid.sfr).T
-        exact_zeroes = (exact_zeroes.T * self.grid.sfr).T
-        exact_rep_bursts = (exact_rep_bursts.T * self.grid.sfr).T
-        exact_reps = (exact_reps.T * self.grid.sfr).T
+        exact_singles = (exact_singles.T * self.use_sfr).T
+        exact_zeroes = (exact_zeroes.T * self.use_sfr).T
+        exact_rep_bursts = (exact_rep_bursts.T * self.use_sfr).T
+        exact_reps = (exact_reps.T * self.use_sfr).T
         
         return exact_singles,exact_zeroes,exact_rep_bursts,exact_reps
     
-    def calc_expected_repeaters(self,Rmult,expected_singles,expected_zeros):
+    def calc_expected_repeaters(self,expected_singles,expected_zeros):
         """
         Calculates the expected number of FRBs observed as repeaters.
         The total expected number of bursts from
@@ -333,22 +444,22 @@ class repeat_Grid:
         
         return expected_repeaters
     
-    def calc_expected_repeat_bursts(self,Rmult,expected_singles):
+    def calc_expected_repeat_bursts(self,expected_singles):
         """
         Calculates the expected total number of bursts from repeaters.
         
         This is simply calculated as <all bursts> - <single bursts>
         """
         
-        a = self.Rmin*Rmult
-        b = self.Rmax*Rmult
+        a = self.Rmin*self.Rmult
+        b = self.Rmax*self.Rmult
         effGamma=self.Rgamma+2
-        total_rate = self.Rc * (1./effGamma) * (self.Rmax**effGamma-self.Rmin**effGamma) * Rmult
+        total_rate = self.Rc * (1./effGamma) * (self.Rmax**effGamma-self.Rmin**effGamma) * self.Rmult
         mult_rate = total_rate - expected_singles
         return mult_rate
         
     
-    def calc_singles_exactly(self,Rmult):
+    def calc_singles_exactly(self):
         """
         Calculates exact expected number of single bursts from a repeater population
         
@@ -364,14 +475,14 @@ class repeat_Grid:
         # which integrates \int_Rmin*Rmult ^ infinity R(Rgamma+2-1) exp(-R)
         # and subtracting the Rmax from it
         
-        nz,ndm=Rmult.shape
+        nz,ndm=self.Rmult.shape
         norms=np.zeros([nz,ndm])
         
         effGamma=self.Rgamma+2
         if effGamma not in energetics.igamma_splines.keys():
             energetics.init_igamma_splines([effGamma])
-        avals=self.Rmin*Rmult.flatten()
-        bvals=self.Rmax*Rmult.flatten()
+        avals=self.Rmin*self.Rmult.flatten()
+        bvals=self.Rmax*self.Rmult.flatten()
         
         norms = interpolate.splev(avals, energetics.igamma_splines[effGamma])
         norms -= interpolate.splev(bvals, energetics.igamma_splines[effGamma])
@@ -380,14 +491,14 @@ class repeat_Grid:
         # integral is in units of R'=R*Rmult
         # however population is specified in number density of R
         # hence R^gammadensity factor must be normalised
-        norms /= Rmult**(self.Rgamma+1) 
+        norms /= self.Rmult**(self.Rgamma+1) 
         
         # multiplies this by the number density of repeating FRBs
         norms *= self.Rc
         
         return norms
     
-    def slow_exact_calculation(self,Rmult,exact_singles,exact_zeroes,exact_rep_bursts,exact_reps,plot=True,zonly=True):
+    def slow_exact_calculation(self,exact_singles,exact_zeroes,exact_rep_bursts,exact_reps,plot=True,zonly=True):
         """
         Calculates exact expected number of single bursts from a repeater population
         
@@ -403,7 +514,7 @@ class repeat_Grid:
         # which integrates \int_Rmin*Rmult ^ infinity R(Rgamma+2-1) exp(-R)
         # and subtracting the Rmax from it
         
-        nz,ndm=Rmult.shape
+        nz,ndm=self.Rmult.shape
         #norms=np.zeros([nz,ndm])
         
         effGamma=self.Rgamma+2
@@ -419,14 +530,14 @@ class repeat_Grid:
             if not zonly:
                 print("Performing exact calculation for iteration ",i," of ",nz)
             for j in np.arange(ndm):
-                a=self.Rmin*Rmult[i,j]
-                b=self.Rmax*Rmult[i,j]
+                a=self.Rmin*self.Rmult[i,j]
+                b=self.Rmax*self.Rmult[i,j]
                 
-                zero = mpmath.gammainc(self.Rgamma+1, a=a, b=b)/(Rmult[i,j]**(self.Rgamma+1))
-                single = mpmath.gammainc(effGamma, a=a, b=b)/(Rmult[i,j]**(self.Rgamma+1))
+                zero = mpmath.gammainc(self.Rgamma+1, a=a, b=b)/(self.Rmult[i,j]**(self.Rgamma+1))
+                single = mpmath.gammainc(effGamma, a=a, b=b)/(self.Rmult[i,j]**(self.Rgamma+1))
                 nrep = (1./(self.Rgamma+1)) * (self.Rmax**(self.Rgamma+1)-self.Rmin**(self.Rgamma+1))
                 nrep = nrep - single - zero
-                total = (1./effGamma) * (b**effGamma-a**effGamma)/(Rmult[i,j]**(self.Rgamma+1))
+                total = (1./effGamma) * (b**effGamma-a**effGamma)/(self.Rmult[i,j]**(self.Rgamma+1))
                 mult = total-single
                 t[i,j]=total*self.Rc
                 s[i,j]=single*self.Rc
@@ -466,7 +577,7 @@ class repeat_Grid:
         
         return s,z,m,n,t
     
-    def calc_zeroes_exactly(self,Rmult):
+    def calc_zeroes_exactly(self,singles):
         """
         Calculates the probability of observing zero bursts exactly
         
@@ -483,7 +594,7 @@ class repeat_Grid:
         # which integrates \int_Rmin*Rmult ^ infinity R(Rgamma+1-1) exp(-R)
         # and subtracting the Rmax from it
         
-        nz,ndm=Rmult.shape
+        nz,ndm=self.Rmult.shape
         norms=np.zeros([nz,ndm])
         
         effGamma=self.Rgamma+1
@@ -492,8 +603,8 @@ class repeat_Grid:
             energetics.init_igamma_splines([effGamma])
             t1=time.time()
             print("Init took ",t1-t0)
-        avals=self.Rmin*Rmult.flatten()
-        bvals=self.Rmax*Rmult.flatten()
+        avals=self.Rmin*self.Rmult.flatten()
+        bvals=self.Rmax*self.Rmult.flatten()
         zero=np.where(bvals<=SET_REP_ZERO)[0]
         norms = interpolate.splev(avals, energetics.igamma_splines[effGamma])
         #self.do_2D_plot(norms.reshape([nz,ndm]),'TEST_a.pdf')
@@ -503,7 +614,7 @@ class repeat_Grid:
         norms -= interpolate.splev(bvals, energetics.igamma_splines[effGamma])
         norms=norms.reshape([nz,ndm])
         norms *= self.Rc
-        norms /= Rmult**(self.Rgamma+1) # gamma due to integrate, one more due to dR
+        norms /= self.Rmult**(self.Rgamma+1) # gamma due to integrate, one more due to dR
         
         # integral is in units of R'=R*Rmult
         # however population is specified in number density of R
@@ -513,12 +624,13 @@ class repeat_Grid:
         
         # multiplies this by the number density of repeating FRBs
         norms=norms.flatten()
-        norms[zero] = self.Rc * (1./effGamma) * (self.Rmax**effGamma-self.Rmin**effGamma)
+        norms[zero] = self.Rc * (1./effGamma) * (self.Rmax**effGamma-self.Rmin**effGamma) - singles.flatten()[zero]
+        # we set the singles rate to be equal to expectation, and hence zero is 1.-that.
         norms=norms.reshape([nz,ndm])
         
         return norms
-      
-    def sim_repeaters(self,Rthresh,beam_b,Solid,MC=False,doplots=False):
+        
+    def sim_repeaters(self,Rthresh,beam_b,Solid,doplots=False,Exact=True,MC=False,Rmult=None):
         # contains threshold information as function of FRB width, zvals, DMvals)
         # approximate this only as z x DM for now
         """
@@ -530,8 +642,12 @@ class repeat_Grid:
         doplots: plots a bunch of stuff if True
         
         """
+        if Rmult is None:
+            Rmult=self.calcRmult(beam_b,self.Tfield)
+            # keeps a record of this Rmult, and sets the current value
+            #self.Rmults.append(Rmult)
+        self.Rmult = Rmult
         
-        Rmult = self.calcRmult(beam_b=beam_b)
         if doplots:
             self.do_2D_plot(Rmult,self.opdir+'Rmult_'+str(beam_b)[0:5]+'.pdf',clabel='log$_{10}$ rate multiplier')
         
@@ -539,15 +655,20 @@ class repeat_Grid:
         # Note that grid.dV already has a (1+z) time dilation factor in it
         # This is actually accounted for in the rate scaling of repeaters
         # Here, we want the actual volume, hence must remove this factor
+        # NEW NEW NEW
         volume_grid = (self.grid.smear_grid.T * (self.grid.dV * (1. + self.grid.zvals))).T
         volume_grid *= Solid #accounts for solid angle viewed at that beam sensitivity
         
-        #exact_singles_rate=self.calc_singles_exactly(Rmult)
-        exact_singles,exact_zeroes,exact_rep_bursts,exact_reps=self.perform_exact_calculations(Rmult,volume_grid)
+        self.volume_grid = volume_grid
         
-        exact_set = [exact_singles,exact_zeroes,exact_rep_bursts,exact_reps]
+        if Exact:
+            #exact_singles_rate=self.calc_singles_exactly(Rmult)
+            exact_singles,exact_zeroes,exact_rep_bursts,exact_reps=self.perform_exact_calculations()
+            exact_set = [exact_singles,exact_zeroes,exact_rep_bursts,exact_reps]
+        else:
+            exact_set = None
         
-        if doplots:
+        if doplots and Exact:
             self.do_2D_plot(exact_singles,self.opdir+'exact_singles_'+str(beam_b)[0:5]+'.pdf',clabel='log$_{10}$ rate')
             self.do_2D_plot(exact_zeroes,self.opdir+'exact_zeroes_'+str(beam_b)[0:5]+'.pdf',clabel='log$_{10}$ rate')
             self.do_2D_plot(exact_rep_bursts,self.opdir+'exact_rep_bursts_'+str(beam_b)[0:5]+'.pdf',clabel='log$_{10}$ rate')
@@ -592,14 +713,15 @@ class repeat_Grid:
             #print("Number of single FRBs from insignificant FRBs ",np.sum(poisson_rates)) #FRBs per 2000 dats per steradian
         
             # returns zdm grid with values being number of single bursts, number of repeaters, number of repeat bursts
-            expNrep,Nreps,single_array,mult_array,summed_array,exp_array = self.MCsample(dmzRthresh,volume_grid,Rmult,doplots,tag='_b'+str(beam_b)[0:5])
+            expNrep,Nreps,single_array,mult_array,summed_array,exp_array = self.MCsample(dmzRthresh,Rmult,doplots,tag='_b'+str(beam_b)[0:5])
+            
             MCset=[expNrep,Nreps,single_array,mult_array,summed_array,exp_array,poisson_rates]
-            results=[exact_set,MCset]
         else:
-            results=[exact_set,None]
+            MCset=None
+        results=[exact_set,MCset]
+        
         
         return results
-        
         
         ########## IGNORE BELOW #########
         # now adds in the probability of getting a single burst from these FRBs
@@ -617,7 +739,13 @@ class repeat_Grid:
         # Gamma is the upper incomplete gamma function
         
     
-    def calcRmult(self,beam_b=1):
+    def calcRmult(self,beam_b=1,time_days=1):
+        """
+        beam_b: value of sensitivity
+        time: time spent on this pointing
+        
+        We also need to account for the rate scaling if it exists.
+        """
         # calculates Rmult over a range of burst widths and probabilities
         #print("Calculating Rmult using ",beam_b)
         for iw,w in enumerate(self.grid.eff_weights):
@@ -625,6 +753,8 @@ class repeat_Grid:
             # Rmult_final = \sum wi Rmulti
             # does this make sense? Effectively its the sum of rates. Well yes it does! AWESOME!
             # numerator for Rmult for this width
+            
+            #Note: grid.thresholds already will include effect of alpha
             if iw==0:
                 Rmult = w*self.grid.array_cum_lf(self.grid.thresholds[iw,:,:]/beam_b,self.Emin,self.Emax,self.gamma)
             else:
@@ -633,15 +763,24 @@ class repeat_Grid:
         
         # calculates the expectation value for a single pointing
         # rates were "per day", now "per pointing time on field"
-        Rmult *= self.Tfield
+        Rmult *= time_days
         
         # accounts for time dilation of intrinsic rate
-        dilation=1./(1+self.grid.zvals)
+        dilation=1./(1.+self.grid.zvals)
+        # multiplies repeater rates by both base rate, and 1+z penalty
+        # NEW NEW NEW NEW
+        if self.grid.state.FRBdemo.alpha_method==1:
+            # scales to frequency of interest
+            Rmult *= (self.grid.nuObs/self.grid.nuRef)**-self.grid.state.energy.alpha
+            #double negative here: dilation is 1/(1+z)
+            # hence if rate goes as f^-alpha, f goes as (1+z), then we recover (1/1+z)**alpha
+            dilation = dilation**(1.+self.grid.state.energy.alpha)
+        
         Rmult = (Rmult.T * dilation).T
         
         return Rmult
     
-    def MCsample(self,Rthresh,volume_grid,Rmult,doplots=False,tag=None):
+    def MCsample(self,Rthresh,Rmult,doplots=False,tag=None):
         """
         Samples FRBs from Rthresh upwards
         
@@ -664,8 +803,13 @@ class repeat_Grid:
         
         
         # number of repeaters should NOT have time but SHOULD have solid angle
-        expected_number_of_repeaters = EffRc * volume_grid
-        expected_number_of_repeaters = (expected_number_of_repeaters.T * self.grid.sfr).T
+        expected_number_of_repeaters = EffRc * self.volume_grid
+        
+        # if the below is the case, then "grid" will already have included
+        # this as a volumetric effect: both scaling with z, and to reference
+        # frequency. We DO NOT want this!
+        # But we then do need to adjust to Rmult...
+        expected_number_of_repeaters = (expected_number_of_repeaters.T * self.use_sfr).T
         
         # expected number of repeaters * mean reps/repeater should equal expected bursts
         # mean repeater rate is R dN/dR / dN/dR
@@ -797,6 +941,7 @@ class repeat_Grid:
         plt.xlabel('z')
         plt.ylabel('p(z)')
         plt.xlim(0,self.grid.zvals[-1])
+        plt.xlim(0,0.5)
         if log:
             plt.yscale('log')
         

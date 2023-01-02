@@ -190,10 +190,6 @@ class Grid:
     
     def set_evolution(self): #,n,alpha=None):
         """ Scales volumetric rate by SFR """
-        #self.sfr1n=n
-        #if alpha is not None:
-        #    self.alpha=alpha
-        #self.sfr=cos.sfr(self.zvals)**n #old hard-coded value
         self.sfr=self.source_function(self.zvals,
                                       self.state.FRBdemo.sfr_n)
         if self.state.FRBdemo.alpha_method==1:

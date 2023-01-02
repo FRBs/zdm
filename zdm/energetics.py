@@ -13,11 +13,11 @@ def init_igamma_splines(gammas, reinit=False):
         if gamma not in igamma_splines.keys() or reinit:
             print(f"Initializing igamma_spline for gamma={gamma}")
             # values. Extended from -6,6,1000 to -8,6,12000 for repeaters
-            avals = 10**np.linspace(-8, 6., 12000)
+            avals = 10**np.linspace(-12., 6., 18000)
             numer = np.array([float(mpmath.gammainc(
                 gamma, a=iEE)) for iEE in avals])
             # iGamma
-            igamma_splines[gamma] = interpolate.splrep(avals, numer)
+            igamma_splines[gamma] = interpolate.splrep(avals, numer,k=3)
 
 def template_array_cumulative_luminosity_function(Eth,*params):
     """
@@ -182,8 +182,13 @@ def vector_cum_gamma_spline(Eth:np.ndarray, *params):
     result=numer/norm
 
     # Low end
-    low= Eth < Emin
-    result[low]=1.
+    low = Eth < Emin
+    
+    if np.isscalar(result):
+        if low:
+            result = 1.
+    else:
+        result[low]=1.
     return result
 
 def array_diff_gamma(Eth,*params):

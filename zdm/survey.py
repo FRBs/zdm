@@ -32,7 +32,6 @@ class Survey:
 
     """
     
-    
     def __init__(self):
         self.init=False
         self.do_beam=False
@@ -53,7 +52,8 @@ class Survey:
         """
         efficiencies=np.zeros([self.NFRB,DMlist.size])
         for i in np.arange(self.NFRB):
-            efficiencies[i,:]=calc_relative_sensitivity(self.DMs[i],DMlist,self.WIDTHs[i],self.FBARs[i],self.TRESs[i],self.FRESs[i],model=model,dsmear=dsmear)
+            efficiencies[i,:]=calc_relative_sensitivity(self.DMs[i],DMlist,self.WIDTHs[i],
+                self.FBARs[i],self.TRESs[i],self.FRESs[i],model=model,dsmear=dsmear)
         # keep an internal record of this
         self.efficiencies=efficiencies
         self.DMlist=DMlist
@@ -177,7 +177,7 @@ class Survey:
         self.do_keyword_char('BEAM',which,None) # prefix of beam file
         self.do_keyword('TOBS',which,None) # total observation time, hr
         self.do_keyword('DIAM',which,None) # Telescope diamater (in case of Gauss beam)
-        self.do_keyword('NBEAMS',which,1) # Number of beams (multiplies sr)
+        #self.do_keyword('NBEAMS',which,1) # Number of beams (multiplies sr)
         self.do_keyword('NORM_FRB',which,self.NFRB) # number of FRBs to norm obs time by
         
         self.NORM_FRB=self.meta['NORM_FRB']
@@ -191,6 +191,7 @@ class Survey:
         self.do_keyword('BW',which,336)
         self.do_keyword('SNRTHRESH',which,9.5)
         self.do_keyword('DMG',which,None) # Galactic contribution to DM
+        self.do_keyword('NREP',which,1) # listed under either, since all FRBs could indeed by once-off
         
         
         # The following properties can only be FRB-by-FRB
@@ -454,9 +455,34 @@ def calc_relative_sensitivity(DM_frb,DM,w,fbar,t_res,nu_res,model='Quadrature',d
     time- and frequency-resolutions etc.
     
     NOTE: DM_frb *only* used if dsmear = True: combine these to default to None?
+    
+    Arguments:
+        DM_frb [float]: measured DM of a particular FRB. Used only if dsmear=True.
+        DMs [np.ndarray] DMs at which to calculate the DM bias effect. pc/cm3
+        w [float]: FRB width [ms]
+        fbar: mean frequency of the observation [Mhz]
+        t_res: time resolution of the observation [ms]
+        nu_res: frequency resolution of the observation [Mhz]
+        model: Quadrature,Sammons, or CHIME: method to calculate bias
+        dsmear: subtract DM smearing from measured width to calculate intrinsic
     """
     
-    # constant of DM
+    # this model returns the parameterised CHIME DM-dependent sensitivity
+    # it is independent of width
+    if model=='CHIME':
+        # polynomial coefficients for fit to CHIME DM bias data
+        coeffs = np.array([6.41026042e-03, -2.31270423e-01,  3.42220517e+00,
+                        -2.65610422e+01, 1.13781929e+02,-2.53792341e+02, 2.28889078e+02])
+        # this constant normalises the above to a peak efficiency of 100%
+        coeffs /= 1.1340233887501654
+        # fit is to natural log of DM values
+        ldm = np.log(DM)
+        rate = np.polyval(coeffs,ldm)
+        # scale rate by assumed Cartesian logN-logS
+        sensitivity = rate**(2./3.)
+        return sensitivity
+        
+    # constant of DM; this is ~0.1% accurate, which is good enough here.
     k_DM=4.149 #ms GHz^2 pc^-1 cm^3
     
     # total smearing factor within a channel
@@ -480,13 +506,10 @@ def calc_relative_sensitivity(DM_frb,DM,w,fbar,t_res,nu_res,model='Quadrature',d
     elif model=='Sammons':
         sensitivity=0.75*(0.93*dm_smearing + uw + 0.35*t_res)**-0.5
     else:
-        raise ValueError(model," is an unknown DM smearing model --- use Sammons or Quadrature")
+        raise ValueError(model," is an unknown DM smearing model --- use CHIME, Quadrature, or Sammons")
     # calculates relative sensitivity to bursts as a function of DM
     return sensitivity
     
-    """ Tries to get intelligent choices for width binning assuming some intrinsic distribution
-    Probably should make this a 'self' function.... oh well, for the future!
-    """
 
 def geometric_lognormals(lmu1,ls1,lmu2,ls2,bins=None,
                          Nrand=10000,plot=False,Nbins=101):
@@ -553,7 +576,9 @@ def geometric_lognormals(lmu1,ls1,lmu2,ls2,bins=None,
     
 def make_widths(s:Survey,state):
     """
-
+    Tries to get intelligent choices for width binning assuming some intrinsic distribution
+    Probably should make this a 'self' function.... oh well, for the future!
+    
     Args:
         s (Survey): [description]
         wlogmean ([type]): [description]
@@ -608,7 +633,12 @@ def make_widths(s:Survey,state):
     weights=[]
     widths=[]
     
-    if width_method==1:
+    if width_method==0:
+        # do not take a distribution, just use 1ms for everything
+        # this is done for tests, or for complex surveys such as CHIME
+        weights.append(1.)
+        widths.append(1.)
+    elif width_method==1:
         # take intrinsic lognrmal width distribution only
         # normalisation of a log-normal
         norm=(2.*np.pi)**-0.5/wlogsigma
@@ -674,7 +704,7 @@ def make_widths(s:Survey,state):
             wmin = wmax
             wmax *= scale
     else:
-        raise ValueError("Width method in make_widths must be 1 or 2, not ",width_method)
+        raise ValueError("Width method in make_widths must be 0, 1 or 2, not ",width_method)
     weights[-1] += 1.-wsum #adds defecit here
     weights=np.array(weights)
     widths=np.array(widths)
@@ -708,6 +738,7 @@ def load_survey(survey_name:str, state:parameters.State, dmvals:np.ndarray,
     Returns:
         Survey: instance of the class
     """
+    
     print(f"Loading survey: {survey_name}")
     if sdir is None:
         sdir = os.path.join(resource_filename('zdm', 'data'), 'Surveys')
@@ -715,36 +746,47 @@ def load_survey(survey_name:str, state:parameters.State, dmvals:np.ndarray,
     # Hard code real surveys
     if survey_name == 'CRAFT/FE':
         dfile = 'CRAFT_class_I_and_II.dat'
-        Nbeams = 5
+        defNbeams = 5
     elif survey_name == 'CRAFT/ICS':
         dfile = 'CRAFT_ICS.dat'
-        Nbeams = 5
+        defNbeams = 5
     elif survey_name == 'CRAFT/ICS892':
         dfile = 'CRAFT_ICS_892.dat'
-        Nbeams = 5
+        defNbeams = 5
     elif survey_name == 'CRAFT/ICS1632':
         dfile = 'CRAFT_ICS_1632.dat'
-        Nbeams = 5
+        defNbeams = 5
     elif survey_name == 'PKS/Mb':
         dfile = 'parkes_mb_class_I_and_II.dat'
-        Nbeams = 10
+        defNbeams = 10
     elif 'private' in survey_name: 
         dfile = survey_name+'.dat'
-        if Nbeams is None:
+        if defNbeams is None:
             raise IOError("You must specify Nbeams with a private survey file")
     else: # Should only be used for MC analysis
         dfile = survey_name+'.dat'
-        Nbeams = 5
+        defNbeams = 5
 
     # Do it
     srvy=Survey()
     srvy.name = survey_name
     srvy.process_survey_file(os.path.join(sdir, dfile), NFRB=NFRB, iFRB=iFRB)
-    #srvy.process_survey_file(os.path.join(sdir, dfile), NFRB=NFRB, iFRB=iFRB)
     srvy.init_DMEG(state.MW.DMhalo)
+    
+    # survey data over-writes the defaults
+    # Note this only applies for some beam methods
+    if Nbeams is None:
+        Nbeams = defNbeams
+    
+    #if srvy.Bmethod is not None:
+    #    Bmethod = srvy.Bmethod
+    #else:
+    #Bmethod = state.beam.Bmethod
+        
     srvy.init_beam(nbins=Nbeams, method=state.beam.Bmethod, plot=False,
                 thresh=state.beam.Bthresh) # tells the survey to use the beam file
     pwidths,pprobs=make_widths(srvy,state)
-    _ = srvy.get_efficiency_from_wlist(dmvals,pwidths,pprobs)
+    
+    _ = srvy.get_efficiency_from_wlist(dmvals,pwidths,pprobs,model=state.width.Wbias)
 
     return srvy

@@ -194,7 +194,7 @@ class WidthParams(data_class.myDataClass):
                   'Notation': 'w_{\rm min}'})
     Wmethod: int = field(
         default=2,
-        metadata={'help': 'Method of calculating FRB widths; 1 std, 2 includes scattering',
+        metadata={'help': 'Method of calculating FRB widths; 0 ignore, 1 std, 2 includes scattering',
                   'unit': ''})
     Wbins: int = field(
         default=5,
@@ -203,6 +203,10 @@ class WidthParams(data_class.myDataClass):
     Wscale: int = field(
         default=3.5,
         metadata={'help': 'Log-scaling of bins for width distribution',
+                  'unit': ''})
+    Wbias: str = field(
+        default='Quadrature',
+        metadata={'help': 'Method to calculate width bias',
                   'unit': ''})
     
 # FRB intrinsic scattering parameters

@@ -1,0 +1,10 @@
+BW    336 #MHz
+NFRB 1 #Number of FRBs
+BEAM mean_f #prefix of beam file
+THRESH 5 #Jy ms to a 1 ms burst, very basic. Likely higher
+SNRTHRESH 10 # signal-to-noise threshold: scales jy ms to snr.
+TRES 0.983 #ms
+FRES 0.0244
+FBAR 600 # mean frequency (MHz)
+KEY  DM    	SNR     DMG	    WIDTH
+FRB  362.4	99   	30 	    1.76
