@@ -5,38 +5,44 @@ gamma -0.7
 sfr_n 1.0
 lmean 2.3
 lsigma 0.6000000000000001
+  lC  -0.27167472
 lEmax 41.82330827067669
 alpha 1.0
 gamma -1.1
 sfr_n 1.25
 lmean 2.2
 lsigma 0.5
-GETTING extremes for parameter alpha -0.24060150375939848 -1.9097744360902253
-lEmax 41.3
-alpha -0.24060150375939848
-gamma -0.9
-sfr_n 0.75
-lmean 2.2
-lsigma 0.6000000000000001
+  lC  3.290682
+GETTING extremes for parameter alpha -1.9097744360902253 -0.24060150375939848
 lEmax 41.3
 alpha -1.9097744360902253
 gamma -0.9
 sfr_n 0.75
 lmean 2.2
 lsigma 0.6000000000000001
-GETTING extremes for parameter gamma -0.6553884711779449 -1.1791979949874687
-lEmax 41.2
-alpha 1.0
-gamma -0.6553884711779449
-sfr_n 1.0
+  lC  1.4916399
+lEmax 41.3
+alpha -0.24060150375939848
+gamma -0.9
+sfr_n 0.75
 lmean 2.2
 lsigma 0.6000000000000001
+  lC  1.4916399
+GETTING extremes for parameter gamma -1.1791979949874687 -0.6553884711779449
 lEmax 41.8
 alpha 1.5
 gamma -1.1791979949874687
 sfr_n 1.75
 lmean 2.2
 lsigma 0.5
+  lC  4.2067523
+lEmax 41.2
+alpha 1.0
+gamma -0.6553884711779449
+sfr_n 1.0
+lmean 2.2
+lsigma 0.6000000000000001
+  lC  -0.43923497
 GETTING extremes for parameter sfr_n 0.48872180451127817 1.9097744360902253
 lEmax 41.3
 alpha 0.0
@@ -44,12 +50,14 @@ gamma -0.8
 sfr_n 0.48872180451127817
 lmean 2.2
 lsigma 0.6000000000000001
+  lC  0.5289561
 lEmax 41.4
 alpha 2.0
 gamma -1.0
 sfr_n 1.9097744360902253
 lmean 2.2
 lsigma 0.6000000000000001
+  lC  2.2782393
 GETTING extremes for parameter lmean 1.9796992481203008 2.4483709273182956
 lEmax 41.5
 alpha 1.0
@@ -57,12 +65,14 @@ gamma -0.9
 sfr_n 1.25
 lmean 1.9796992481203008
 lsigma 0.6000000000000001
+  lC  1.3326459
 lEmax 41.3
 alpha 1.0
 gamma -0.9
 sfr_n 1.0
 lmean 2.4483709273182956
 lsigma 0.6000000000000001
+  lC  1.5669967
 GETTING extremes for parameter lsigma 0.43032581453634083 0.8233082706766917
 lEmax 41.5
 alpha 1.0
@@ -70,9 +80,12 @@ gamma -1.0
 sfr_n 1.25
 lmean 2.2
 lsigma 0.43032581453634083
+  lC  2.3671174
 lEmax 41.4
 alpha 1.0
 gamma -0.9
 sfr_n 1.25
 lmean 2.2
 lsigma 0.8233082706766917
+  lC  1.4196968
+

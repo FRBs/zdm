@@ -21,7 +21,7 @@ def main(verbose=False):
     ######### other results ####
     Planck_H0 = 67.4
     Planck_sigma = 0.5
-    Reiss_H0 = 74.03
+    Reiss_H0 = 73.04
     Reiss_sigma = 1.42
     
     # output directory
@@ -191,7 +191,7 @@ def main(verbose=False):
             else:
                 modi=i-1
             oset=[uw_vectors[i],ReissH0_vectors[modi],PlanckH0_vectors[modi]]
-            H0text=['Std','67.04','74.03','Flat']
+            H0text=['Std','67.04','73.04','Flat']
             others.append(oset)
             # prints corresponding limits
             # does first string for standard priors

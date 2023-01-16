@@ -254,6 +254,7 @@ def get_slice_from_parameters(data,plist,mcvals,verbose=False,wanted="ll"):
         mcvals (list of floats): is a float list of values one wants to approximate
         verbose (bool): toggle output level
         wanted: which column from the data to extract
+        linear: force linear
     
     Returns:
         Array of NDIM=dim(data)-dim(plist) likelihood values
@@ -855,7 +856,72 @@ def interpolate_and_limits(x0,y0,limits,logspline=True,aslatex=True):
             string += latex
         return string
     return xlims
+
+def get_limits(uvals,vectors,limvals,vparams_dict,logspline=True):
+    """ Generate a series of 1D plots of the cube parameters
+
+    Args:
+        uvals (list): List, each element containing a
+            np.ndarray giving the parameter values
+            for each parameter. Total length nparams.
+        vectors (list): [For each parameter, contains
+            an unweighted vector giving
+            1D probabilities for that value of the parameter]
+        wvectors ([list]): [For each parameter, contains
+            a weighted (with prior) vector giving
+            1D probabilities for that value of the parameter]
+        
+        limvals (np.ndarray): list of probabilities (e.g. 0.68) to evaluate
+        
+        prefix (str, optional): [description]. Defaults to ''.
+        latexnames: latex of axis names
+        logspline(bool): do spline fitting in logspace?
+        
+
+    """
+    nlims=limvals.size
+    results=np.zeros([len(uvals),2*nlims]) # holds mean and error info for each parameter
     
+    for i,vals in enumerate(uvals):
+        if len(vals) == 1:
+            continue
+        if len(vals) < 4:
+            kind = 'linear'
+        else:
+            kind = 'cubic'
+        
+        # Convert vals?
+        if vparams_dict is not None:
+            # Check
+            assert vparams_dict[names[i]]['n'] == len(vals)
+            vals = np.linspace(vparams_dict[names[i]]['min'], 
+                               vparams_dict[names[i]]['max'],
+                               len(vals))
+        
+        # get raw ylimits
+        # removes zeroes, could lead to strange behaviour in theory
+        temp=np.where((vectors[i] > 0.) & (np.isfinite(vectors[i])) )
+        
+        
+        x,y=interpolate_points(vals[temp],vectors[i][temp],logspline)
+        
+        norm=np.sum(y)*(x[1]-x[0]) # integral y dx ~ sum y delta x
+        norm=np.abs(norm)
+        y /= norm
+        vectors[i][temp] /= norm
+        
+        #limvals=np.array([0.00135,0.0228,0.05,0.15866])
+        for iav,av in enumerate(limvals):
+            # need to integrate from min to some point
+            # gets cumulative distribution
+            # sets intervals according to highest likelihood
+            v0,v1,ik1,ik2=extract_limits(x,y,(1.-av)/2.,method=1)
+            results[i,2*iav]=v0
+            results[i,2*iav+1]=v1
+            
+        
+    return results
+ 
 def do_single_plots(uvals,vectors,wvectors,names,tag=None, fig_exten='.png',
                     dolevels=False,log=True,outdir='SingleFigs/',
                     vparams_dict=None, prefix='',truth=None,latexnames=None,

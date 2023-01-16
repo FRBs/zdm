@@ -31,6 +31,15 @@ import numpy as np
 from zdm import survey
 from matplotlib import pyplot as plt
 
+import matplotlib
+
+defaultsize=14
+ds=4
+font = {'family' : 'normal',
+        'weight' : 'normal',
+        'size'   : defaultsize}
+matplotlib.rc('font', **font)
+
 
 def main():
     
@@ -56,7 +65,7 @@ def main():
     
     opfile=opdir+"newE.pdf"
     zvals,std_pzgdm=plot_expectations(names,sdir,vparams,opfile)
-    
+    exit()
     vparams={}
     vparams['H0'] = 73
     vparams['lEmax'] = 41.33
@@ -203,7 +212,7 @@ def read_extremes(infile='planck_extremes.dat',H0=Planck_H0):
         
         pdict={}
         # gets parameter values
-        for i in np.arange(6):
+        for i in np.arange(7):
             line=f.readline()
             words=line.split()
             param=words[0]
@@ -214,7 +223,7 @@ def read_extremes(infile='planck_extremes.dat',H0=Planck_H0):
         
         pdict={}
         # gets parameter values
-        for i in np.arange(6):
+        for i in np.arange(7):
             line=f.readline()
             words=line.split()
             param=words[0]

@@ -67,9 +67,6 @@ matplotlib.rc('font', **font)
 
 
 def main():
-    
-    
-    
     from astropy.cosmology import Planck18
     
     doE=False
@@ -94,6 +91,7 @@ def main():
     sets=read_extremes()
     pzgdms=[]
     for i,pset in enumerate(sets):
+        continue
         # breaks if loading data
         if load:
             continue
@@ -106,6 +104,22 @@ def main():
         opfile=opdir+"Planck_"+labels[nth]+ex
         zvals,pzgdm=plot_expectations(names,sdir,pset,opfile)
         pzgdms.append(pzgdm)
+    
+    # plots using parameters for Planck H0 with new Emax value, and
+    # zero host galaxy DM, to get p(DM>obs)
+    if not load:
+        vparams = {}
+        vparams["H0"] = 67.4
+        vparams["lEmax"] = 41.63
+        vparams["gamma"] = -0.948
+        vparams["alpha"] = 1.03
+        vparams["sfr_n"] = 1.15
+        vparams["lmean"] = 0.01
+        vparams["lsigma"] = 0.57
+        
+        opfile=opdir+"zero_host_dm.pdf"
+        #zvals,new_pzgdm=plot_expectations(names,sdir,vparams,opfile,dmhost=False)
+    
     
     # plots using parameters for Planck H0 with new Emax value
     if not load:
@@ -169,21 +183,31 @@ def main():
     plt.savefig(opdir+'pzgdm_FRB220610.pdf')
     plt.close()
     
-    
-    
     plt.figure()
     plt.xlabel('$z$')
     plt.ylabel('cdf$(z|20220610A)$')
     iz=np.where(zvals>1.0153)[0][0]
+    mins = np.zeros([pzgdms[0].size])
+    mins[:]=1e99
+    maxs = np.zeros([pzgdms[0].size])
     for i,pzgdm in enumerate(pzgdms):
         pzgdm = np.cumsum(pzgdm)
         pzgdm /= pzgdm[-1]
         print("cum prob for ",i," is ",pzgdm[iz])
-        if i==0:
-            l1,=plt.plot(zvals,pzgdm,linewidth=1,color='gray',label='90% parameter limits',linestyle=":")
-        else:
-            plt.plot(zvals,pzgdm,linewidth=1,color='gray',linestyle=":")
-    
+        
+        higher = np.where(pzgdm > maxs)
+        maxs[higher] = pzgdm[higher]
+        
+        lower = np.where(pzgdm < mins)
+        mins[lower] = pzgdm[lower]
+        
+        #if i==0:
+        #    l1,=plt.plot(zvals,pzgdm,linewidth=1,color='gray',label='90% parameter limits',linestyle=":")
+        #else:
+        #    plt.plot(zvals,pzgdm,linewidth=1,color='gray',linestyle=":")
+    for i,min in enumerate(mins):
+        print(i,zvals[i],mins[i],maxs[i])
+    plt.fill_between(zvals,mins,y2=maxs,alpha=0.3,color='gray',label='90% parameter limits')
     
     std_pzgdm = np.cumsum(std_pzgdm)
     std_pzgdm /= std_pzgdm[-1]
@@ -200,9 +224,9 @@ def main():
     
     plt.xlim(0,1.5)
     plt.ylim(0,1)
-    plt.legend(loc=(0.12,0.05),handles=[l2,l3,l1])
+    plt.legend(loc=(0.12,0.05),handles=[l2,l3])#,l1])
     plt.tight_layout()
-    plt.savefig(opdir+'cumulative_pzgdm_FRB220610.pdf')
+    plt.savefig(opdir+'cumulative_pzgdm_FRB220610_v2.pdf')
     plt.close()
     
 def plot_expectations(name,sdir,vparams,opfile,dmhost=False):
@@ -246,6 +270,12 @@ def plot_expectations(name,sdir,vparams,opfile,dmhost=False):
     dz=g.zvals[1]-g.zvals[0]
     idm=int(DMEG220610/ddm)
     iz=int(Z220610/dz)
+    
+    pdmgz = g.rates[iz,:]
+    cpdmgz = np.cumsum(pdmgz)
+    cpdmgz /= cpdmgz[-1]
+    print("Cumulative probability to observed dm is ",cpdmgz[idm])
+    
     pzgdm = g.rates[:,idm]/np.sum(g.rates[:,idm])/dz
     
     logmean=g.state.host.lmean
@@ -284,6 +314,16 @@ def plot_expectations(name,sdir,vparams,opfile,dmhost=False):
         #dm vals
         dmhost = (DMEG220610-g.dmvals)
         iOK=np.where(dmhost > 0.)[0]
+        temp=np.cumsum(dmdist)
+        temp /= temp[-1]
+        print("Cumulative distribution for DM host up until zero is ",temp)
+        print("iOK is ",iOK)
+        print("Meow",temp[iOK[-1]])
+        exit()
+        plt.figure()
+        plt.plot(dmhost,temp)
+        plt.savefig('temp_pdm_cumulative.pdf')
+        plt.close()
         dmhost = dmhost[iOK]
         dmdist = dmdist[iOK]
         dmdist /= np.sum(dmdist) * ddm #normalisation to a probability distribution
@@ -316,7 +356,7 @@ def plot_expectations(name,sdir,vparams,opfile,dmhost=False):
         print("Peak DM host is ",dmmax*(1+Z220610))
         
         v1,v2,k1,k2=ac.extract_limits(dmhost,dmdist,0.16) # 0.16 = (1-68%)/2
-        print("1 sigma bounds are ",v1*(1+Z220610),v2*(1+Z220610))
+        print("220610: 1 sigma bounds are ",v1*(1+Z220610),v2*(1+Z220610))
         v1,v2,k1,k2=ac.extract_limits(dmhost,dmdist,0.48) # 0.49 ~ (1-0)/2
         print("Median is ",v1*(1+Z220610),v2*(1+Z220610))
         
@@ -446,7 +486,7 @@ def read_extremes(infile='planck_extremes.dat',H0=Planck_H0):
         
         pdict={}
         # gets parameter values
-        for i in np.arange(6):
+        for i in np.arange(7):
             line=f.readline()
             words=line.split()
             param=words[0]
@@ -457,7 +497,7 @@ def read_extremes(infile='planck_extremes.dat',H0=Planck_H0):
         
         pdict={}
         # gets parameter values
-        for i in np.arange(6):
+        for i in np.arange(7):
             line=f.readline()
             words=line.split()
             param=words[0]

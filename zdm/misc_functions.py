@@ -2252,7 +2252,7 @@ def plot_grid_2(zDMgrid,zvals,dmvals,
     if special is not None:
         iDM=special[0]/ddm
         iz=special[1]/dz
-        plt.plot([iz],[iDM],'*', markersize=10,color="blue", linestyle="")
+        plt.plot([iz],[iDM],'*', markersize=10,color="white", linestyle="")
     
     # do 1-D projected plots
     if project:

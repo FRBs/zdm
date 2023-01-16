@@ -1,6 +1,7 @@
 """
 This is a script to produce parameter sets which are at X% of the accepted values
 
+Notes: I have removed "linear=True" from "get_slice_from_parameters"
 
 """
 
@@ -70,8 +71,8 @@ def main(p=0.9,verbose=False):
             params_notH0.append(data["params"][i])
     
     # gets the slice corresponding to specific values of H0
-    Reiss_H0_selection=ac.get_slice_from_parameters(data,list23,vals2,verbose=False,linear=True)
-    Planck_H0_selection=ac.get_slice_from_parameters(data,list23,vals3,verbose=False,linear=True)
+    Reiss_H0_selection=ac.get_slice_from_parameters(data,list23,vals2,verbose=False)
+    Planck_H0_selection=ac.get_slice_from_parameters(data,list23,vals3,verbose=False)
     
     # will have Bayesian limits on all parameters over everything but H0
     deprecated,ReissH0_vectors,deprecated=ac.get_bayesian_data(Reiss_H0_selection)
@@ -110,7 +111,7 @@ def main(p=0.9,verbose=False):
         for il in 0,1:
             # gets slice corresponding to lower limit
             tempslice=ac.get_slice_from_parameters(data,[data["params"][i]],[lims1[i,il]]
-                ,verbose=False,linear=True)
+                ,verbose=False)
             am=np.argmax(tempslice)
             indices=np.unravel_index(am,tempslice.shape)
             # now prints out parameter values corresponding to the max probabilities
@@ -135,11 +136,16 @@ def main(p=0.9,verbose=False):
     for i,p in enumerate(params_notH0):
         print("GETTING extremes for parameter",p,lims3[i,0],lims3[i,1])
         
+        # does this for minimum and maximum values
         for il in 0,1:
             # gets slice corresponding to lower limit
-            tempslice=ac.get_slice_from_parameters(data,["H0",params_notH0[i]],[Planck_H0,lims3[i,il]]
-                ,verbose=False,linear=True)
+            tempslice=ac.get_slice_from_parameters(data,["H0",params_notH0[i]],[Planck_H0,lims3[i,il]],
+                verbose=False)
+            const_slice=ac.get_slice_from_parameters(data,["H0",params_notH0[i]],[Planck_H0,lims3[i,il]],
+                verbose=False,wanted='lC')
+            
             am=np.argmax(tempslice)
+            best_constant=const_slice.flatten()[am]
             indices=np.unravel_index(am,tempslice.shape)
             # now prints out parameter values corresponding to the max probabilities
             
@@ -154,6 +160,7 @@ def main(p=0.9,verbose=False):
             for j in np.arange(i+1,nparams-1):
                 pval=data[params_notH0[j]][indices[j-1]]
                 print(params_notH0[j],pval)
+            print("  lC ",best_constant)
     
     exit()
     

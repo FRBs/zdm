@@ -21,7 +21,7 @@ def main(verbose=False):
     ######### other results ####
     Planck_H0 = 67.66
     Planck_sigma = 0.5
-    Reiss_H0 = 74.03
+    Reiss_H0 = 73.04
     Reiss_sigma = 1.42
     
     # output directory
