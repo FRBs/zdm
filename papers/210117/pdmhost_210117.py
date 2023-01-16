@@ -217,7 +217,7 @@ def plot_expectations(name,sdir,vparams,opfile):
         plt.xlim(0,2000)
         plt.xlabel('Rest frame ${\\rm DM}_{\\rm host}~[{\\rm pc\\,cm}^{-3}]$')
         plt.ylabel('$p({\\rm DM}_{\\rm host})$')
-        plt.plot(dmhost210117*(1.+z210117),dmdist210117/(1.+z210117),label="FRB 20210117",linestyle='-')
+        plt.plot(dmhost210117*(1.+z210117),dmdist210117/(1.+z210117),label="FRB 20210117A",linestyle='-')
         plt.plot(dmhost*(1.+Z220610),dmdist/(1.+Z220610),label="FRB 20220610A",linestyle=':')
         plt.plot(dmhostFAST*(1.+zFAST),dmdistFAST/(1.+zFAST),label="FRB 20190520B",linestyle='--')
         plt.plot(dmhost*(1.+Z220610),priors/(1.+Z220610),label="Fit to population",linestyle='-.')
