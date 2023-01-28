@@ -31,6 +31,7 @@ def main(verbose=False):
     Reiss_sigma = 1.42
 
     ##### loads cube data #####
+    # cube = "../../papers/F/Analysis/Real/Cubes/craco_real_cube.npz"
     cube = "../../papers/F/Analysis/CRACO/Cubes/craco_full_cube.npz"
     data = np.load(cube)
     if verbose:

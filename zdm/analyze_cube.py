@@ -1164,6 +1164,8 @@ def do_single_plots(uvals,vectors,wvectors,names,tag=None, fig_exten='.png',
                                 )
                             )
         other_styles = [":", "--", "-."]
+
+        # other_colors = ["orange", "green", "red"]
         # plot any other plots
         if others is not None:
             if others[i] is not None:
@@ -1172,6 +1174,11 @@ def do_single_plots(uvals,vectors,wvectors,names,tag=None, fig_exten='.png',
                     norm = np.sum(y) * (x[1] - x[0])  # integral y dx ~ sum y delta x
                     norm = np.abs(norm)
                     y /= norm
+
+                    # data_norm = np.sum(data) * (vals[1] - vals[0])
+                    # data_norm = np.abs(norm)
+
+                    # plt.plot(vals, data/data_norm, color=other_colors[io % 3], marker="s")
                     plt.plot(
                         x, y, color="grey", linewidth=1, linestyle=other_styles[io % 3]
                     )
@@ -1203,7 +1210,7 @@ def do_single_plots(uvals,vectors,wvectors,names,tag=None, fig_exten='.png',
             plt.legend(loc="upper left", title="Prior on $\\alpha$")
 
         plt.tight_layout()
-        plt.savefig(os.path.join(outdir, prefix + names[i] + fig_exten), dpi=200)
+        plt.savefig(os.path.join(outdir, prefix + names[i] + fig_exten), dpi=300)
         plt.close()
     if log:
         logfile.close()

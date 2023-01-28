@@ -119,9 +119,9 @@ def surveys_and_grids(init_state=None, alpha_method=1, add_20220610A=False):
     
     ############## Initialise surveys ##############
     survey_names = ['CRAFT/FE', 
-                    'CRAFT_ICS_1632',
-                    'CRAFT_ICS_892', 
-                    'CRAFT_ICS',
+                    'private_CRAFT_ICS_1632',
+                    'private_CRAFT_ICS_892', 
+                    'private_CRAFT_ICS_1272',
                     'PKS/Mb']
     if add_20220610A:
         survey_names[3] = 'CRAFT_ICS_w_220610'
@@ -132,7 +132,7 @@ def surveys_and_grids(init_state=None, alpha_method=1, add_20220610A=False):
         print(f"Initializing {survey_name}")
         surveys.append(survey.load_survey(survey_name, 
                                           state, dmvals,
-                                          Nbeams=nbeam))
+                                          nbins=nbeam))
     print("Initialised surveys")
 
     # generates zdm grid

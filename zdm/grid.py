@@ -66,7 +66,7 @@ class Grid:
         else:
             efficiencies = survey.mean_efficiencies
             weights = None
-        self.calc_thresholds(survey.meta["THRESH"], efficiencies, weights=weights)
+            self.calc_thresholds(survey.meta["THRESH"], efficiencies, weights=weights)
             efficiencies=survey.mean_efficiencies
             weights=None
         # Warning -- THRESH could be different for each FRB, but we don't treat it that way

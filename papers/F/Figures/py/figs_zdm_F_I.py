@@ -26,6 +26,7 @@ def fig_craco_varyF_zDM(
     fuss_with_ticks: bool = False,
     suppress_DM_host=False,
     iFRB=0,
+    show_FRBS=True
 ):
     """_summary_
 
@@ -138,9 +139,9 @@ def fig_craco_varyF_zDM(
                 + f"= {vparams['lEmax']}"
             )
         elif other_param == "H0":
-            labels.append(r"$\\log_\{10\} F = " + f"{F}, H0 = {vparams['H0']}")
+            labels.append(r"$\log_\{10\} F = " + f"{F}, H0 = {vparams['H0']}")
         elif other_param == "lmean":
-            labels.append(r"$\\log_\{10\} F = " + f"{F}, $\mu =$ {vparams['lmean']}")
+            labels.append(r"$\log_\{10\} F = " + f"{F}, $\mu =$ {vparams['lmean']}")
 
     ###### gets decent axis labels, down to 1 decimal place #######
     ax = plt.gca()
@@ -181,7 +182,7 @@ def fig_craco_varyF_zDM(
     nz, ndm = zDMgrid.shape
 
     ##### add FRB host galaxies at some DM/redshift #####
-    if FRBZ is not None:
+    if (FRBZ is not None) and show_FRBS:
         iDMs = FRBDM / ddm
         iZ = FRBZ / dz
         # Restrict to plot range
@@ -227,6 +228,7 @@ def fig_varyF(
     zticks=None,
     ylim=None,
     iFRB=0,
+    show_FRBs=True
 ):
 
     survey, grid = analy_F_I.craco_mc_survey_grid(iFRB=iFRB)
@@ -327,9 +329,9 @@ def fig_varyF(
                 + f"= {vparams['lEmax']}"
             )
         elif other_param == "H0":
-            labels.append(r"$\\log_\{10\} F = $" + f"{F}, H0 = {vparams['H0']}")
+            labels.append(r"$\log_{10} F = $" + f"{F}, H0 = {vparams['H0']}")
         elif other_param == "lmean":
-            labels.append(r"$\\log_\{10\} F = $" + f"{F}, $\mu =$ {vparams['lmean']}")
+            labels.append(r"$\log_{10} F = $" + f"{F}, $\mu =$ {vparams['lmean']}")
 
     # # Interpolators
     # f_DM = interp1d(
@@ -362,7 +364,7 @@ def fig_varyF(
     nz, ndm = zDMgrid.shape
 
     ##### add FRB host galaxies at some DM/redshift #####
-    if FRBZ is not None:
+    if (FRBZ is not None) and show_FRBs:
         iDMs = FRBDM / ddm
         iZ = FRBZ / dz
         # Restrict to plot range
@@ -401,6 +403,7 @@ def fig_craco_fiducial_F(
     H0=None,
     iFRB=0,
     suppress_DM_host=False,
+    show_FRBs=True
 ):
     """
     Very complicated routine for plotting 2D zdm grids 
@@ -547,7 +550,7 @@ def fig_craco_fiducial_F(
         plt.clim(themin, themax)
 
     ##### add FRB host galaxies at some DM/redshift #####
-    if FRBZ is not None:
+    if (FRBZ is not None) and show_FRBs:
         iDMs = FRBDM / ddm
         iZ = FRBZ / dz
         # Restrict to plot range
@@ -568,7 +571,6 @@ def fig_craco_fiducial_F(
         print(f"Wrote: {outfile}")
     plt.close()
 
-
 ### tests
 
 # logfs = [-1.5, -1.5, -1.5]
@@ -585,22 +587,34 @@ def fig_craco_fiducial_F(
 #     )
 
 # fig_varyF(
-#     "fig_varyF_H0_60.png",
+#     "fig_varyF_H0_compare.png",
 #     other_param="H0",
-#     F_values=[-1.7, -1.2, -0.8],
-#     other_values=[60.0, 60.0, 60.0],
-#     lcolors=["#f72585", "#f8961e", "#4895ef"],
-#     lstyles=["-", "-", "-"],
-#     DMmax=1800,
+#     F_values=[-0.57, -.37],
+#     other_values=[69.02, 77.14],
+#     lcolors=["r", "b"],
+#     lstyles=["-", "-"],
+#     DMmax=2500,
 #     Aconts=[0.01],
+#     show_FRBs=False,
+#     zmax=3
 # )
 
 fig_craco_fiducial_F(
-    f"figs/fiducial.png",
+    f"figs/high_feedback_efficiency.png",
     show_Macquart=True,
-    F=np.round(np.log10(0.32), 3),
+    F=np.round(np.log10(0.01), 3),
     H0=None,
     suppress_DM_host=False,
     iFRB=100,
+    show_FRBs=False
 )
 
+fig_craco_fiducial_F(
+    f"figs/low_feedback_efficiency.png",
+    show_Macquart=True,
+    F=np.round(np.log10(0.9), 3),
+    H0=None,
+    suppress_DM_host=False,
+    iFRB=100,
+    show_FRBs=False
+)
