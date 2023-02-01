@@ -114,7 +114,7 @@ def surveys_and_grids(init_state=None, alpha_method=1, add_20220610A=False):
 
     # get the grid of p(DM|z)
     zDMgrid, zvals,dmvals = misc_functions.get_zdm_grid(
-        state, new=True, plot=False, method='analytic', nz=500,
+        state, new=True, plot=False, method='analytic', nz=2000, ndm=5600,
         datdir=resource_filename('zdm', 'GridData'))
     
     ############## Initialise surveys ##############
