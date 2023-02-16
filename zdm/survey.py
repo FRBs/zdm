@@ -187,7 +187,7 @@ class OldSurvey:
         self.do_keyword('DIAM',which,None) # Telescope diamater (in case of Gauss beam)
         self.do_keyword('NBEAMS',which,1) # Number of beams (multiplies sr)
         self.do_keyword('NORM_FRB',which,self.NFRB) # number of FRBs to norm obs time by
-        self.do_keyword('NBINS',which,-1) # Number of bins for the analysis
+        self.do_keyword('NBINS',which,1) # Number of bins for the analysis
         # Hack to recast as int
         self.meta['NBINS']=int(self.meta['NBINS'])
         

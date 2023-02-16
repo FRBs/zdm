@@ -87,10 +87,12 @@ def main(verbose=False):
     # use four skymaps
     calc_PS_190425A(verbose)
     
-    # All GW for 26hr time window. Takes a long time!
+    # All GW for 2hr time window. Takes a long time!
     # this data set uses updated superevents
     calc_selection_criteria_all_GW(verbose)
-
+    
+    
+    
 
 def calc_PS_190425A(verbose=False):
     """
@@ -116,7 +118,7 @@ def calc_PS_190425A(verbose=False):
     # for each event.
     indir='Fits/'
     names,LSTs=read_info()
-    iGW = np.where(names=='GW190425')
+    iGW = np.where(names[0:8]=='GW190425')
     name=names[iGW]
     LST=LSTs[iGW]
     
@@ -148,7 +150,7 @@ def calc_PS_190425A(verbose=False):
             print("Calculating P_S for ",pipeline)
         PS=calc_PS(infile,rastart,rastop,verbose=verbose,CVcoords=CVcoords)
         print("For ",i,"th pipeline, ",pipeline,", PS is ",PS)
-        exit()
+        
 
 def calc_selection_criteria_all_GW(verbose=False):
     """
@@ -161,9 +163,18 @@ def calc_selection_criteria_all_GW(verbose=False):
     # defines the ra range over which we are assumed to search
     # NOTE: we approximate a sidereal day by a calendar day here
     # The below are the ra offsets corresponding to a search time
-    # window of -2 hr before the GW event to 24hr after
-    drastart=-2*360./24
-    drastop=360.
+    # window of -2 hr before the GW event to 24hr after. This is not
+    # used in the analysis, since it is implausible that two merging
+    # black holes produce a post-merger event. Instead, we use
+    # only the two hours beforehand, for e.g. merging charged
+    # black hole models.
+    # To calculate chance of entire 26hr window
+    # drastart=-2*360./24
+    # drastop=360.
+    # To calculate chance for events including a BH merger
+    drastart = -2*360./24
+    drastop = 0.
+    
     time_window=drastop-drastart
     
     # sets the global parameters ut_spl, lt_spl, and constant C
@@ -183,7 +194,8 @@ def calc_selection_criteria_all_GW(verbose=False):
     # integrates over the entire sky in 0.25 deg increments
     # The skymaps used are from updated superevents
     for i,name in enumerate(names):
-        infile=indir+name+'.fits'
+        infile=indir+name
+        
         LST=LSTs[i]
         rastart=LST.degree+drastart
         rastop=LST.degree+drastop
@@ -191,7 +203,7 @@ def calc_selection_criteria_all_GW(verbose=False):
             print("The range for GW ",name," is ",rastart,rastop)
         PS=calc_PS(infile,rastart,rastop,verbose=verbose)
         print("For ",i,"th event, ",name,", PS is ",PS)
-
+    
 def read_info(infile="GWTC2_info.csv"):
     """
     Reads GWTC2 info, and calculate LST at CHIME location

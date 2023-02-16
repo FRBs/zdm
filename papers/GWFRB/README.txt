@@ -2,8 +2,9 @@
 Probability calculation scripts for Moroianu et al.,
     "An assessment of the Association Between a Fast Radio
     Burst and Binary Neutron Star Merger"
+    
 
-This branch of the main zDM code contains each of three scripts:
+This branch of the main zDM code contains each of four scripts:
 
 calc_pDM.py
     Used to produce Figure 2 of the paper
@@ -13,8 +14,16 @@ calc_PS_all_GW.py
     Used to calculate P_S for all GW events
     using the initial selection criteria, i.e.
     given an FRB occurs uniformly between -2.5
-    and +24 hr after the GW, what is the chance
+    and +0 hr (or any alternative time range)
+    after the GW, what is the chance
     it lands in the 90% localisation region?
+
+process_ps_pt.py
+    Used to process the output of calc_PS_all_GW.py,
+    by converting the coincidence probabilities
+    of that script - which must be copied to
+    'summary_2hr.txt' - into an effective number
+    of extra trials.
 
 pvalue_calculation.py
     This script calculates the p-value of
@@ -26,7 +35,8 @@ pvalue_calculation.py
     of p'-values given it has passed the
     criteria. The adjusted p-value is
     calculated by accounting for the
-    chance of it passing.
+    chance of it passing. This is a complicated
+    script.
     
     
     
