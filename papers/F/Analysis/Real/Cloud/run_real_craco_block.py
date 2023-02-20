@@ -4,65 +4,61 @@ import argparse
 import numpy as np
 import subprocess
 
+
 def main(pargs):
-  start = pargs.start
-  end = pargs.end
-  nums = np.arange(start, end + 1, dtype="int")
 
-  commands = []
+    print(f"Running batch from CSVs {pargs.start} to {pargs.end}")
+    start = pargs.start
+    end = pargs.end
+    nums = np.arange(start, end + 1, dtype="int")
 
-  for number in nums:
+    commands = []
 
-      line = [
-          "python",
-          "../py/build_real_cube.py",
-          "-n",
-          f"{number}",
-          "-m",
-          "3000",
-          "-o",
-          f"Output/craco_real{number}.csv",
-          "--clobber",
-          "-p",
-          f"../Cubes/craco_real_cube.json",
-      ]
+    for number in nums:
 
-      commands.append(line)
+        line = [
+            "python",
+            "../py/build_real_cube.py",
+            "-n",
+            f"{number}",
+            "-m",
+            "3000",
+            "-o",
+            f"Output/craco_real{number}.csv",
+            "--clobber",
+            "-p",
+            f"../Cubes/craco_real_cube.json",
+        ]
+        commands.append(line)
 
-  processes = []
+    processes = []
 
-  for command in commands:
-      print(f"Running this command: {' '.join(command)}")
-      pw = subprocess.Popen(command)
-      processes.append(pw)
+    for command in commands:
+        print(f"Running this command: {' '.join(command)}")
+        pw = subprocess.Popen(command)
+        processes.append(pw)
 
-  for pw in processes:
-      exit_code = pw.wait()
-      print(exit_code)
+    for pw in processes:
+        exit_code = pw.wait()
+        print(exit_code)
 
-  print("All done!")
+    print("All done!")
+
 
 def parse_option():
     # test for command-line arguments here
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "-s",
-        "--start",
-        type=int,
-        required=True,
-        help="csv to start on",
+        "-s", "--start", type=int, required=True, help="csv to start on",
     )
     parser.add_argument(
-        "-e",
-        "--end",
-        type=int,
-        required=False,
-        help="csv to end on (inclusive)",
+        "-e", "--end", type=int, required=False, help="csv to end on (inclusive)",
     )
 
     args = parser.parse_args()
 
     return args
+
 
 if __name__ == "__main__":
     # get the argument of training.
