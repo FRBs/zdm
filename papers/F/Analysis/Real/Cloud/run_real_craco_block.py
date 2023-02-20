@@ -10,8 +10,23 @@ nums = np.arange(start, end + 1, dtype="int")
 commands = []
 
 for number in nums:
-    line = f"python ../py/build_real_cube.py -n {number} -m 3000 -o Output/craco_real{number}.csv --clobber -p ../Cubes/craco_real_cube.json"
-    commands.append(line)
+    # line = f"python ../py/build_real_cube.py -n {number} -m 3000 -o Output/craco_real{number}.csv --clobber -p ../Cubes/craco_real_cube.json"
+    # commands.append(line)
+
+    # Command
+    line = [
+        "python",
+        "../py/build_real_cube.py",
+        "-n",
+        f"{number}",
+        "-m",
+        "3000",
+        "-o",
+        f"Output/craco_real{number}.csv",
+        "--clobber",
+        "-p",
+        f"../Cubes/craco_real_cube.json",
+    ]
 
 processes = []
 
