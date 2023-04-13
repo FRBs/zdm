@@ -88,7 +88,8 @@ class Survey:
         """
         efficiencies=np.zeros([wlist.size,DMlist.size])
         if addGalacticDM:
-            toAdd = self.DMhalo + np.mean(self.DMGs)
+            # the following is safe against surveys with zero FRBs
+            toAdd = self.DMhalo + self.meta["DMG"]
         else:
             toAdd = 0.
         
@@ -153,9 +154,9 @@ class Survey:
             self.NFRB=keys.count('FRB')
         else:
             self.NFRB = NFRB
-        if self.NFRB==0:
-            raise ValueError('No FRBs found in file '+filename) #change this?
-
+        #if self.NFRB==0:
+        #    raise ValueError('No FRBs found in file '+filename) #change this?
+        
         self.iFRB = iFRB
 
 
@@ -183,14 +184,16 @@ class Survey:
         self.NORM_FRB=self.meta['NORM_FRB']
         # the following properties can either be FRB-by-FRB, or metadata
         which=3
-        
+        # perhaps we should set "-1" as the default for all of these,
+        # to force people to manually enter that data, and not
+        # accidentally use ASKAP default values?
         self.do_keyword('THRESH',which)
         self.do_keyword('TRES',which,1.265)
         self.do_keyword('FRES',which,1)
         self.do_keyword('FBAR',which,1196)
         self.do_keyword('BW',which,336)
         self.do_keyword('SNRTHRESH',which,9.5)
-        self.do_keyword('DMG',which,None) # Galactic contribution to DM
+        self.do_keyword('DMG',which,35) # Galactic contribution to DM, defaults to 35 if no FRBs present
         self.do_keyword('NREP',which,1) # listed under either, since all FRBs could indeed by once-off
         
         
@@ -293,7 +296,7 @@ class Survey:
             self.meta[key]=float(self.info[ik][0])
             self.frbs[key]=np.full([self.NFRB],float(self.info[ik][0])) # fills with this value
             
-        elif (which != 1) and (self.keylist.count(key)==1): #info varies according to each FRB
+        elif (which != 1) and (self.keylist.count(key)==1) and self.NFRB >0: #info varies according to each FRB
             ik=self.keylist.index(key)
             mean=0.
             values=np.zeros([self.NFRB])
@@ -470,11 +473,11 @@ def calc_relative_sensitivity(DM_frb,DM,w,fbar,t_res,nu_res,model='Quadrature',d
     # this model returns the parameterised CHIME DM-dependent sensitivity
     # it is independent of width
     if model=='CHIME':
-        # polynomial coefficients for fit to CHIME DM bias data
-        coeffs = np.array([6.41026042e-03, -2.31270423e-01,  3.42220517e+00,
-                        -2.65610422e+01, 1.13781929e+02,-2.53792341e+02, 2.28889078e+02])
+        # polynomial coefficients for fit to CHIME DM bias data (4th order poly)
+        coeffs = np.array([ 7.79309074e-03, -2.09210057e-01,  1.93122752e+00,
+            -7.05813760e+00, 8.93355593e+00])
         # this constant normalises the above to a peak efficiency of 100%
-        coeffs /= 1.1340233887501654
+        coeffs /= 1.118694423940629
         # fit is to natural log of DM values
         ldm = np.log(DM)
         rate = np.polyval(coeffs,ldm)
@@ -624,7 +627,7 @@ def make_widths(s:Survey,state):
     
     # initialise min/max of width bins
     wmax=wequality*thresh
-    wmin=wmax*np.exp(-3.*wlogsigma)
+    wmin=wmax*np.exp(-3.*wlogsigma) # three standard deviations below the mean
     # keeps track of numerical normalisation to ensure it ends up at unity
     wsum=0.
     

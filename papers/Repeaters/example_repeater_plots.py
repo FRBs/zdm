@@ -35,9 +35,6 @@ matplotlib.rc('font', **font)
 
 def main():
     
-    # plots the polynomial coefficients
-    chime_sensitivity()
-    
     #defines lists of repeater properties, in order Rmin,Rmax,r
     # units of Rmin and Rmax are "per day above 10^39 erg"
     Rset2={"Rmin":1e-4,"Rmax":10,"Rgamma":-2.2}
@@ -223,7 +220,7 @@ def time_effect_for_survey(name,sdir,Rset,xmax=None,ymax=None,suffix=""):
         # prints the peak in this
         imax=np.argmax(zproj)
         zmax=rg.zvals[imax]
-        print("Refshift of single burst peak is ",zmax)
+        print("Redshift of single burst peak is ",zmax)
         
         zproj=np.sum(rg.exact_reps,axis=1)
         #zproj /= np.sum(zproj)
@@ -234,7 +231,7 @@ def time_effect_for_survey(name,sdir,Rset,xmax=None,ymax=None,suffix=""):
         # prints the peak in this
         imax=np.argmax(zproj)
         zmax=rg.zvals[imax]
-        print("Refshift of repeating sources is ",zmax)
+        print("Redshift of repeating sources is ",zmax)
              
         zproj=np.sum(rg.exact_rep_bursts,axis=1)
         #zproj /= np.sum(zproj)
@@ -384,51 +381,5 @@ def calc_reps(s,g,Tfield,Rparams=None,Nfields=1,opdir='Repeaters/'):
         project=False,FRBDM=s.DMEGs,FRBZ=s.frbs["Z"],Aconts=[0.01,0.1,0.5],zmax=1.5,
         DMmax=1500)#,DMlines=s.DMEGs[s.nozlist])
 
-def chime_sensitivity():
-    """
-    Contains the DM, width, scattering bias models from CHIME
-    """
-    path =  os.path.join(resource_filename('zdm', 'data'), 'Misc')
-    data = np.loadtxt(path+"/chime_dm_bias.dat")
-    dms = data[:,0]
-    bias = data[:,1]
-    ldms = np.log(dms)
-    fit = sp.interpolate.interp1d(ldms,bias,kind='cubic')
-    
-    dmvals = np.linspace(dms[0],dms[-1],100)
-    ldmvals = np.log(dmvals)
-    bias_vals = fit(ldmvals)
-    
-    
-    #does polyfit
-    
-    coeffs = np.polyfit(ldms,bias,6)
-    print("coeffs are ",coeffs)
-    bias_vals2 = np.polyval(coeffs,ldmvals)
-    norm = np.max(bias_vals2)
-    print("Normalising to unity gives ",norm)
-    
-    plt.figure()
-    
-    plt.xlabel('DM [pc/cm3]')
-    plt.ylabel('Bias [arb. units]')
-    plt.xscale('log')
-    
-    plt.plot(dmvals,bias_vals,label='cubic spline fit')
-    plt.plot(dmvals,bias_vals2,label='$5^{\\rm th}$ order polynomial fit')
-    plt.plot(dmvals,bias_vals2/norm,linestyle='--',label='(renormalised)',color=plt.gca().lines[-1].get_color() )
-    
-    plt.plot(dmvals,(bias_vals2/norm)**(2./3.),linestyle=':',label='SNR bias',linewidth=2)
-    plt.scatter(dms,bias,label='CHIME data',marker='x',s=10,color='red')
-    plt.legend()
-    plt.tight_layout()
-    plt.savefig('DMBiasFit/chime_bias_fit.pdf')
-    plt.close()
-    
-    # NOTE: the bias is in terms of the number of detected events
-    # We must interpret it in terms of S/N bias
-    # To do so, we assume an N~SNR^-1.5 relationship
-    # However, this is approximate, since the slope of source-counts
-    # is DM dependent.
 
 main()

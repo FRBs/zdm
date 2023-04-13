@@ -16,9 +16,17 @@ Outputs:
 
 import numpy as np
 
-def main():
+def main(bounds):
+    
+    # defines set of bounds to read in
+    Nbounds=6
+    bdir = 'Nbounds'+str(Nbounds)+'/'
+    
+    
+    ####### loads CHIME FRBs ######
+    
     chimedir = 'CHIME_FRBs/'
-    infile = chimedir+'select_chimefrbcat1.csv'
+    infile = chimedir+'chimefrbcat1.csv'
     idec=6
     idm=18
     idmeg=26
@@ -71,6 +79,7 @@ def main():
             dmgs[i-1] = dms[i-1]-dmegs[i-1]
             rep=words[irep]
             
+            
             if rep=='-9999':
                 reps[i-1]=0
             else:
@@ -84,12 +93,14 @@ def main():
                     nreps.append(1)
             count += 1
     
+    print("Total of ",len(rnames)," repeating FRBs found")
+    print("Total of ",len(np.where(reps==0)[0])," once-off FRBs")
     
     #print(rnames)
     #print(nreps)
     # now breaks this up into declination bins
-    #The below is hard-coded and copied from "plot_paths.py"
-    bounds=np.array([-11.,30,60,70,80,85,90])
+    #The below is hard-coded and copied from "plot
+    bounds=np.array([-11.,5,20,65,80,85,90])
     lowers=bounds[:-1]
     uppers=bounds[1:]
     for i,lb in enumerate(lowers):

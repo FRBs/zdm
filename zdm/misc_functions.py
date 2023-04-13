@@ -1938,7 +1938,7 @@ def plot_zdm_basic_paper(zDMgrid,zvals,dmvals,zmax=1,DMmax=1000,
     
     
     # limit to a reasonable range if logscale
-    themax=zDMgrid.max()
+    themax=np.nanmax(zDMgrid)
     themin=int(themax-4)
     themax=int(themax)
     plt.clim(themin,themax)
@@ -1959,7 +1959,8 @@ def plot_grid_2(zDMgrid,zvals,dmvals,
                 label='$\\log_{10}p(DM_{\\rm EG},z)$',project=False,conts=False,
                 FRBZ=None,FRBDM=None,Aconts=False,
                 Macquart=None,title="Plot",
-                H0=None,showplot=False,DMlines=None):
+                H0=None,showplot=False,DMlines=None,
+                clim = False):
     """
     Very complicated routine for plotting 2D zdm grids 
 
@@ -1983,6 +1984,7 @@ def plot_grid_2(zDMgrid,zvals,dmvals,
         title (str, optional): [description]. Defaults to "Plot".
         H0 ([type], optional): [description]. Defaults to None.
         showplot (bool, optional): [description]. Defaults to False.
+        clim ([type], optional): [description] pass colorbar limit. Defaults to False
     """
     if H0 is None:
         H0 = cos.cosmo.H0
@@ -2015,19 +2017,14 @@ def plot_grid_2(zDMgrid,zvals,dmvals,
         axx=plt.axes(rect_1Dx)
         axy=plt.axes(rect_1Dy)
         acb=plt.axes(rect_cb)
-        #axx.xaxis.set_major_formatter(NullFormatter())
-        #axy.yaxis.set_major_formatter(NullFormatter())
     else:
         plt.figure()
-        #rect_2D=[0,0,1,1]
         ax1=plt.axes()
     
     plt.sca(ax1)
     
     plt.xlabel('z')
     plt.ylabel('${\\rm DM}_{\\rm EG}$')
-    #plt.title(title+str(H0)) # I have removed this default title, use a file naming convention instead
-    
     nz,ndm=zDMgrid.shape
     
     
@@ -2036,7 +2033,6 @@ def plot_grid_2(zDMgrid,zvals,dmvals,
         zvals=zvals[:ixmax[0]]
         nz=zvals.size
         zDMgrid=zDMgrid[:ixmax[0],:]
-    
     
     # currently this is "per cell" - now to change to "per DM"
     # normalises the grid by the bin width, i.e. probability per bin, not probability density
@@ -2222,11 +2218,14 @@ def plot_grid_2(zDMgrid,zvals,dmvals,
             #	text.set_color("white")
     
     # limit to a reasonable range if logscale
-    if log:
+    if log and not clim:
         themax=np.nanmax(zDMgrid)
         themin=int(themax-4)
         themax=int(themax)
         plt.clim(themin,themax)
+    
+    if clim:
+        plt.clim(clim[0],clim[1])
     
     ##### add FRB host galaxies at some DM/redshift #####
     if FRBZ is not None:

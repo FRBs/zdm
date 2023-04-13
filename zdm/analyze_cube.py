@@ -764,18 +764,25 @@ def interpolate_points(oldx,oldy,logspline=False, kind='cubic'):
     y[np.where(y < 0.)]=0.
     return x,y
 
-def extract_limits(x,y,p,method=1):
+def extract_limits(x,y,p,method=1,dumb=False,interp=False):
     """
     args:
         x (np.ndarray): xvalues of data (independent variable on which we place limits)
         y (np.ndarray): yvalues of data (probability distribution)
-        p: probability of confidence interval (e.g. 0.68 for ~1 sigma)
+        p: probability at each tail of the distribution
+            (e.g. 0.16 for ~1 sigma, 0.025 for 2 sigma)
+            Use "dumb = True" to interpet this as the C.I.
+            (e.g. 0.68 for 1 sigma, 0.95 for 2 sigma)
         method: 1: includes most-likely points in C.I. first
                 2: sets equal probability to either side
+        interp: if True, interpolates between points
     returns:
         v0,v1: lower and upper bounds of range
     """
     
+    if dumb:
+        p = (1.-p)/2.
+        
     # sets intervals according to highest likelihood
     if method==1: 
         # this sorts from lowest to highest
@@ -787,14 +794,39 @@ def extract_limits(x,y,p,method=1):
         csy /= csy[-1]
         
         # this is the likelihood we cut on
+        # this creates small intervals: where csy < this value
         cut=np.where(csy < 1.-2.*p)[0] # allowed values in interval
         cut=cut[-1] # last allowed value
-        cut=sy[cut]
-        OK=np.where(y > cut)[0]
+        cut2=sy[cut]
+        OK=np.where(y > cut2)[0]
         ik1=OK[0]
         ik2=OK[-1]
         v0=x[ik1]
         v1=x[ik2]
+        
+        # we now extend the range assigning excess probability to either side
+        # in theory, this should be done according to the slope
+        if interp:
+            XS = 1.-2.*p - csy[cut]
+            
+            # checks if either is at the limit
+            if ik1==0: # all excess at ik2
+                XS2=XS
+            elif ik2 == x.size-1:
+                XS2=XS
+            else:
+                XS2 = XS/2.
+            
+            if ik1 > 0:
+                dx1 = x[ik1]-x[ik1-1]
+                fraction1 = (XS2/y[ik1-1])*dx1
+                v0 -= fraction1
+            
+            if ik2< x.size-1:
+                dx2 = x[ik2+1]-x[ik2]
+                fraction2 = (XS2/y[ik2+1])*dx2
+                v1 += fraction2
+        
     elif method==2:
         cy=np.cumsum(y)
         cy /= cy[-1] # ignores normalisation in dx direction
@@ -803,10 +835,29 @@ def extract_limits(x,y,p,method=1):
         inside=np.where(cy > p)[0]
         ik1=inside[0]
         v0=x[ik1]
+        # value above
+        if interp:
+            print("WARNING: interp currently untested with method=2")
+            if ik1>0:
+                dx = x[ik1]-x[ik1-1]
+            else:
+                dx = x[ik1+1]-x[ik1]
+            dp = cy[ik1]-p # excess p
+            fraction = (dp/y[ik1])*dx
+            v0 -= fraction
+            
         # gets upper value
         inside=np.where(cy > 1.-p)[0]
         ik2=inside[0]
         v1=x[ik2]
+        
+        if interp:
+            dx = x[ik2]-x[ik2-1]
+            dp = cy[ik2]-(1.-p) # excess p,to reduce
+            fraction = (dp/y[ik2])*dx
+            v1 -= fraction
+        
+        
     return v0,v1,ik1,ik2
 
 def do_single_plots(uvals,vectors,wvectors,names,tag=None, fig_exten='.png',

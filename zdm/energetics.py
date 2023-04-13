@@ -5,15 +5,18 @@ import mpmath
 from IPython import embed
 
 igamma_splines = {}
+SplineMin = -6
+SplineMax = 6
+NSpline = 1000
 
 ############## this section defines different luminosity functions ##########
 
 def init_igamma_splines(gammas, reinit=False):
+    global SplineMin,SplineMax,NSpline
     for gamma in gammas:
         if gamma not in igamma_splines.keys() or reinit:
             print(f"Initializing igamma_spline for gamma={gamma}")
-            # values. Extended from -6,6,1000 to -8,6,12000 for repeaters
-            avals = 10**np.linspace(-12., 6., 18000)
+            avals = 10**np.linspace(SplineMin, SplineMax, NSpline)
             numer = np.array([float(mpmath.gammainc(
                 gamma, a=iEE)) for iEE in avals])
             # iGamma
