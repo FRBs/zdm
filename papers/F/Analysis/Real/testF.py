@@ -105,7 +105,7 @@ def main(verbose=False):
         
         # log to lin space
         array[np.isnan(array)] = -1e99
-        array -= np.max(array)
+        array -= np.nanmax(array)
         array = 10**array
         array /= np.sum(array)
         

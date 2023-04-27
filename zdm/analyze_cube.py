@@ -253,6 +253,57 @@ def apply_H0_prior(
     return wlls
 
 
+def apply_F_prior(
+    lls: np.ndarray,
+    Fdim: int,
+    Fvalues: np.ndarray,
+    F_0: float,
+    F_sigma: float,
+):
+    """
+    Applies a prior as a function of F
+
+    This is a Gaussian prior.
+
+    Args:
+        lls (np.ndarray): values of likelihoods
+
+        Fdim (int): dimension of F0 in the data
+
+        Fvalues (float): vector specifying values of H0
+
+        F_0 (float): value of F
+
+        F_sigma (float): 1 sigma uncertainty on F
+
+    Returns a vector of length lls modified
+    by that prior.
+    """
+
+    NDIMS = len(lls.shape)
+    if Fdim < 0 or Fdim >= NDIMS:
+        raise ValueError(
+            "Data only has ",
+            NDIMS,
+            " dimensions.",
+            "Please select F dim between 0 and ",
+            NDIMS - 1,
+            " not ",
+            Fdim,
+        )
+
+    wlls = np.copy(lls)
+
+    for iv, val in enumerate(Fvalues):
+        # select ivth value from iparam dimension
+        big_slice = [slice(None, None, None)] * NDIMS
+        big_slice[Fdim] = iv
+        weight = -0.5 * ((val - F_0) / F_sigma) ** 2 * np.log10(np.exp(1))
+        wlls[tuple(big_slice)] += weight
+
+    return wlls
+
+
 def get_slice_from_parameters(data, plist, mcvals, verbose=False, wanted="ll"):
     """
     Selects from data according to parameters which are
@@ -379,8 +430,9 @@ def get_bayesian_data(lls: np.ndarray, plls: np.ndarray = None, pklfile=None):
             lls = origlls[tuple(big_slice)].flatten()
 
             # ignores all values of 0, which is what missing data is
-            ignore = np.where(lls == 0.0)[0]
-            lls[ignore] = -99999
+            # ignore = np.where(lls == 0.0)[0]
+            # lls[ignore] = -99999
+            lls[np.isnan(lls)] = -99999
 
             # selects all fits that are close to the peak (i.e. percentage within 0.1%)
             try:
@@ -1182,6 +1234,8 @@ def do_single_plots(uvals,vectors,wvectors,names,tag=None, fig_exten='.png',
                     plt.plot(
                         x, y, color="grey", linewidth=1, linestyle=other_styles[io % 3]
                     )
+
+                    plt.legend()
         if dolevels:
             string += "\\\\"
             if log:

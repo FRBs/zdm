@@ -1,19 +1,30 @@
+"""
+This is a script to produce figure 9 for the H0 paper
+(James, Ghosh, Prochaska et al)
+
+It requires the original data "Cubefile", available at [repository]
+
+It outputs six plots, all being correlations between H0
+and the six other fitted parameters. The slices
+obtained are set at the best-fit values of cube parameters.
+
+"""
+
 import numpy as np
 import os
 import zdm
 from zdm import analyze_cube as ac
 
 from matplotlib import pyplot as plt
-from IPython import embed
 
 def main(verbose=False):
     
     # output directory
-    opdir="2d_figs/"
+    opdir="Figure9/"
     if not os.path.exists(opdir):
         os.mkdir(opdir)
     
-    CubeFile='Cubes/craco_full_cube.npz'
+    CubeFile='Cubes/craco_real_cube.npz'
     if os.path.exists(CubeFile):
         data=np.load(CubeFile)
     else:
@@ -29,7 +40,7 @@ def main(verbose=False):
     lst = data.files
     lldata=data["ll"]
     params=data["params"]
-    
+
     def get_param_values(data,params):
         """
         Gets the unique values of the data from a cube output
@@ -44,6 +55,20 @@ def main(verbose=False):
         return param_vals
     
     param_vals=get_param_values(data, params)
+    
+    
+    #reconstructs total pdmz given all the pieces, including unlocalised contributions
+    pDMz=data["P_zDM0"]+data["P_zDM1"]+data["P_zDM2"]+data["P_zDM3"]+data["P_zDM4"]
+    
+    #DM only contribution - however it ignores unlocalised DMs from surveys 1-3
+    pDMonly=data["pDM"]+data["P_zDM0"]+data["P_zDM4"]
+    
+    #do this over all surveys
+    P_s=data["P_s0"]+data["P_s1"]+data["P_s2"]+data["P_s3"]+data["P_s4"]
+    P_n=data["P_n0"]+data["P_n1"]+data["P_n2"]+data["P_n3"]+data["P_n4"]
+    
+    #labels=['p(N,s,DM,z)','P_n','P(s|DM,z)','p(DM,z)all','p(DM)all','p(z|DM)','p(DM)','p(DM|z)','p(z)']
+    #for datatype in [data["ll"],P_n,P_s,pDMz,pDMonly,data["pzDM"],data["pDM"],data["pDMz"],data["pz"]]:
     
     # builds uvals list
     uvals=[]
@@ -104,8 +129,7 @@ def main(verbose=False):
         array=ac.get_slice_from_parameters(data,list3,vals3)
         
         # log to lin space
-        array[np.isnan(array)] = -1e99
-        array -= np.nanmax(array)
+        array -= np.max(array)
         array = 10**array
         array /= np.sum(array)
         
@@ -118,12 +142,6 @@ def main(verbose=False):
             array=array.swapaxes(0,1)
         savename=opdir+"/lls_"+params[iF]+"_"+params[modi]+".png"
         
-#         if (latexnames[modi] == '$\\gamma$'):
-#             embed(header="gamma")
-        
-#         if (latexnames[modi] == '$H_0$'):
-#             embed(header="H0")
-                
         if params[modi]=="alpha":
             #switches order of array in alpha dimension
             array=np.flip(array,axis=0)

@@ -3,7 +3,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: jb-zdm-craco-real-logf
+  name: jb-zdm-craco-real-logf-b2
 spec:
   backoffLimit: 0
   template:
@@ -27,13 +27,13 @@ spec:
         imagePullPolicy: Always
         resources:
           requests:
-            cpu: "20"
+            cpu: "6"
             memory: "64Gi"  # 
-            ephemeral-storage: 128Gi  # 
+            ephemeral-storage: 64Gi  # 
           limits:
-            cpu: "30"
+            cpu: "8"
             memory: "80Gi"
-            ephemeral-storage: 200Gi
+            ephemeral-storage: 80Gi
             #nvidia.com/gpu:  "1"  # See docs to exlude certain types
         command: ["/bin/bash", "-c"]
         args:
@@ -52,7 +52,7 @@ spec:
             cd ../../..;
             cd papers/F/Analysis/Real/Cloud;
             mkdir Output;
-            python run_craco_real.py -n 41 -t 41 -b 1;
+            python run_real_craco_block.py -s 6 -e 10;
             aws --endpoint http://rook-ceph-rgw-nautiluss3.rook s3 cp Output s3://zdm/Cubes/F/real/ --recursive --force;
         env:
           - name: "ENDPOINT_URL"
