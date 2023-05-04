@@ -61,7 +61,10 @@ class Grid:
         self.parse_grid(zDMgrid.copy(),zvals.copy(),dmvals.copy())  
         self.calc_dV()
         self.smear_dm(smear_mask.copy())
-        if wdist:
+        if survey.efficiencies.ndim == 1:
+            efficiencies=survey.efficiencies
+            weights=None
+        elif wdist:
             efficiencies=survey.efficiencies # two dimensions
             weights=survey.wplist
         else:

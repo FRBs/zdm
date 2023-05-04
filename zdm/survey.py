@@ -44,14 +44,14 @@ class OldSurvey:
     #    for i in np.arange(self.NFRB):
     #        jyms=width**0.5 * SNR/efficiency
     
-    def get_efficiency(self,DMlist,model="Quadrature",dsmear=True):
+    def get_efficiency(self,DMlist,model="Quadrature",dsmear=True,edir=''):
         """ Gets efficiency to FRBs
         Returns a list of relative efficiencies
         as a function of dispersion measure for each FRB.
         """
         efficiencies=np.zeros([self.NFRB,DMlist.size])
         for i in np.arange(self.NFRB):
-            efficiencies[i,:]=calc_relative_sensitivity(self.DMs[i],DMlist,self.WIDTHs[i],self.FBARs[i],self.TRESs[i],self.FRESs[i],model=model,dsmear=dsmear)
+            efficiencies[i,:]=calc_relative_sensitivity(self.DMs[i],DMlist,self.WIDTHs[i],self.FBARs[i],self.TRESs[i],self.FRESs[i],model=model,dsmear=dsmear,edir=edir)
         # keep an internal record of this
         self.efficiencies=efficiencies
         self.DMlist=DMlist
@@ -62,7 +62,8 @@ class OldSurvey:
     
     def get_efficiency_from_wlist(self,DMlist,wlist,plist, 
                                   model="Quadrature", 
-                                  addGalacticDM=True):
+                                  addGalacticDM=True,
+                                  edir=''):
         """ Gets efficiency to FRBs
         Returns a list of relative efficiencies
         as a function of dispersion measure for each width given in wlist
@@ -99,7 +100,8 @@ class OldSurvey:
                 np.median(self.frbs['TRES']),
                 np.median(self.frbs['FRES']),
                 model=model,
-                dsmear=False)
+                dsmear=False,
+                edir=edir)
         # keep an internal record of this
         self.efficiencies=efficiencies
         self.wplist=plist
@@ -459,7 +461,9 @@ class Survey:
                  filename:str, 
                  dmvals:np.ndarray,
                  NFRB:int=None, 
-                 iFRB:int=0):
+                 iFRB:int=0,
+                 model:str='Quadratic',
+                 edir:str=''):
         """ Init an FRB Survey class
 
         Args:
@@ -483,9 +487,23 @@ class Survey:
                        plot=False, 
                        thresh=state.beam.Bthresh) # tells the survey to use the beam file
         # Efficiency
-        pwidths,pprobs=make_widths(self, state)
-        _ = self.get_efficiency_from_wlist(dmvals,
-                                       pwidths,pprobs) 
+        if model=='Quadrature' or model=='Sammons':
+            pwidths,pprobs=make_widths(self, state)
+            # pwidths = np.array([self.WIDTHs])
+            # pprobs = np.array([1])
+            _ = self.get_efficiency_from_wlist(dmvals,pwidths,pprobs,
+                                           model=model)
+        else:
+            self.efficiencies = calc_relative_sensitivity(None, dmvals, None, None, None, None, model, None, edir)
+        
+        # plt.figure()
+        # for eff in self.efficiencies:
+        #     plt.plot(dmvals, eff)
+        # # plt.plot(dmvals, self.efficiencies)
+        # plt.xlabel("DM")
+        # plt.ylabel("Efficiency")
+        # plt.show()
+        # plt.close()
 
     def init_DMEG(self,DMhalo):
         """ Calculates extragalactic DMs assuming halo DM """
@@ -587,13 +605,13 @@ class Survey:
         self.NBEAMS=1
         
         print("FRB survey sucessfully initialised with ",self.NFRB," FRBs starting from", self.iFRB)
-
+    
     def process_dmg(self):
         """ Estimates galactic DM according to
         Galactic lat and lon only if not otherwise provided
         """
-        if self.frbs["DMG"] is None:
-            if self.frbs["Gl"] is None or self.frbs["Gb"] is None:
+        if not np.isfinite(self.frbs["DMG"].values[0]):
+            if np.isfinite(self.frbs["Gl"].values[0]) and np.isfinite(self.frbs["Gb"].values[0]):
                 raise ValueError('Can not estimate Galactic contributions.\
                     Please enter Galactic coordinates, or else manually enter \
                     it as DMG')
@@ -704,7 +722,7 @@ class Survey:
         
 # implements something like Mawson's formula for sensitivity
 # t_res in ms
-def calc_relative_sensitivity(DM_frb,DM,w,fbar,t_res,nu_res,model='Quadrature',dsmear=True):
+def calc_relative_sensitivity(DM_frb,DM,w,fbar,t_res,nu_res,model='Quadrature',dsmear=True,edir=''):
     """ Calculates DM-dependent sensitivity
     
     This function adjusts sensitivity to a given burst as a function of DM.
@@ -717,32 +735,49 @@ def calc_relative_sensitivity(DM_frb,DM,w,fbar,t_res,nu_res,model='Quadrature',d
     NOTE: DM_frb *only* used if dsmear = True: combine these to default to None?
     """
     
-    # constant of DM
-    k_DM=4.149 #ms GHz^2 pc^-1 cm^3
+    # If model is not 'Quadrature' or 'Sammons', assume it is the filename for the response file
+    if model != 'Quadrature' and model != 'Sammons':
+        filename = os.path.join(edir, model)
+        filename += '.npy'
+        
+        if not os.path.exists(filename):
+            raise ValueError("Model is not Quadrature or Sammons and hence is expected to be the name of a file containing the efficiencies but " + filename + " does not exist.")
+
+        # Should contain DM in the first row and efficiencies in the second row
+        sensitivity_array = np.load(filename)
+
+        if sensitivity_array[0,-1] < DM[-1]:
+            # Make the SNR close to 0 beyond the search DM
+            sensitivity_array = np.concatenate((sensitivity_array, np.array([[sensitivity_array[0,-1]+1, DM[-1]], [1e-10, 1e-10]])), axis=1)
+        
+        sensitivity = np.interp(DM, sensitivity_array[0,:], sensitivity_array[1,:])
     
-    # total smearing factor within a channel
-    dm_smearing=2*(nu_res/1.e3)*k_DM*DM/(fbar/1e3)**3 #smearing factor of FRB in the band
-    
-    # this assumes that what we see are measured widths including all the smearing factors
-    # hence we must first adjust for this prior to estimating the DM-dependence
-    # for this we use the *true* DM at which the FRB was observed
-    if dsmear==True:
-        measured_dm_smearing=2*(nu_res/1.e3)*k_DM*DM_frb/(fbar/1e3)**3 #smearing factor of FRB in the band
-        uw=w**2-measured_dm_smearing**2-t_res**2 # uses the quadrature model to calculate intrinsic width uw
-        if uw < 0:
-            uw=0
+    else:
+        # constant of DM
+        k_DM=4.149 #ms GHz^2 pc^-1 cm^3
+        
+        # total smearing factor within a channel
+        dm_smearing=2*(nu_res/1.e3)*k_DM*DM/(fbar/1e3)**3 #smearing factor of FRB in the band
+        
+        # this assumes that what we see are measured widths including all the smearing factors
+        # hence we must first adjust for this prior to estimating the DM-dependence
+        # for this we use the *true* DM at which the FRB was observed
+        if dsmear==True:
+            measured_dm_smearing=2*(nu_res/1.e3)*k_DM*DM_frb/(fbar/1e3)**3 #smearing factor of FRB in the band
+            uw=w**2-measured_dm_smearing**2-t_res**2 # uses the quadrature model to calculate intrinsic width uw
+            if uw < 0:
+                uw=0
+            else:
+                uw=uw**0.5
         else:
-            uw=uw**0.5
-    else:
-        uw=w
-    
-    if model=='Quadrature':
-        sensitivity=(uw**2+dm_smearing**2+t_res**2)**-0.5
-    elif model=='Sammons':
-        sensitivity=0.75*(0.93*dm_smearing + uw + 0.35*t_res)**-0.5
-    else:
-        raise ValueError(model," is an unknown DM smearing model --- use Sammons or Quadrature")
-    # calculates relative sensitivity to bursts as a function of DM
+            uw=w
+        
+        if model=='Quadrature':
+            sensitivity=(uw**2+dm_smearing**2+t_res**2)**-0.25
+        elif model=='Sammons':
+            sensitivity=0.75*(0.93*dm_smearing + uw + 0.35*t_res)**-0.5
+        # calculates relative sensitivity to bursts as a function of DM
+
     return sensitivity
     
     """ Tries to get intelligent choices for width binning assuming some intrinsic distribution
@@ -957,7 +992,8 @@ def make_widths(s:Survey,state):
 def load_survey(survey_name:str, state:parameters.State, 
                 dmvals:np.ndarray,
                 sdir:str=None, NFRB:int=None, 
-                nbins=None, iFRB:int=0, original:bool=False):
+                nbins=None, iFRB:int=0, original:bool=False,
+                model='Quadratic', edir=''):
     """Load a survey
 
     Args:
@@ -1027,14 +1063,20 @@ def load_survey(survey_name:str, state:parameters.State,
         srvy.init_beam(method=state.beam.Bmethod, plot=False,
                     thresh=state.beam.Bthresh) # tells the survey to use the beam file
         pwidths,pprobs=make_widths(srvy,state)
-        _ = srvy.get_efficiency_from_wlist(dmvals,
-                                        pwidths,pprobs) 
+
+        if model == 'Quadrature' or model == 'Sammons':
+            _ = srvy.get_efficiency_from_wlist(dmvals,
+                                            pwidths,pprobs,
+                                            model=model,edir=edir) 
+        else:
+            srvy.efficiencies = calc_relative_sensitivity(None, dmvals, None, None, None, None, model, None, edir)
     else:                                
         srvy = Survey(state, 
                          survey_name, 
                          os.path.join(sdir, dfile), 
                          dmvals,
-                         NFRB=NFRB, iFRB=iFRB)
+                         NFRB=NFRB, iFRB=iFRB,
+                         model=model, edir=edir)
 
     return srvy
 
