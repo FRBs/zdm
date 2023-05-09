@@ -462,7 +462,7 @@ class Survey:
                  dmvals:np.ndarray,
                  NFRB:int=None, 
                  iFRB:int=0,
-                 model:str='Quadratic',
+                 model:str='Quadrature',
                  edir:str=''):
         """ Init an FRB Survey class
 
@@ -993,7 +993,7 @@ def load_survey(survey_name:str, state:parameters.State,
                 dmvals:np.ndarray,
                 sdir:str=None, NFRB:int=None, 
                 nbins=None, iFRB:int=0, original:bool=False,
-                model='Quadratic', edir=''):
+                model='Quadrature', edir=''):
     """Load a survey
 
     Args:
