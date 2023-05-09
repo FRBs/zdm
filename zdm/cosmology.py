@@ -13,6 +13,7 @@
 import scipy.constants as constants
 import numpy as np
 import scipy.integrate as integrate
+from zdm import parameters
 
 
 
@@ -62,7 +63,7 @@ dvdtaus=1
 # tracks whether or not this module has been initialised
 INIT=False
 
-cosmo = None
+cosmo = parameters.CosmoParams()
 
 
 def print_cosmology(params):
