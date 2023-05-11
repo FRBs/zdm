@@ -745,12 +745,7 @@ def calc_relative_sensitivity(DM_frb,DM,w,fbar,t_res,nu_res,model='Quadrature',d
 
         # Should contain DM in the first row and efficiencies in the second row
         sensitivity_array = np.load(filename)
-
-        if sensitivity_array[0,-1] < DM[-1]:
-            # Make the SNR close to 0 beyond the search DM
-            sensitivity_array = np.concatenate((sensitivity_array, np.array([[sensitivity_array[0,-1]+1, DM[-1]], [1e-10, 1e-10]])), axis=1)
-        
-        sensitivity = np.interp(DM, sensitivity_array[0,:], sensitivity_array[1,:])
+        sensitivity = np.interp(DM, sensitivity_array[0,:], sensitivity_array[1,:], right=1e-10)
     
     else:
         # constant of DM
