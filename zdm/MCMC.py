@@ -17,11 +17,13 @@ from zdm import survey
 from zdm import cosmology as cos
 from zdm.craco import loading
 
-import iteration as it
+import zdm.iteration as it
 
 import emcee
 import scipy.stats as st
 import pickle
+import json
+import time
 
 # matplotlib.rcParams['image.interpolation'] = None
 # import pcosmic
@@ -34,8 +36,11 @@ import pickle
 #         'size'   : defaultsize}
 # matplotlib.rc('font', **font)
 
-def main(names=None, initialise=False, pfile=None, opfile=None):
+def main(args):
     
+    names=args.files
+
+
     ############## Initialise cosmology ##############
     # Location for maximisation output
     outdir='mcmc/'
@@ -66,7 +71,7 @@ def main(names=None, initialise=False, pfile=None, opfile=None):
     # Nbeams=[5,5,10]
     
     # Five surveys: we need to distinguish between those with and without a time normalisation
-    if initialise == True:
+    if args.initialise == True:
         surveys = []
         for name in names:
             filename = 'data/Surveys/' + name
@@ -99,6 +104,9 @@ def main(names=None, initialise=False, pfile=None, opfile=None):
         # pwidths,pprobs=survey.make_widths(p1,Wlogmean,Wlogsigma,Wbins,scale=Wscale)
         # efficiencies=p1.get_efficiency_from_wlist(dmvals,pwidths,pprobs)
     
+        if not os.path.exists('Pickle/'):
+            os.mkdir('Pickle/')
+
         with open('Pickle/'+prefix+'surveys.pkl', 'wb') as output:
             pickle.dump(surveys, output, pickle.HIGHEST_PROTOCOL)
             pickle.dump(names, output, pickle.HIGHEST_PROTOCOL)
@@ -125,7 +133,7 @@ def main(names=None, initialise=False, pfile=None, opfile=None):
     
     # generates zdm grids for initial parameter set
     # when submitting a job, make sure this is all pre-generated once
-    if initialise == True:
+    if args.initialise == True:
         grids=initialise_grids(surveys,zDMgrid, zvals,dmvals,state,wdist=True)
         with open('Pickle/'+prefix+'grids.pkl', 'wb') as output:
             pickle.dump(grids, output, pickle.HIGHEST_PROTOCOL)
@@ -134,24 +142,27 @@ def main(names=None, initialise=False, pfile=None, opfile=None):
             grids=pickle.load(infile)
     print("Initialised grids")
     
-    # If not initialising run mcmc
-    if pfile is not None and opfile is not None:
+    # If not initialising only, run mcmc
+    if args.pfile is not None and args.opfile is not None:
         if not os.path.exists(outdir):
             os.mkdir(outdir)
         
-        with open(pfile) as f:
+        with open(args.pfile) as f:
             mcmc_dict = json.load(f)
 
-        mcmc_likelihoods(grids,surveys,mcmc_dict,outdir + opfile)
+        mcmc_likelihoods(grids,surveys,mcmc_dict,outdir + args.opfile, args.walkers, args.steps)
+    else:
+        print("No parameter or output file provided. Assuming only initialising and no MCMC running is done.")
 
 
 def mcmc_likelihoods(grids:list,surveys:list,
-                     mcmc_dict:dict,outfile):
+                     mcmc_dict:dict,outfile:str,
+                     walkers:int, steps:int):
     
     # Select from dictionary the necessary parameters to be changed
     params = {k: mcmc_dict[k] for k in mcmc_dict['mcmc']['parameter_order']}
 
-    posterior_sample = mcmc_runner(calc_log_posterior,params,surveys,grids)
+    posterior_sample = mcmc_runner(calc_log_posterior,params,surveys,grids,nwalkers=walkers,nsteps=steps)
 
     posterior_dict = {}
     for i,k in enumerate(mcmc_dict['mcmc']['parameter_order']):
@@ -165,6 +176,7 @@ def mcmc_likelihoods(grids:list,surveys:list,
 
 def calc_log_posterior(param_vals, params, surveys, grids):
 
+    t0 = time.process_time()
     # Can use likelihoods instead of posteriors because we only use uniform priors which just changes normalisation of posterior 
     # given every value is in the correct range. If any value is not in the correct range, log posterior is -inf
     in_priors = True
@@ -197,10 +209,11 @@ def calc_log_posterior(param_vals, params, surveys, grids):
             else:
                 print("Implementation is only completed for nD 1-3.")
                 exit()
+    print("Posterior calc time: " + str(time.process_time()-t0) + " seconds", flush=True)
 
     return llsum
 
-def mcmc_runner(logpf, params, surveys, grids, nwalkers=5, nburn=0, nsteps=10):
+def mcmc_runner(logpf, params, surveys, grids, nwalkers=10, nburn=0, nsteps=100):
     ndim = len(params)
     starting_guesses = []
 
@@ -225,13 +238,15 @@ def mcmc_runner(logpf, params, surveys, grids, nwalkers=5, nburn=0, nsteps=10):
 #                         s.split(',')))
 
 # test for command-line arguments here
-from misc_functions import *
+from zdm.misc_functions import *
 import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument(dest='files', nargs='+', help="Survey file names")
-parser.add_argument('-i','--initialise', default=False, type=bool, required=False, help="Initialise surveys")
-parser.add_argument('-p','--pfile', default=None ,type=str,required=False,help="File defining parameter ranges")
-parser.add_argument('-o','--opfile', default=None, type=str,required=False,help="Output file for the data")
+parser.add_argument('-i','--initialise', default=False, action='store_true', help="Initialise surveys")
+parser.add_argument('-p','--pfile', default=None , type=str, help="File defining parameter ranges")
+parser.add_argument('-o','--opfile', default=None, type=str, help="Output file for the data")
+parser.add_argument('-w', '--walkers', default=20, type=int, help="Number of MCMC walkers")
+parser.add_argument('-s', '--steps', default=100, type=int, help="Number of MCMC steps")
 args = parser.parse_args()
 
 # Check correct flags are specified
@@ -240,4 +255,6 @@ if args.pfile is None and args.opfile is None:
         print("All flags (except -i optional) are required unless this is only for initialisation in which case only -i should be specified.")
         exit()
 
-main(args.files, args.initialise, args.pfile, args.opfile)
+t0 = time.process_time()
+main(args)
+print("Total execution time: " + str(time.process_time()-t0) + " seconds")

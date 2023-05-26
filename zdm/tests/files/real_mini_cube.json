@@ -13,52 +13,55 @@
     "cube": {
         "parameter_order": ["lC", "sfr_n", "alpha", "lmean", "lsigma", "lEmax", "gamma", "H0"]
     },
+    "mcmc": {
+        "parameter_order": ["sfr_n", "alpha", "lmean", "lsigma", "lEmax", "gamma", "H0"]
+    },
     "lEmax": {
         "DC": "energy",
-        "min": 40.5, 
-        "max": 42.5, 
+        "min": 39.0, 
+        "max": 43.0, 
         "n": 10
     },
     "H0": {
         "DC": "cosmo",
-        "min": 55.0, 
-        "max": 80.0, 
+        "min": 30.0, 
+        "max": 130.0, 
         "n": 10
     },
     "alpha": {
         "DC": "energy",
-        "min": 0.2, 
-        "max": 2.0, 
+        "min": -4.5, 
+        "max": 25.0, 
         "n": 3
     },
     "gamma": {
         "DC": "energy",
-        "min": -0.5, 
-        "max": -1.5, 
+        "min": -1.1, 
+        "max": -0.8, 
         "n": 4
     },
     "sfr_n": {
         "DC": "FRBdemo",
-        "min": 0.0, 
-        "max": 3.0, 
+        "min": -2.0, 
+        "max": 15.0, 
         "n": 10
     },
     "lmean": {
         "DC": "host",
-        "min": 1.7, 
-        "max": 2.5, 
+        "min": -6.0, 
+        "max": 4.0, 
         "n": 4
     },
     "lsigma": {
         "DC": "host",
-        "min": 0.3, 
-        "max": 0.7, 
+        "min": 0.1, 
+        "max": 8.0, 
         "n": 4
     },
     "lC": {
         "DC": "FRBdemo",
-        "min": -0.911, 
-        "max": -0.911, 
+        "min": -1.0, 
+        "max": -0.9, 
         "n": -1
     }
 }
