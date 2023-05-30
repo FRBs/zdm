@@ -176,7 +176,7 @@ class OldSurvey:
             themax = min(NFRB+iFRB,self.NFRB)
             self.frblist=self.frblist[iFRB:themax]
         
-        ### first check for the key list to interpret the FRB table
+        ### first check for the key li        self.meta['NBINS']=int(self.meta['NBINS'])et the FRB table
         iKEY=self.do_metakey('KEY')
         self.keylist=info[iKEY]
         
@@ -187,6 +187,9 @@ class OldSurvey:
         self.do_keyword('DIAM',which,None) # Telescope diamater (in case of Gauss beam)
         self.do_keyword('NBEAMS',which,1) # Number of beams (multiplies sr)
         self.do_keyword('NORM_FRB',which,self.NFRB) # number of FRBs to norm obs time by
+        self.do_keyword('NBINS',which,-1) # Number of bins for the analysis
+        # Hack to recast as int
+        self.meta['NBINS']=int(self.meta['NBINS'])
         
         # the following properties can either be FRB-by-FRB, or metadata
         which=3
@@ -409,10 +412,12 @@ class OldSurvey:
         if key in self.keys:
             return self.keys
     
-    def init_beam(self,nbins=10,plot=False,method=1,thresh=1e-3,Gauss=False):
+    def init_beam(self,plot=False,method=1,thresh=1e-3,Gauss=False):
         """ Initialises the beam """
         if Gauss:
-            b,omegab=beams.gauss_beam(thresh=thresh,nbins=nbins,freq=self.meta["FBAR"],D=self.meta["DIAM"])
+            b,omegab=beams.gauss_beam(thresh=thresh,
+                                      nbins=self.meta['NBINS'],
+                                      freq=self.meta["FBAR"],D=self.meta["DIAM"])
             self.beam_b=b
             self.beam_o=omegab*self.meta["NBEAMS"]
             self.orig_beam_b=self.beam_b
@@ -427,7 +432,8 @@ class OldSurvey:
                 savename='Plots/Beams/'+self.name+'_'+self.meta["BEAM"]+'_'+str(method)+'_'+str(thresh)+'_beam.pdf'
             else:
                 savename=None
-            b2,o2=beams.simplify_beam(logb,omegab,nbins,savename=savename,method=method,thresh=thresh)
+            b2,o2=beams.simplify_beam(logb,omegab,self.meta['NBINS'],
+                                      savename=savename,method=method,thresh=thresh)
             self.beam_b=b2
             self.beam_o=o2
             self.do_beam=True
@@ -450,7 +456,7 @@ class OldSurvey:
 
 class Survey:
     def __init__(self, state, survey_name:str, 
-                 filename:str, nbins:int, 
+                 filename:str, 
                  dmvals:np.ndarray,
                  NFRB:int=None, 
                  iFRB:int=0):
@@ -461,7 +467,6 @@ class Survey:
             survey_name (str): 
                 Name of the survey
             filename (str): _description_
-            nbins (int): _description_
             dmvals (np.ndarray): _description_
             NFRB (int, optional): _description_. Defaults to None.
             iFRB (int, optional): _description_. Defaults to 0.
@@ -473,7 +478,7 @@ class Survey:
         # DM EG
         self.init_DMEG(state.MW.DMhalo)
         # Beam
-        self.init_beam(nbins=nbins, 
+        self.init_beam(
                        method=state.beam.Bmethod, 
                        plot=False, 
                        thresh=state.beam.Bthresh) # tells the survey to use the beam file
@@ -605,11 +610,13 @@ class Survey:
             self.frbs["DMG"]=DMGs
             self.DMGs=DMGs
 
-    def init_beam(self,nbins=10,plot=False,
+    def init_beam(self,plot=False,
                   method=1,thresh=1e-3,Gauss=False):
         """ Initialises the beam """
         if Gauss:
-            b,omegab=beams.gauss_beam(thresh=thresh,nbins=nbins,freq=self.meta["FBAR"],D=self.meta["DIAM"])
+            b,omegab=beams.gauss_beam(thresh=thresh,
+                                      nbins=self.meta["NBINS"],
+                                      freq=self.meta["FBAR"],D=self.meta["DIAM"])
             self.beam_b=b
             self.beam_o=omegab*self.meta["NBEAMS"]
             self.orig_beam_b=self.beam_b
@@ -624,7 +631,8 @@ class Survey:
                 savename='Plots/Beams/'+self.name+'_'+self.meta["BEAM"]+'_'+str(method)+'_'+str(thresh)+'_beam.pdf'
             else:
                 savename=None
-            b2,o2=beams.simplify_beam(logb,omegab,nbins,savename=savename,method=method,thresh=thresh)
+            b2,o2=beams.simplify_beam(logb,omegab,self.meta["NBINS"],
+                                      savename=savename,method=method,thresh=thresh)
             self.beam_b=b2
             self.beam_o=o2
             self.do_beam=True
@@ -806,13 +814,19 @@ def geometric_lognormals(lmu1,ls1,lmu2,ls2,bins=None,
     
 def make_widths(s:Survey,state):
     """
-    WHAT DOES THIS METHOD DO?
+    This method takes a distribution of intrinsic FRB widths 
+    (lognormal, defined by wlogmean and wlogsigma), and returns 
+    a list of w_i, p(w_i), where the w_i are i=1...N values of 
+    width, and p(w_i) are statistical weights associated with each. 
+
+    The \sum_i p(w_i) should sum to unity always. Each w_i is used 
+    to calculate a separate efficiency table.
 
     Args:
-        s (Survey): [description]
+        s (Survey): 
 
     Returns:
-        [type]: [description]
+        list: list of widths
     """
     # just extracting for now toget thrings straight
     nbins=state.width.Wbins
@@ -978,19 +992,15 @@ def load_survey(survey_name:str, state:parameters.State,
     # Hard code real surveys
     if survey_name == 'CRAFT/FE':
         dfile = 'CRAFT_class_I_and_II'
-        nbins = 5
     elif survey_name == 'CRAFT/ICS':
-        dfile = 'private_CRAFT_ICS_1272'
-        nbins = 5
+        dfile = 'CRAFT_ICS'
     elif survey_name == 'CRAFT/ICS892':
-        dfile = 'private_CRAFT_ICS_892'
-        nbins = 5
+        dfile = 'CRAFT_ICS_892'
     elif survey_name == 'CRAFT/ICS1632':
-        dfile = 'private_CRAFT_ICS_1632'
-        nbins = 5
+        dfile = 'CRAFT_ICS_1632'
+
     elif survey_name == 'PKS/Mb':
         dfile = 'parkes_mb_class_I_and_II'
-        nbins = 10
     elif 'private' in survey_name: 
         dfile = survey_name
         if nbins is None:
@@ -1015,7 +1025,7 @@ def load_survey(survey_name:str, state:parameters.State,
                                 NFRB=NFRB, iFRB=iFRB)
         #srvy.process_survey_file(os.path.join(sdir, dfile), NFRB=NFRB, iFRB=iFRB)
         srvy.init_DMEG(state.MW.DMhalo)
-        srvy.init_beam(nbins=nbins, method=state.beam.Bmethod, plot=False,
+        srvy.init_beam(method=state.beam.Bmethod, plot=False,
                     thresh=state.beam.Bthresh) # tells the survey to use the beam file
         pwidths,pprobs=make_widths(srvy,state)
         _ = srvy.get_efficiency_from_wlist(dmvals,
@@ -1024,7 +1034,6 @@ def load_survey(survey_name:str, state:parameters.State,
         srvy = Survey(state, 
                          survey_name, 
                          os.path.join(sdir, dfile), 
-                         nbins,
                          dmvals,
                          NFRB=NFRB, iFRB=iFRB)
 
@@ -1073,6 +1082,7 @@ def refactor_old_survey_file(survey_name:str, outfile:str,
                 isurvey.meta[field]))
         else:
             srvy_data.observing.NORM_FRB = len(frbs)
+
 
     # Trim down FRB table
     for key in srvy_data.to_dict().keys():

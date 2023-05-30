@@ -5,6 +5,7 @@ TRES  0.128 #ms. Some have been half this.
 BEAM parkes_mb_log #prefix of beam file
 DIAM 64
 NBEAMS 13
+NBINS 10
 TOBS 164.4 # days
 NFRB 28 #Number of FRBs
 NORM_FRB 12 #number corresponding to Tobs

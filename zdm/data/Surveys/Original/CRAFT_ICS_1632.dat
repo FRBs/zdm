@@ -3,6 +3,7 @@ FRES  1 #MHz
 NFRB 1 #Number of FRBs
 DIAM 12
 BEAM lat50_log #prefix of beam file.
+NBINS 5
 TOBS 8.07
 NORMFRB 1
 THRESH 4.4 #Jy ms to a 1 ms burst, averaged over THRESH of below configs (22/sqrt{Nant}). Should be adjusted to higher frequency.
