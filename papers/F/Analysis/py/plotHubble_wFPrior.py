@@ -19,16 +19,12 @@ from zdm import analyze_cube as ac
 from matplotlib import pyplot as plt
 
 
-def main(verbose=False):
+def main(cube_path, outdir="./", verbose=False):
     ######### sets the values of F for priors #####
     F_0 = np.log10(0.32)
     F_sigma = np.abs(0.2 * F_0)  # error of 20% on F
 
-    ##### loads cube data #####
-    cube = "../Real/Cubes/craco_real_cube.npz"
-    # cube = "../CRACO/Cubes/craco_full_cube.npz"
-
-    data = np.load(cube)
+    data = np.load(cube_path)
     if verbose:
         for thing in data:
             print(thing)
@@ -54,6 +50,7 @@ def main(verbose=False):
         truth=None,
         dolevels=True,
         latexnames=latexnames,
+        outdir=outdir,
     )
 
     ########### F data for fixed values of other parameters ###########
@@ -102,6 +99,7 @@ def main(verbose=False):
         dolevels=True,
         latexnames=latexnames,
         logspline=False,
+        outdir=outdir,
     )
 
     # now do this with others...
@@ -131,6 +129,8 @@ def main(verbose=False):
         latexnames=latexnames,
         logspline=False,
         others=others,
+        outdir=outdir,
+        others_labels=["No prior", "Prior on $F$"],
     )
 
 
@@ -190,4 +190,6 @@ def get_param_values(data, verbose=False):
     return param_vals
 
 
-main()
+# Real Cube Data
+# main("../Real/Cubes/craco_real_cube.npz", "H0_PriorOnF/")
+main("../CRACO/Cubes/craco_full_cube.npz", "H0_PriorOnF/")

@@ -893,7 +893,7 @@ def extract_limits(x,y,p,method=1):
 def do_single_plots(uvals,vectors,wvectors,names,tag=None, fig_exten='.png',
                     dolevels=False,log=True,outdir='SingleFigs/',
                     vparams_dict=None, prefix='',truth=None,latexnames=None,
-                    units=None,logspline=True, others=None):
+                    units=None,logspline=True, others=None, compact=False, others_labels=None):
     """ Generate a series of 1D plots of the cube parameters
 
     Args:
@@ -946,8 +946,12 @@ def do_single_plots(uvals,vectors,wvectors,names,tag=None, fig_exten='.png',
                 vparams_dict[names[i]]["min"], vparams_dict[names[i]]["max"], len(vals)
             )
     
-        plt.figure()
+        plt.figure(dpi=300)
         lw = 3
+
+        if compact:
+            plt.gcf().set_figheight(3)
+            plt.gcf().set_figwidth(3.5)
         
         # get raw ylimits
         # removes zeroes, could lead to strange behaviour in theory
@@ -976,7 +980,10 @@ def do_single_plots(uvals,vectors,wvectors,names,tag=None, fig_exten='.png',
         y /= norm
         vectors[i][temp] /= norm
         plt.plot(x, y, label="Uniform", color="blue", linewidth=lw, linestyle="-")
-        plt.plot(vals[temp], vectors[i][temp], color="blue", linestyle="", marker="s")
+        if compact:
+            plt.plot(vals[temp], vectors[i][temp], color="blue", linestyle="", marker="s", ms=5)
+        else:
+            plt.plot(vals[temp], vectors[i][temp], color="blue", linestyle="", marker="s")
 
         # weighted plotting
         if wvectors is not None:
@@ -1227,12 +1234,34 @@ def do_single_plots(uvals,vectors,wvectors,names,tag=None, fig_exten='.png',
                     norm = np.abs(norm)
                     y /= norm
 
+                    imax = np.argmax(y)
+                    xmax = x[imax]
+
+                    if dolevels:
+
+                        logfile_others = outdir + f"limits_others_{others_labels[io]}.dat"
+                        logfile_others = open(logfile_others, "w")
+                        others_string = ""
+                        # print(f"Confidence intervals for alternative distribution {names[i]}, {others_labels[io]}")
+                        # limvals = np.array([0.00135, 0.0228, 0.05, 0.15866])
+                        # labels = ["99.7%", "95%", "90%", "68%"]
+
+                        limvals = np.array([0.15866])
+                        labels = ["68%"]
+
+                        for iav, av in enumerate(limvals):
+                            v0, v1, ik1, ik2 = extract_limits(x, y, av, method=1)
+                            others_string += "{} : ${}_{{{}}}^{{+{}}}$".format(labels[iav], format(xmax, '.2f'), format(v0 - xmax, '.2f'), format(v1 - xmax, '.2f'))
+                        
+                        logfile_others.write(string + "\n")
+                        logfile_others.close()
+
                     # data_norm = np.sum(data) * (vals[1] - vals[0])
                     # data_norm = np.abs(norm)
 
                     # plt.plot(vals, data/data_norm, color=other_colors[io % 3], marker="s")
                     plt.plot(
-                        x, y, color="grey", linewidth=1, linestyle=other_styles[io % 3]
+                        x, y, color="grey", linewidth=1, linestyle=other_styles[io % 3], label=others_labels[io % 3]
                     )
 
                     plt.legend()
@@ -1419,7 +1448,7 @@ def make_2d_plot(array, xlabel, ylabel, xvals, yvals, savename=None, norm=None):
     
     savename (optional): string to save data under
     """
-    plt.figure()
+    plt.figure(dpi=300)
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
 
@@ -1454,11 +1483,11 @@ def make_2d_plot(array, xlabel, ylabel, xvals, yvals, savename=None, norm=None):
         clabel = "$p($" + xlabel + "," + ylabel + "$)$"
 
     plt.imshow(array.T, origin="lower", extent=extent, aspect=aspect)
-    plt.xlabel(xlabel)
-    plt.ylabel(ylabel)
+    plt.xlabel(xlabel, fontsize=18)
+    plt.ylabel(ylabel, fontsize=18)
     plt.xticks(rotation=90)
     cbar = plt.colorbar()
-    cbar.set_label(clabel)
+    cbar.set_label(clabel, fontsize=18)
     if savename is None:
         savename = xlabel + "_" + ylabel + ".pdf"
     plt.tight_layout()

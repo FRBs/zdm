@@ -26,7 +26,7 @@ def fig_craco_varyF_zDM(
     fuss_with_ticks: bool = False,
     suppress_DM_host=False,
     iFRB=0,
-    show_FRBS=True
+    show_FRBS=True,
 ):
     """_summary_
 
@@ -47,7 +47,7 @@ def fig_craco_varyF_zDM(
     fiducial_lmean = grid.state.host.lmean
     fiducial_lsigma = grid.state.host.lsigma
 
-    plt.figure()
+    plt.figure(dpi=300)
     ax1 = plt.axes()
 
     plt.sca(ax1)
@@ -78,7 +78,6 @@ def fig_craco_varyF_zDM(
     for F, scl, lstyle, clr in zip(
         F_values, other_values, lstyles, ["b", "k", "r", "gray"]
     ):
-
         # Update grid
         vparams = {}
         vparams["logF"] = F
@@ -228,9 +227,8 @@ def fig_varyF(
     zticks=None,
     ylim=None,
     iFRB=0,
-    show_FRBs=True
+    show_FRBs=True,
 ):
-
     survey, grid = analy_F_I.craco_mc_survey_grid(iFRB=iFRB)
 
     fiducial_F = grid.state.IGM.logF
@@ -248,7 +246,6 @@ def fig_varyF(
     labels = []
 
     for F, other, lstyle, color in zip(F_values, other_values, lstyles, lcolors):
-
         vparams = {}
 
         if F is None:
@@ -403,10 +400,10 @@ def fig_craco_fiducial_F(
     H0=None,
     iFRB=0,
     suppress_DM_host=False,
-    show_FRBs=True
+    show_FRBs=True,
 ):
     """
-    Very complicated routine for plotting 2D zdm grids 
+    Very complicated routine for plotting 2D zdm grids
     Args:
         zDMgrid ([type]): [description]
         zvals ([type]): [description]
@@ -496,11 +493,11 @@ def fig_craco_fiducial_F(
 
     ax = plt.gca()
 
-    ax.set_title(rf"$\log F = {F}$, $H_0$ = {H0}")
+    ax.set_title(rf"$\log_{{10}} F = {F}$, $H_0$ = {H0}")
 
-    muDMhost = np.log(10 ** grid.state.host.lmean)
-    sigmaDMhost = np.log(10 ** grid.state.host.lsigma)
-    meanHost = np.exp(muDMhost + sigmaDMhost ** 2 / 2.0)
+    muDMhost = np.log(10**grid.state.host.lmean)
+    sigmaDMhost = np.log(10**grid.state.host.lsigma)
+    meanHost = np.exp(muDMhost + sigmaDMhost**2 / 2.0)
     medianHost = np.exp(muDMhost)
     print(f"Host: mean={meanHost}, median={medianHost}")
     plt.ylim(0, ndm - 1)
@@ -571,6 +568,7 @@ def fig_craco_fiducial_F(
         print(f"Wrote: {outfile}")
     plt.close()
 
+
 ### tests
 
 # logfs = [-1.5, -1.5, -1.5]
@@ -600,21 +598,33 @@ def fig_craco_fiducial_F(
 # )
 
 fig_craco_fiducial_F(
-    f"figs/high_feedback_efficiency.png",
+    f"figs/fiducial_distribution.png",
     show_Macquart=True,
+    H0=None,
+    suppress_DM_host=False,
+    iFRB=100,
+    show_FRBs=True,
+    Aconts=[0.025],
+)
+
+fig_craco_fiducial_F(
+    f"figs/high_feedback_efficiency.png",
+    show_Macquart=False,
     F=np.round(np.log10(0.01), 3),
     H0=None,
     suppress_DM_host=False,
     iFRB=100,
-    show_FRBs=False
+    show_FRBs=False,
+    Aconts=[0.025],
 )
 
 fig_craco_fiducial_F(
     f"figs/low_feedback_efficiency.png",
-    show_Macquart=True,
+    show_Macquart=False,
     F=np.round(np.log10(0.9), 3),
     H0=None,
     suppress_DM_host=False,
     iFRB=100,
-    show_FRBs=False
+    show_FRBs=False,
+    Aconts=[0.025],
 )

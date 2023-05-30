@@ -32,8 +32,8 @@ def fig_varyF(
     ylim=None,
     iFRB=0,
     show_FRBs=True,
+    plotMacquart=True,
 ):
-
     survey, grid = analy_F_I.craco_mc_survey_grid(iFRB=iFRB)
 
     fiducial_F = grid.state.IGM.logF
@@ -41,7 +41,7 @@ def fig_varyF(
     fiducial_lmean = grid.state.host.lmean
     fiducial_lsigma = grid.state.host.lsigma
 
-    fig, ax = plt.subplots(dpi=200)
+    fig, ax = plt.subplots(dpi=300)
 
     ax.set_xlabel("z")
     ax.set_ylabel("${\\rm DM}_{\\rm EG}$")
@@ -51,7 +51,6 @@ def fig_varyF(
     for F, H0, lmean, lsigma, lstyle, color in zip(
         Fs, H0s, lmeans, lsigmas, lstyles, lcolors
     ):
-
         vparams = {}
 
         if F is None:
@@ -112,9 +111,11 @@ def fig_varyF(
             Om0=grid.state.cosmo.Omega_m,
         )
 
-        dms, zeval = figm.average_DM(3.0, cumul=True, cosmo=cosmo)
+        if plotMacquart:
+            dms, zeval = figm.average_DM(3.0, cumul=True, cosmo=cosmo)
+            l_mqr = ax.plot(f_z(zeval), f_DM(dms), ls="--", c=color, alpha=0.5)
 
-        l_mqr = ax.plot(f_z(zeval), f_DM(dms), ls="--", c=color, alpha=0.5)
+        print("F = ", F, "H0 = ", H0, "lmean = ", lmean, "lsigma = ", lsigma)
 
     # put down FRBs
     FRBZ = survey.frbs["Z"]
@@ -143,18 +144,37 @@ def fig_varyF(
     print(f"Wrote: {outfile}")
 
 
-fig_varyF(
-    "fig_varyF_H0_compare.png",
-    Fs=[-0.57, -0.37, None],
-    H0s=[69.02, 77.14, None],
-    lmeans=[2.21, 2.33, None],
-    lsigmas=[0.52, 0.53, None],
-    lcolors=["r", "b", "k"],
-    lstyles=["-", "-", "--"],
-    labels=["Synthetic", "Real", "Fiducial"],
-    DMmax=2500,
-    Aconts=[0.01],
-    show_FRBs=False,
-    zmax=3,
-)
+# fig_varyF(
+#     "fig_varyF_H0_compare.png",
+#     Fs=[-0.57, -0.37, None],
+#     H0s=[69.02, 77.14, None],
+#     lmeans=[None, None, None],
+#     lsigmas=[None, None, None],
+#     lcolors=["r", "b", "k"],
+#     lstyles=["-", "-", "--"],
+#     labels=["Synthetic", "Real", "Fiducial"],
+#     DMmax=2500,
+#     Aconts=[0.01],
+#     show_FRBs=False,
+#     zmax=3,
+# )
 
+# 95th ptile
+fig_varyF(
+    "degeneracy/fig_H0_F_Degeneracy.png",
+    Fs=[None, np.log10(0.82)],
+    H0s=[None, 55],
+    lmeans=[None, None],
+    lsigmas=[None, None],
+    lcolors=["b", "r"],
+    lstyles=["-", "-"],
+    labels=[
+        r"$H_0$ = 67.66, $\log_{10} F =$ -0.49",
+        r"$H_0$ = 55, $\log_{10} F =$ -0.086",
+    ],
+    DMmax=1800,
+    Aconts=[0.025],
+    show_FRBs=False,
+    zmax=2.3,
+    plotMacquart=False,
+)

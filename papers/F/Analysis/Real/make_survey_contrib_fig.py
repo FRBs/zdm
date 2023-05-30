@@ -18,63 +18,82 @@ from matplotlib import pyplot as plt
 import scipy
 from IPython import embed
 
+
 def main(verbose=False):
-    
     ######### other results ####
     Planck_H0 = 67.66
     Planck_sigma = 0.5
     Reiss_H0 = 73.04
     Reiss_sigma = 1.42
-    
+
     # output directory
-    opdir="Figure7/"
+    opdir = "Figure7/"
     if not os.path.exists(opdir):
         os.mkdir(opdir)
-    
-    CubeFile='Cubes/craco_real_cube.npz'
+
+    CubeFile = "Cubes/craco_real_cube.npz"
     if os.path.exists(CubeFile):
-        data=np.load(CubeFile)
+        data = np.load(CubeFile)
     else:
-        print("Could not file cube output file ",CubeFile)
+        print("Could not file cube output file ", CubeFile)
         print("Please obtain it from [repository]")
         exit()
-    
+
     # builds uvals list
-    uvals=[]
-    latexnames=[]
-    for ip,param in enumerate(data["params"]):
+    uvals = []
+    latexnames = []
+    for ip, param in enumerate(data["params"]):
         # switches for alpha
-        if param=="alpha":
-            uvals.append(data[param]*-1.)
+        if param == "alpha":
+            uvals.append(data[param] * -1.0)
         else:
             uvals.append(data[param])
-        if param=="alpha":
-            latexnames.append('$\\alpha$')
-            ialpha=ip
-        elif param=="lEmax":
-            latexnames.append('$\\log_{10} E_{\\rm max}$')
-        elif param=="H0":
-            latexnames.append('$H_0$')
-        elif param=="gamma":
-            latexnames.append('$\\gamma$')
-        elif param=="sfr_n":
-            latexnames.append('$n_{\\rm sfr}$')
-        elif param=="lmean":
-            latexnames.append('$\\mu_{\\rm host}$')
-        elif param=="lsigma":
-            latexnames.append('$\\sigma_{\\rm host}$')
-        elif param=="logF":
-            latexnames.append('$\\log_{10} F$')
-    
+        if param == "alpha":
+            latexnames.append("$\\alpha$")
+            ialpha = ip
+        elif param == "lEmax":
+            latexnames.append("$\\log_{10} E_{\\rm max}$")
+        elif param == "H0":
+            latexnames.append("$H_0$")
+        elif param == "gamma":
+            latexnames.append("$\\gamma$")
+        elif param == "sfr_n":
+            latexnames.append("$n_{\\rm sfr}$")
+        elif param == "lmean":
+            latexnames.append("$\\mu_{\\rm host}$")
+        elif param == "lsigma":
+            latexnames.append("$\\sigma_{\\rm host}$")
+        elif param == "logF":
+            latexnames.append("$\\log_{10} F$")
+
     # 1D plots by surveys s only
-    contributions=[data["lls0"],data["lls2"],data["lls3"],data["lls1"],data["lls4"]]
-    labels=["CRAFT/FE","CRAFT/ICS 900 MHz","CRAFT/ICS 1.3 GHz","CRAFT/ICS 1.6 GHz","Parkes/Mb"] #correct
-    
-    colors=['blue','green','orange','purple','red']
-    linestyles=['-',':','--','-','-.']
-    make_1d_plots_by_contribution(data,contributions,labels,prefix="Figure7/by_survey_",
-        colors=colors,linestyles=linestyles)#,latexnames=latexnames)
+    contributions = [
+        data["lls0"],
+        data["lls2"],
+        data["lls3"],
+        data["lls1"],
+        data["lls4"],
+    ]
+    labels = [
+        "CRAFT/FE",
+        "CRAFT/ICS 900 MHz",
+        "CRAFT/ICS 1.3 GHz",
+        "CRAFT/ICS 1.6 GHz",
+        "Parkes/Mb",
+    ]  # correct
+
+    colors = ["blue", "green", "orange", "purple", "red"]
+    linestyles = ["-", ":", "--", "-", "-."]
+    make_1d_plots_by_contribution(
+        data,
+        contributions,
+        labels,
+        prefix="Figure7/by_survey_",
+        colors=colors,
+        linestyles=linestyles,
+    )  # ,latexnames=latexnames)
     exit()
+
 
 def make_1d_plots_by_contribution(
     data,
@@ -113,12 +132,7 @@ def make_1d_plots_by_contribution(
 
     # gets unique values for each axis
     param_vals = []
-    param_list = [
-        data["H0"],
-        data["lmean"],
-        data["lsigma"],
-        data["logF"]
-    ]
+    param_list = [data["H0"], data["lmean"], data["lsigma"], data["logF"]]
     xlatexnames = [
         "H_0 {\\rm [km\,s^{-1}\,Mpc^{-1}]}",
         "\\mu_{\\rm host} {\\rm [pc\,cm^{-3}]}",
@@ -141,7 +155,7 @@ def make_1d_plots_by_contribution(
     if colors is None:
         colors = plt.rcParams["axes.prop_cycle"].by_key()["color"]
     for which in np.arange(len(param_list)):
-        plt.figure()
+        plt.figure(dpi=300)
         plt.xlabel("$" + xlatexnames[which] + "$")
         plt.ylabel("$p(" + ylatexnames[which] + ")$")
         xvals = param_vals[which]
@@ -182,5 +196,6 @@ def make_1d_plots_by_contribution(
         plt.legend()
         plt.savefig(prefix + params[which] + fig_exten, dpi=200)
         plt.close()
+
 
 main()

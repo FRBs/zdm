@@ -22,26 +22,13 @@ def main(pargs):
     elif pargs.run == "F":
         scube = "H0_F"
         outdir = "H0_F/"
-    elif pargs.run == "lmF":
-        scube = "lm_F"
-        outdir = "lm_F/"
     elif pargs.run == "H0_logF":
         scube = "H0_logF"
         outdir = "H0_logF/"
+    # Main #
     elif pargs.run == "logF_full":
         scube = "full"
         outdir = "logF_Full/"
-    elif pargs.run == "full":
-        scube = "full"
-        outdir = "Full/"
-    elif pargs.run == "full400":
-        scube = "400_full"
-        jroot = "full"
-        outdir = "Full400/"
-    elif pargs.run == "full3rd":
-        scube = "3rd_full"
-        jroot = "full"
-        outdir = "Full3rd/"
 
     if jroot is None:
         jroot = scube
@@ -63,6 +50,46 @@ def main(pargs):
     # Deconstruct the input_dict
     state_dict, cube_dict, vparam_dict = it.parse_input_dict(input_dict)
 
+    latexnames = []
+    for ip, param in enumerate(npdict["params"]):
+        if param == "alpha":
+            latexnames.append("$\\alpha$")
+            ialpha = ip
+        elif param == "lEmax":
+            latexnames.append("$\\log_{10} E_{\\rm max}$")
+        elif param == "H0":
+            latexnames.append("$H_0$")
+        elif param == "gamma":
+            latexnames.append("$\\gamma$")
+        elif param == "sfr_n":
+            latexnames.append("$n_{\\rm sfr}$")
+        elif param == "lmean":
+            latexnames.append("$\\mu_{\\rm host}$")
+        elif param == "lsigma":
+            latexnames.append("$\\sigma_{\\rm host}$")
+        elif param == "logF":
+            latexnames.append("$\\log_{10} F$")
+
+    units = []
+    for ip, param in enumerate(npdict["params"]):
+        if param == "alpha":
+            units.append(" ")
+            ialpha = ip
+        elif param == "lEmax":
+            units.append("[$\rm erg$]")
+        elif param == "H0":
+            units.append(r"[$\rm km \, s^{-1} \, Mpc^{-1}$]")
+        elif param == "gamma":
+            units.append("")
+        elif param == "sfr_n":
+            units.append(" ")
+        elif param == "lmean":
+            units.append(r"[$\rm pc \, cm^{-3}$]")
+        elif param == "lsigma":
+            units.append(r"[$\rm pc \, cm^{-3}$]")
+        elif param == "logF":
+            units.append(" ")
+
     # Run Bayes
 
     # Offset by max
@@ -71,7 +98,16 @@ def main(pargs):
     uvals, vectors, wvectors = analyze_cube.get_bayesian_data(ll_cube)
 
     analyze_cube.do_single_plots(
-        uvals, vectors, wvectors, params, vparams_dict=vparam_dict, outdir=outdir
+        uvals,
+        vectors,
+        None,
+        params,
+        vparams_dict=vparam_dict,
+        outdir=outdir,
+        compact=True,
+        latexnames=latexnames,
+        units=units,
+        dolevels=True,
     )
     print(f"Wrote figures to {outdir}")
 
@@ -79,7 +115,7 @@ def main(pargs):
 def parse_option():
     """
     This is a function used to parse the arguments in the training.
-    
+
     Returns:
         args: (dict) dictionary of the arguments.
     """
@@ -96,7 +132,6 @@ def parse_option():
 
 # Command line execution
 if __name__ == "__main__":
-
     pargs = parse_option()
     main(pargs)
 

@@ -22,7 +22,7 @@ from zdm import analyze_cube as ac
 from matplotlib import pyplot as plt
 
 
-def main(verbose=False):
+def main(cube_path, outdir="./", verbose=False):
     ######### sets the values of H0 for priors #####
     Planck_H0 = 67.4
     Planck_sigma = 0.5
@@ -30,9 +30,7 @@ def main(verbose=False):
     Reiss_sigma = 1.42
 
     ##### loads cube data #####
-    # cube = "../../papers/F/Analysis/Real/Cubes/craco_real_cube.npz"
-    cube = "../../papers/F/Analysis/CRACO/Cubes/craco_full_cube.npz"
-    data = np.load(cube)
+    data = np.load(cube_path)
     if verbose:
         for thing in data:
             print(thing)
@@ -58,6 +56,7 @@ def main(verbose=False):
         truth=None,
         dolevels=True,
         latexnames=latexnames,
+        outdir=outdir,
     )
 
     ########### H0 data for fixed values of other parameters ###########
@@ -114,6 +113,7 @@ def main(verbose=False):
         dolevels=True,
         latexnames=latexnames,
         logspline=False,
+        outdir=outdir,
     )
 
     # now do this with others...
@@ -144,36 +144,37 @@ def main(verbose=False):
         logspline=False,
         others=others,
         others_labels=["No Prior", r"$H_0 = 73.04$", r"$H_0 = 67.4$"],
+        outdir=outdir,
     )
 
-    ############## 2D plots for total likelihood ###########
-    # these are for nor priors on anything
-    baduvals, ijs, arrays, warrays = ac.get_2D_bayesian_data(data["ll"])
-    for which, array in enumerate(arrays):
-        i = ijs[which][0]
-        j = ijs[which][1]
+    # ############## 2D plots for total likelihood ###########
+    # # these are for nor priors on anything
+    # baduvals, ijs, arrays, warrays = ac.get_2D_bayesian_data(data["ll"])
+    # for which, array in enumerate(arrays):
+    #     i = ijs[which][0]
+    #     j = ijs[which][1]
 
-        savename = "2D/lls_" + data["params"][i] + "_" + data["params"][j] + ".png"
-        ac.make_2d_plot(
-            array, latexnames[i], latexnames[j], uvals[i], uvals[j], savename=savename
-        )
-        # ac.make_2d_plot(array,latexnames[i],latexnames[j],
-        #    param_vals[i],param_vals[j],
-        #    savename=savename)
-        if False and data["params"][i] == "H0":
-            savename = (
-                "normed2D/lls_" + data["params"][j] + "_" + data["params"][i] + ".png"
-            )
+    #     savename = "2D/lls_" + data["params"][i] + "_" + data["params"][j] + ".png"
+    #     ac.make_2d_plot(
+    #         array, latexnames[i], latexnames[j], uvals[i], uvals[j], savename=savename
+    #     )
+    #     # ac.make_2d_plot(array,latexnames[i],latexnames[j],
+    #     #    param_vals[i],param_vals[j],
+    #     #    savename=savename)
+    #     if False and data["params"][i] == "H0":
+    #         savename = (
+    #             "normed2D/lls_" + data["params"][j] + "_" + data["params"][i] + ".png"
+    #         )
 
-            ac.make_2d_plot(
-                array.T,
-                latexnames[j],
-                latexnames[i],
-                uvals[j],
-                uvals[i],
-                savename=savename,
-                norm=1,
-            )
+    #         ac.make_2d_plot(
+    #             array.T,
+    #             latexnames[j],
+    #             latexnames[i],
+    #             uvals[j],
+    #             uvals[i],
+    #             savename=savename,
+    #             norm=1,
+            # )
 
 
 def get_names_values(data):
@@ -232,4 +233,6 @@ def get_param_values(data, verbose=False):
     return param_vals
 
 
-main()
+# Real Cube Data
+main("../Real/Cubes/craco_real_cube.npz", "measured/")
+main("../CRACO/Cubes/craco_full_cube.npz", "forecast/")
