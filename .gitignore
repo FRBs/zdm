@@ -20,6 +20,8 @@ tmp.npy
 *.npy
 *.dat
 *.csv
+*.h5
+*.pkl
 
 # Distribution / packaging
 .Python
