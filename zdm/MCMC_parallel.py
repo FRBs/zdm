@@ -204,24 +204,38 @@ def calc_log_posterior(param_vals):
         llsum = -np.inf
     else:
 
-        for grid in grids:
-            grid.update(param_dict)
+        # for grid in grids:
+        #     grid.update(param_dict)
 
         it.minimise_const_only(param_dict, grids, surveys)
 
         llsum = 0
         for s, grid in zip(surveys, grids):
             if s.nD==1:
-                llsum += it.calc_likelihoods_1D(grid, s)
+                llsum1, lllist, expected = it.calc_likelihoods_1D(grid, s, psnr=True, dolist=1)
+                llsum += llsum1
+
+                print(llsum, lllist)
             elif s.nD==2:
-                llsum += it.calc_likelihoods_2D(grid, s)
+                llsum1, lllist, expected = it.calc_likelihoods_2D(grid, s, psnr=True, dolist=1)
+                llsum += llsum1
+
+                print(llsum, lllist)
             elif s.nD==3:
-                llsum1 = it.calc_likelihoods_1D(grid, s)
-                llsum2 = it.calc_likelihoods_2D(grid, s, Pn=False)
+                llsum1, lllist1, expected1 = it.calc_likelihoods_1D(grid, s, psnr=True, dolist=1)
+                llsum2, lllist2, expected2 = it.calc_likelihoods_2D(grid, s, psnr=True, dolist=1, Pn=False)
                 llsum += llsum1 + llsum2
+
+                print(llsum, lllist1, lllist2)
             else:
                 print("Implementation is only completed for nD 1-3.")
                 exit()
+            
+
+    if np.isnan(llsum):
+        print("llsum was NaN. Setting to -infinity", param_dict)    
+        llsum = -np.inf
+    
     print("Posterior calc time: " + str(time.time()-t0) + " seconds", flush=True)
 
     return llsum

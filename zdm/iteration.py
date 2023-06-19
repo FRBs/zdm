@@ -223,8 +223,16 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=False,Pn=True,do
         expected *= 10**grid.state.FRBdemo.lC
         observed=survey.NORM_FRB
         Pn=Poisson_p(observed,expected)
-        Nll=np.log10(Pn)
-        lllist.append(Nll)
+        if Pn==0:
+            print("Pn returned 0. Loglikelihood set to -infinity.")
+            print("Observed: " + str(observed) + ", Expected: " + str(expected))
+            print("Normalisation:" + str(10**grid.state.FRBdemo.lC))
+            Nll=-np.inf
+            if dolist==0:
+                return Nll
+        else:
+            Nll=np.log10(Pn)
+        lllist.append(Nll) 
         llsum += Nll
     else:
         lllist.append(0)
@@ -552,7 +560,15 @@ def calc_likelihoods_2D(grid,survey,
         expected *= 10**grid.state.FRBdemo.lC
         observed=survey.NORM_FRB
         Pn=Poisson_p(observed,expected)
-        Pll=np.log10(Pn)
+        if Pn==0:
+            print("Pn returned 0. Loglikelihood set to -infinity.")
+            print("Observed: " + str(observed) + ", Expected: " + str(expected))
+            print("Normalisation:" + str(10**grid.state.FRBdemo.lC))
+            Pll=-np.inf
+            if dolist==0:
+                return Pll
+        else:
+            Pll=np.log10(Pn)
         lllist.append(Pll)
         if verbose:
             print(f'Pll term = {Pll}')
