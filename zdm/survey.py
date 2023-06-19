@@ -737,8 +737,7 @@ def calc_relative_sensitivity(DM_frb,DM,w,fbar,t_res,nu_res,model='Quadrature',d
     
     # If model is not 'Quadrature' or 'Sammons', assume it is the filename for the response file
     if model != 'Quadrature' and model != 'Sammons':
-        filename = os.path.join(edir, model)
-        filename += '.npy'
+        filename = os.path.expanduser(os.path.join(edir, model + ".npy"))
         
         if not os.path.exists(filename):
             raise ValueError("Model is not Quadrature or Sammons and hence is expected to be the name of a file containing the efficiencies but " + filename + " does not exist.")
@@ -746,6 +745,7 @@ def calc_relative_sensitivity(DM_frb,DM,w,fbar,t_res,nu_res,model='Quadrature',d
         # Should contain DM in the first row and efficiencies in the second row
         sensitivity_array = np.load(filename)
         sensitivity = np.interp(DM, sensitivity_array[0,:], sensitivity_array[1,:], right=1e-10)
+        print("Max sensitivity exact: " + str(np.max(sensitivity)))
     
     else:
         # constant of DM
@@ -769,6 +769,7 @@ def calc_relative_sensitivity(DM_frb,DM,w,fbar,t_res,nu_res,model='Quadrature',d
         
         if model=='Quadrature':
             sensitivity=(uw**2+dm_smearing**2+t_res**2)**-0.25
+            print("Max sensitivity quadrature: " + str(np.max(sensitivity)))
         elif model=='Sammons':
             sensitivity=0.75*(0.93*dm_smearing + uw + 0.35*t_res)**-0.5
         # calculates relative sensitivity to bursts as a function of DM
