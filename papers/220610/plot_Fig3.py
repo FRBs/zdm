@@ -31,6 +31,15 @@ import numpy as np
 from zdm import survey
 from matplotlib import pyplot as plt
 
+import matplotlib
+matplotlib.rcParams['image.interpolation'] = None
+
+defaultsize=12
+ds=4
+font = {'family' : 'normal',
+        'weight' : 'normal',
+        'size'   : defaultsize}
+matplotlib.rc('font', **font)
 
 def main():
     
@@ -57,50 +66,6 @@ def main():
     opfile=opdir+"newE.pdf"
     zvals,std_pzgdm=plot_expectations(names,sdir,vparams,opfile)
     exit()
-    vparams={}
-    vparams['H0'] = 73
-    vparams['lEmax'] = 41.33
-    vparams['gamma'] = -0.95
-    vparams['alpha'] = 1.03
-    vparams['sfr_n'] = 1.15
-    vparams['lmean'] = 2.23
-    vparams['lsigma'] = 0.57
-    
-    opfile=opdir+"old_standard.pdf"
-    zvals,old_pzgdm=plot_expectations(names,sdir,vparams,opfile)
-    
-    labels=["lEmax","alpha","gamma","sfr_n","lmean","lsigma"]
-    
-    sets=read_extremes()
-    pzgdms=[]
-    for i,pset in enumerate(sets):
-        nth=int(i/2)
-        if i==nth*2:
-            ex="_min.pdf"
-        else:
-            ex="_max.pdf"
-        #print(pset.keys())
-        #exit()
-        #param=pset.keys()[nth]
-        
-        opfile=opdir+"Planck_"+labels[nth]+ex
-        zvals,pzgdm=plot_expectations(names,sdir,pset,opfile)
-        pzgdms.append(pzgdm)
-        
-    
-    # approximate best-fit values from recent analysis
-    vparams = {}
-    vparams["H0"] = 67.4
-    vparams["lEmax"] = 41.3
-    vparams["gamma"] = -0.948
-    vparams["alpha"] = 1.03
-    vparams["sfr_n"] = 1.15
-    vparams["lmean"] = 2.22
-    vparams["lsigma"] = 0.57
-    
-    opfile=opdir+"Planck_standard.pdf"
-    zvals,std_pzgdm=plot_expectations(names,sdir,vparams,opfile)
-    
     
 def plot_expectations(names,sdir,vparams,opfile,intermediate=False,sumit=True):
     # Initialise surveys and grids
@@ -182,7 +147,7 @@ def plot_expectations(names,sdir,vparams,opfile,intermediate=False,sumit=True):
             zmax=2,
             DMmax=3000,
             DMlines=nozlist,
-            special=[[DMEG220610,Z220610,'white','*'],[DMEG190520,Z190520,'blue','s']]
+            special=[[DMEG220610,Z220610,'white','*'],[DMEG190520,Z190520,'black','+']]
         )
     # does plot of p(DM|z)
     ddm=g.dmvals[1]-g.dmvals[0]

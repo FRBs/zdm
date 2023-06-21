@@ -1,5 +1,5 @@
 """ 
-This script creates pots for the 210117 paper
+This script creates plots for the 210117 paper
 
 """
 import os

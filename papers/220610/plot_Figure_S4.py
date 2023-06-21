@@ -444,7 +444,7 @@ def plot_expectations(name,sdir,vparams,opfile,dmhost=False):
         plt.plot(dmhost*(1.+Z220610),priors/(1.+Z220610),label="Expectation",linestyle=":")
         
         
-        Z121102 = 0.19273
+        z121102 = 0.19273
         DM121102=559.-50.-188
         iz121102 = int(z121102/dz)
         
