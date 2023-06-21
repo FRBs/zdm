@@ -13,7 +13,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 import os
 import pickle
-
+import utilities as ute
 import matplotlib
 #matplotlib.rcParams['image.interpolation'] = None
 
@@ -27,17 +27,18 @@ matplotlib.rc('font', **font)
 
 
 
-def main():
+def main(FC=1.0):
     # simple switching between cases
     converge = True
     Nsets=5
     if converge:
-        make_converge_plots(Nsets=Nsets)
+        make_converge_plots(Nsets=Nsets,FC=FC)
     else:
+        # this is relic code that is kept here for historical reasons
         make_3D_plots(Nsets=Nsets)
 
 
-def make_converge_plots(Nsets=5):
+def make_converge_plots(Nsets=5,FC=1.0):
     """
     Plots output from fit_repeating_distributions "converge_state" routine
     """
@@ -48,8 +49,7 @@ def make_converge_plots(Nsets=5):
     string=['Ptot','Pn','Pdm']
     pstrings=['$P_{\\rm tot}$','$P_{N}$','$P_{\\rm DM}$']
     
-    # 'fn' stands for 'fixed norm', i.e. same normalisation between different parameter sets
-    opdir = 'Posteriors/'
+    opdir = 'Rfitting39_'+str(FC) + '/'
     
     setnames = ['$\\epsilon_C: {\\rm min}\\, \\alpha$','$\\epsilon_z:$ Best fit','${\\rm min}\\, E_{\\rm max}$',
         '${\\rm max} \\,\\gamma$','${\\rm min} \\, \\sigma_{\\rm host}$']
@@ -61,7 +61,7 @@ def make_converge_plots(Nsets=5):
     
     for i in np.arange(Nsets):
         if i==1:
-            exit()
+            break
         # rgs: repeat grids, to be re-used
         # all_bin_lp: log probability, best guess of some combination
         # all_bin_lpn: summed log10 Poisson probability of number of reps in each bin
@@ -73,7 +73,9 @@ def make_converge_plots(Nsets=5):
         # lprod_bin_dm_kr,lprod_bin_dm_ks ks test values over individual bins, product thereof
         # skp, rkp: ks stats for the declination distribution
         
-        infile='Rfitting/mc_converge_set_'+str(i)+'_'+'_output.npz'
+        #old
+        #infile='Rfitting/mc_converge_set_'+str(i)+'_output.npz'
+        infile = opdir+'mc_FC39'+str(FC)+'converge_set_'+str(i)+'_output.npz'
         data=np.load(infile)
         
         
@@ -98,41 +100,34 @@ def make_converge_plots(Nsets=5):
         lprod_bin_dm_kss=data['arr_13']
         
         Rstar = data['arr_14']
-        
+        Cprimes = data['arr_15']
+        Cprimes = np.log10(Cprimes)
         # mC data
-        mcrs = data['arr_15']
-        MChs = data['arr_16']
-        shortlPs = data['arr_17']
-        medlPs = data['arr_18']
-        longlPs = data['arr_19']
+        mcrs = data['arr_16']
+        MChs = data['arr_17']
+        MCrank = data['arr_18']
+        #medlPs = data['arr_18']
+        #longlPs = data['arr_19']
+        
         
         alabels = ["$P_{\\rm tot}$",\
             "$\\sum_{\\delta} \\log_{10} p(N_{\\delta})$",\
-            "$\\sum_{\\delta} \\log_{10} p({\\rm DM}_{\\delta})$",\
+            "$\\log_{10} \\ell_{\\rm DM}$",\
             "$\\log_{10} p(N_{\\rm tot})$",\
             "$N_{\\rm tot}$",\
             "$p(\\delta_s)$",\
-            "$p_{\\delta_r}$",\
+            "$p_{\\delta}$",\
             "$p_{\\rm ks} ({\\rm DM}_s)$",\
             "$p_{\\rm DM}$",\
             "$\\sum_{\\delta} \\log_{10} p_{\\rm ks} ({\\rm DM}_s)$",\
             "$p_{\\rm ks} ({\\rm DM}_r)$",\
             "$R_{\\rm min}$",\
             "$p_{\\rm bursts}$",\
-            "$p_{\\rm bursts}$",\
-            "$p_{\\rm bursts}$",\
-            "$P_{\\rm tot}$"]
-            #"$\\log_{10} {\\ell} ({\\rm N}_{\\rm reps})$",\
-            #"$\\log_{10} {\\ell} ({\\rm N}_{\\rm reps})$",\
-            #"$\\log_{10} {\\ell} ({\\rm N}_{\\rm reps})$"\
-            #]
-        
-        alabels[2] = "$\\log_{10} \\ell_{\\rm DM}$"
-        alabels[6] = "${\\rm KS}_{\\delta}$"
-        #alabels[0] = alabels[2] + " + " +alabels[6]
+            "$P_{\\rm tot}$",\
+            "$\\log_{10} C_{r}$ [Mpc$^{-3}$ at $z=0$]"]
         
         anames = ['Ptot','sumpN','sumpDM','pN','N','ksdec','krdec','ksdm','krdm','sumksdm',\
-            'sumkrdm','Rmin','MCshort','MCmed','MClong','anyN_Ptot']
+            'sumkrdm','Rmin','MCrank','anyN_Ptot','Cr']
         Rmins = np.log10(Rmins)
         #NRs = np.log10(NRs)
         
@@ -142,38 +137,39 @@ def make_converge_plots(Nsets=5):
         truep = correct_sixprod(rawp,N=6)
         true_prod_bin_dm_krs = truep.reshape(lprod_bin_dm_krs.shape)
         
+        ### adjusts Rmin where the number of predicted FRBs is too high
+        # Rmin is meaningless here
+        badi,badj = np.where(NRs > 30)
+        Rmins[badi,badj] = -10
         
-        #copyldms = np.copy(true_prod_bin_dm_krs)
         
-        # constructs dec, Nburst, dm product
-        lps = lrkps + longlPs + ltdm_krs
-        
+        # constructs dec, Nburst, dm, p(N) product
+        lps = lrkps + MCrank + ltdm_krs + lpNs
         
         ##### we get rid of the kdm penalty for low DMs, in case this is the problem #####
         #for iRmax,Rmax in enumerate(Rmaxes):
         #    ibest = np.argmax(ltdm_krs[:,iRmax])
         #    ltdm_krs[ibest:,iRmax] = ltdm_krs[ibest,iRmax]
-        copylps = lrkps + longlPs + ltdm_krs
+        copylps = np.copy(lps)
         
-        theshape = lps.shape
-        bad = np.where(NRs.flatten() > 18)[0]
-        lps = lps.flatten()
-        lps[bad]=-90
-        lps = lps.reshape(theshape)
+        # adjusts lps to be zero in disallowed regions
+        strongest = 0.5
+        bad = np.where(Rmaxes < strongest)[0]
+        lps[:,bad]= - 100
         
-        copylps = copylps.flatten()
-        copylps[bad]=-90
-        copylps = copylps.reshape(theshape)
         
-        lps = make_bayes(lps)
-        copylps = make_bayes(copylps)
-        bshortlPs = make_bayes(shortlPs)
-        bmedlPs = make_bayes(medlPs)
-        blonglPs = make_bayes(longlPs)
+        ######## here, we normalise only by the results from FC=1.0
+        # This allows a comparison between sets
         
+        # here, lps is "log probabilities". But it's actually not log!!!!!
+        # force probability for disallowed region to be zerp
+        
+        ptot,themax,thesum = ute.make_bayes(lps,givenorm=True)
+        with open("peak_likelihood.txt", "a") as myfile:
+            myfile.write(str(FC)+"   "+str(themax)+"   "+str(thesum)+"\n")
         
         # gets 68% contour interval for ptot
-        temp = lps.flatten()
+        temp = ptot.flatten()
         temp = np.sort(temp)
         temp2 = np.cumsum(temp)
         
@@ -183,6 +179,7 @@ def make_converge_plots(Nsets=5):
         l68 = temp[ilimit]
         ilimit = np.where(temp2 < 0.05)[0][-1]
         l95 = temp[ilimit]
+        print("Setting contours at ",l68,l95)
         
         # gets 68% contour interval for ptot
         temp = copylps.flatten()
@@ -196,13 +193,15 @@ def make_converge_plots(Nsets=5):
         ilimit = np.where(temp2 < 0.05)[0][-1]
         cl95 = temp[ilimit]
         
-        
-        alist = [lps,lns,ldms,lpNs,NRs,lskps,10**lrkps,ltdm_kss,10**ltdm_krs,\
-            lprod_bin_dm_kss,true_prod_bin_dm_krs,Rmins,shortlPs,medlPs,\
-            longlPs,copylps]
+        alist = [ptot,lns,ldms,lpNs,NRs,lskps,10**lrkps,ltdm_kss,10**ltdm_krs,\
+            lprod_bin_dm_kss,true_prod_bin_dm_krs,Rmins,MCrank,copylps,Cprimes]
         
         cranges = [None]*len(alist)
-        #cranges[0] = [-2]
+        
+        
+        # sets ranges for different graphs
+        cranges[0] = [0,0.03]
+        
         cranges[2] = [-2]
         cranges[3] = [-2,0]
         cranges[4] = [16,20]
@@ -213,14 +212,13 @@ def make_converge_plots(Nsets=5):
         cranges[9] = [-2]
         cranges[10] = [0,1]
         cranges[11] = [-8,-1]
-        cranges[12] = [-2]
-        cranges[13] = [-2]
-        cranges[14] = [-2]
-        
+        #cranges[12] = [-2]
+        cranges[12] = None
+        cranges[14] = None
         Rgammas = Rgammas - 0.001
         
-        sx=[-0.25,0.25,3,3]
-        sy=[-1.3,-3.0,-3.0,-2.0]
+        sx=[-0.25,-0.25,3,3]
+        sy=[-1.9,-3.0,-3.0,-2.1]
         sm=['$a$','$b$','$c$','$d$']
         scatter=[sx,sy,sm]
         
@@ -229,17 +227,25 @@ def make_converge_plots(Nsets=5):
             labels = ['$\\gamma_r$','$R_{\\rm max}$']
             name=opdir+'set_'+str(i)+'_'+anames[j]+'.pdf'
             if anames[j]=='Rmin':
-                plot_2darr(arr,labels,name,[Rgammas,np.log10(Rmaxes)],[Rgammas,Rmaxes],\
-                    clabel=alabels[j],crange=cranges[j],conts=[Rmins,np.log10(0.05)],\
+                
+                if np.max(Rmins) < 0.05:
+                    conts = None
+                else:
+                    conts=[Rmins,np.log10(0.05)]
+                ute.plot_2darr(arr,labels,name,[Rgammas,np.log10(Rmaxes)],[Rgammas,Rmaxes],\
+                    clabel=alabels[j],crange=cranges[j],conts=conts,\
                     Nconts=[NRs,21],RMlim=np.log10(0.5),scatter=scatter,Allowed=True)
             elif anames[j] == 'Ptot' or anames[j] == 'anyN_Ptot':
-                plot_2darr(arr,labels,name,[Rgammas,np.log10(Rmaxes)],[Rgammas,Rmaxes],\
+                ute.plot_2darr(arr,labels,name,[Rgammas,np.log10(Rmaxes)],[Rgammas,Rmaxes],\
                     clabel=alabels[j],crange=cranges[j],\
-                    conts=[[[arr,l68],[lps,l95]]])
-                    
+                    conts=[[[arr,l68],[arr,l95]]])
+            elif anames[j] == 'Cr':
+                ute.plot_2darr(arr,labels,name,[Rgammas,np.log10(Rmaxes)],[Rgammas,Rmaxes],\
+                    clabel=alabels[j],crange=cranges[j],\
+                    conts=[[[ptot,l68],[ptot,l95]]])
                     #RMlim=np.log10(0.5)) #Nconts=[NRs,21],[Rmins,np.log10(0.05)],
             else:
-                plot_2darr(arr,labels,name,[Rgammas,np.log10(Rmaxes)],[Rgammas,Rmaxes],\
+                ute.plot_2darr(arr,labels,name,[Rgammas,np.log10(Rmaxes)],[Rgammas,Rmaxes],\
                     clabel=alabels[j],crange=cranges[j],scatter=scatter)
             #conts=[Rmins,-2],RMlim=0.)
         
@@ -279,134 +285,11 @@ def make_converge_plots(Nsets=5):
         ipeak = np.argmax(prmax)
         mpeak = Rmaxes[ipeak]
         
-        
-        #plt.figure()
-        #cpgamma = np.cumsum(pgamma)
-        #cpgamma /= cpgamma[-1]
-        #pgamma /= np.max(pgamma)
-        #plt.plot(Rgammas,pgamma)
-        #plt.plot(Rgammas,cpgamma)
-        #plt.tight_layout()
-        #plt.savefig('rgamma_limit.pdf')
-        #plt.close()
-        
-        #plt.figure()
-        #plt.xlabel('Rmax')
-        #plt.ylabel('Prmax')
-        #plt.xscale('log')
-        #plt.plot(Rmaxes,prmax)
-        #plt.show()
-        #plt.close()
         print("Set ",i," Found gamma limits ",pglims[0:2]," peak ",gpeak)
         print("Set ",i," Found rmax limits ",rmlims[0:2]," peak ",mpeak)
         
 
-def make_bayes(arr):
-    arr -= np.max(arr)
-    arr = 10**arr
-    arr /= np.sum(arr)
-    return arr
 
-def plot_2darr(arr,labels,savename,ranges,rlabels,clabel=None,crange=None,\
-    conts=None,Nconts=None,RMlim=None,scatter=None,Allowed=False):
-    """
-    does 2D plot
-    
-    array is the 2D array to plot
-    labels are the x and y axis labels [ylabel,xlabel]
-    Here, savename is the output file
-    Ranges are the [xvals,yvals]
-    Rlabels are [xtics,ytics]
-    
-    """
-    ratio=np.abs((ranges[0][1]-ranges[0][0])/(ranges[0][2]-ranges[0][1]))
-    if ratio > 1.01 or ratio < 0.99:
-        log0=True
-    else:
-        log0=False
-    
-    ratio=np.abs((ranges[1][1]-ranges[1][0])/(ranges[1][2]-ranges[1][1]))
-    if ratio > 1.01 or ratio < 0.99:
-        log1=True
-    else:
-        log1=False
-    
-    dr1 = ranges[1][1]-ranges[1][0]
-    dr0 = ranges[0][1]-ranges[0][0]
-    
-    aspect = (ranges[0].size/ranges[1].size)
-    
-    extent = [ranges[1][0]-dr1/2., ranges[1][-1]+dr1/2.,\
-            ranges[0][0]-dr0/2.,ranges[0][-1]+dr0/2.]
-    
-    im = plt.imshow(arr,origin='lower',aspect=aspect,extent=extent)
-    ax=plt.gca()
-    
-    # sets x and y ticks to bin centres
-    ticks = rlabels[1].astype('str')
-    for i,tic in enumerate(ticks):
-        ticks[i]=tic[:5]
-    ax.set_xticks(ranges[1][1::2])
-    ax.set_xticklabels(ticks[1::2])
-    plt.xticks(rotation = 90) 
-    
-    ticks = rlabels[0].astype('str')
-    for i,tic in enumerate(ticks):
-        ticks[i]=str(rlabels[0][i])[0:4]
-    ax.set_yticks(ranges[0][::4])
-    ax.set_yticklabels(ticks[::4])
-    
-    plt.xlabel(labels[1])
-    plt.ylabel(labels[0])
-    
-    #cax = fig.add_axes([ax.get_position().x1+0.03,ax.get_position().y0,0.02,ax.get_position().height])
-    #cbar = plt.colorbar(im, cax=cax) # Similar to fig.colorbar(im, cax = cax)
-    cbar = plt.colorbar(shrink=0.55)
-    if clabel is not None:
-        cbar.set_label(clabel)
-    if crange is not None:
-        if len(crange) == 2:
-            plt.clim(crange[0],crange[1])
-        else:
-            themax=np.nanmax(arr)
-            plt.clim(crange+themax,themax)
-    
-    
-    if conts is not None:
-        if len(conts) == 2:
-            
-            ax = plt.gca()
-            cs=ax.contour(conts[0],levels=[conts[1]],origin='lower',colors="black",\
-                linestyles=[':'],linewidths=[3],extent=extent)
-        else:
-            colors=["red","white","black"]
-            styles=[':','-.','--','-']
-            for k,cont in enumerate(conts[0]):
-                print("Doing multiple conts")
-                cs=ax.contour(cont[0],levels=[cont[1]],origin='lower',colors=colors[k],\
-                    linestyles=styles[k],linewidths=[3],extent=extent)
-    if Nconts is not None:
-        ax = plt.gca()
-        cs=ax.contour(Nconts[0],levels=[Nconts[1]],origin='lower',colors="orange",\
-            linestyles=['-.'],linewidths=[3],extent=extent)
-    
-    if Allowed:
-        plt.text(1,-2.5,'Allowed')
-    
-    if RMlim is not None:
-        plt.plot([RMlim,RMlim],[extent[2],extent[3]],linestyle='--',color='white',linewidth=3)
-    
-    if scatter is not None:
-        sx=scatter[0]
-        sy=scatter[1]
-        sm=scatter[2]
-        for i, m in enumerate(sm):
-            #ax.plot((i+1)*[i,i+1],marker=m,lw=0)
-            plt.plot(sx[i],sy[i],marker=m,color='red',linestyle="")
-    
-    plt.tight_layout()
-    plt.savefig(savename)
-    plt.close()
 
 
 def make_3D_plots(Nsets=5):
@@ -521,7 +404,7 @@ def make_3D_plots(Nsets=5):
                 norm2ds[j][k]=norm2d
                 
                 name=opdir+'set_'+str(i)+'_integrated_'+string[k]+'_'+names[j]+'.pdf'
-                plot_2darr(arr,labels,name,ranges,rlabels)
+                ute.plot_2darr(arr,labels,name,ranges,rlabels)
                 
                 # passing the norms results in keeping the same normalisation as a global over all Nsets
                 arr1,norm1d=compress_1d(data,j,norm1ds[j][k])
@@ -536,7 +419,7 @@ def make_3D_plots(Nsets=5):
                     modarr,norm2d=compress_2d(moddata,j,norm2ds[j][k])
                     
                     name=opdir+'set_'+str(i)+'_mod_integrated_'+string[k]+'_'+names[j]+'.pdf'
-                    plot_2darr(modarr,labels,name,ranges,rlabels)
+                    ute.plot_2darr(modarr,labels,name,ranges,rlabels)
                     
                     modarr1,tempnorm=compress_1d(moddata,j,norm1ds[j][k])
                 
@@ -801,6 +684,7 @@ def test_correction(N=6,M=1000,outfile='test_p_correction.pdf'):
     plt.tight_layout()
     plt.savefig(outfile)
     plt.close()
-  
-    
-main()
+
+for FC in [1.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]:
+    main(FC=FC)
+    exit()

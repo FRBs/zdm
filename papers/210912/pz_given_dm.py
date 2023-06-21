@@ -44,12 +44,13 @@ def main(pargs):
         print("")
         print("-----------------------------------------------------")
         print(f"NE2001 = {DM_ISM:.2f}")
-
+    
+    
     # DM EG
     DM_EG = pargs.DM_FRB - DM_ISM - pargs.DM_HALO
     
     # Cosmology
-    states=get_states(newEmax=True)
+    states=get_states(newEmax=True,width=pargs.width)
     
     #all states have identical cosmology
     cos.set_cosmology(states[0])
@@ -58,7 +59,6 @@ def main(pargs):
     # save file
     all_pzgdm = np.zeros([len(states),500])
     all_pzgdm_SNR = np.zeros([len(states),500])
-    
     
     # Load Survey
     
@@ -129,13 +129,14 @@ def parse_args(options=None):
     parser.add_argument('-o','--output',type=str, default=None, help="Name of output image file")
     parser.add_argument('-S','--SNR',type=float, default=None, help="Signal-to-noise of burst")
     parser.add_argument('-z','--redshift',type=float, default=None, help="Actual redshift of the FRB")
+    parser.add_argument('-w','--width',type=float, default=None, help="Total width of FRB, including scattering, excluding DM smearing")
     
     args = parser.parse_args()
     return args
 
 
 
-def get_states(newEmax=False):  
+def get_states(newEmax=False,width=None):  
     """
     Gets the states corresponding to plausible fits to single CHIME data
     """
@@ -146,6 +147,11 @@ def get_states(newEmax=False):
     for i,pset in enumerate(psets):
         
         state=set_state(pset,chime_response=False,newEmax=newEmax)
+        
+        if width is not None:
+            state.width.Wbins=1
+            state.Wlogmean = np.log(width)
+            state.Wmethod = 0 # sets Wbins to unity anyway, uses only the mean above
         if i==0:
             states=[state]
         else:

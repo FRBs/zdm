@@ -1,5 +1,5 @@
 """
-Makes the plot of Rstar vs f
+Makes the plot of Rstar vs f. Must first run find_rstar_of_f.py
 """
 
 import numpy as np
@@ -19,7 +19,7 @@ def main():
     nsets=5
     
     for i in np.arange(nsets):
-        infile = 'Rfitting/rstar_set_'+str(i)+'__output.npz'
+        infile = 'Rstar/rstar_set_'+str(i)+'__output.npz'
         data = np.load(infile)
         fs = data['arr_0']
         Rstar = data['arr_1']
@@ -27,14 +27,14 @@ def main():
         outfile = 'Rstar/set_'+str(i)+'_rstar.pdf'
         
         plt.figure()
-        plt.xlabel('$f_{\\rm rep}$')
-        plt.ylabel('$R^*$')
+        plt.xlabel('$F_{\\rm single}$')
+        plt.ylabel('$R^*$ [bursts day$^{-1}$ above $10^{39}$ erg]')
         plt.plot(fs,Rstar)
         plt.yscale('log')
         plt.tight_layout()
         plt.savefig(outfile)
         plt.close()
-    
+        exit()
     
     
     

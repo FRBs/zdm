@@ -127,7 +127,7 @@ class RepeatParams(data_class.myDataClass):
                   'Notation': '$C_R$',
                   })
     RE0: float = field(
-        default = 1.e38,
+        default = 1.e39,
         metadata={'help': 'Energy at which rates are defined',
                   'unit': 'erg',
                   'Notation': '$E_R$',

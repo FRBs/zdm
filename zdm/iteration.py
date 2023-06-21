@@ -1695,7 +1695,27 @@ def CalculateMeaningfulConstant(pset,grid,survey,newC=False):
     const *= factor
     return const
 
-def ConvertToMeaningfulConstant(pset):
+def ConvertToMeaningfulConstant(state,Eref=1e39):
+    """ Gets the flux constant, and quotes it above some energy minimum Emin """
+    
+    # Units: IF TOBS were in yr, it would be smaller, and raw const greater.
+    # also converts per Mpcs into per Gpc3
+    units=1e9*365.25
+    
+    const = (10**state.FRBdemo.lC)*units # to cubic Gpc and days to year
+    #Eref=1e39 #erg per Hz
+    Emin=10**state.energy.lEmin
+    Emax=10**state.energy.lEmax
+    gamma=state.energy.gamma
+    if state.energy.luminosity_function == 0:
+        factor=(Eref/Emin)**gamma - (Emax/Emin)**gamma
+    else:
+        from zdm import energetics
+        factor = energetics.vector_cum_gamma(np.array([Eref]),Emin,Emax,gamma)
+    const *= factor
+    return const
+
+def OldConvertToMeaningfulConstant(pset):
     """ Gets the flux constant, and quotes it above some energy minimum Emin """
     
     # Units: IF TOBS were in yr, it would be smaller, and raw const greater.

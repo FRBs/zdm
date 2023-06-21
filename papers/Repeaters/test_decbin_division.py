@@ -1,7 +1,7 @@
 """
 
 Test the influence of dividing into declination bins using one of the better
-fit outputs
+fit outputs (or close to it). This is used for the figure in the Appendix.
 
 """
 from pkg_resources import resource_filename
@@ -12,6 +12,7 @@ import os
 import pickle
 
 import utilities as ute
+import states as st
 
 from zdm.craco import loading
 from zdm import cosmology as cos
@@ -43,7 +44,7 @@ def main():
     
     
     # gets the possible states for evaluation
-    states,names=get_states()
+    states,names=st.get_states()
     rlist=[]
     ndm = 1400
     rlist= np.zeros([Nsets,ndm])
@@ -57,10 +58,6 @@ def main():
         load=False
     load = False
     
-    
-    #states[i].rep.Rmin = 1e-4
-    #states[i].rep.Rmax = 1.
-    #states[i].rep.Rgamma = -1.7
     # two different numbers of bounds to compare results for
     N1=6
     N2=30
@@ -70,8 +67,10 @@ def main():
     #states[0].rep.Rgamma = -1.1
     #make_decbin_division(99,states[0],N1,N2)
     
-    for iset in np.arange(Nsets):
-        infile='Rfitting/set_'+str(iset)+'_iteration_output.npz'
+    # only does this for a single set
+    for iset in [0]:
+        # hard-coded
+        infile='Rfitting39_1.0/mc_FC391.0converge_set_0_output.npz'
         data=np.load(infile)
         lns=data['arr_3']
         Rmins=data['arr_5']
@@ -82,14 +81,17 @@ def main():
         nlogmax = np.max(lns)
         inds = np.unravel_index(bestfit,lns.shape)
         
-        Rmin = Rmins[inds[0]]
         Rmax = Rmaxes[inds[1]]
-        Rgamma = Rgammas[inds[2]]
+        Rgamma = Rgammas[inds[0]]
+        Rmin = Rmins[inds[0],inds[1]]
+        print("Using ",Rmin,Rmax,Rgamma)
+        
         states[iset].rep.Rmin = Rmin
         states[iset].rep.Rmax = Rmax
         states[iset].rep.Rgamma = Rgamma
         make_decbin_division(iset,states[iset],N1,N2)
-        
+        exit()
+        # repeats fro strong FRBs
         states[iset].rep.Rmin = 9.
         states[iset].rep.Rmax = 10.
         states[iset].rep.Rgamma = -1.1
@@ -153,13 +155,12 @@ def make_decbin_division(iset,state,N1,N2,opdir='DecbinTests/'):
         tzs2=dic2['tzs2']
         tzr2=dic2['tzr2']
     else:
-        print(sf2,"MEOWWWW")
+        
         dms2,rs2,crs2,singles2,css2,nrs2,nss2,bounds2,solids2,Cnrs2,Cnss2,tzs2,tzr2 = generate_state(state,N2)
         
         np.savez(sf2,dms2=dms2,rs2=rs2,crs2=crs2,
             singles2=singles2,css2=css2,nrs2=nrs2,nss2=nss2,bounds2=bounds2,
             solids2=solids2,Cnrs2=Cnrs2,Cnss2=Cnss2,tzs2=tzs2,tzr2=tzr2)
-    
     
     
     cum_nrs=np.zeros([bounds.size])
@@ -184,29 +185,29 @@ def make_decbin_division(iset,state,N1,N2,opdir='DecbinTests/'):
     cum_Cnss /= cum_Cnss[-1]
     
     
-    sxvals,syvals,rxvals,ryvals = ute.get_chime_rs_dec_histograms()
-    sxvals,syvals,rxvals2,ryvals2 = ute.get_chime_rs_dec_histograms(newdata=True)
+    sxvals,syvals,rxvals,ryvals = ute.get_chime_rs_dec_histograms(newdata=False)
+    sxvals2,syvals2,rxvals2,ryvals2 = ute.get_chime_rs_dec_histograms(newdata='only')
     
     ### plots cumulative declination info #####
     
     plt.figure()
     plt.xlim(-11,90)
     plt.ylim(0,1)
-    plt.plot(bounds,cum_nss,label='All singles: $N_\\delta = 6$')
-    plt.plot(bounds,cum_nrs,label='All repeaters: $N_\\delta = 6$',color=plt.gca().lines[-1].get_color(),linestyle='--')
+    plt.plot(bounds,cum_nss,label='Model singles: $N_\\delta = 6$')
+    plt.plot(bounds,cum_nrs,label='Model repeaters: $N_\\delta = 6$',color=plt.gca().lines[-1].get_color(),linestyle='--')
     
-    plt.plot(bounds2,cum_nss2,label='All singles: $N_\\delta = 30$')
-    plt.plot(bounds2,cum_nrs2,label='All repeaters: $N_\\delta = 30$',color=plt.gca().lines[-1].get_color(),linestyle='--')
+    plt.plot(bounds2,cum_nss2,label='Model singles: $N_\\delta = 30$',linestyle='-.')
+    plt.plot(bounds2,cum_nrs2,label='Model repeaters: $N_\\delta = 30$',color=plt.gca().lines[-1].get_color(),linestyle=':')
     
     #plt.plot(bounds,cum_Cnrs,label='CHIME repeaters')
     #plt.plot(bounds,cum_Cnss,label='CHIME singles',color=plt.gca().lines[-1].get_color(),linestyle='--')
     
-    plt.plot(sxvals,syvals,label='CHIME singles (cat 1)',color='black',linewidth=2)
-    plt.plot(rxvals,ryvals,label='CHIME repeaters (cat 1)',color=plt.gca().lines[-1].get_color(),linestyle='--',linewidth=2)
-    plt.plot(rxvals2,ryvals2,label='CHIME repeaters (3 yr)',color='purple',linestyle='--',linewidth=2)
+    plt.plot(sxvals,syvals,label='CHIME singles (Cat 1)',color='black',linewidth=2)
+    plt.plot(rxvals,ryvals,label='CHIME repeaters (Cat 1)',color=plt.gca().lines[-1].get_color(),linestyle='--',linewidth=2)
+    plt.plot(rxvals2,ryvals2,label='CHIME repeaters (Gold25)',color='purple',linestyle='--',linewidth=2)
     
-    plt.xlabel('Declination (degrees)')
-    plt.ylabel('Number of events')
+    plt.xlabel('Declination [deg.]')
+    plt.ylabel('Cumulative fraction of events')
     plt.legend()
     plt.tight_layout()
     plt.savefig(opdir+'cum_decbin_division_test_state'+str(iset)+'.pdf')
@@ -218,7 +219,7 @@ def make_decbin_division(iset,state,N1,N2,opdir='DecbinTests/'):
     Csdms2,Crdms2,Csdecs2,Crdecs2 = ute.get_chime_dec_dm_data(DMhalo=50,newdata=True)
     
     sxvals,syvals,rxvals,ryvals = ute.get_chime_rs_dm_histograms(newdata=False)
-    sxvals,syvals,rxvals2,ryvals2 = ute.get_chime_rs_dm_histograms(newdata=True)
+    sxvals,syvals,rxvals2,ryvals2 = ute.get_chime_rs_dm_histograms(newdata='only')
     
     cum_singles = np.cumsum(singles)
     cum_singles /= cum_singles[-1]
@@ -248,9 +249,9 @@ def make_decbin_division(iset,state,N1,N2,opdir='DecbinTests/'):
     plt.xlabel('${\\rm DM}_{\\rm EG}$')
     plt.ylabel('$N_s({\\rm DM}_{\\rm EG}) \\, [200\\,{\\rm pc}\\,{\\rm cm}^{-3}]^{-1}$')
     
-    plt.hist(Csdms,bins=bins,alpha=0.5,label='CHIME single FRBs (cat1)',edgecolor='black')
-    plt.hist(Crdms,bins=bins,alpha=0.5,label='CHIME repeaters (cat1)',edgecolor='black',weights=np.full([Crdms.size],rmult))
-    plt.hist(Crdms2,bins=bins,alpha=0.5,label='CHIME repeaters (3 yr)',edgecolor='black',weights=np.full([Crdms2.size],rm2))
+    plt.hist(Csdms,bins=bins,alpha=0.5,label='CHIME single FRBs (Cat1)',edgecolor='black')
+    plt.hist(Crdms,bins=bins,alpha=0.5,label='CHIME repeaters (Cat1)',edgecolor='black',weights=np.full([Crdms.size],rmult))
+    plt.hist(Crdms2,bins=bins,alpha=0.5,label='CHIME repeaters (Gold25)',edgecolor='black',weights=np.full([Crdms2.size],rm2))
     
     
     plt.plot(dms,singles*norm,label='Predicted singles: $N_\\delta=6$')
@@ -489,148 +490,6 @@ def generate_state(state,Nbin,plot=False,tag=None,tmults=None):
     print("    This gets renormalised to ",tnr*rnorm," compared to ",CNR," observed")
     
     return g.dmvals,tdmr*rnorm,alldmr,tdms*rnorm,alldms,nrs,nss,bounds,solids,Cnrs,Cnss,tzs*rnorm,tzr*rnorm
-     
-    
-def set_state(pset,chime_response=True):
-    """
-    Sets the state parameters
-    """
-    
-    state = loading.set_state(alpha_method=1)
-    state_dict = dict(cosmo=dict(fix_Omega_b_h2=True))
-    state.energy.luminosity_function = 2 # this is Schechter
-    state.update_param_dict(state_dict)
-    # changes the beam method to be the "exact" one, otherwise sets up for FRBs
-    state.beam.Bmethod=3
-    
-    
-    # updates to most recent best-fit values
-    state.cosmo.H0 = 67.4
-    
-    if chime_response:
-        state.width.Wmethod=0 #only a single width bin
-        state.width.Wbias="CHIME"
-    
-    state.energy.lEmax = pset['lEmax']
-    state.energy.gamma = pset['gamma']
-    state.energy.alpha = pset['alpha']
-    state.FRBdemo.sfr_n = pset['sfr_n']
-    state.host.lsigma = pset['lsigma']
-    state.host.lmean = pset['lmean']
-    state.FRBdemo.lC = pset['lC']
-    
-    return state
-
-
-def shin_fit():
-    """
-    Returns best-fit parameters from Shin et al.
-    https://arxiv.org/pdf/2207.14316.pdf
-    
-    """
-    
-    pset={}
-    pset["lEmax"] = np.log10(2.38)+41.
-    pset["alpha"] = -1.39
-    pset["gamma"] = -1.3
-    pset["sfr_n"] = 0.96
-    pset["lmean"] = 1.93
-    pset["lsigma"] = 0.41
-    pset["lC"] = np.log10(7.3)+4.
-    
-    return pset
-
-def james_fit():
-    """
-    Returns best-fit parameters from James et al 2022 (Hubble paper)
-    """
-    
-    pset={}
-    pset["lEmax"] = 41.63
-    pset["alpha"] = -1.03
-    pset["gamma"] = -0.948
-    pset["sfr_n"] = 1.15
-    pset["lmean"] = 2.22
-    pset["lsigma"] = 0.57
-    pset["lC"] = 1.963
-    
-    return pset
-
-
-
-def read_extremes(infile='planck_extremes.dat',H0=67.4):
-    """
-    reads in extremes of parameters from a get_extremes_from_cube
-    """
-    f = open(infile)
-    
-    sets=[]
-    
-    for pset in np.arange(6):
-        # reads the 'getting' line
-        line=f.readline()
-        
-        pdict={}
-        # gets parameter values
-        for i in np.arange(7):
-            line=f.readline()
-            words=line.split()
-            param=words[0]
-            val=float(words[1])
-            pdict[param]=val
-        pdict["H0"]=H0
-        pdict["alpha"] = -pdict["alpha"] # alpha is reversed!
-        sets.append(pdict)
-        
-        pdict={}
-        # gets parameter values
-        for i in np.arange(7):
-            line=f.readline()
-            words=line.split()
-            param=words[0]
-            val=float(words[1])
-            pdict[param]=val
-        pdict["H0"]=H0
-        pdict["alpha"] = -pdict["alpha"] # alpha is reversed!
-        sets.append(pdict)
-    return sets
-
-
-def get_states():  
-    """
-    Gets the states corresponding to plausible fits to single CHIME data
-    """
-    psets=read_extremes()
-    psets.insert(0,shin_fit())
-    psets.insert(1,james_fit())
-    
-    
-    # gets list of psets compatible (ish) with CHIME
-    chime_psets=[4]
-    chime_names = ["CHIME min $\\alpha$"]
-    
-    # list of psets compatible (ish) with zdm
-    zdm_psets = [1,2,7,12]
-    zdm_names = ["zDM best fit","zDM min $\\E_{\\rm max}$","zDM max $\\gamma$","zDM min $\sigma_{\\rm host}$"]
-    
-    names=[]
-    # loop over chime-compatible state
-    for i,ipset in enumerate(chime_psets):
-        
-        state=set_state(psets[ipset],chime_response=True)
-        if i==0:
-            states=[state]
-        else:
-            states.append(states)
-        names.append(chime_names[i])
-    
-    for i,ipset in enumerate(zdm_psets):
-        state=set_state(psets[ipset],chime_response=False)
-        states.append(state)
-        names.append(zdm_names[i])
-    
-    return states,names       
-
 
 def survey_and_grid(survey_name:str='CRAFT/CRACO_1_5000',
             init_state=None,
@@ -695,117 +554,5 @@ def survey_and_grid(survey_name:str='CRAFT/CRACO_1_5000',
     # Return Survey and Grid
     return isurvey, grids[0]
 
-def get_chime_data(DMhalo=50):
-    """
-    Imports data from CHIME catalog 1
-    """
-    chimedir = 'CHIME_FRBs/'
-    infile = chimedir+'chimefrbcat1.csv'
-    
-    idec=6
-    idm=18
-    idmeg=26
-    iname=0
-    irep=2
-    iwidth=42
-    isnr=17
-    
-    NFRB=600
-    decs=np.zeros([NFRB])
-    dms=np.zeros([NFRB])
-    dmegs=np.zeros([NFRB])
-    dmgs=np.zeros([NFRB])
-    snrs=np.zeros([NFRB])
-    widths=np.zeros([NFRB])
-    names=[]
-    reps=np.zeros([NFRB])
-    
-    # holds repeater info
-    rnames=[]
-    ireps=[]
-    nreps=[]
-    badcount=0
-    
-    with open(infile) as f:
-        lines = f.readlines()
-        count=-1
-        for i,line in enumerate(lines):
-            if count==-1:
-                columns=line.split(',')
-                #for ic,w in enumerate(columns):
-                #    print(ic,w)
-                count += 1
-                continue
-            words=line.split(',')
-            # seems to indicate new bursts have been added
-            #if words[5][:2]=="RA":
-            #    badcount += 1
-                #print("BAD : ",badcount)
-                #continue
-            decs[i-1]=float(words[idec])
-            dms[i-1]=float(words[idm])
-            dmegs[i-1]=float(words[idmeg])
-            names.append(words[iname])
-            snrs[i-1]=float(words[isnr])
-            # guards against upper limits
-            if words[iwidth][0]=='<':
-                widths[i-1]=0.
-            else:
-                widths[i-1]=float(words[iwidth])*1e3 #in ms
-            dmgs[i-1] = dms[i-1]-dmegs[i-1]
-            rep=words[irep]
-            
-            
-            if rep=='-9999':
-                reps[i-1]=0
-            else:
-                reps[i-1]=1
-                if rep in rnames:
-                    ir = rnames.index(rep)
-                    nreps[ir] += 1
-                else:
-                    rnames.append(rep)
-                    ireps.append(i-1)
-                    nreps.append(1)
-            count += 1
-    print("Total of ",len(rnames)," repeating FRBs found")
-    print("Total of ",len(np.where(reps==0)[0])," once-off FRBs")
-    
-    # sorts by declination
-    singles = np.where(reps==0)
-    sdecs = decs[singles]
-    reps = np.where(reps>0)
-    rdecs = decs[reps]
-    
-    sdecs = np.sort(sdecs)
-    rdecs = np.sort(rdecs)
-    
-    ns = sdecs.size
-    nr = rdecs.size
-    
-    #creates cumulative hist
-    sxvals = np.zeros([ns*2+2])
-    rxvals = np.zeros([nr*2+2])
-    syvals = np.zeros([ns*2+2])
-    ryvals = np.zeros([nr*2+2])
-    for i,dec in enumerate(sdecs):
-        sxvals[i*2+1]=dec
-        sxvals[i*2+2]=dec
-        syvals[i*2+1]=i/ns
-        syvals[i*2+2]=(i+1)/ns
-    syvals[-1]=1.
-    sxvals[-1]=90
-    
-    for i,dec in enumerate(rdecs):
-        rxvals[i*2+1]=dec
-        rxvals[i*2+2]=dec
-        ryvals[i*2+1]=i/nr
-        ryvals[i*2+2]=(i+1)/nr
-    ryvals[-1]=1.
-    rxvals[-1]=90
-    
-    return sxvals,syvals,rxvals,ryvals
-    
-    
     
 main()

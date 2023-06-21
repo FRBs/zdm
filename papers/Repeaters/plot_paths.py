@@ -48,7 +48,10 @@ def main(Nbounds=30):
     Ndec2 = int(results_l.size/Nra)
     results_l = results_l.reshape([Ndec2,Nra])
     
-    bounds,solids,sbounds=make_beamfiles(decs_u,ras_u,results_u,decs_l,ras_l,results_l,Nbounds=Nbounds)
+    bounds,solids,sbounds=make_beamfiles(decs_u,ras_u,results_u,decs_l,ras_l,results_l,Nbounds=6)
+    sort_chime_frbs(bounds,solids)
+    exit()
+    bounds,solids,sbounds=make_beamfiles(decs_u,ras_u,results_u,decs_l,ras_l,results_l,Nbounds=30)
     sort_chime_frbs(bounds,solids)
     # generates CHIME survey files based on these bounds
     
@@ -92,7 +95,7 @@ def main(Nbounds=30):
     plt.savefig('bbar.pdf')
     plt.close()
 
-def make_beamfiles(decs_u,ras_u,results_u,decs_l,ras_l,results_l,outdir='ChimeBeams/',smooth=2,Nbounds=6):
+def make_beamfiles(decs_u,ras_u,results_u,decs_l,ras_l,results_l,smooth=2,Nbounds=6):
     """
     Makes beam histograms for analysis
     Does this over entire declination range
@@ -129,7 +132,7 @@ def make_beamfiles(decs_u,ras_u,results_u,decs_l,ras_l,results_l,outdir='ChimeBe
     Ndec2 = int(fresults_l.size/Nra)
     fresults_l = fresults_l.reshape([Ndec2,Nra])
     
-    # salready averaged over frequency
+    # already averaged over frequency
     fr_u = fresults_u
     fr_l = fresults_l
     
@@ -145,7 +148,7 @@ def make_beamfiles(decs_u,ras_u,results_u,decs_l,ras_l,results_l,outdir='ChimeBe
     Ndec,Nra=results_u.shape
     Ndec2,Nra=results_l.shape
     
-    # salready averaged over frequency
+    # already averaged over frequency
     r_u = results_u
     r_l = results_l
     
@@ -384,16 +387,20 @@ def make_beamfiles(decs_u,ras_u,results_u,decs_l,ras_l,results_l,outdir='ChimeBe
     
     ###### plots the beamshapes at six declintions ######
     
+    linestyles=["-","--","-.",":"]
+    
     plt.figure()
     plt.xlim(1e-3,1)
-    plt.ylim(1e-1,1e2)
+    plt.ylim(1e-2,1e3)
     plt.xscale('log')
     plt.yscale('log')
-    plt.xlabel('B')
-    plt.ylabel('T(B)')
+    plt.xlabel('$B$')
+    plt.ylabel('$T(B) \\, d\\log_{10}B$ [days]')
+    # we have 5 bins per log10 spacing
     for ibound in np.arange(Nbounds):
-        label=str(bounds[ibound])+'$^{\\circ} < \\delta < $' + str(bounds[ibound+1])+'$^{\\circ}$'
-        plt.plot(bbar,mean_hists[ibound,:],label=label)
+        istyle = ibound %4
+        label=str(bounds[ibound])[0:5]+'$^{\\circ} < \\delta < $' + str(bounds[ibound+1])[0:5]+'$^{\\circ}$'
+        plt.plot(bbar,mean_hists[ibound,:]*5,label=label,linestyle=linestyles[istyle])
     plt.legend(fontsize=10)
     plt.tight_layout()
     plt.savefig(outdir+'chime_mean_hists.pdf')
@@ -422,271 +429,6 @@ def make_beamfiles(decs_u,ras_u,results_u,decs_l,ras_l,results_l,outdir='ChimeBe
     # returns bounds (degrees) and solid angles for the simulated exposures
     return bounds,solids,sbounds
     
-def old_make_beamfiles(decs_u,ras_u,results_u,decs_l,ras_l,results_l,outdir='ChimeBeams/',smooth=2):
-    """
-    Makes beam histograms for analysis
-    Does this over entire declination range
-    """
-    
-    
-    ### loads beamfiles from tied beams only ####
-    indir='Formed/'
-    Nra=80
-    Ndec=1000
-    
-    # load the data
-    fresults_u=np.load(indir+"result_u.npy")
-    fresults_l=np.load(indir+"result_l.npy")
-    
-    fresults_u = fresults_u.reshape([Ndec,Nra])
-    Ndec2 = int(fresults_l.size/Nra)
-    fresults_l = fresults_l.reshape([Ndec2,Nra])
-    
-    # salready averaged over frequency
-    fr_u = fresults_u
-    fr_l = fresults_l
-    
-    print("Maximum f results are ",np.max(fr_u),np.max(fr_l))
-    
-    ### gets ra and dec dists ###
-    prefix = "CHIME_"
-    dec_vec_u = decs_u[:,0]
-    dec_vec_l = decs_l[:,0]
-    ddec = dec_vec_l[1]-dec_vec_l[0]
-    il = np.zeros([dec_vec_l.size])
-    
-    Ndec,Nra=results_u.shape
-    Ndec2,Nra=results_l.shape
-    
-    # salready averaged over frequency
-    r_u = results_u
-    r_l = results_l
-    
-    # info for individual bins
-    Nbins=15
-    bins = np.logspace(-3,0,16)
-    bbar = np.logspace(-2.9,-0.1,15)
-    mean = np.zeros([15])
-    
-    # we make beam files by averaging the exposure in certain ranges
-    #bounds=np.array([-11.,30,60,70,80,85,90])
-    bounds=np.array([-11.,5,20,65,80,85,90])
-    
-    mean_bounds = (bounds[:-1]+bounds[1:])/2.
-    Nbounds = len(bounds)-1
-    mean_hists = np.zeros([Nbounds,Nbins])
-    nsums = np.zeros([Nbounds]) # this is the count of decs in this range
-    eff_mean_hists = np.zeros([Nbounds]) # eff
-    chime_means = np.zeros([Nbounds]) # eff
-    
-    # gets spline fits to CHIME exposure
-    ut_spl,lt_spl=get_chime_splines()
-    chime_exp = np.zeros([dec_vec_u.size])
-    my_exp = np.zeros([dec_vec_u.size])
-    fexp = np.zeros([dec_vec_u.size])
-    hists = np.zeros([Ndec,Nbins])
-    
-    
-    ##### checks tied beam plot
-    tied_dec_max = np.max(fresults_u,axis=1)
-    plt.figure()
-    plt.xlabel('dec [deg]')
-    plt.ylabel('Peak beam at that dec')
-    plt.plot(dec_vec_u,tied_dec_max)
-    plt.savefig('tied_max_check.pdf')
-    plt.close()
-    
-    #ndays = 200
-    
-    # gets cosine weighting for averaging purposes
-    cos_weights = np.cos(dec_vec_u * np.pi/180.)
-    
-    # iterates over decs not in lower transit
-    for i,dec in enumerate(dec_vec_u):
-        
-        # calculate time interval
-        drau = ras_u[i,1]-ras_u[i,0]
-        
-        # determins if this dec is also in the lower transit
-        ilower = np.where(dec_vec_l == dec)[0]
-        if len(ilower) == 1:
-            temp=np.concatenate((r_u[i,:],r_l[ilower[0],:]))
-            ftemp=np.concatenate((fr_u[i,:],fr_l[ilower[0],:]))
-            dral = ras_l[ilower,1]-ras_l[ilower,0]
-            dra = (dral + drau) /2.
-        else:
-            temp = r_u[i,:]
-            ftemp = fr_u[i,:]
-            dra = drau
-        
-        tdays = dra /360. # converts from degrees to fraction of a day
-        # this therefore represents time
-        
-        fh,b=np.histogram(ftemp,bins=bins)
-        fh = fh*tdays # was *ndays
-        
-        h,b=np.histogram(temp,bins=bins)
-        h = h*tdays # was *ndays
-        hists[i,:]=h
-        
-        
-        #list of bounds that dec is less than
-        ibound = np.where(dec < bounds)[0]
-        # we extract the last bound that dec is less than
-        # i.e. if bound is 45, we find that 2+ bounds are less than 45
-        # hence this gives us bin 2 -1 =1 (2nd bin)
-        ibound = ibound[0]-1
-        mean_hists[ibound,:] = mean_hists[ibound,:]+h*cos_weights[i]
-        nsums[ibound] += 1
-        
-        sdec = str(dec)[0:4]
-        #np.save(outdir+prefix+sdec+'_hist.npy',h)
-        #np.save(outdir+prefix+sdec+'_bins.npy',h)
-        
-        ####### exposure calculations #########
-        
-        chime_exp[i] = spl(dec,ut_spl,lt_spl)/24.
-        # the below two are equivalent to within coarseness
-        # of the histogram bins
-        my_exp[i] = np.sum(temp**1.5)*tdays #was *ndays
-        #my_exp[i] = np.sum(h*bbar**1.5)
-        
-        # counts number of bins that are greater than half max in tied beam
-        # this therefore equates to what we expect
-        gt_fwhm = np.where(ftemp > 0.5)[0]
-        fexp[i] = len(gt_fwhm)*tdays # timespent above fwhm
-        
-    
-    # does a global normalisation to estimate ndays
-    my_total_exposure = np.sum(my_exp*cos_weights)
-    chime_total_exposure = np.sum(chime_exp*cos_weights)
-    ndays = chime_total_exposure/my_total_exposure
-    
-    
-    
-    ntrials=200
-    start=200
-    diffs=np.zeros([ntrials])
-    daytrials=np.arange(start,start+ntrials)
-    #smear fexp by typical uncertainty of FRB
-    for i,ndays in enumerate(daytrials):
-        diffs[i] = np.sum((chime_exp[10:-10] - fexp[10:-10]*ndays)**2)
-    plt.figure()
-    
-    plt.plot(daytrials,diffs)
-    plt.xlabel('Ndays')
-    plt.ylabel('Exposure difference')
-    plt.savefig('exposure_fit.pdf')
-    plt.close()
-    idays = np.argmin(diffs)
-    ndays=daytrials[idays]
-    print("Found ndays to be ",ndays)
-    
-    fexp = np.convolve(fexp, np.full([10],0.1), mode='same')
-    # fits this to CHIME exposure
-    
-    
-    # multiplies everything by this relative amount
-    my_exp *= ndays
-    mean_hists *= ndays
-    hists *= ndays
-    fexp *= ndays
-    
-    
-    # NOTE: the above assumes 360 deg of ra is one day. Of course, it's
-    # not quite a calendar day. ndays technically is the number of
-    # sidereal days, so number of calendar days will be slightly less by ~0.0028%
-    print("Total number of days now ",ndays*(24.*60/(24.*60.-4.)))
-    
-    # we should NOT be renormalising here. Not relevant.
-    for ibound in np.arange(Nbounds):
-        # we now calculate a normalisation to the histogrammed exposure based on
-        # integrating and averaging the CHIME exposure in the interval
-        OK1 = np.where(dec_vec_u > bounds[ibound])
-        OK2 = np.where(dec_vec_u < bounds[ibound+1])
-        OK = np.intersect1d(OK1,OK2,assume_unique=True)
-        
-        mean_hists[ibound,:] /= np.sum(cos_weights[OK]) #nsums[ibound] 
-        eff_mean_hists[ibound] = np.sum(mean_hists[ibound,:]*(bbar**1.5))
-        chime_means[ibound] = np.sum(chime_exp[OK] * cos_weights[OK])/np.sum(cos_weights[OK])
-        
-    kernel_size = 3
-    kernel = np.ones(kernel_size) / kernel_size
-    smoothed=np.apply_along_axis(lambda m: np.convolve(m, kernel, mode='same'), axis=0, arr=hists)
-    #data_convolved = np.convolve(hists, kernel, mode='same')
-    #corrects for boundary effects
-    smoothed[0,:]=hists[0,:]
-    smoothed[-1,:]=hists[-1,:]
-    # sums over beam axis
-    effs = np.sum(smoothed*bbar**1.5,axis=1)
-    
-    ############## replacethe following with 'Formed' data
-    # estimates maximum exposure as function of declination
-    FWHM=0.33 #deg
-    FWHM4 = 4.*FWHM
-    fraction =  FWHM4 / (360.*np.cos(dec_vec_u*np.pi/180.)) # angle on sky at this dec
-    toohigh = np.where(fraction > 1.)[0]
-    fraction[toohigh] = 1.
-    estimated_total = ndays * fraction
-    double = np.where(dec_vec_u > 70.)[0]
-    estimated_total[double] = estimated_total[double]*2.
-    
-    plt.figure()
-    plt.xlabel('$\\delta$ [deg]')
-    plt.ylabel('Exposure [days]')
-    plt.plot(dec_vec_u, my_exp, label = 'Simulated exposure',zorder=0)
-    plt.hist(mean_bounds,bins=bounds,weights = eff_mean_hists,alpha=1.0,fill=False,
-        label='Binned simulation',linestyle='-.',zorder=20,linewidth=2)
-    plt.plot(dec_vec_u,chime_exp,label = 'CHIME exposure',zorder=10,linestyle='--',linewidth=3)
-    
-    # no point plotting this, irrelevant
-    #plt.hist(mean_bounds,bins=bounds,weights = chime_means,alpha=1.0, fill=False,
-    #    ec='orange',label='Binned CHIME',zorder=30,linestyle=':',linewidth=2)
-    
-    plt.plot(dec_vec_u, fexp, label = 'Tied beam only',zorder=80)
-    #plt.plot(dec_vec_u, estimated_total*0.65, label = 'Analytic guess',zorder=100)
-    
-    #plt.hist(mean_bounds,bins=bounds,weights = eff_mean_hists,alpha=1.0,fill=False,color='black')
-    #plt.plot(dec_vec_u, effs, label = 'smoothed exposure')
-    plt.legend()
-    plt.yscale('log')
-    plt.tight_layout()
-    plt.savefig('exposure_comparison.pdf')
-    plt.close()
-    
-    ###### plots the beamshapes at six declintions ######
-    
-    plt.figure()
-    plt.xlim(1e-3,1)
-    plt.ylim(1e-1,1e2)
-    plt.xscale('log')
-    plt.yscale('log')
-    plt.xlabel('B')
-    plt.ylabel('T(B)')
-    for ibound in np.arange(Nbounds):
-        label=str(bounds[ibound])+'$^{\\circ} < \\delta < $' + str(bounds[ibound+1])+'$^{\\circ}$'
-        plt.plot(bbar,mean_hists[ibound,:],label=label)
-    plt.legend(fontsize=10)
-    plt.tight_layout()
-    plt.savefig('chime_mean_hists.pdf')
-    plt.close()
-    
-    ###### saves the beamshapes #####
-    # also writes out the solid angles covered by each
-    opdir='Beams/'
-    torad = np.pi/180.
-    for ibound in np.arange(Nbounds):
-        lower = bounds[ibound]*torad
-        upper = bounds[ibound+1]*torad
-        solid = 2.*np.pi * (np.sin(upper)-np.sin(lower))
-        print("For bound ",ibound," solid angle is ",solid)
-        hfile = opdir+'chime_bound_'+str(ibound)+'_hist.npy'
-        bfile = opdir+'chime_bound_'+str(ibound)+'_bins.npy'
-        np.save(hfile,mean_hists[ibound,:])
-        np.save(bfile,bbar)
-
-
-
 def plot_fig1(decs_u,ras_u,results_u,decs_l,ras_l,results_l,plotdec=30):
     """
     Plots first figures, giving b(ra) at different frequencies
@@ -941,86 +683,21 @@ def spl(dec,ut_spl,lt_spl):
 
 def sort_chime_frbs(bounds,solids):
     
+    import utilities as ute
+    
+    
+    
     # defines set of bounds to read in
     Nbounds=len(bounds)-1
     bdir = 'Nbounds'+str(Nbounds)+'/'
     
     
     ####### loads CHIME FRBs ######
+    DMhalo=50
+    names,decs,dms,dmegs,snrs,reps,ireps,widths,nreps = ute.get_chime_data(DMhalo=DMhalo)
+    dmgs = dms - dmegs - DMhalo
     
-    chimedir = 'CHIME_FRBs/'
-    infile = chimedir+'chimefrbcat1.csv'
-    idec=6
-    idm=18
-    idmeg=26
-    iname=0
-    irep=2
-    iwidth=42
-    isnr=17
     
-    NFRB=600
-    decs=np.zeros([NFRB])
-    dms=np.zeros([NFRB])
-    dmegs=np.zeros([NFRB])
-    dmgs=np.zeros([NFRB])
-    snrs=np.zeros([NFRB])
-    widths=np.zeros([NFRB])
-    names=[]
-    reps=np.zeros([NFRB])
-    
-    # holds repeater info
-    rnames=[]
-    ireps=[]
-    nreps=[]
-    badcount=0
-    with open(infile) as f:
-        lines = f.readlines()
-        count=-1
-        for i,line in enumerate(lines):
-            if count==-1:
-                columns=line.split(',')
-                #for ic,w in enumerate(columns):
-                #    print(ic,w)
-                count += 1
-                continue
-            words=line.split(',')
-            # seems to indicate new bursts have been added
-            #if words[5][:2]=="RA":
-            #    badcount += 1
-                #print("BAD : ",badcount)
-                #continue
-            decs[i-1]=float(words[idec])
-            dms[i-1]=float(words[idm])
-            dmegs[i-1]=float(words[idmeg])
-            names.append(words[iname])
-            snrs[i-1]=float(words[isnr])
-            # guards against upper limits
-            if words[iwidth][0]=='<':
-                widths[i-1]=0.
-            else:
-                widths[i-1]=float(words[iwidth])*1e3 #in ms
-            dmgs[i-1] = dms[i-1]-dmegs[i-1]
-            rep=words[irep]
-            
-            
-            if rep=='-9999':
-                reps[i-1]=0
-            else:
-                reps[i-1]=1
-                if rep in rnames:
-                    ir = rnames.index(rep)
-                    nreps[ir] += 1
-                else:
-                    rnames.append(rep)
-                    ireps.append(i-1)
-                    nreps.append(1)
-            count += 1
-    
-    print("Total of ",len(rnames)," repeating FRBs found")
-    print("Total of ",len(np.where(reps==0)[0])," once-off FRBs")
-    
-    #print(rnames)
-    #print(nreps)
     # now breaks this up into declination bins
     #The below is hard-coded and copied from "plot
     #bounds=np.array([-11.,5,20,65,80,85,90])
@@ -1033,8 +710,10 @@ def sort_chime_frbs(bounds,solids):
         OK3 = np.where(reps==0)
         nOK = np.intersect1d(OK,OK3)
         rOK = np.intersect1d(OK,ireps)
-        
-        opfile = 'Surveys/CHIME_decbin_'+str(i)+"_of_"+str(Nbounds)+".dat"
+        opdir='TEMP/'
+        if not os.path.exists(opdir):
+            os.mkdir(opdir)
+        opfile = opdir+'CHIME_decbin_'+str(i)+"_of_"+str(Nbounds)+".dat"
         f = open(opfile,"w")
         #print("Found ",len(rOK),len(nOK)," FRBs which do (not) repeat in dec range ",lb,uppers[i])
         
@@ -1062,4 +741,7 @@ def sort_chime_frbs(bounds,solids):
                 format(names[j],dms[j],dmgs[j],snrs[j],widths[j],nreps[rindex])
             f.write(string)
         f.close()
-main()
+
+# do this twice, with two different values of Nbounds
+main(Nbounds=6)
+main(Nbounds=30)

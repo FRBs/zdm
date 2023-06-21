@@ -1,4 +1,7 @@
 """ 
+
+THE DESCRIPTION BELOW IS LIKELY INACCURATE
+
 This script creates example plots for a combination
 of FRB surveys and repeat bursts. We consider
 two repeater descriptions --- distributed, and strong
@@ -29,7 +32,7 @@ import scipy as sp
 import matplotlib
 import time
 from zdm import beams
-beams.beams_path = 'BeamData/'
+beams.beams_path = '/Users/cjames/CRAFT/FRB_library/Git/H0paper/papers/Repeaters/BeamData/'
     
 
 matplotlib.rcParams['image.interpolation'] = None
@@ -50,35 +53,12 @@ def main():
     #sets=[Rset1,Rset2]
     
     
-    #test_shin(Rset1,Rset2,opdir='Shin_50/chime_',DMcut=50,chime_response=True,allplot=True,load=True)
-    #exit()
-    
     ######## We iterate through the different parameter sets, using the CHIME response function #######
     # standard analysis
     extreme_rsets(Rset1,Rset2,opdir='Extremes/chime_',DMcut=None,chime_response=True,allplot=True,load=True,addshin=True)
     
-    # just to see what happens when no CHIME response is used - it's messy!!!!
-    #extreme_rsets(Rset1,Rset2,opdir='Extremes/nochime_',DMcut=None,chime_response=False,allplot=True,load=True,addshin=True)
+    extreme_rsets(Rset1,Rset2,opdir='Extremes/chime_DM50_',DMcut=50.,chime_response=True,allplot=True,load=True,addshin=True)
     
-    
-    ######## Here, we explore the effects of cutting FRBs with a Galactic DM above DMcut=50 #########
-    # CHIME response
-    #extreme_rsets(Rset1,Rset2,opdir='Extremes50/chime_50_',DMcut=50,chime_response=True,allplot=True,load=True,addshin=True)
-    
-    # Standard zDM response only
-    #extreme_rsets(Rset1,Rset2,opdir='Extremes50/nochime_50_',DMcut=50,chime_response=False,allplot=True,load=True,addshin=True)
-    
-    
-    
-    exit()
-    plot_both_responses(Rset1,Rset2,prefix='DecbinFigs/both',DMcut=None)
-    
-    exit()
-    compare_old_new(Rset2)
-
-    fit_chime_data(Rset2)
-
-
 def MyExp(x, m, t):
     return m * np.exp(-x/t)
 
@@ -99,13 +79,6 @@ def extreme_rsets(Rset1,Rset2,opdir='Extremes/',DMcut=None,chime_response=True,a
     # defines list of surveys to consider, together with Tpoint
     sdir = os.path.join(resource_filename('zdm','../'),'papers/Repeaters/Surveys')
     
-    # Labelling of plots
-    # commented out, since CHIME response certainly correct!
-    if chime_response:
-        text=''
-    else:
-        text='zDM'
-    
     if not os.path.exists(opdir):
         os.mkdir(opdir)
     
@@ -115,155 +88,93 @@ def extreme_rsets(Rset1,Rset2,opdir='Extremes/',DMcut=None,chime_response=True,a
     reps1=[]
     reps2=[]
     psets=st.read_extremes()
-    labels=["lEmax","alpha","gamma","sfr_n","lmean","lsigma"]
+    pset = st.shin_fit()
     
-    if addshin:
-        labels.append("Shin")
-        psets.append(st.shin_fit())
+    F0s = np.linspace(0.5,5,10)
+    
+    ####### singles plots
+    fig=plt.figure()
+    ax1 = plt.gca()
+    plt.xlim(0,3000)
+    plt.xlabel('${\\rm DM}_{\\rm EG}$')
+    plt.ylabel('$N({\\rm DM}_{\\rm EG}) \\, [200\\,{\\rm pc}\\,{\\rm cm}^{-3}]^{-1}$')
+        
+    # was all. Now will be strong distribution
+    fig=plt.figure()
+    ax2 = plt.gca()
+    plt.xlim(0,3000)
+    plt.xlabel('${\\rm DM}_{\\rm EG}$')
+    plt.ylabel('$N({\\rm DM}_{\\rm EG}) \\, [200\\,{\\rm pc}\\,{\\rm cm}^{-3}]^{-1}$')
     
     
-    ### init for all-set plot if applicable ###
-    if allplot:
-        # was all. Now will be distributed distribution
-        fig=plt.figure()
-        ax = plt.gca()
-        plt.xlim(0,3000)
-        plt.xlabel('${\\rm DM}_{\\rm EG}$')
-        plt.ylabel('$N({\\rm DM}_{\\rm EG}) \\, [200\\,{\\rm pc}\\,{\\rm cm}^{-3}]^{-1}$')
+    ####### progenitor plots
+    fig=plt.figure()
+    ax3 = plt.gca()
+    plt.xlim(0,3000)
+    plt.xlabel('${\\rm DM}_{\\rm EG}$')
+    plt.ylabel('$N({\\rm DM}_{\\rm EG}) \\, [200\\,{\\rm pc}\\,{\\rm cm}^{-3}]^{-1}$')
         
+    # was all. Now will be strong distribution
+    fig=plt.figure()
+    ax4 = plt.gca()
+    plt.xlim(0,3000)
+    plt.xlabel('${\\rm DM}_{\\rm EG}$')
+    plt.ylabel('$N({\\rm DM}_{\\rm EG}) \\, [200\\,{\\rm pc}\\,{\\rm cm}^{-3}]^{-1}$')
         
-        # was all. Now will be strong distribution
-        fig=plt.figure()
-        ax4 = plt.gca()
-        plt.xlim(0,3000)
-        plt.xlabel('${\\rm DM}_{\\rm EG}$')
-        plt.ylabel('$N({\\rm DM}_{\\rm EG}) \\, [200\\,{\\rm pc}\\,{\\rm cm}^{-3}]^{-1}$')
-        
-        
-        # distributed cumulative plot
-        fig2=plt.figure()
-        ax2 = plt.gca()
-        plt.xlim(0,3000)
-        plt.ylim(0,1)
-        plt.xlabel('${\\rm DM}_{\\rm EG}$')
-        plt.ylabel('$CDF N({\\rm DM}_{\\rm EG}) \\, [200\\,{\\rm pc}\\,{\\rm cm}^{-3}]^{-1}$')
-        
-        # strong cumulative plot
-        fig3=plt.figure()
-        ax3 = plt.gca()
-        plt.xlim(0,3000)
-        plt.ylim(0,1)
-        plt.xlabel('${\\rm DM}_{\\rm EG}$')
-        plt.ylabel('$CDF N({\\rm DM}_{\\rm EG}) \\, [200\\,{\\rm pc}\\,{\\rm cm}^{-3}]^{-1}$')
-        
-        
-        # allburst plot
-        fig5=plt.figure()
-        ax5 = plt.gca()
-        plt.xlim(0,3000)
-        plt.xlabel('${\\rm DM}_{\\rm EG}$')
-        plt.ylabel('$N({\\rm DM}_{\\rm EG}) \\, [200\\,{\\rm pc}\\,{\\rm cm}^{-3}]^{-1}$')
-        
-        
-    for i,pset in enumerate(psets):
-        nth=int(i/2)
-        if addshin and i==12:
-            ex=""
-        elif i==nth*2:
-            ex="_min"
-        else:
-            ex="_max"
+    
+    for i,F0 in enumerate(F0s):
         #state=set_state()
         # sets parameters in state
-        prefix=opdir+labels[nth]+ex
-        savefile=opdir+'chime'+str(chime_response)+'extreme'+str(i)+'.npz'
-        if load:
+        prefix=opdir+str(i)
+        savefile=opdir+'F0_'+str(i)+'.npz'
+        if load and os.path.exists(savefile):
             data=np.load(savefile)
             dm=data['dm']
             s1=data['s1']
             r1=data['r1']
             s2=data['s2']
             r2=data['r2']
+            n1=data['n1']
+            n2=data['n2']
+            b1=data['b1']
+            b2=data['b2']
             tabdm=data['tabdm']
             csingles=data['csingles']
             creps=data['creps']
             
         else:
-            dm,s1,r1,s2,r2,csingles,creps,tabdm=compare_rsets(Rset1,Rset2,pset=pset,prefix=prefix,DMcut=DMcut,
-                chime_response=chime_response)
-            np.savez(savefile,dm=dm,s1=s1,
-                r1=r1,s2=s2,r2=r2,csingles=csingles,creps=creps,tabdm=tabdm)
+            dm,s1,r1,b1,s2,r2,b2,csingles,creps,tabdm,n1,n2=compare_rsets(Rset1,Rset2,pset=pset,prefix=prefix,DMcut=DMcut,
+                chime_response=True,F0=F0)
+            np.savez(savefile,dm=dm,s1=s1,r1=r1,b1=b1,s2=s2,r2=r2,b2=b2,\
+                csingles=csingles,creps=creps,tabdm=tabdm,n1=n1,n2=n2)
         
         ddm = dm[1]-dm[0]
-        if allplot:
-            scale = 200./(dm[1]-dm[0])
-            if i==12: # i.e. this is Shin et al predictions
-                ls1,=ax.plot(dm,s1,linestyle="--",linewidth=1,color='blue')
-                ls4,=ax4.plot(dm,s2,linestyle='--',linewidth=1,color='blue')
-                ls5,=ax5.plot(dm,tabdm*scale,linestyle='--',linewidth=1,color='blue')
-            else:
-                l1,=ax.plot(dm,s1,linestyle=":",linewidth=1,color='gray') # distributed distribution
-                l4,=ax4.plot(dm,s2,linestyle=':',linewidth=1,color='gray') # strong distribution
-                l5,=ax5.plot(dm,tabdm*scale,linestyle=':',linewidth=1,color='gray') # strong distribution
+        scale = 200./(dm[1]-dm[0])
+        
+        # extracts k statistics
+        if i==0:
+            # Create cumulative distribution of CHIME single events, ready for the ks test
+            corder = np.sort(csingles)
+            idms = corder/ddm
+            idms = idms.astype('int')
+            chime_hist = np.zeros([dm.size])
+            for idm in idms:
+                chime_hist[idm] += 1
+            cchist = np.cumsum(chime_hist)
+            cchist /= cchist[-1]
+            sqrtn = len(csingles)**0.5
             
-            # extracts k statistics
-            if i==0:
-                # Create cumulative distribution of CHIME single events, ready for the ks test
-                corder = np.sort(csingles)
-                idms = corder/ddm
-                idms = idms.astype('int')
-                chime_hist = np.zeros([dm.size])
-                for idm in idms:
-                    chime_hist[idm] += 1
-                cchist = np.cumsum(chime_hist)
-                cchist /= cchist[-1]
-                sqrtn = len(csingles)**0.5
-                    
-            # makes cumulative sum from predictions
-            cs1 = np.cumsum(s1)
-            cs1 /= cs1[-1]
+            cprog = np.concatenate((csingles,creps))
+            cprog = np.sort(cprog)
+            idms = cprog/ddm
+            idms = idms.astype('int')
+            cprog_chime_hist = np.zeros([dm.size])
+            for idm in idms:
+                cprog_chime_hist[idm] += 1
+            cphist = np.cumsum(cprog_chime_hist)
+            cphist /= cphist[-1]
             
-            cs2 = np.cumsum(s2)
-            cs2 /= cs2[-2]
             
-            kstat=sp.stats.ks_1samp(corder,cdf,args=(dm,cs1),alternative='two-sided',mode='exact')
-            print("For distributed ",labels[nth]+ex," kresult is ",kstat)
-            
-            kstat2=sp.stats.ks_1samp(corder,cdf,args=(dm,cs2),alternative='two-sided',mode='exact')
-            print("For strong ",labels[nth]+ex," kresult is ",kstat2)
-            scale = 200./(dm[1]-dm[0])
-            if i==12:
-                ls2,=ax2.plot(dm,cs1,linestyle="--",linewidth=1,color='blue') # distributed cumulative
-                ls3,=ax3.plot(dm,cs2,linestyle="--",linewidth=1,color='blue') # strong cumulative
-                ls5,=ax5.plot(dm,tabdm*scale,linestyle="--",linewidth=1,color='blue') # total bursts
-            else:
-                l2,=ax2.plot(dm,cs1,linestyle=":",linewidth=1,color='gray') # distributed cumulative
-                l3,=ax3.plot(dm,cs2,linestyle=":",linewidth=1,color='gray') # strong cumulative
-                
-                l5,=ax5.plot(dm,tabdm*scale,linestyle=":",linewidth=1,color='gray') # total bursts
-                
-                
-            #plt.plot(g.dmvals,r1,label='repeating sources',linestyle="-.",linewidth=2)
-            #ax.plot(dm,s2,linestyle='-.',linewidth=1,color='gray')
-            #plt.plot(g.dmvals,r2,label='repeating sources',linestyle=':',linewidth=2)
-            
-    if allplot:
-        savefile=opdir+'chime'+str(chime_response)+'standard.npz'
-        if load:
-            data=np.load(savefile)
-            dm=data['dm']
-            s1=data['s1']
-            r1=data['r1']
-            s2=data['s2']
-            r2=data['r2']
-            tabdm=data['tabdm']
-            csingles=data['csingles']
-            creps=data['creps']
-        else:
-            dm,s1,r1,s2,r2,csingles,creps,tabdm=compare_rsets(Rset1,Rset2,pset=None,prefix=prefix,DMcut=DMcut,
-            chime_response=chime_response)
-            np.savez(savefile,dm=dm,s1=s1,r1=r1,
-                s2=s2,r2=r2,csingles=csingles,creps=creps,tabdm=tabdm)
         
         # makes cumulative sum from predictions
         cs1 = np.cumsum(s1)
@@ -271,83 +182,80 @@ def extreme_rsets(Rset1,Rset2,opdir='Extremes/',DMcut=None,chime_response=True,a
         
         cs2 = np.cumsum(s2)
         cs2 /= cs2[-2]
-        kstat=sp.stats.ks_1samp(corder,cdf,args=(dm,cs1),alternative='two-sided',mode='exact')
-        print("For standard distributed kresult is ",kstat)
         
+        kstat1=sp.stats.ks_1samp(corder,cdf,args=(dm,cs1),alternative='two-sided',mode='exact')
         kstat2=sp.stats.ks_1samp(corder,cdf,args=(dm,cs2),alternative='two-sided',mode='exact')
-        print("For standard strong kresult is ",kstat2)
-        
-        lj1,=ax.plot(dm,s1,linestyle="-",linewidth=1,color='green')
-        #plt.plot(g.dmvals,r1,label='repeating sources',linestyle="-.",linewidth=2)
-        lj4,=ax4.plot(dm,s2,linestyle='-',linewidth=1,color='green')
-        #plt.plot(g.dmvals,r2,label='repeating sources',linestyle=':',linewidth=2)
         
         
-        lj2,=ax2.plot(dm,cs1,linestyle="-",linewidth=1,color='green')
-        lj3,=ax3.plot(dm,cs2,linestyle="-",linewidth=1,color='green')
-        lj5,=ax5.plot(dm,tabdm,linestyle="-",linewidth=1,color='green')
+        ax1.plot(dm,s1/n1,linestyle="--",linewidth=1,label=str(F0)+', k='+str(kstat1)[0:5])
+        ax2.plot(dm,s2/n2,linestyle='--',linewidth=1,label=str(F0)+', k='+str(kstat2)[0:5])
+        
+        # makes cumulative sum from predictions
+        p1 = r1+s1
+        p2 = r2+s2
+        a1 = s1+b1
+        a2 = s2+b2
+        
+        cp1 = np.cumsum(p1)
+        cp1 /= cp1[-1]
+        
+        cp2 = np.cumsum(p2)
+        cp2 /= cp2[-2]
+        
+        ca1 = np.cumsum(a1)
+        ca1 /= ca1[-1]
+        
+        ca2 = np.cumsum(a2)
+        ca2 /= ca2[-1]
+        
+        # this k-stat tests for predicted progenitors vs observed progenitors
+        # Relly should test predicted singles vs observed progenitors!!!
+        kstat3=sp.stats.ks_1samp(cprog,cdf,args=(dm,ca1),alternative='two-sided',mode='exact')
+        kstat4=sp.stats.ks_1samp(cprog,cdf,args=(dm,ca2),alternative='two-sided',mode='exact')
+        ax3.plot(dm,a1/n1,linestyle="--",linewidth=1,label=str(F0)+', k='+str(kstat1)[0:5])
+        ax4.plot(dm,a2/n2,linestyle='--',linewidth=1,label=str(F0)+', k='+str(kstat2)[0:5])
+        print("F0: ",F0," kstats singles ",kstat1.pvalue,kstat2.pvalue," progenitors ",kstat3.pvalue,kstat4.pvalue,"norms ",n1,n2)
         
         
-        plt.sca(ax)
-        plt.text(0.54,0.91,'Distributed repeaters',transform=ax.transAxes)
-        bins=np.linspace(0,4000,21)
-        plt.hist(csingles,bins=bins,alpha=0.5,label='CHIME: single bursts',edgecolor='black')
-        plt.hist(creps,bins=bins,alpha=0.5,label='repeating sources',edgecolor='black')
-        
-        leg1=plt.legend(loc='upper left', bbox_to_anchor=(0.4, 0.9))
-        leg2=plt.legend(handles=[ls1,lj1,l1],
-            labels=["Shin et al. (best fit)","James et al. (best fit)","          (90% extrema)"],
-            loc='upper left', bbox_to_anchor=(0.4, 0.7))
-        plt.gca().add_artist(leg1)
-        plt.tight_layout()
-        plt.savefig(opdir+'distributed_all_systematics.pdf')
-        plt.close()
-        
-        
-        plt.sca(ax4)
-        plt.text(0.54,0.91,'Strong repeaters',transform=ax4.transAxes)
-        bins=np.linspace(0,4000,21)
-        plt.hist(csingles,bins=bins,alpha=0.5,label='CHIME: single bursts',edgecolor='black')
-        plt.hist(creps,bins=bins,alpha=0.5,label='repeating sources',edgecolor='black')
-        leg1=plt.legend(loc='upper left', bbox_to_anchor=(0.4, 0.9))
-        leg2=plt.legend(handles=[ls4,lj4,l4],
-            labels=["Shin et al. (best fit)","James et al. (best fit)","          (90% extrema)"],
-            loc='upper left', bbox_to_anchor=(0.4, 0.7))
-        plt.gca().add_artist(leg1)
-        plt.tight_layout()
-        plt.savefig(opdir+'strong_all_systematics.pdf')
-        plt.close()
-        
-        plt.sca(ax2)
-        plt.text(0.5,0.3,'Distributed repeaters',transform=ax2.transAxes)
-        plt.plot(dm,cchist,label='CHIME',color='red')
-        plt.legend()
-        plt.tight_layout()
-        plt.savefig(opdir+'distributed_cumulative_all_systematics.pdf')
-        plt.close()
-        
-        plt.sca(ax3)
-        plt.text(0.5,0.3,'Strong repeaters',transform=ax3.transAxes)
-        plt.plot(dm,cchist,label='CHIME',color='red')
-        plt.legend()
-        plt.tight_layout()
-        plt.savefig(opdir+'strong_cumulative_all_systematics.pdf')
-        plt.close()
-        
-        plt.sca(ax5)
-        plt.text(0.54,0.91,text,transform=ax4.transAxes)
-        bins=np.linspace(0,4000,21)
-        ctot = np.concatenate((csingles,creps))
-        
-        plt.hist(ctot,bins=bins,alpha=0.5,label='CHIME: all progenitors',edgecolor='black')
-        leg1=plt.legend(loc='upper left', bbox_to_anchor=(0.4, 0.9))
-        leg2=plt.legend(handles=[ls5,lj5,l5],
-            labels=["Shin et al. (best fit)","James et al. (best fit)","          (90% extrema)"],
-            loc='upper left', bbox_to_anchor=(0.4, 0.7))
-        plt.gca().add_artist(leg1)
-        plt.tight_layout()
-        plt.savefig(opdir+'allbursts_all_systematics.pdf')
-        plt.close()
+        #ddm = dm[1]-dm[0]
+    plt.sca(ax1)
+    plt.text(0.54,0.91,'Distributed repeaters',transform=ax1.transAxes)
+    bins=np.linspace(0,4000,21)
+    plt.hist(csingles,bins=bins,alpha=0.5,label='CHIME: single bursts',edgecolor='black')
+    plt.hist(creps,bins=bins,alpha=0.5,label='repeating sources',edgecolor='black')
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(opdir+'temp1.pdf')
+    plt.close()
+    
+    plt.sca(ax2)
+    plt.text(0.54,0.91,'Strong repeaters',transform=ax2.transAxes)
+    plt.hist(csingles,bins=bins,alpha=0.5,label='CHIME: single bursts',edgecolor='black')
+    plt.hist(creps,bins=bins,alpha=0.5,label='repeating sources',edgecolor='black')
+    plt.tight_layout()
+    plt.savefig(opdir+'temp2.pdf')
+    plt.close()
+    
+    
+    plt.sca(ax3)
+    plt.ylim(0,200)
+    plt.text(0.54,0.91,'Comparison with all bursts',transform=ax1.transAxes)
+    bins=np.linspace(0,4000,21)
+    plt.hist(cprog,bins=bins,alpha=0.5,label='CHIME: all progenitors',edgecolor='black')
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(opdir+'temp3.pdf')
+    plt.close()
+    
+    #plt.sca(ax4)
+    #plt.ylim(0,200)
+    #plt.text(0.54,0.91,'Strong repeaters',transform=ax2.transAxes)
+    #plt.hist(cprog,bins=bins,alpha=0.5,label='CHIME: all progenitors',edgecolor='black')
+    #plt.tight_layout()
+    #plt.savefig('temp4.pdf')
+    #plt.close()
+    
+    print("Done!")
 
 def cdf(x,dm,cs):
     """
@@ -425,7 +333,7 @@ def fit_chime_data(Rset,pset=None):
     
     print("Global norm is ",norm)
 
-def compare_rsets(Rset1,Rset2,pset=None,prefix="",Nbin=6,DMcut=None,chime_response=True,plot=False):
+def compare_rsets(Rset1,Rset2,pset=None,prefix="",Nbin=6,DMcut=None,chime_response=True,plot=False,F0=5.):
     """
     Defined to test some corrections to the repeating FRBs method
     
@@ -455,7 +363,7 @@ def compare_rsets(Rset1,Rset2,pset=None,prefix="",Nbin=6,DMcut=None,chime_respon
         
         tag = str(bounds[ibin])+'$^{\\circ} < \\delta < $' + str(bounds[ibin+1])+'$^{\\circ}$'
         name = "CHIME_decbin_"+str(ibin)+"_of_"+str(Nbin)
-        s,g = survey_and_grid(survey_name=name,NFRB=None,sdir=sdir,init_state=state) # should be equal to actual number of FRBs, but for this purpose it doesn't matter
+        s,g = survey_and_grid(survey_name=name,NFRB=None,sdir=sdir,init_state=state,F0=F0) # should be equal to actual number of FRBs, but for this purpose it doesn't matter
         
         abdm = np.sum(g.rates,axis=0)
         
@@ -574,11 +482,15 @@ def compare_rsets(Rset1,Rset2,pset=None,prefix="",Nbin=6,DMcut=None,chime_respon
             plt.tight_layout()
             plt.savefig(prefix+'_'+str(ibin)+'.pdf')
             plt.close()
-    
+    # This norm is relevant for comparing histograms and plotting
+    # It is *NOT* relevant for comparing predictions!
     tnorm1= tnsingles/ttot1*db/(g.dmvals[1]-g.dmvals[0])
     tnorm2= tnsingles/ttot2*db/(g.dmvals[1]-g.dmvals[0])
     #print("\n\nTotal norms were ",tnorm1,tnorm2)
     print("Total predictions were ",tnsingles,ttot1,ttot2,'\n\n')
+    # The following is the relevant physical norm
+    rnorm1 = tnsingles/ttot1
+    rnorm2 = tnsingles/ttot2
     
     if plot:
         fig=plt.figure()
@@ -607,7 +519,9 @@ def compare_rsets(Rset1,Rset2,pset=None,prefix="",Nbin=6,DMcut=None,chime_respon
     tabdm *= modelled / total_bursts
     
     # returns these key values for future use...
-    return g.dmvals,tsdm1*tnorm1,trdm1*tnorm1,tsdm2*tnorm2,trdm2*tnorm2,alldms,alldmr,tabdm
+    # wait - do NOT use tnorm, we can do that later!
+    return g.dmvals,tsdm1*tnorm1,trdm1*tnorm1,trbdm1*tnorm1, tsdm2*tnorm2,trdm2*tnorm2,\
+        trbdm2*tnorm2,alldms,alldmr,tabdm,rnorm1,rnorm2
 
 def compare_old_new(Rset,plot=True):
     """
@@ -750,10 +664,9 @@ def set_state(pset=None,chime_response=True):
 
 
 def survey_and_grid(survey_name:str='CRAFT/CRACO_1_5000',
-            init_state=None,
-            state_dict=None, iFRB:int=0,
+            init_state=None,state_dict=None, iFRB:int=0,
                alpha_method=1, NFRB:int=100, 
-               lum_func:int=2,sdir=None):
+               lum_func:int=2,sdir=None,F0=5.):
     """ Load up a survey and grid for a CRACO mock dataset
 
     Args:
@@ -802,6 +715,10 @@ def survey_and_grid(survey_name:str='CRAFT/CRACO_1_5000',
     isurvey = survey.load_survey(survey_name, state, dmvals,
                                  NFRB=NFRB, sdir=sdir, Nbeams=5,
                                  iFRB=iFRB)
+    
+    # modifes survey to have an artificial threshold
+    isurvey.meta["THRESH"]=F0
+    isurvey.THRESHs[:]=F0
     
     # generates zdm grid
     grids = misc_functions.initialise_grids(

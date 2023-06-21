@@ -1,6 +1,15 @@
 """ 
-This script creates example plots for a combination
-of FRB surveys and repeat bursts
+This script iterates over a grid in Rgamma and Rmax. For each, it:
+- calculates Rstar, such that all FRBs repeating at Rstar (=Rmin=Rmax)
+    reproduce the correct repetition rate (Rgamma not important)
+- iterates over Rgamma, Rmax, to find the Rmin reproducing the correct rate
+- simulates the z/DM and declination distribution of repeating CHIME FRBs,
+    and calculates likelihood metrics
+- saves the resulting output
+
+
+By default it assumes that 100% of CHIME bursts come from repeaters.
+However, you can set FC to vary this "Fraction" to be less than unity.
 
 """
 import os
@@ -16,6 +25,7 @@ from zdm import io
 from zdm import repeat_grid as rep
 
 import utilities as ute
+import states as st
 
 import pickle
 import numpy as np
@@ -41,40 +51,42 @@ font = {'family' : 'normal',
         'size'   : defaultsize}
 matplotlib.rc('font', **font)
 
-def main():
+def main(FC=1.0):
     
     ##### defines parameter range of search
-    Rmax0 = -1
+    Rmax0 = -2
     Rmax1 = 3
-    nRmax = 17
-    #nRmax = 7
+    nRmax = 17 # should have been 16 - oops! :-)
     Rmaxes = np.logspace(Rmax0,Rmax1,nRmax)
     
     Rgamma0 = -1.2
     Rgamma1 = -3
-    #nRgamma = 37
     nRgamma = 19
     Rgammas = np.linspace(Rgamma0,Rgamma1,nRgamma)+0.001 # avoids magic number of -2
     
     Rmin0 = -5
     Rmin1 = 0.
     nRmin = 21
-    #nRmin = 11
     Rmins = np.logspace(Rmin0,Rmin1,nRmin)
     
     
     # gets the possible states for evaluation
-    states,names=get_states()
+    states,names=st.get_states()
     
     sdir = os.path.join(resource_filename('zdm','../'),'papers/Repeaters/Surveys')
+    
+    outdir = 'Rfitting39_'+str(FC)+'/'
+    if not os.path.exists(outdir):
+        os.mkdir(outdir)
     for i,state in enumerate(states):
-        outfile = 'Rfitting/converge_set_'+str(i)+'_'+'_output.npz'
+        # originally we trialled several states, before realising this was nonsense
+        outfile = outdir+'FC39'+str(FC)+'converge_set_'+str(i)+'_output.npz'
         oldoutfile=None
-        converge_state(state,Rmins,Rmaxes,Rgammas,outfile,oldoutfile)
-        exit()
+        converge_state(state,Rmins,Rmaxes,Rgammas,outfile,oldoutfile,FC=FC)
+        break
 
 def converge_state(state,Rmins,Rmaxes,Rgammas,outfile,oldoutfile=None,Nbin=6,verbose=False,Rstar = 0.3,\
-    Nacc = 0.1):
+    Nacc = 0.1,load=False,FC=1.0):
     """
     Find the best-fitting parameters in an intelligent way
     
@@ -82,7 +94,7 @@ def converge_state(state,Rmins,Rmaxes,Rgammas,outfile,oldoutfile=None,Nbin=6,ver
     #1: Find R*, the critical rate producing repeat distributions
         Rstar begins at 0.3 as a guess, but should be set from previous state as a best guess
         
-        Nacc is the accuracy in Nrepeaters predicted. About 10% of 1 sigma, i.e. 0.1 * sqrt(17)
+        Nacc is the accuracy in Nrepeaters predicted. About 10% of 1 sigma, i.e. 0.1 * sqrt(16)
         
     
     """
@@ -135,9 +147,10 @@ def converge_state(state,Rmins,Rmaxes,Rgammas,outfile,oldoutfile=None,Nbin=6,ver
         
         nrs.append(nr)
         nss.append(ns)
+    print("We have calculated a total of ",NR,NS," repeat/single bursts")
     
     if verbose:
-        print("We have calculated a total of ",NR,NS," repeat/single bursts")
+        
         print("Per declination, this is ",nrs," reps and ",nss," singles")
     
     
@@ -156,7 +169,6 @@ def converge_state(state,Rmins,Rmaxes,Rgammas,outfile,oldoutfile=None,Nbin=6,ver
     # furthermore, Rmaxes and Rmins are meant to be symmetrical about Rstar
     OK = np.where(Rmaxes >= Rstar)[0]
     Rmaxes = Rmaxes[OK]
-    load = True
     if load:
         data = np.load(outfile)
         lps=data['arr_0']
@@ -174,6 +186,7 @@ def converge_state(state,Rmins,Rmaxes,Rgammas,outfile,oldoutfile=None,Nbin=6,ver
         lprod_bin_dm_krs=data['arr_12']
         lprod_bin_dm_kss=data['arr_13']
         Rstar = data['arr_14']
+        Cprimes = data['arr_15']
     else:
         # holds best-fit value of Rgamma
         Rmins = np.zeros([Rgammas.size,Rmaxes.size])
@@ -190,16 +203,22 @@ def converge_state(state,Rmins,Rmaxes,Rgammas,outfile,oldoutfile=None,Nbin=6,ver
         ltdm_krs = np.zeros([Rgammas.size,Rmaxes.size])
         lprod_bin_dm_krs = np.zeros([Rgammas.size,Rmaxes.size])
         lprod_bin_dm_kss = np.zeros([Rgammas.size,Rmaxes.size])
+        Cprimes = np.zeros([Rgammas.size,Rmaxes.size])
         Rstar = find_Rstar(Rstar,Nacc,ss,gs,NR,NS,nrs,nss,irs,iss,\
-            rgs,sdmegs,rdmegs,sdecs,rdecs,bounds,verbose=False)
+            rgs,sdmegs,rdmegs,sdecs,rdecs,bounds,verbose=False,FC=FC)
     
-    # Here, Rmin *and* Rmax are both increasing. Which means we begin very heavily weighted to Rmin
-    # Thus we begin with a very flat Rgamma. We also set up initial increments
+    # Here, Rmin *and* Rmax are both increasing. Which means we begin
+    # very heavily weighted to Rmin. Thus we begin with a very flat Rgamma.
+    # We also set up initial increments. The direction begins reducing Rmin
+    # due to Rmax increasing.
     Rmin = Rstar
+    # ddRmin is how much dRmin changes each iteration, i.e. dRmin ** ddRmin
     ddRmin = 0.3
     
     t0=time.time()
     for i,Rgamma in enumerate(Rgammas):
+        
+        Rmin = Rstar # reset Rmin to Rstar when Rmax goes back to lowest value
         
         for j,Rmax in enumerate(Rmaxes):
             # init some things
@@ -208,39 +227,34 @@ def converge_state(state,Rmins,Rmaxes,Rgammas,outfile,oldoutfile=None,Nbin=6,ver
             verbose = False
             
             
-            
-            # it's a good start
-            Rmin = Rmins[i,j]
-            
-            if Rmin < 1e-8:
-                GiveUp = True
-                Rmin = 1.e-8
-                code=5
-            
-            #if Rmin > 1e-8:
-            #    continue
-            #else:
-            #    Rmin = 1e-8
-            #    GiveUp = True # kills it immediately
-            #    code = 5
-            #print("We have found a bad NR of ",Nrs[i,j], "for ",Rgamma, Rmax, Rmins[i,j])
-            #Rmins[i,j] = Rmin
-            
-            
-            
-            # begin assuming we are decreasing Rmin
+            # begin by decreasing Rmin
             last = -1
-            dRmin = 1.3
+            dRmin = 3
+            #Rmin /= dRmin # reduce it; after all, Rmax has increased!
             lastNr = -1 # impossible number by design
+            
+            # we find that if Rmin goes too low, then there is no point
+            # in further calculations. Partly this may be because the sum
+            # never converges, or because it is converging extremely slowly.
+            # Practically, it does not matter,
+            # we don't need this, if Rmin is
+            if Rmin < 1e-9:
+                GiveUp = True
+                #Rmin = 1.e-8 # Evaluate at 1e-8. Is this correct? Probably - once we hit this,
+                # keep Rmin constant
+                code=5
+            else:
+                Rmin /= dRmin
+            
             
             print("Iterating for ",Rgamma,Rmax," Rmin begins at ",Rmin)
             # we now optimise Rgamma. Note that we are increasing Rmax for constant Rgamma
             # which means that Rmin *must* be decreasing each time
             while True:
                 rgs,lp,ln,ldm,lpN,Nr,lskp,lrkp,ltdm_ks,ltdm_kr,lprod_bin_dm_kr,\
-                    lprod_bin_dm_ks=calc_repetition_statistics(ss,gs,Rmin,Rmax,Rgamma,\
+                    lprod_bin_dm_ks,Cprime=calc_repetition_statistics(ss,gs,Rmin,Rmax,Rgamma,\
                     NR,NS,nrs,nss,irs,iss,rgs,sdmegs,rdmegs,sdecs,rdecs,bounds,\
-                    verbose=False)
+                    verbose=False,FC=FC)
                 
                 # searches for potential problems with convergence
                 # Errors if predicting too many repeaters, convergence too slow,
@@ -251,15 +265,9 @@ def converge_state(state,Rmins,Rmaxes,Rgammas,outfile,oldoutfile=None,Nbin=6,ver
                 elif Nr > 1e4:
                     GiveUp=True
                     code=2
-                elif Rmin < 1e-10:
+                elif Rmin < 1e-9:
                     GiveUp = True
                     code=3
-                #elif Nr > lastNr and last == -1 and count > 0:
-                #    GiveUp=True
-                #    code=3
-                #elif Nr < lastNr and last == 1 and count > 0:
-                #    GiveUp=True
-                #    code=4
                 if GiveUp:
                     #give up and break
                     print("Giving up...",count,Nr,lastNr,code)
@@ -268,9 +276,9 @@ def converge_state(state,Rmins,Rmaxes,Rgammas,outfile,oldoutfile=None,Nbin=6,ver
                     break
                 
                 if np.abs(Nr - NR) < Nacc:
-                    # we have a sufficiently accurate Rgamma
+                    # we have a sufficiently accurate Rmin for this Rmax/Rgamma
                     if verbose:
-                        print("For Rmin/max ",Rmin,Rmax,", Found Rmin ",Rmin," got ",Nr," needing ",NR)
+                        print("For Rmin/max ",Rgamma,Rmax,", found Rmin ",Rmin," got ",Nr," needing ",NR)
                     break
                 elif Nr > NR:
                     # reduce Rmin, too many repeaters
@@ -280,7 +288,7 @@ def converge_state(state,Rmins,Rmaxes,Rgammas,outfile,oldoutfile=None,Nbin=6,ver
                         Rmin /= dRmin
                     else:
                         Rmin /= dRmin # was already reducing, keep it going
-                        last = -1
+                        last = -1 # might have been zero in theory
                 elif Nr < NR:
                     # increase Rstar, too few repeaters
                     if last == -1:
@@ -313,14 +321,15 @@ def converge_state(state,Rmins,Rmaxes,Rgammas,outfile,oldoutfile=None,Nbin=6,ver
             ltdm_krs[i,j] = ltdm_kr
             lprod_bin_dm_krs[i,j] = lprod_bin_dm_kr
             lprod_bin_dm_kss[i,j] = lprod_bin_dm_ks
+            Cprimes[i,j] = Cprime
             print("Iteration ",i,j," time taken is ",t1-t0)
     
     np.savez(outfile,lps,lns,ldms,lpNs,Nrs,Rmins,Rmaxes,Rgammas,lskps,lrkps,ltdm_kss,\
-                    ltdm_krs,lprod_bin_dm_krs,lprod_bin_dm_kss,Rstar)
+                    ltdm_krs,lprod_bin_dm_krs,lprod_bin_dm_kss,Rstar,Cprimes)
        
 
 def find_Rstar(Rstar,Nacc,ss,gs,NR,NS,nrs,nss,irs,iss,rgs,\
-        sdmegs,rdmegs,sdecs,rdecs,bounds,verbose = False):
+        sdmegs,rdmegs,sdecs,rdecs,bounds,verbose = False,FC=1.0):
     """
     Finds critical value of repeater rate R
     """
@@ -337,7 +346,7 @@ def find_Rstar(Rstar,Nacc,ss,gs,NR,NS,nrs,nss,irs,iss,rgs,\
         rgs,lp,ln,ldm,lpN,Nr,lskp,lrkp,ltdm_ks,ltdm_kr,lprod_bin_dm_kr,\
             lprod_bin_dm_ks=calc_repetition_statistics(ss,gs,Rmin,Rmax,Rgamma,\
                 NR,NS,nrs,nss,irs,iss,rgs,sdmegs,rdmegs,sdecs,rdecs,bounds,\
-                verbose=False)
+                verbose=False,FC=FC)
         if np.abs(Nr - NR) < Nacc:
             # we have a sufficiently accurate Rstar
             if verbose:
@@ -480,7 +489,7 @@ def loop_state(state,Rmins,Rmaxes,Rgammas,outfile,oldoutfile=None,Nbin=6,verbose
                         Rmin *= 0.99
                         
                         rgs,lp,ln,ldm,lpN,Nr,lskp,lrkp,ltdm_ks,ltdm_kr,lprod_bin_dm_kr,\
-                            lprod_bin_dm_ks=calc_repetition_statistics(ss,gs,Rmin,Rmax,Rgamma,\
+                            lprod_bin_dm_ks,Cprime=calc_repetition_statistics(ss,gs,Rmin,Rmax,Rgamma,\
                             NR,NS,nrs,nss,irs,iss,rgs,sdmegs,rdmegs,sdecs,rdecs,bounds,\
                             verbose=False)
                     elif Rmin > Rmax:
@@ -491,7 +500,7 @@ def loop_state(state,Rmins,Rmaxes,Rgammas,outfile,oldoutfile=None,Nbin=6,verbose
                         lrkp = -99
                     else:
                         rgs,lp,ln,ldm,lpN,Nr,lskp,lrkp,ltdm_ks,ltdm_kr,lprod_bin_dm_kr,\
-                            lprod_bin_dm_ks=calc_repetition_statistics(ss,gs,Rmin,Rmax,Rgamma,\
+                            lprod_bin_dm_ks,Cprime=calc_repetition_statistics(ss,gs,Rmin,Rmax,Rgamma,\
                             NR,NS,nrs,nss,irs,iss,rgs,sdmegs,rdmegs,sdecs,rdecs,bounds,\
                             verbose=False)
                     t1=time.time()
@@ -559,7 +568,8 @@ def calc_repetition_statistics(ss,gs,Rmin,Rmax,Rgamma,CNR,CNS,Cnrs,Cnss,irs,iss,
             #with open(savefile, 'wb') as output:
             #    pickle.dump(rg, output, pickle.HIGHEST_PROTOCOL)
         
-        
+        # get total progenitor number
+        Cprime = rg.NRtot
         # collapses CHIME dm distribution for repeaters and once-off burts
         dmr = np.sum(rg.exact_reps,axis=0)
         dms = np.sum(rg.exact_singles,axis=0)
@@ -628,6 +638,8 @@ def calc_repetition_statistics(ss,gs,Rmin,Rmax,Rgamma,CNR,CNS,Cnrs,Cnss,irs,iss,
     # calculates dechist at histogram points
         
     # fits number of single bursts (total only)
+    # FC*CNS is the CHIME single bursts explained by repeaters.
+    # ts is the total singles predicted by the model
     norm = FC*CNS/ts
     
     # expected total number of repeaters, after scaling
@@ -752,111 +764,8 @@ def calc_repetition_statistics(ss,gs,Rmin,Rmax,Rgamma,CNR,CNS,Cnrs,Cnss,irs,iss,
     
     # skp, rkp: ks stats for the declination distribution
     
-    return rgs,all_bin_lp,all_bin_lpn,all_bin_lpdm,lPN,scaled_tr,lskp,lrkp,ltdm_ks,ltdm_kr,lprod_bin_dm_kr,lprod_bin_dm_ks
-
-def shin_fit():
-    """
-    Returns best-fit parameters from Shin et al.
-    https://arxiv.org/pdf/2207.14316.pdf
-    
-    """
-    
-    pset={}
-    pset["lEmax"] = np.log10(2.38)+41.
-    pset["alpha"] = -1.39
-    pset["gamma"] = -1.3
-    pset["sfr_n"] = 0.96
-    pset["lmean"] = 1.93
-    pset["lsigma"] = 0.41
-    pset["lC"] = np.log10(7.3)+4.
-    
-    return pset
-
-def james_fit():
-    """
-    Returns best-fit parameters from James et al 2022 (Hubble paper)
-    NOT updated with larger Emax from Science paper
-    """
-    
-    pset={}
-    pset["lEmax"] = 41.63
-    pset["alpha"] = -1.03
-    pset["gamma"] = -0.948
-    pset["sfr_n"] = 1.15
-    pset["lmean"] = 2.22
-    pset["lsigma"] = 0.57
-    pset["lC"] = 1.963
-    
-    return pset
-
-
-
-def read_extremes(infile='planck_extremes.dat',H0=Planck_H0):
-    """
-    reads in extremes of parameters from a get_extremes_from_cube
-    """
-    f = open(infile)
-    
-    sets=[]
-    
-    for pset in np.arange(6):
-        # reads the 'getting' line
-        line=f.readline()
-        
-        pdict={}
-        # gets parameter values
-        for i in np.arange(7):
-            line=f.readline()
-            words=line.split()
-            param=words[0]
-            val=float(words[1])
-            pdict[param]=val
-        pdict["H0"]=H0
-        pdict["alpha"] = -pdict["alpha"] # alpha is reversed!
-        sets.append(pdict)
-        
-        pdict={}
-        # gets parameter values
-        for i in np.arange(7):
-            line=f.readline()
-            words=line.split()
-            param=words[0]
-            val=float(words[1])
-            pdict[param]=val
-        pdict["H0"]=H0
-        pdict["alpha"] = -pdict["alpha"] # alpha is reversed!
-        sets.append(pdict)
-    return sets
-
-def set_state(pset,chime_response=True):
-    """
-    Sets the state parameters
-    """
-    
-    state = loading.set_state(alpha_method=1)
-    state_dict = dict(cosmo=dict(fix_Omega_b_h2=True))
-    state.energy.luminosity_function = 2 # this is Schechter
-    state.update_param_dict(state_dict)
-    # changes the beam method to be the "exact" one, otherwise sets up for FRBs
-    state.beam.Bmethod=3
-    
-    
-    # updates to most recent best-fit values
-    state.cosmo.H0 = 67.4
-    
-    if chime_response:
-        state.width.Wmethod=0 #only a single width bin
-        state.width.Wbias="CHIME"
-    
-    state.energy.lEmax = pset['lEmax']
-    state.energy.gamma = pset['gamma']
-    state.energy.alpha = pset['alpha']
-    state.FRBdemo.sfr_n = pset['sfr_n']
-    state.host.lsigma = pset['lsigma']
-    state.host.lmean = pset['lmean']
-    state.FRBdemo.lC = pset['lC']
-    
-    return state
+    return rgs,all_bin_lp,all_bin_lpn,all_bin_lpdm,lPN,scaled_tr,lskp,lrkp,\
+        ltdm_ks,ltdm_kr,lprod_bin_dm_kr,lprod_bin_dm_ks,Cprime
 
 
 def survey_and_grid(survey_name:str='CRAFT/CRACO_1_5000',
@@ -925,40 +834,7 @@ def survey_and_grid(survey_name:str='CRAFT/CRACO_1_5000',
     return isurvey, grids[0]
 
 
-
-def get_states():  
-    """
-    Gets the states corresponding to plausible fits to single CHIME data
-    """
-    psets=read_extremes()
-    psets.insert(0,shin_fit())
-    psets.insert(1,james_fit())
-    
-    
-    # gets list of psets compatible (ish) with CHIME
-    chime_psets=[4]
-    chime_names = ["CHIME min $\\alpha$"]
-    
-    # list of psets compatible (ish) with zdm
-    zdm_psets = [1,2,7,12]
-    zdm_names = ["zDM best fit","zDM min $\\E_{\\rm max}$","zDM max $\\gamma$","zDM min $\sigma_{\\rm host}$"]
-    
-    names=[]
-    # loop over chime-compatible state
-    for i,ipset in enumerate(chime_psets):
-        
-        state=set_state(psets[ipset],chime_response=True)
-        if i==0:
-            states=[state]
-        else:
-            states.append(states)
-        names.append(chime_names[i])
-    
-    for i,ipset in enumerate(zdm_psets):
-        state=set_state(psets[ipset],chime_response=False)
-        states.append(state)
-        names.append(zdm_names[i])
-    
-    return states,names
-    
 main()
+# uncomment the following to generate this for all F
+for FC in [1.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]:
+    main(FC=FC)

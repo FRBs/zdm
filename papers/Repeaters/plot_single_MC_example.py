@@ -1,13 +1,6 @@
 """
 
-From output of analyse_repeat_dists.py
-make plots for four example cases: a,b,c,d
-Does this using 30 declination bins
-Prouces output:
-- MChistogram
-- cumMChistogram (both baed on number of repetitions)
-
-
+Plots a single instance of an MC generation of repeating FRBs.
 
 """
 from pkg_resources import resource_filename
@@ -18,7 +11,7 @@ import os
 import pickle
 
 import utilities as ute
-
+import states as st
 from zdm.craco import loading
 from zdm import cosmology as cos
 from zdm import repeat_grid as rep
@@ -42,7 +35,18 @@ opdir = 'TEST/'
 if not os.path.exists(opdir):
     os.mkdir(opdir)
 
-def main(Nbin=6):
+def main(Nbin=6,FC=1.0):
+    """
+    Main - input is Nbin, the number of declination bins to use.
+    
+    """
+    ####### these are the values you are choosing to plot #######
+    # The program will search through and find the closest 
+    # simulated values to these two and use that
+    xRmax = 31.62
+    xRgamma = -1.9 # -1.6; do -2.1 instead. Also -1.2
+    mcfile = 'Rfitting39_'+str(FC)+'/'+'mc.npy'
+    
     Nsets=5
     global opdir
     dims=['$R_{\\rm min}$','$R_{\\rm max}$','$\\gamma_{r}$']
@@ -59,7 +63,7 @@ def main(Nbin=6):
         '${\\rm max} \\,\\gamma$','${\\rm min} \\, \\sigma_{\\rm host}$']
     
     # gets the possible states for evaluation
-    states,names=get_states()
+    states,names=st.get_states()
     rlist=[]
     ndm = 1400
     rlist= np.zeros([Nsets,ndm])
@@ -72,20 +76,14 @@ def main(Nbin=6):
     # set the sets!
     i=0
     
-    infile='Rfitting/converge_set_'+str(i)+'__output.npz'
-        
+    infile='Rfitting39_'+str(FC)+'/FC39'+str(FC)+'converge_set_'+str(i)+'_output.npz'
     data=np.load(infile)
-    
     
     Rmins=data['arr_5']
     Rmaxes=data['arr_6']
     Rgammas=data['arr_7']
     
-    xRmax = 0.3
-    xRgamma = -2.8
-    
-    #xRmax = 17
-    #xRgamma = -1.8
+    # finds the closest points
     irg = np.argmin((Rgammas - xRgamma)**2)
     irm = np.argmin((Rmaxes- xRmax)**2)
     Rmin = Rmins[irg,irm]
@@ -100,7 +98,7 @@ def main(Nbin=6):
     print("Parameters: ",Rmin,Rmax,Rgamma)
     
     dms,ss,rs,bs,nss,nrs,nbs,Mh,fitv,copyMh,Cnreps,Cnss,Cnrs = generate_state(states[i],\
-        mcrs=mcrs,Rmult=1000.,tmults=None,Nbin=Nbin)
+        mcrs=mcrs,Rmult=1000.,tmults=None,Nbin=Nbin,mcfile=mcfile)
     
     
     bins = np.linspace(0,2000,21)
@@ -287,9 +285,15 @@ def main(Nbin=6):
     plt.savefig(opdir+'all_tmult_rep_bursts.pdf')
     plt.close()
  
-def generate_state(state,Nbin=6,Rmult=1.,mcrs=None,tmults=None):
+def generate_state(state,Nbin=6,Rmult=1.,mcrs=None,tmults=None,mcfile=None):
     """
     Defined to test some corrections to the repeating FRBs method
+    
+    mcfile:
+         is a list of generates z,DM coordinates
+        it's actually in terms of integer z,DM
+        so if somebody changes the default settings it will be nonsense
+        Have fun!
     """
     # old implementation
     # defines list of surveys to consider, together with Tpoint
@@ -339,6 +343,7 @@ def generate_state(state,Nbin=6,Rmult=1.,mcrs=None,tmults=None):
     bounds = np.load(bdir+'bounds.npy')
     solids = np.load(bdir+'solids.npy')
     
+    
     # for MC distribution
     numbers = np.array([])
     
@@ -349,7 +354,8 @@ def generate_state(state,Nbin=6,Rmult=1.,mcrs=None,tmults=None):
         # generate basic grids
         name = "CHIME_decbin_"+str(ibin)+"_of_"+str(Nbin)
         s,g = survey_and_grid(survey_name=name,NFRB=None,sdir=sdir,init_state=state)
-        
+        print(g.state)
+        exit()
         #ss.append(s)
         #gs.append(g)
         
@@ -487,11 +493,34 @@ def generate_state(state,Nbin=6,Rmult=1.,mcrs=None,tmults=None):
     
     # performs exact plotting
     for ia,array in enumerate([tot_exact_reps,tot_exact_singles,tot_exact_rbursts,tot_exact_zeroes]):
+        # adds mc points
         name = opdir+'TEST_'+which[ia]+".pdf"
-        misc_functions.plot_grid_2(array,zvals,dmvals,
-            name=name,norm=3,log=True,label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$  [a.u.]',
-            project=False,Aconts=None,zmax=3,
-            DMmax=3000)
+        if ia == 0 and mcfile is not None:
+            #### gets z and dm values from mc for plotting ###
+            
+            data = np.load(mcfile,allow_pickle=True)
+            frbz=np.array([])
+            frbdm=np.array([])
+            # loops over declination bin
+            # converts iz and idm to coordinates
+            for ibin,frbset in enumerate(data):
+                for imc,frbs in enumerate(frbset):
+                    if len(frbs)==0:
+                        continue
+                    frbz = np.concatenate([frbz,zvals[frbs[0]]])
+                    frbdm = np.concatenate([frbdm,dmvals[frbs[1]]])
+            
+            misc_functions.plot_grid_2(array,zvals,dmvals,FRBZ=frbz,FRBDM=frbdm,
+                name=name,norm=3,log=True,label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$  [a.u.]',
+                project=False,Aconts=None,zmax=0.6,markersize=1,
+                DMmax=7000)
+        else:
+            misc_functions.plot_grid_2(array,zvals,dmvals,
+                name=name,norm=3,log=True,label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$  [a.u.]',
+                project=False,Aconts=None,zmax=3,
+                DMmax=3000)
+        
+        
         #norm=3, log=True
     bins=np.linspace(0,3000,16)
     
@@ -535,147 +564,6 @@ def generate_state(state,Nbin=6,Rmult=1.,mcrs=None,tmults=None):
     
     
     return dmvals,tdms,tdmr,tdmb,nss,nrs,nbs,Mh,fitv,copyMh,Chist,Cnss,Cnrs #,tmultlists,tmultlistr,tmultlistb # returns singles and total bursts
-    
-def set_state(pset,chime_response=True):
-    """
-    Sets the state parameters
-    """
-    
-    state = loading.set_state(alpha_method=1)
-    state_dict = dict(cosmo=dict(fix_Omega_b_h2=True))
-    state.energy.luminosity_function = 2 # this is Schechter
-    state.update_param_dict(state_dict)
-    # changes the beam method to be the "exact" one, otherwise sets up for FRBs
-    state.beam.Bmethod=3
-    
-    
-    # updates to most recent best-fit values
-    state.cosmo.H0 = 67.4
-    
-    if chime_response:
-        state.width.Wmethod=0 #only a single width bin
-        state.width.Wbias="CHIME"
-    
-    state.energy.lEmax = pset['lEmax']
-    state.energy.gamma = pset['gamma']
-    state.energy.alpha = pset['alpha']
-    state.FRBdemo.sfr_n = pset['sfr_n']
-    state.host.lsigma = pset['lsigma']
-    state.host.lmean = pset['lmean']
-    state.FRBdemo.lC = pset['lC']
-    
-    return state
-
-
-def shin_fit():
-    """
-    Returns best-fit parameters from Shin et al.
-    https://arxiv.org/pdf/2207.14316.pdf
-    
-    """
-    
-    pset={}
-    pset["lEmax"] = np.log10(2.38)+41.
-    pset["alpha"] = -1.39
-    pset["gamma"] = -1.3
-    pset["sfr_n"] = 0.96
-    pset["lmean"] = 1.93
-    pset["lsigma"] = 0.41
-    pset["lC"] = np.log10(7.3)+4.
-    
-    return pset
-
-def james_fit():
-    """
-    Returns best-fit parameters from James et al 2022 (Hubble paper)
-    """
-    
-    pset={}
-    pset["lEmax"] = 41.63
-    pset["alpha"] = -1.03
-    pset["gamma"] = -0.948
-    pset["sfr_n"] = 1.15
-    pset["lmean"] = 2.22
-    pset["lsigma"] = 0.57
-    pset["lC"] = 1.963
-    
-    return pset
-
-
-
-def read_extremes(infile='planck_extremes.dat',H0=67.4):
-    """
-    reads in extremes of parameters from a get_extremes_from_cube
-    """
-    f = open(infile)
-    
-    sets=[]
-    
-    for pset in np.arange(6):
-        # reads the 'getting' line
-        line=f.readline()
-        
-        pdict={}
-        # gets parameter values
-        for i in np.arange(7):
-            line=f.readline()
-            words=line.split()
-            param=words[0]
-            val=float(words[1])
-            pdict[param]=val
-        pdict["H0"]=H0
-        pdict["alpha"] = -pdict["alpha"] # alpha is reversed!
-        sets.append(pdict)
-        
-        pdict={}
-        # gets parameter values
-        for i in np.arange(7):
-            line=f.readline()
-            words=line.split()
-            param=words[0]
-            val=float(words[1])
-            pdict[param]=val
-        pdict["H0"]=H0
-        pdict["alpha"] = -pdict["alpha"] # alpha is reversed!
-        sets.append(pdict)
-    return sets
-
-
-def get_states():  
-    """
-    Gets the states corresponding to plausible fits to single CHIME data
-    """
-    psets=read_extremes()
-    psets.insert(0,shin_fit())
-    psets.insert(1,james_fit())
-    
-    
-    # gets list of psets compatible (ish) with CHIME
-    chime_psets=[4]
-    chime_names = ["CHIME min $\\alpha$"]
-    
-    # list of psets compatible (ish) with zdm
-    zdm_psets = [1,2,7,12]
-    zdm_names = ["zDM best fit","zDM min $\\E_{\\rm max}$","zDM max $\\gamma$","zDM min $\sigma_{\\rm host}$"]
-    
-    names=[]
-    # loop over chime-compatible state
-    for i,ipset in enumerate(chime_psets):
-        
-        state=set_state(psets[ipset],chime_response=True)
-        if i==0:
-            states=[state]
-        else:
-            states.append(states)
-        names.append(chime_names[i])
-    
-    for i,ipset in enumerate(zdm_psets):
-        state=set_state(psets[ipset],chime_response=False)
-        states.append(state)
-        names.append(zdm_names[i])
-    
-    return states,names       
-
 
 def survey_and_grid(survey_name:str='CRAFT/CRACO_1_5000',
             init_state=None,

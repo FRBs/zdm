@@ -24,17 +24,13 @@ CHIMEfreqs = [760,640,540,410] #MHz
 # number of frequencies specified by CHIME for their beam
 Nfreq = 4
 
-def main():
+def main(mode='Standard'):
     """
     main program
     """
     
     global decs_u, decs_l, ras_u, ras_l, result_u, result_l, Ndec2, Nra, Ndec
     global xs_u,ys_u,xs_l,ys_l
-    
-    mode = 'Standard'
-    mode = 'Tied'
-    
     
     #### defines beam settings #####
     if mode == 'Standard':
@@ -255,4 +251,5 @@ def generate_ra_dec_grid(max_zenith=60.,max_angle=9.,doplot=False):
     
     #return decs_deg,ras,decs2_deg,ras2
 
-main()
+main(mode = 'Standard')
+main(mode = 'Tied')

@@ -1,7 +1,8 @@
 """ 
-This script reads in optimum combinations of Rmax, Rmin, gamma
-and generates O~1000 MC iterations to determine how may rapid repeaters
-we find.
+This script calculates the value of Cprime - the total number
+of repeating FRBs - and adds this to the MC .npz file.
+This is because, originally, the MC file did not include
+this information.
 
 """
 import os
@@ -52,12 +53,12 @@ def main(FC=1.0):
     
     outdir = 'Rfitting39_'+str(FC)+'/'
     for i,state in enumerate(states):
-        if i==1:
-            break
-        outfile = outdir+'FC39'+str(FC)+'converge_set_'+str(i)+'_output.npz'
+        
+        outfile = outdir+'TEMPmc_FC39'+str(FC)+'converge_set_'+str(i)+'_output.npz'
         outfile2 = outdir+'mc_FC39'+str(FC)+'converge_set_'+str(i)+'_output.npz'
         
         add_mc(state,outfile,outfile2)
+        break
 
 def add_mc(state,outfile,outfile2,Nbin=6,verbose=False,Rstar = 0.3,\
     Nacc = 0.1):
@@ -159,7 +160,10 @@ def add_mc(state,outfile,outfile2,Nbin=6,verbose=False,Rstar = 0.3,\
     lprod_bin_dm_krs=data['arr_12']
     lprod_bin_dm_kss=data['arr_13']
     Rstar = data['arr_14']
-    Cprimes = data['arr_15']
+    mcrs = data['arr_15']
+    MChs = data['arr_16']
+    MCrank = data['arr_17']
+    Cprimes = np.zeros([Rgammas.size,Rmaxes.size])
     
     # Here, Rmin *and* Rmax are both increasing. Which means we begin very heavily weighted to Rmin
     # Thus we begin with a very flat Rgamma. We also set up initial increments
@@ -178,25 +182,17 @@ def add_mc(state,outfile,outfile2,Nbin=6,verbose=False,Rstar = 0.3,\
             
             Rmin = Rmins[i,j]
             
-            #if not Rmin == 1e-8:
-            #    print("Skipping Rmin of ",Rmin)
-            #    continue
-            #else:
-            #    print("Found ",i,j,Rmin," analysing...")
             if Nrs[i,j] > 20:
                 Rmult = 1000.*17./Nrs[i,j]
             else:
                 Rmult = 1000.
             print("Found ",i,j," using Rmult of ",Rmult)
             verbose = True
-            rank,mch=perform_mc_simulation(ss,gs,Rmin,Rmax,Rgamma,\
-                    rgs,bounds,\
-                    mcrs,Chist,Cnreps,Rmult=Rmult,verbose=False)
+            Cprime=get_Cprime(ss,gs,Rmin,Rmax,Rgamma,\
+                    rgs,bounds,mcrs,Chist,Cnreps,Rmult=Rmult,verbose=False)
             
-            MChs[i,j,:] = mch
-            ranks[i,j]=rank
-            t1=time.time()
-            print("Result ",rank," Iteration ",i,j," time taken is ",t1-t0)
+            Cprimes[i,j] = Cprime
+            print("Rmin, Rmax, Rgamma, ",Rmin,Rmax,Rgamma," Cprime is ",Cprime)
         
     np.savez(outfile2,lps,lns,ldms,lpNs,Nrs,Rmins,Rmaxes,Rgammas,lskps,lrkps,\
                     ltdm_kss,ltdm_krs,lprod_bin_dm_krs,lprod_bin_dm_kss,Rstar,\
@@ -204,7 +200,7 @@ def add_mc(state,outfile,outfile2,Nbin=6,verbose=False,Rstar = 0.3,\
        
       
     ####### now inside repeater loop ###### - new function to loop over rep properties
-def perform_mc_simulation(ss,gs,Rmin,Rmax,Rgamma,\
+def get_Cprime(ss,gs,Rmin,Rmax,Rgamma,\
         rgs,bounds,mcrs,Chist,Cnreps,Rmult=1.,FC=1.,verbose=False,Nbin=6,
         doresample=True):
     """
@@ -237,10 +233,6 @@ def perform_mc_simulation(ss,gs,Rmin,Rmax,Rgamma,\
         if rgs[ibin] is not None:
             rg = rgs[ibin]
             rg.update(Rmin=Rmin,Rmax=Rmax,Rgamma=Rgamma)
-        #elif os.path.exists(savefile):
-        #    with open(savefile, 'rb') as infile:
-        #        rg=pickle.load(infile)
-        #        rgs[ibin]=rgs
         else:
             rg = rep.repeat_Grid(g,Tfield=s.TOBS,Nfields=1,opdir=None,bmethod=2,\
                 Exact=False,MC=Rmult)
@@ -248,96 +240,9 @@ def perform_mc_simulation(ss,gs,Rmin,Rmax,Rgamma,\
             # I have turned off saving, it produces 1GB of output per loop!
             #with open(savefile, 'wb') as output:
             #    pickle.dump(rg, output, pickle.HIGHEST_PROTOCOL)
-        
-    
-    # h is the histogram of repetition rates (length Nbins)
-    # cs is the cumulative sum (length Nbins)
-    # mcrs are the bins: length Nbins+1
-    
-    nM = len(numbers) # number of repetitions
-    nC = len(Cnreps)
-    Mh,b=np.histogram(numbers,bins=mcrs)
-    bcs = b[:-1]+(b[1]-b[0])/2.
-    # find the max set below which there are no MC zeros
-    firstzero = np.where(Mh==0)[0]
-    if len(firstzero) > 0:
-        firstzero = firstzero[0]
-        f = np.polyfit(np.log10(bcs[:firstzero]),np.log10(Mh[:firstzero]),1,\
-            w=1./np.log10(bcs[:firstzero]**0.5))
-        #    error = np.log10(bcs[:firstzero]**0.5))
-    else:
-        f = np.polyfit(np.log10(bcs),np.log10(Mh),1,\
-            w=1./np.log10(bcs**0.5))
-    
-    fitv = 10**np.polyval(f,np.log10(bcs)) *nC/nM
-    
-    # normalise h to number of CHIME repeaters
-    # Note: for overflow of histogram, the actual sum will be reduced
-    Mh = Mh*nC/nM
-    Nmissed = nC - np.sum(Mh) # expectation value for missed fraction
-    
-    # Above certain value, replace with polyval expectation
-    tooLow = np.where(Mh < 10)[0]
-    copyMh = np.copy(Mh)
-    copyMh[tooLow] = fitv[tooLow]
-    
-    plot=False
-    if plot:
-        plt.figure()
-        plt.hist(numbers,bins=mcrs,weights=np.full([nM],nC/nM),label='MC')
-        plt.hist(Cnreps,bins=mcrs,label='CHIME',alpha=0.5)
-        plt.plot(bcs,fitv,label='polyfit')
-        plt.scatter(bcs[tooLow],Mh[tooLow],marker='x',s=10.)
-        plt.legend()
-        plt.xscale('log')
-        plt.yscale('log')
-        plt.xlabel('$N_{\\rm reps}$')
-        plt.ylabel('$N_{\\rm frb}$')
-        plt.tight_layout()
-        plt.savefig('MChistogram.pdf')
-        plt.close()
-    
-        # normalise cumsum to *total* number of bursts.
-        Mch=np.cumsum(Mh)
-        Cch=np.cumsum(Chist)
-        polyMch=np.cumsum(fitv)
-        
-        plt.figure()
-        plt.plot(mcrs[:-1]+0.5,Mch,label='MC')
-        plt.plot(mcrs[:-1]+0.5,Cch,label='CHIME')
-        plt.plot(mcrs[:-1]+0.5,polyMch,label='polyfit')
-        
-        plt.xlabel('$N_{\\rm reps}$')
-        plt.ylabel('Cumulative $N_{\\rm frb}$')
-        plt.legend()
-        plt.xscale('log')
-        #plt.yscale('log')
-        plt.tight_layout()
-        plt.savefig('cumulativeMC.pdf')
-        plt.close()
-    
-    
-    long_slPN = poisson_expectations(Chist,copyMh)
-    
-    # now does this over 3 bins only: 2 reps, 3-10 reps, more than 10
-    shortC = np.array([Chist[0],np.sum(Chist[1:8]),np.sum(Chist[9:])])
-    shortM = np.array([Mh[0],np.sum(Mh[1:8]),np.sum(Mh[9:])+Nmissed])
-    short_slPN = poisson_expectations(shortC,shortM)
-    
-    
-    # now does this over 3 bins only: 2-3, 4-8, 9-20 reps, 3-10 reps, more than 10
-    mediumC = np.array([np.sum(Chist[0:2]),np.sum(Chist[2:7]),np.sum(Chist[7:20]),
-        np.sum(Chist[20:50]),np.sum(Chist[50:])])
-    mediumM = np.array([np.sum(Mh[0:2]),np.sum(Mh[2:7]),np.sum(Mh[7:20]),
-        np.sum(Mh[20:50]),np.sum(Mh[50:])+Nmissed])
-    medium_slPN = poisson_expectations(mediumC,mediumM)
-    
-    # does chi-square test
-    if doresample:
-        MCrank = resample(nC,mcrs,numbers,copyMh,long_slPN,plot=True)
-    
-    #return short_slPN,medium_slPN,long_slPN,Mh
-    return MCrank,Mh
+        Cprime = rg.NRtot
+        break
+    return Cprime
 
 
 def resample(Nrep, bins, nbursts, copyMh, realll,plot=False):
@@ -504,6 +409,4 @@ def survey_and_grid(survey_name:str='CRAFT/CRACO_1_5000',
 
 
 main()
-#for FC in [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]:
-#    main(FC=FC)
 

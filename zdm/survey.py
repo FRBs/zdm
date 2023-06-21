@@ -638,9 +638,10 @@ def make_widths(s:Survey,state):
     
     if width_method==0:
         # do not take a distribution, just use 1ms for everything
-        # this is done for tests, or for complex surveys such as CHIME
+        # this is done for tests, for complex surveys such as CHIME,
+        # or for estimating the properties of a single FRB
         weights.append(1.)
-        widths.append(1.)
+        widths.append(np.exp(slogmean))
     elif width_method==1:
         # take intrinsic lognrmal width distribution only
         # normalisation of a log-normal

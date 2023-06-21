@@ -16,10 +16,10 @@ Outputs:
 
 import numpy as np
 
-def main(bounds):
+def main(Nbounds=6):
     
     # defines set of bounds to read in
-    Nbounds=6
+    
     bdir = 'Nbounds'+str(Nbounds)+'/'
     
     
@@ -27,15 +27,23 @@ def main(bounds):
     
     chimedir = 'CHIME_FRBs/'
     infile = chimedir+'chimefrbcat1.csv'
-    idec=6
-    idm=18
-    idmeg=26
+    #idec=6
+    #idm=18
+    #idmeg=26
+    #iname=0
+    #irep=2
+    #iwidth=42
+    #isnr=17
+    
+    idec=5
+    idm=29
+    idmeg=9
     iname=0
     irep=2
-    iwidth=42
-    isnr=17
+    iwidth=32
+    isnr=10
     
-    NFRB=600
+    NFRB=536
     decs=np.zeros([NFRB])
     dms=np.zeros([NFRB])
     dmegs=np.zeros([NFRB])
@@ -72,15 +80,21 @@ def main(bounds):
             names.append(words[iname])
             snrs[i-1]=float(words[isnr])
             # guards against upper limits
-            if words[iwidth][0]=='<':
+            if words[iwidth] == '':
+                widths[i-1]=0.
+            elif words[iwidth][0]=='<':
                 widths[i-1]=0.
             else:
                 widths[i-1]=float(words[iwidth])*1e3 #in ms
+            
+            #print(i,decs[i-1],dms[i-1],dmegs[i-1],names[i-1],snrs[i-1],widths[i-1])
             dmgs[i-1] = dms[i-1]-dmegs[i-1]
             rep=words[irep]
-            
+            print(i,rep)
             
             if rep=='-9999':
+                reps[i-1]=0
+            elif rep=='':
                 reps[i-1]=0
             else:
                 reps[i-1]=1
@@ -100,7 +114,10 @@ def main(bounds):
     #print(nreps)
     # now breaks this up into declination bins
     #The below is hard-coded and copied from "plot
-    bounds=np.array([-11.,5,20,65,80,85,90])
+    bdir = "Nbounds"+str(Nbounds)+"/"
+    bfile = bdir + "bounds.npy"
+    bounds=np.load(bfile)
+    
     lowers=bounds[:-1]
     uppers=bounds[1:]
     for i,lb in enumerate(lowers):
@@ -127,4 +144,4 @@ def main(bounds):
                 format(names[j],dms[j],dmgs[j],snrs[j],widths[j],nreps[rindex])
             print(string)
         
-main()
+main(Nbounds=30)

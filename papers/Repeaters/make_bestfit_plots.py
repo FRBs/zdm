@@ -34,6 +34,7 @@ import os
 import pickle
 
 import utilities as ute
+import states as st
 
 from zdm.craco import loading
 from zdm import cosmology as cos
@@ -54,19 +55,19 @@ font = {'family' : 'normal',
 matplotlib.rc('font', **font)
 
 global opdir
-opdir = 'BestfitCalculations/'
-if not os.path.exists(opdir):
-    os.mkdir(opdir)
 
-def main(Nbin=30):
+def main(Nbin=30,FC=1.0):
     Nsets=5
     global opdir
+    opdir =  'Rfitting39_'+str(FC)+'/BestFitCalcs/'
+    if not os.path.exists(opdir):
+        os.mkdir(opdir)
+    
     dims=['$R_{\\rm min}$','$R_{\\rm max}$','$\\gamma_{r}$']
     pdims=['$p(R_{\\rm min})$','$p(R_{\\rm max})$','$p(\\gamma_{r})$']
     names=['Rmin','Rmax','Rgamma']
     string=['Ptot','Pn','Pdm']
     pstrings=['$P_{\\rm tot}$','$P_{N}$','$P_{\\rm DM}$']
-    
     
     tmults = np.logspace(0.5,4,8)
     Nmults = tmults.size+1
@@ -75,7 +76,7 @@ def main(Nbin=30):
         '${\\rm max} \\,\\gamma$','${\\rm min} \\, \\sigma_{\\rm host}$']
     
     # gets the possible states for evaluation
-    states,names=get_states()
+    states,names=st.get_states()
     rlist=[]
     ndm = 1400
     rlist= np.zeros([Nsets,ndm])
@@ -86,6 +87,7 @@ def main(Nbin=30):
     mcrs=np.linspace(1.5,0.5+NMChist,NMChist) # from 1.5 to 100.5 inclusive
     
     tmults=np.logspace(-1,3,9)
+    #tmults=None
     
     sm=['a','b','c','d']
     for i in np.arange(Nsets):
@@ -95,7 +97,7 @@ def main(Nbin=30):
         #    continue
         
         
-        infile='Rfitting/converge_set_'+str(i)+'__output.npz'
+        infile='Rfitting39_'+str(FC)+'/mc_FC39'+str(FC)+'converge_set_'+str(i)+'_output.npz'
         
         data=np.load(infile)
         
@@ -110,8 +112,8 @@ def main(Nbin=30):
         Rmaxes=data['arr_6']
         Rgammas=data['arr_7']
         
-        xRmax=np.array([-0.25,0.25,3,3])
-        sy=np.array([-1.3,-3.0,-3.0,-2.0])
+        xRmax=np.array([-0.25,-0.25,3,3])
+        sy=np.array([-1.9,-3.0,-3.0,-2.1])
         xRgamma = sy + 0.001 # adjusts for offset
         
         sm=['a','b','c','d']
@@ -142,17 +144,17 @@ def main(Nbin=30):
             
             lRmax = xRmax[j]
             Rmax = 10**lRmax
-            irg = np.where(Rgammas == Rgamma)[0][0]
-            irm = np.where(Rmaxes == Rmax)[0][0]
+            irg = np.argmin((Rgammas - Rgamma)**2)
+            irm = np.argmin((Rmaxes - Rmax)**2)
             Rmin = Rmins[irg,irm]
             
             states[i].rep.Rmin = Rmin
             states[i].rep.Rmax = Rmax
             states[i].rep.Rgamma = Rgamma
-            print("Parameters: ",Rmin,Rmax,Rgamma)
+            print("Parameters for ",j," are ",Rmin,Rmax,Rgamma)
             
             tempsave = opdir+"temp"+str(j)+".npz"
-            
+            print("searching for ",tempsave)
             if os.path.exists(tempsave):
                 data = np.load(tempsave)
                 
@@ -170,9 +172,10 @@ def main(Nbin=30):
                 Cnreps=data['arr_10']
                 Cnss=data['arr_11']
                 Cnrs=data['arr_12']
-                tms=data['arr_13']
-                tmr=data['arr_14']
-                tmb=data['arr_15']
+                if tmults is not None:
+                    tms=data['arr_13']
+                    tmr=data['arr_14']
+                    tmb=data['arr_15']
             else:
                 print("Doing ",j)
                 # returns dms, singles,repeaters, bursts, and same for tmult data, all as f(dm)
@@ -180,6 +183,8 @@ def main(Nbin=30):
                     generate_state(states[i],mcrs=mcrs,tag=str(i)+"_"+sm[j],Rmult=1000.,tmults=tmults,Nbin=Nbin)
             
                 np.savez(tempsave,dms,ss,rs,bs,nss,nrs,nbs,Mh,fitv,copyMh,Cnreps,Cnss,Cnrs,tms,tmr,tmb)
+                print("Artificially stopped to avoid memory leaks.")
+                print("Please keep re-running until this message disappears")
                 exit()
             
             Fourss.append(ss)
@@ -191,16 +196,21 @@ def main(Nbin=30):
             urmax.append(Rmax)
             urmin.append(Rmin)
             urgamma.append(Rgamma)
-            Tms.append(tms)
-            Tmr.append(tmr)
-            Tmb.append(tmb)
+            if tmults is not None:
+                Tms.append(tms)
+                Tmr.append(tmr)
+                Tmb.append(tmb)
             
             MCs.append(Mh)
             fMCs.append(fitv)
             cMCs.append(copyMh)
             
-        np.savez(savefile,dms,Fourss,Fourrs,Fourbs,urmax,urmin,urgamma,Fnss,Fnrs,Fnbs,MCs,fMCs,cMCs,\
-            Cnreps,Cnss,Cnrs,Tms,Tmr,Tmb)
+        if tmults is not None:
+            np.savez(savefile,dms,Fourss,Fourrs,Fourbs,urmax,urmin,urgamma,Fnss,Fnrs,Fnbs,MCs,fMCs,cMCs,\
+                Cnreps,Cnss,Cnrs,Tms,Tmr,Tmb)
+        else:
+            np.savez(savefile,dms,Fourss,Fourrs,Fourbs,urmax,urmin,urgamma,Fnss,Fnrs,Fnbs,MCs,fMCs,cMCs,\
+                Cnreps,Cnss,Cnrs)
         break
     
     for i in np.arange(Nsets):
@@ -226,10 +236,10 @@ def main(Nbin=30):
         Cnreps=data['arr_13']
         Cnss=data['arr_14']
         Cnrs=data['arr_15']
-        
-        Tms=data['arr_16']
-        Tmr=data['arr_17']
-        Tmb=data['arr_18']
+        if tmults is not None:
+            Tms=data['arr_16']
+            Tmr=data['arr_17']
+            Tmb=data['arr_18']
         break
     
     
@@ -238,45 +248,29 @@ def main(Nbin=30):
     labels=['case a','case b','case c','case d']
     #### time evolution plot #####
     
-    # re-organises tmult order
-    for i in np.arange(4):
-        break
+    if tmults is not None:
+        plt.figure()
+        plt.xlabel('Time $T / T_{\\rm Cat1}$')
+        plt.ylabel('Repeaters per time: $N_{\\rm rep} T_{\\rm Cat1} / T$')
         
-        # correct for the fact that we incorrectly add Tobs=1 here
-        #Tms[i] = np.array(Tms[i])
-        #Tmr[i] = np.array(Tmr[i])
-        #Tmb[i] = np.array(Tmb[i])
-        #Tms[i] = Tms[i][1:]
-        #Tmr[i] = Tmr[i][1:]
-        #Tmb[i] = Tmb[i][1:]
-        print(tmults.shape)
-        print(Tms[i].shape)
-        
-        #ts=Tms[i][0]
-        #tr=Tms[i][0]
-        #tb=Tms[i][0]
-        #Tms[i][0:2] = Tms[i][1:3]
-        #Tmr[i][0:2] = Tmr[i][1:3]
-        #Tmb[i][0:2] = Tmb[i][1:3]
-        #Tms[i][2] = ts
-        #Tmr[i][2] = tr
-        #Tmb[i][2] = tb
+        plt.plot(tmults,Tmr[0],linestyle=linestyles[0],linewidth=0)
+        for i,rs in enumerate(Fourrs):
+            # normalisation - calculations only approximately normalsied
+            norm = np.sum(Fnrs[i])/16.
+            label=labels[i]
+            # generates a dummy plot if case a or c
+            if i==0 or i==2:
+                plt.plot(tmults,Tmr[i]/tmults/norm,linestyle=linestyles[i],linewidth=0)
+            else:
+                plt.plot(tmults,Tmr[i]/tmults/norm,label=label,linestyle=linestyles[i],linewidth=3)
+        plt.legend()
+        plt.ylim(0,70)
+        plt.xscale('log')
+        plt.tight_layout()
+        plt.savefig(opdir+'set_0_time_effect.pdf')
+        plt.close()
     
-    
-    plt.figure()
-    plt.xlabel('Time $T \\, [{\\rm per}~T_{\\rm Cat 1}]$')
-    plt.ylabel('Repeaters per time: $N_{\\rm rep} T^{-1}$')
-    
-    for i,rs in enumerate(Fourrs):
-        label=labels[i]
-        plt.plot(tmults,Tmr[i]/tmults,label=label,linestyle=linestyles[i],linewidth=3)
-    plt.legend()
-    plt.xscale('log')
-    plt.tight_layout()
-    plt.savefig(opdir+'set_0_time_effect.pdf')
-    plt.close()
-    exit()
-    ########## DM distribution plot ########3
+    ################### DM distribution plot #################
     
     bins = np.linspace(0,2000,21)
     ddm = dms[1]-dms[0]
@@ -284,7 +278,6 @@ def main(Nbin=30):
     scale = dbin/ddm
     
     nCsdms,nCrdms,nCsdecs,nCrdecs = ute.get_chime_dec_dm_data(DMhalo=50,newdata='only')
-    
     Csdms,Crdms,Csdecs,Crdecs = ute.get_chime_dec_dm_data(DMhalo=50,newdata=False)
     
     # plots hist of DM for repeaters over all best-fit options
@@ -293,40 +286,74 @@ def main(Nbin=30):
     plt.xlabel('${\\rm DM}_{\\rm EG}$')
     plt.ylabel('$N_{\\rm rep}({\\rm DM}_{\\rm EG}) \\, [200\\,{\\rm pc}\\,{\\rm cm}^{-3}]^{-1}$')
     
-    plt.hist(Crdms,bins=bins,alpha=1.0,label='CHIME catalog 1 (17)',edgecolor='black')
+    plt.hist(Crdms,bins=bins,alpha=1.0,label='CHIME Catalog 1 (16)',edgecolor='black')
     print("Mean DM of CHIME repeaters is ",np.sum(Crdms)/Crdms.size)
     
-    plt.hist(nCrdms,bins=bins,alpha=0.3,label='Golden sample (25)',edgecolor='black',\
-        weights=np.full([25],17./25.))
-    
-    labels=['$a: [~\\,-10,-0.25,-1.3]$','$b: [-1.32,~~~0.25,~~~-3]$',\
-        '$c: [-1.38,~~~~~~~~3,~~~-3]$','$d: [\\,-4.8,~~~~~~~~3,~~~-2]$']
+    labels=['$a: [-1.73,-0.25,-1.9]$','$b: [-1.23,-0.25,~~~-3]$',\
+        '$c: [-1.38,\\,~~~~~~~~3,~~~-3]$','$d: [-4.54,\\,~~~~~~~~3,-2.1]$']
     
     plt.xlim(0,1750)
     for i,rs in enumerate(Fourrs):
         label=labels[i]
         print("Total predicted repeaters are ",np.sum(rs))
-        rs *= np.sum(Fourrs[3])/np.sum(rs)
+        print("Model ",i," mean DM of reps",np.sum(rs*dms)/np.sum(rs)," total ", np.sum(rs))
+        print("Model ",i," mean DM of singles",np.sum(Fourss[i]*dms)/np.sum(Fourss[i])," total ", np.sum(rs))
+        #rs *= np.sum(Fourrs[3])/np.sum(rs)
+        # the above line normalises them all to a particular curve
+        rs *= Crdms.size/ np.sum(rs)
         plt.plot(dms,rs*scale,label=label,linestyle=linestyles[i],linewidth=3)
         print("Mean predicted DM in model ",label," is ",np.sum(rs*dms)/np.sum(rs))
     
-        
+    
+    plt.hist(nCrdms,bins=bins,alpha=0.3,label='CHIME Gold sample (25)',edgecolor='black',\
+        weights=np.full([25],16./25.))
+    
+    
+    #handles, labels = plt.gca().get_legend_handles_labels()
+    #order=[0,5,1,2,3,4]
+    #plt.legend([handles[idx] for idx in order],[labels[idx] for idx in order])
+    
     plt.legend(title='$~~~~~~~~~~~~[\\log_{10} R_{\\rm min},\\log_{10} R_{\\rm max},R_{\\gamma}]$',title_fontsize=12)
     
     plt.tight_layout()
     plt.savefig(opdir+'set_0_four_cases_dm.pdf')
     plt.close()
     
+    ### cumulative version of DM plot
+    plt.figure()
+    plt.xlim(0,2000)
+    plt.xlabel('${\\rm DM}_{\\rm EG}$')
+    plt.ylabel('Cumulative $N_{\\rm rep}({\\rm DM}_{\\rm EG}) \\, [200\\,{\\rm pc}\\,{\\rm cm}^{-3}]^{-1}$')
+    
+    
+    sxvals,syvals,rxvals,ryvals=ute.get_chime_rs_dm_histograms(DMhalo=50,newdata=False)
+    plt.plot(rxvals,ryvals,label="CHIME Catalog 1 (16)")
+    
+    for i,rs in enumerate(Fourrs):
+        label=labels[i]
+        rs = np.cumsum(rs)
+        rs /= rs[-1]
+        plt.plot(dms,rs,label=label,linestyle=linestyles[i],linewidth=3)
+    
+    sxvals,syvals,rxvals,ryvals=ute.get_chime_rs_dm_histograms(DMhalo=50,newdata='only')
+    plt.plot(rxvals,ryvals,label="CHIME Gold sample (25)")
+    
+    handles, labels = plt.gca().get_legend_handles_labels()
+    order=[0,5,1,2,3,4]
+    plt.legend([handles[idx] for idx in order],[labels[idx] for idx in order])
+    
+    #plt.legend()########
+    
+    plt.tight_layout()
+    plt.savefig(opdir+'cumulative_set_0_four_cases_dm.pdf')
+    plt.close()
     
     ############# produce an MC rate plot ###########
-    
-    plt.figure()
-    
     
     #mids=(mcrs[1:] + mcrs[:-1])/2.
     
     vals = np.arange(2,101)
-    plt.hist(vals,bins=mcrs,weights=Cnreps,label='CHIME Cat 1',alpha=0.5)
+    plt.hist(vals,bins=mcrs,weights=Cnreps,label='CHIME Catalog 1 (16)',alpha=0.5)
     
     rates = np.linspace(2,100,99)
     markers=['+','s','x','o']
@@ -359,7 +386,7 @@ def main(Nbin=30):
     Ccum = np.cumsum(Cnreps)
     #Ccum = Ccum / Ccum[-1]
     
-    plt.plot(rates,Ccum,label='CHIME',linewidth=3)
+    plt.plot(rates,Ccum,label='CHIME Catalog 1 (16)',linewidth=3)
     
     rates = np.linspace(2,100,99)
     markers=['+','s','x','o']
@@ -367,19 +394,12 @@ def main(Nbin=30):
     styles=['-','--','-.',':']
     for i,label in enumerate(sm):
         cumMC = np.cumsum(MCs[i])
-        #cumMC /= cumMC[-1]
         plt.plot(rates,cumMC,linestyle=styles[i],label="case "+label,linewidth=3)
-        #plt.plot(rates,fMCs[i]*scale,linestyle=styles[i],color=plt.gca().lines[-1].get_color())
-    
-    #plt.scatter(bcs[tooLow],Mh[tooLow],marker='x',s=10.)
+        
     plt.legend()
     plt.xscale('log')
-    #plt.yscale('log')
     plt.xlabel('$N_{\\rm bursts}$')
     plt.ylabel('$N_{\\rm rep}(N_{\\rm bursts})$')
-    
-    #ax=plt.gca()
-    #ax.set_xticklabels([2,3,5,10,20,30,50,100])
     
     plt.tight_layout()
     plt.savefig(opdir+'cumMChistogram.pdf')
@@ -397,24 +417,10 @@ def main(Nbin=30):
     plt.xlabel('${\\delta}$ [deg]')
     plt.ylabel('$N_{\\rm rep}(\\delta)$')
     
-    # adds on initial and final points
-    #temp=np.array([-11,90.])
-    #Crdecs = np.concatenate((Crdecs,temp))
-    #Crdecs = np.sort(Crdecs)
-    #yCrdecs = np.linspace(0,1.,Crdecs.size)
-    #
-    #nCrdecs = np.concatenate((nCrdecs,temp))
-    #nCrdecs = np.sort(nCrdecs)
-    #ynCrdecs = np.linspace(0,1.,nCrdecs.size)
-    
     sx,sy,rx,ry = ute.get_chime_rs_dec_histograms(DMhalo=50)
     nsx,nsy,nrx,nry = ute.get_chime_rs_dec_histograms(DMhalo=50,newdata='only')
     
-    #plt.plot(Crdecs,yCrdecs,label='CHIME repeaters (cat1)')
-    #plt.plot(nCrdecs,ynCrdecs,label='CHIME repeaters (3 yr)')
-    
-    plt.plot(rx,ry,label='CHIME repeaters (cat1)')
-    plt.plot(nrx,nry,label='CHIME repeaters (3 yr)')
+    plt.plot(rx,ry,label='CHIME Catalog 1 (16)')
     
     for i,label in enumerate(sm):
         
@@ -423,7 +429,11 @@ def main(Nbin=30):
         cumdec = np.concatenate(([0],cumdec))
         plt.plot(bounds,cumdec,linestyle=styles[i],label="case "+label)
     
-    plt.legend()
+    
+    plt.plot(nrx,nry,label='CHIME Gold sample (25)')
+    handles, labels = plt.gca().get_legend_handles_labels()
+    order=[0,5,1,2,3,4]
+    plt.legend([handles[idx] for idx in order],[labels[idx] for idx in order])
     plt.tight_layout()
     plt.savefig(opdir+'cumulative_dec_set0.pdf')
     plt.close()
@@ -704,9 +714,10 @@ def generate_state(state,Nbin=6,Rmult=1.,mcrs=None,tag=None,tmults=None):
     tdmr *= rnorm
     tdmb *= rnorm
     
-    tmultlists *= rnorm
-    tmultlistr *= rnorm
-    tmultlistb *= rnorm
+    if tmults is not None:
+        tmultlists *= rnorm
+        tmultlistr *= rnorm
+        tmultlistb *= rnorm
     
     ########## MC analysis #############
     nM = len(numbers)
@@ -741,150 +752,12 @@ def generate_state(state,Nbin=6,Rmult=1.,mcrs=None,tag=None,tmults=None):
     # fitv: fitted values
     # copyMh: Mh with over-written too-low values
     
-    
-    return dmvals,tdms,tdmr,tdmb,nss,nrs,nbs,Mh,fitv,copyMh,Chist,Cnss,\
-        Cnrs,tmultlists,tmultlistr,tmultlistb # returns singles and total bursts
-    
-def set_state(pset,chime_response=True):
-    """
-    Sets the state parameters
-    """
-    
-    state = loading.set_state(alpha_method=1)
-    state_dict = dict(cosmo=dict(fix_Omega_b_h2=True))
-    state.energy.luminosity_function = 2 # this is Schechter
-    state.update_param_dict(state_dict)
-    # changes the beam method to be the "exact" one, otherwise sets up for FRBs
-    state.beam.Bmethod=3
-    
-    
-    # updates to most recent best-fit values
-    state.cosmo.H0 = 67.4
-    
-    if chime_response:
-        state.width.Wmethod=0 #only a single width bin
-        state.width.Wbias="CHIME"
-    
-    state.energy.lEmax = pset['lEmax']
-    state.energy.gamma = pset['gamma']
-    state.energy.alpha = pset['alpha']
-    state.FRBdemo.sfr_n = pset['sfr_n']
-    state.host.lsigma = pset['lsigma']
-    state.host.lmean = pset['lmean']
-    state.FRBdemo.lC = pset['lC']
-    
-    return state
-
-
-def shin_fit():
-    """
-    Returns best-fit parameters from Shin et al.
-    https://arxiv.org/pdf/2207.14316.pdf
-    
-    """
-    
-    pset={}
-    pset["lEmax"] = np.log10(2.38)+41.
-    pset["alpha"] = -1.39
-    pset["gamma"] = -1.3
-    pset["sfr_n"] = 0.96
-    pset["lmean"] = 1.93
-    pset["lsigma"] = 0.41
-    pset["lC"] = np.log10(7.3)+4.
-    
-    return pset
-
-def james_fit():
-    """
-    Returns best-fit parameters from James et al 2022 (Hubble paper)
-    """
-    
-    pset={}
-    pset["lEmax"] = 41.63
-    pset["alpha"] = -1.03
-    pset["gamma"] = -0.948
-    pset["sfr_n"] = 1.15
-    pset["lmean"] = 2.22
-    pset["lsigma"] = 0.57
-    pset["lC"] = 1.963
-    
-    return pset
-
-
-
-def read_extremes(infile='planck_extremes.dat',H0=67.4):
-    """
-    reads in extremes of parameters from a get_extremes_from_cube
-    """
-    f = open(infile)
-    
-    sets=[]
-    
-    for pset in np.arange(6):
-        # reads the 'getting' line
-        line=f.readline()
-        
-        pdict={}
-        # gets parameter values
-        for i in np.arange(7):
-            line=f.readline()
-            words=line.split()
-            param=words[0]
-            val=float(words[1])
-            pdict[param]=val
-        pdict["H0"]=H0
-        pdict["alpha"] = -pdict["alpha"] # alpha is reversed!
-        sets.append(pdict)
-        
-        pdict={}
-        # gets parameter values
-        for i in np.arange(7):
-            line=f.readline()
-            words=line.split()
-            param=words[0]
-            val=float(words[1])
-            pdict[param]=val
-        pdict["H0"]=H0
-        pdict["alpha"] = -pdict["alpha"] # alpha is reversed!
-        sets.append(pdict)
-    return sets
-
-
-def get_states():  
-    """
-    Gets the states corresponding to plausible fits to single CHIME data
-    """
-    psets=read_extremes()
-    psets.insert(0,shin_fit())
-    psets.insert(1,james_fit())
-    
-    
-    # gets list of psets compatible (ish) with CHIME
-    chime_psets=[4]
-    chime_names = ["CHIME min $\\alpha$"]
-    
-    # list of psets compatible (ish) with zdm
-    zdm_psets = [1,2,7,12]
-    zdm_names = ["zDM best fit","zDM min $\\E_{\\rm max}$","zDM max $\\gamma$","zDM min $\sigma_{\\rm host}$"]
-    
-    names=[]
-    # loop over chime-compatible state
-    for i,ipset in enumerate(chime_psets):
-        
-        state=set_state(psets[ipset],chime_response=True)
-        if i==0:
-            states=[state]
-        else:
-            states.append(states)
-        names.append(chime_names[i])
-    
-    for i,ipset in enumerate(zdm_psets):
-        state=set_state(psets[ipset],chime_response=False)
-        states.append(state)
-        names.append(zdm_names[i])
-    
-    return states,names       
-
+    if tmults is not None:
+        return dmvals,tdms,tdmr,tdmb,nss,nrs,nbs,Mh,fitv,copyMh,Chist,Cnss,\
+            Cnrs,tmultlists,tmultlistr,tmultlistb # returns singles and total bursts
+    else:
+        return dmvals,tdms,tdmr,tdmb,nss,nrs,nbs,Mh,fitv,copyMh,Chist,Cnss,\
+            Cnrs,None,None,None # returns singles and total bursts
 
 def survey_and_grid(survey_name:str='CRAFT/CRACO_1_5000',
             init_state=None,

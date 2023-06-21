@@ -1959,7 +1959,7 @@ def plot_grid_2(zDMgrid,zvals,dmvals,
                 label='$\\log_{10}p(DM_{\\rm EG},z)$',project=False,conts=False,
                 FRBZ=None,FRBDM=None,Aconts=False,
                 Macquart=None,title="Plot",
-                H0=None,showplot=False,DMlines=None,
+                H0=None,showplot=False,DMlines=None,markersize=10,
                 clim = False):
     """
     Very complicated routine for plotting 2D zdm grids 
@@ -2255,7 +2255,10 @@ def plot_grid_2(zDMgrid,zvals,dmvals,
         if FRBDM is not None:
             hvals=np.zeros(FRBDM.size)
             for i,DM in enumerate(FRBDM):
-                hvals[i]=yonly[np.where(dmvals > DM)[0][0]]
+                if DM > dmvals[-1]:
+                    havls[i]=0
+                else:
+                    hvals[i]=yonly[np.where(dmvals > DM)[0][0]]
             
             axy.plot(hvals,FRBDM,'ro',linestyle="")
             for tick in axy.yaxis.get_major_ticks():
@@ -2266,7 +2269,8 @@ def plot_grid_2(zDMgrid,zvals,dmvals,
             hvals=np.zeros(FRBZ[OK].size)
             for i,Z in enumerate(FRBZ[OK]):
                 hvals[i]=xonly[np.where(zvals > Z)[0][0]]
-            axx.plot(FRBZ[OK],hvals,'ro',linestyle="")
+            
+            axx.plot(FRBZ[OK],hvals,'ro',linestyle="",markersize=markersize)
             for tick in axx.xaxis.get_major_ticks():
                         tick.label.set_fontsize(6)
     else:

@@ -5,6 +5,50 @@ and other useful things
 
 
 import numpy as np
+global Nsingles
+global NReps
+NSingles = 474
+NReps = 18
+
+def make_bayes(arr,givenorm=False):
+    """
+    Makes a logarithmic array into a p-distribution
+    assuming uniform Bayesian priors
+    """
+    themax = np.max(arr)
+    arr -= themax
+    arr = 10**arr
+    thesum = np.sum(arr)
+    arr /= thesum
+    if givenorm:
+        return arr,themax,thesum    
+    else:
+        return arr
+
+def get_contour_level(arr,levels):
+    """
+    determines the level corresponding to a given contour in
+    an array
+    """
+    
+    # gets a vector of sorted cumulative distributions
+    shape = arr.shape
+    vec = arr.flatten()
+    svec = np.sort(vec)
+    
+    # normalised cumulative distribution
+    csvec = np.cumsum(svec)
+    csvec /= csvec[-1]
+    
+    # determines threshold
+    if isinstance(levels,float):
+        levels = [levels]
+    cuts=[]
+    for i,l in enumerate(levels):
+        j = np.where(csvec < 1.-l)[0][-1]
+        cut = svec[j] # j is the last one lower than it
+        cuts.append(cut) # i.e. this is highest exclusion
+    return cuts
 
 def cdf(x,dm,cs):
     """
@@ -69,25 +113,29 @@ def get_extra_chime_reps(DMhalo=50.):
                 break
     return decs,dmegs
 
-def get_chime_data(DMhalo=50):
+def get_chime_data(DMhalo=50,snrcut=None):
     """
     Imports data from CHIME catalog 1
     
     Returns select info from the catalog, for further processing
     
+    DMhalo is the assumed DM halo value
+    snrcut, if not None, removes everything with snr less than that value.
+    
     """
     chimedir = 'CHIME_FRBs/'
     infile = chimedir+'chimefrbcat1.csv'
     
-    idec=6
-    idm=18
-    idmeg=26
+    idec=5
+    idm=29
+    idmeg=9
     iname=0
     irep=2
-    iwidth=42
-    isnr=17
+    iwidth=32
+    isnr=10
     
-    NFRB=600
+    # hard-coded number of FRBs
+    NFRB=536
     decs=np.zeros([NFRB])
     dms=np.zeros([NFRB])
     dmegs=np.zeros([NFRB])
@@ -105,13 +153,9 @@ def get_chime_data(DMhalo=50):
     
     with open(infile) as f:
         lines = f.readlines()
-        count=-1
+        count=0
         for i,line in enumerate(lines):
-            if count==-1:
-                columns=line.split(',')
-                #for ic,w in enumerate(columns):
-                #    print(ic,w)
-                count += 1
+            if i==0:
                 continue
             words=line.split(',')
             # seems to indicate new bursts have been added
@@ -119,45 +163,57 @@ def get_chime_data(DMhalo=50):
             #    badcount += 1
                 #print("BAD : ",badcount)
                 #continue
-            decs[i-1]=float(words[idec])
-            dms[i-1]=float(words[idm])
-            dmegs[i-1]=float(words[idmeg])
+            snr=float(words[isnr])
+            if snrcut is not None:
+                if snr < snrcut:
+                    continue
+            decs[count]=float(words[idec])
+            dms[count]=float(words[idm])
+            dmegs[count]=float(words[idmeg])
             names.append(words[iname])
-            snrs[i-1]=float(words[isnr])
+            snrs[count]=float(words[isnr])
             # guards against upper limits
             if words[iwidth][0]=='<':
-                widths[i-1]=0.
+                widths[count]=0.
             else:
-                widths[i-1]=float(words[iwidth])*1e3 #in ms
-            dmgs[i-1] = dms[i-1]-dmegs[i-1]
+                widths[count]=float(words[iwidth])*1e3 #in ms
+            dmgs[count] = dms[count]-dmegs[count]
             rep=words[irep]
             
-            
-            if rep=='-9999':
-                reps[i-1]=0
+            if rep=='-9999' or rep=='':
+                # indicates it is not a repeat burst
+                reps[count]=0
             else:
-                reps[i-1]=1
+                # it is a repeat burst
+                reps[count]=1
+                # is it the first repeat burst?
                 if rep in rnames:
                     ir = rnames.index(rep)
                     nreps[ir] += 1
                 else:
                     rnames.append(rep)
-                    ireps.append(i-1)
+                    ireps.append(count)
                     nreps.append(1)
             count += 1
-    #print("Total of ",len(rnames)," repeating FRBs found")
-    #print("Total of ",len(np.where(reps==0)[0])," once-off FRBs")
+    # excises the two "repeating" FRBs with nreps = 1 from the list
+    real_ireps=[]
+    real_nreps=[]
+    for i,ir in enumerate(ireps):
+        if nreps[i] > 1:
+            real_ireps.append(ir)
+            real_nreps.append(nreps[i])
+        else:
+            #print("Setting ",names[ireps[i]]," to zero")
+            reps[ireps[i]]=0.
+    
     dmegs -= DMhalo
-    #for irep in ireps:
-    #    print(irep,names[irep],dms[irep],dmegs[irep])
-    print("Seen three bursts from 121102!!! Not in cat 1 though. Why?")
-    return names,decs,dms,dmegs,snrs,reps,ireps
+    return names,decs,dms,dmegs,snrs,reps,real_ireps,widths,real_nreps
 
-def get_chime_dec_dm_data(DMhalo=50,newdata=False, sort=False):
+def get_chime_dec_dm_data(DMhalo=50,newdata=False, sort=False, donreps=False):
     """
     return a list of signle and repeat CHIME FRB dms and decs
     """
-    names,decs,dms,dmegs,snrs,reps,ireps = get_chime_data(DMhalo=DMhalo)
+    names,decs,dms,dmegs,snrs,reps,ireps,widths,nreps = get_chime_data(DMhalo=DMhalo)
     
     # sorts by declination
     singles = np.where(reps==0)
@@ -179,18 +235,21 @@ def get_chime_dec_dm_data(DMhalo=50,newdata=False, sort=False):
         sdecs = np.sort(sdecs)
         rdecs = np.sort(rdecs)
     
-    return sdmegs,rdmegs,sdecs,rdecs
+    if donreps:
+        nreps = nreps[ireps]
+        return sdmegs,rdmegs,sdecs,rdecs,nreps
+    else:
+        return sdmegs,rdmegs,sdecs,rdecs
     
 def get_chime_rs_dec_histograms(DMhalo=50,newdata=False):
     """
     Returns normalsied cumulative histograms of CHIME singles and repeaters
     """    
     
-    names,decs,dms,dmegs,snrs,reps,ireps = get_chime_data(DMhalo=DMhalo)
-    
+    names,decs,dms,dmegs,snrs,reps,ireps,widths,nreps = get_chime_data(DMhalo=DMhalo)
     
     # sorts by declination
-    singles = np.where(reps==0)
+    singles = np.where(reps==0)[0]
     sdecs = decs[singles]
     rdecs = decs[ireps]
     
@@ -228,6 +287,7 @@ def get_chime_rs_dec_histograms(DMhalo=50,newdata=False):
     ryvals[-1]=1.
     rxvals[-1]=90
     
+    
     return sxvals,syvals,rxvals,ryvals
 
 def get_chime_rs_dm_histograms(DMhalo=50,newdata=False):
@@ -235,7 +295,7 @@ def get_chime_rs_dm_histograms(DMhalo=50,newdata=False):
     Returns normalsied cumulative histograms of CHIME singles and repeaters
     """    
     
-    names,decs,dms,dmegs,snrs,reps,ireps = get_chime_data(DMhalo=DMhalo)
+    names,decs,dms,dmegs,snrs,reps,ireps,widths,nreps = get_chime_data(DMhalo=DMhalo)
     
     # sorts by declination
     singles = np.where(reps==0)
@@ -277,3 +337,110 @@ def get_chime_rs_dm_histograms(DMhalo=50,newdata=False):
     rxvals[-1]=5000
     
     return sxvals,syvals,rxvals,ryvals
+
+
+
+
+def plot_2darr(arr,labels,savename,ranges,rlabels,clabel=None,crange=None,\
+    conts=None,Nconts=None,RMlim=None,scatter=None,Allowed=False):
+    """
+    does 2D plot
+    
+    array is the 2D array to plot
+    labels are the x and y axis labels [ylabel,xlabel]
+    Here, savename is the output file
+    Ranges are the [xvals,yvals]
+    Rlabels are [xtics,ytics]
+    
+    """
+    from matplotlib import pyplot as plt
+    
+    ratio=np.abs((ranges[0][1]-ranges[0][0])/(ranges[0][2]-ranges[0][1]))
+    if ratio > 1.01 or ratio < 0.99:
+        log0=True
+    else:
+        log0=False
+    
+    ratio=np.abs((ranges[1][1]-ranges[1][0])/(ranges[1][2]-ranges[1][1]))
+    if ratio > 1.01 or ratio < 0.99:
+        log1=True
+    else:
+        log1=False
+    
+    dr1 = ranges[1][1]-ranges[1][0]
+    dr0 = ranges[0][1]-ranges[0][0]
+    
+    aspect = (ranges[0].size/ranges[1].size)
+    
+    extent = [ranges[1][0]-dr1/2., ranges[1][-1]+dr1/2.,\
+            ranges[0][0]-dr0/2.,ranges[0][-1]+dr0/2.]
+    
+    im = plt.imshow(arr,origin='lower',aspect=aspect,extent=extent)
+    ax=plt.gca()
+    
+    # sets x and y ticks to bin centres
+    ticks = rlabels[1].astype('str')
+    for i,tic in enumerate(ticks):
+        ticks[i]=tic[:5]
+    ax.set_xticks(ranges[1][1::2])
+    ax.set_xticklabels(ticks[1::2])
+    plt.xticks(rotation = 90) 
+    ticks = rlabels[0].astype('str')
+    for i,tic in enumerate(ticks):
+        ticks[i]=str(rlabels[0][i])[0:4]
+    ax.set_yticks(ranges[0][::4])
+    ax.set_yticklabels(ticks[::4])
+    
+    plt.xlabel(labels[1])
+    plt.ylabel(labels[0])
+    
+    #cax = fig.add_axes([ax.get_position().x1+0.03,ax.get_position().y0,0.02,ax.get_position().height])
+    #cbar = plt.colorbar(im, cax=cax) # Similar to fig.colorbar(im, cax = cax)
+    cbar = plt.colorbar(shrink=0.55)
+    if clabel is not None:
+        cbar.set_label(clabel)
+    if crange is not None:
+        if len(crange) == 2:
+            plt.clim(crange[0],crange[1])
+        else:
+            themax=np.nanmax(arr)
+            plt.clim(crange+themax,themax)
+    
+    
+    if conts is not None:
+        if len(conts) == 2:
+            
+            ax = plt.gca()
+            cs=ax.contour(conts[0],levels=[conts[1]],origin='lower',colors="black",\
+                linestyles=[':'],linewidths=[3],extent=extent)
+        else:
+            colors=["red","white","black"]
+            styles=[':','-.','--','-']
+            for k,cont in enumerate(conts[0]):
+                print("Doing multiple conts")
+                cs=ax.contour(cont[0],levels=[cont[1]],origin='lower',colors=colors[k],\
+                    linestyles=styles[k],linewidths=[3],extent=extent)
+    if Nconts is not None:
+        ax = plt.gca()
+        cs=ax.contour(Nconts[0],levels=[Nconts[1]],origin='lower',colors="orange",\
+            linestyles=['-.'],linewidths=[3],extent=extent)
+    
+    if Allowed:
+        plt.text(1,-2.5,'Allowed')
+    
+    if RMlim is not None:
+        plt.plot([RMlim,RMlim],[extent[2],extent[3]],linestyle='--',color='white',linewidth=3)
+    
+    if scatter is not None:
+        sx=scatter[0]
+        sy=scatter[1]
+        sm=scatter[2]
+        for i, m in enumerate(sm):
+            #ax.plot((i+1)*[i,i+1],marker=m,lw=0)
+            #plt.plot(sx[i],sy[i],marker=m,color='red',linestyle="",markersize=12)
+            plt.text(sx[i],sy[i],m,color='red',fontsize=16,ha='left',va='center',
+            fontweight='extra bold')
+    
+    plt.tight_layout()
+    plt.savefig(savename)
+    plt.close()

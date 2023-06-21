@@ -199,13 +199,16 @@ def plot_CHIME_dm(grids):
     """
     Plots the p(DM) of the CHIME grid
     """
+    import utilities as ute
+    #names,decs,dms,dmegs,snrs,reps,ireps,widths = ute.get_chime_data(DMhalo=DMhalo)
+    #names,chime_all_dmeg,chime_single_dmeg,chime_first_reps,rep_bursts,nreps = ute.get_chime_data()
     
-    names,chime_all_dmeg,chime_single_dmeg,chime_first_reps,rep_bursts,nreps = get_chime_data()
+    chime_single_dmeg,chime_first_reps,sdecs,rdecs,nreps = ute.get_chme_dec_dm_data(donreps=True)
     
     bins=np.linspace(0,4000,41)
     hsingle,bins = np.histogram(chime_single_dmeg,bins=bins)
     hreps,bins = np.histogram(chime_first_reps,bins=bins)
-    hbursts,bins = np.histogram(rep_bursts,bins=bins)
+    hbursts,bins = np.histogram(chime_first_reps,bins=bins,weights=nreps)
     binwidth = bins[1]-bins[0]
     NFRB = chime_all_dmeg.size # hard-coded
     

@@ -4,7 +4,7 @@ NFRB 9 #Number of FRBs
 DIAM 12
 NBEAMS 36
 BEAM lat50_log #prefix of beam file
-THRESH 4.4 #Jy ms to a 1 ms burst, very basic. Likely higher
+THRESH 4.4 #Jy ms to a 1 ms burst, very basic. Assumes 25 antennas
 SNRTHRESH 9 # signal-to-noise threshold: scales jy ms to snr
 KEY ID 		DM    	FBAR	SNR        XRa		    XDec		    XUT    		    DMG	    XdmMW	XNant	WIDTH   TRES    Z
 FRB 180924	362.4	1297.5	21.1	21:44:25.255	-40:54:00.1     16:23:12.22275	40.5	27.7	24	    1.76	0.864	0.3214

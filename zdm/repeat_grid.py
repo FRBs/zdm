@@ -6,7 +6,11 @@ Input:
     A grid, as well as a time-per-field.
     We have two calculation methods: exact and MC.
     MCs take a very long time to converge on the average (guess:10^4 iterations?)
+    Exact only calculates <singles> and <repeaters>
     Repetition parameters Rmin, Rmax, and Rgamma are stored in grid.state
+        - Rmin: Minimum repetition rate of repeaters
+        - Rmax: Maximum repetition rate of repeaters
+        - Rgamma: *Differential* number of repeaters: dN/dR ~ R^Rgamma
 
 
 
@@ -46,10 +50,15 @@ import mpmath
 from scipy import interpolate
 import time
 
-
+# NZ is meant to toggle between calculating nonzero elements or not
+# In theory, if False, it tries to perform calculations
+# where there is no flux
+# Currenty, it seems like setting it to False causes problems
 NZ=True
 
-LSRZ = -6. #change to -4. Maybe -2 is fine?
+# These constants represent thresholds below which we assume the chance
+# to produce repetition is identically zero
+LSRZ = -10. #Was causing problems at merely -6
 SET_REP_ZERO=10**LSRZ # forces p(n=0) bursts to be unity when a maximally repeating FRB has SET_REP_ZERO expected events or less
 # the above is crazy, the problem is it should zet p_zero + p_single to be unity, i.e. chance of double to be zero
 # but how do we do this? presumably it's the total minus psingle?
@@ -271,17 +280,22 @@ class repeat_Grid:
         # rate is thus in bursts/year
         C=10**(self.grid.state.FRBdemo.lC)
         if verbose:
-            print("Initial burst rate as ",C*1e9*365.25," per Gpc^-3 per year")
+            print("Initial burst rate above ",self.Emin," is ",C*1e9*365.25," per Gpc^-3 per year")
         
         # account for repeat parameters being defined at a different energy than Emin
         fraction = self.grid.vector_cum_lf(self.state.rep.RE0,self.Emin,self.Emax,self.gamma)
+        
         C = C*fraction
         
         if verbose:
             print("This is ",C*1e9*365.25," Gpc^-3 year^-1 above ",self.state.rep.RE0," erg")
         
+        # The total number of bursts, C, is \int_rmin^rmax R dN/dR dR
+        # = \int_rmin^rmax Rc * R^(Rgamma+1) = Rc * (Rmax^(Rgamma+2) - Rmin^(Rgamma+2))/(Rgamma+2)
+        # We solve for Rc by inverting this below
         Rc = C * (self.Rgamma+2.)/(self.Rmax**(self.Rgamma+2.)-self.Rmin**(self.Rgamma+2.))
         
+        # total number of repeaters
         Ntot = (Rc/(self.Rgamma+1)) * (self.Rmax**(self.Rgamma+1)-self.Rmin**(self.Rgamma+1))
         
         if verbose:
@@ -539,7 +553,7 @@ class repeat_Grid:
         effGamma=self.Rgamma+2
         if effGamma not in energetics.igamma_splines.keys():
             energetics.init_igamma_splines([effGamma])
-        
+        # nonzero may or may not be a shortcut
         global NZ
         # get list of indices we bother to operate on
         # we proceed to calculate avals, bvals, and norms using these only
@@ -548,7 +562,7 @@ class repeat_Grid:
             if self.nonzeros[self.Nth] is not None:
                 nonzero = self.nonzeros[self.Nth]
             else:
-                nonzero = np.where(self.Rmult.flatten() > 0)[0]
+                nonzero = np.where(self.Rmult.flatten() > 1e-20)[0]
                 self.nonzeros[self.Nth]=nonzero
         
         # the following is for saving time when updating
@@ -560,7 +574,8 @@ class repeat_Grid:
             else:
                 avals=self.Rmin*self.Rmult.flatten()
             self.avals[self.Nth] = avals
-        
+            
+            #print("1",np.max(avals),np.min(avals),np.max(self.Rmult.flatten()[nonzero]),np.min(self.Rmult.flatten()[nonzero]))
         
         if self.newRmax == False:
             bvals=self.bvals[self.Nth]
@@ -612,7 +627,7 @@ class repeat_Grid:
         if self.newRmin == False and self.newRgamma == False and self.newRmax == False:
             norms1 = self.snorms1[self.Nth]
         else:
-            norms1 = -avals**effGamma / effGamma
+            norms1 = -avals**effGamma / effGamma # this is the "too low" value
             analytic = (SET_REP_ZERO**effGamma - avals[NotTooLowb]**effGamma)/effGamma
             if NTLb:
                 norms1[NotTooLowb] = interpolate.splev([SET_REP_ZERO], energetics.igamma_splines[effGamma])
