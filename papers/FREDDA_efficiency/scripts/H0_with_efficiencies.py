@@ -31,8 +31,8 @@ def main():
     frb_names = ["181112", "190611", "190711", "191228", "210117", "210320", "210407", "210912", "220501", "230526"]
     # frb_names = ["180924","181112", "190102", "190608", "190611", "190711", "190714", "191228", "210117", "210214", "210320", "210912", "211117"]
     # frb_names = ["190711"]
-    edir='~/OneDrive/Documents/CRAFT/FRB_library/zdm/zdm/data/Efficiencies/'
-    sdir='~/OneDrive/Documents/CRAFT/FRB_library/zdm/zdm/data/Surveys/Hoffmann2023/'
+    edir='/fred/oz002/jhoffmann/FRB_library/zdm/zdm/data/Efficiencies/'
+    sdir='/fred/oz002/jhoffmann/FRB_library/zdm/zdm/data/Surveys/Hoffmann2023/'
 
     H0s = np.linspace(50,100,50)
     llsum_total = np.zeros(len(H0s), dtype=float)
@@ -43,8 +43,6 @@ def main():
     # plt.ylabel(r"log likelihood")
     # fig, axes = plt.subplots(1,2, sharey=True)
     for name in frb_names:
-        fig, axes = plt.subplots(1,1)
-
         # Normal calculation
         s,g = loading.survey_and_grid(survey_name=name,sdir=sdir,NFRB=None,model='Quadrature',edir=edir) 
         # Calculation with efficiencies
@@ -100,10 +98,14 @@ def main():
         llsum_total += np.array(llsum)
         llsum_total_exact += np.array(llsum_exact)
 
-        axes.plot(H0s, llsum - np.max(llsum), label=name)
-        axes.plot(H0s, llsum_exact - np.max(llsum_exact), label=name)
+        fig, axes = plt.subplots(1,1)
+        axes.plot(H0s, llsum, label="Quadrature")
+        axes.plot(H0s, llsum_exact - np.max(llsum_exact) + np.max(llsum), label="Exact")
+        axes.set_xlabel(r"$H_0$")
+        axes.set_ylabel(r"Normalised log(p($H_0$))")
+        axes.legend()
 
-        plt.show()
+        plt.savefig("../Figures/ll_" + name + '.png', format='png', bbox_inches='tight')
         plt.close()
 
     # axes[0].plot(H0s, llsum_total - np.max(llsum_total), label="Total")
@@ -120,14 +122,15 @@ def main():
     # plt.show()
     # plt.close()
 
+    fig, axes = plt.subplots(1,1)
     print(np.max(llsum_total))
     print(np.max(llsum_total_exact))
-    plt.plot(H0s, llsum_total - np.max(llsum_total), label="Quadrature")
-    plt.plot(H0s, llsum_total_exact - np.max(llsum_total_exact), label="Exact")
-    plt.xlabel(r"$H_0$")
-    plt.ylabel(r"$p(H_0)$")
-    plt.legend()
-    plt.show()
+    axes.plot(H0s, llsum_total - np.max(llsum_total), label="Quadrature")
+    axes.plot(H0s, llsum_total_exact - np.max(llsum_total_exact), label="Exact")
+    axes.set_xlabel(r"$H_0$")
+    axes.set_ylabel(r"Normalised log(p($H_0$))")
+    axes.legend()
+    plt.savefig("../Figures/ll_total.png", format='png', bbox_inches='tight')
     plt.close()
 
 def get_likelihood(s,g,norm=True,Pn=False,psnr=True,dolist=0):
