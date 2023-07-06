@@ -120,8 +120,6 @@ def slurp_cube(input_file:str, prefix:str, outfile:str,
         pz=pz_cube,
     )
 
-    # embed(header="line 129")
-
     # Save the parameter values too
     for name in PARAMS[:-1]:
 
@@ -550,8 +548,9 @@ def get_2D_bayesian_data(lls: np.ndarray, plls: np.ndarray = None, pklfile=None)
                     lls = origlls[tuple(big_slice)].flatten()
 
                     # ignores all values of 0, which is what missing data is
-                    ignore = np.where(lls == 0.0)[0]
-                    lls[ignore] = -99999
+                    # ignore = np.where(lls == 0.0)[0]
+                    # lls[ignore] = -99999
+                    lls[np.isnan(lls)] = -99999
 
                     try:
                         themax = np.nanmax(lls)

@@ -1,3 +1,6 @@
+"""
+This script creates 2D likelihood plots given a `.npz` cube.
+"""
 import numpy as np
 import os
 import zdm

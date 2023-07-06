@@ -1,4 +1,8 @@
-""" Simple script to slurp """
+"""
+Script to intake the `.csv` files from the CRACO runs and convert them to a single `.npz` file.
+
+The only argument in running the file corresponds to a hard-coded location of the `.csv` files and the cube `.json` file. 
+"""
 
 from zdm import analyze_cube
 

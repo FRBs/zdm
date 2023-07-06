@@ -1,3 +1,6 @@
+"""
+This script creates 2D likelihood plots given a `.npz` cube.
+"""
 import numpy as np
 import os
 import zdm
@@ -13,6 +16,7 @@ def main(verbose=False):
     if not os.path.exists(opdir):
         os.mkdir(opdir)
     
+    # loads the cube
     CubeFile='Cubes/craco_full_cube.npz'
     if os.path.exists(CubeFile):
         data=np.load(CubeFile)

@@ -3,6 +3,7 @@ FRES  1 #MHz
 DIAM 12
 NBEAMS 36
 BEAM lat50_log #prefix of beam file
+NBINS 5
 FBAR 1320
 TRES  1.7 #ms
 SNRTHRESH 9.5

@@ -171,7 +171,7 @@ class OldSurvey:
 
         if NFRB is not None:
             # Take the first set - ensures we do not overrun the total number of FRBs
-            if self.NFRB > NFRB+iFRB:
+            if self.NFRB < NFRB+iFRB:
                 raise ValueError("Cannot return sufficient FRBs, did you mean NFRB=None?")
             themax = min(NFRB+iFRB,self.NFRB)
             self.frblist=self.frblist[iFRB:themax]
@@ -528,7 +528,7 @@ class Survey:
             self.NFRB=len(self.frbs)
         else:
             self.NFRB=min(len(self.frbs), NFRB)
-            if self.NFRB > NFRB+iFRB:
+            if self.NFRB < NFRB+iFRB:
                 raise ValueError("Cannot return sufficient FRBs, did you mean NFRB=None?")
             # Not sure the following linematters given the Error above
             themax = max(NFRB+iFRB,self.NFRB)
@@ -1123,7 +1123,7 @@ def refactor_old_survey_file(survey_name:str, outfile:str,
         separators=(',', ': '))
 
     # Write me
-    frbs.write(outfile, overwrite=clobber)
+    frbs.write(outfile, overwrite=clobber, format='ascii.ecsv')
     print(f"Wrote: {outfile}")
 
 def vet_frb_table(frb_tbl:pandas.DataFrame,

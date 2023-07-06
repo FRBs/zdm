@@ -1,3 +1,8 @@
+"""
+Generates 1D likelihood PDFs of each parameter from a `.npz` cube.
+
+The only argument in running the file corresponds to a hard-coded location of the `.npz` cube file. 
+"""
 # imports
 from importlib import reload
 import numpy as np
@@ -16,17 +21,18 @@ from IPython import embed
 
 def main(pargs):
     jroot = None
-    if pargs.run == "mini":
-        scube = "mini"
-        outdir = "Mini/"
-    elif pargs.run == "F":
+
+    if pargs.run == "F":
+    # 2D cube run with H0 and F
         scube = "H0_F"
         outdir = "H0_F/"
     elif pargs.run == "H0_logF":
+    # 2D cube run with H0 and logF
         scube = "H0_logF"
         outdir = "H0_logF/"
     # Main #
     elif pargs.run == "logF_full":
+    # Full CRACO likelihood cube
         scube = "full"
         outdir = "logF_Full/"
 
@@ -135,4 +141,4 @@ if __name__ == "__main__":
     pargs = parse_option()
     main(pargs)
 
-#  python py/craco_qck_explore.py mini
+#  python py/craco_qck_explore.py logF_full

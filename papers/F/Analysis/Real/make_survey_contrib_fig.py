@@ -1,12 +1,5 @@
 """
-This is a script used to produce figures for fig 7
-
-It generates two sets of results:
-- constraints on alpha (in directory fig8_alphaSingleFigures)
-- constraints on other 5 non-H0 parameters (in directory fig_othersSingleFigures)
-
-Alpha requires special treatment due to the prior not covering
-the full range of possible values.
+This is a script used to produce figures for the survey contributions for each parameter in the cube.
 """
 
 import numpy as np

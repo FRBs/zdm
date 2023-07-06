@@ -1,16 +1,15 @@
 """
-This is a script to produce limit plots for a cube
+This is a script to produce limit plots for a cube.
 
-It produces three sets of plots:
-- single parameter limits with a prior on H0 between Planck and SN1a values
-- single parameter limits also showing results with priors on H0 equal to:
+The plots produced with priors on H0 are stored in folders prefixed with "wH0".
+Plots generated with the synthetic CRACO cube are suffixed with "_forecast", while 
+plots generated with the real observation cube are suffixed with "_measured".
+Plots showing PDFs with and without priors are infixed with "others".
+
+- The priors on H0 are:
     a) Planck
     b) Reiss
     c) No prior
-- 2D correlation plots with no prior onH0
-
-It also collects data to plot a result on H0 for best-fit values of all
-other parameters, but currently does not produce that plot
 
 """
 

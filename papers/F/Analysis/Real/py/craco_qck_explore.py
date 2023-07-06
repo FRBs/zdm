@@ -1,3 +1,9 @@
+"""
+Generates 1D likelihood PDFs of each parameter from a `.npz` cube.
+
+The only argument in running the file corresponds to a hard-coded location of the `.npz` cube file. 
+"""
+
 # imports
 from importlib import reload
 import numpy as np

@@ -1,13 +1,14 @@
 """
 This is a script to produce limit plots for a cube with priors on F
 
-It produces two sets of plots:
-- single parameter limits also showing results with:
-    a) a Gaussian prior
-    b) No prior
+The plots produced with priors on F are stored in folders prefixed with "wF".
+Plots generated with the synthetic CRACO cube are suffixed with "_forecast", while 
+plots generated with the real observation cube are suffixed with "_measured".
+Plots showing PDFs with and without priors are infixed with "others".
 
-It also collects data to plot a result on F for best-fit values of all
-other parameters, but currently does not produce that plot
+- The priors on F are:
+    a) a Gaussian prior (with 20% error on F)
+    b) No prior
 
 """
 
@@ -191,5 +192,5 @@ def get_param_values(data, verbose=False):
 
 
 # Real Cube Data
-# main("../Real/Cubes/craco_real_cube.npz", "H0_PriorOnF/")
-main("../CRACO/Cubes/craco_full_cube.npz", "H0_PriorOnF/")
+main("../Real/Cubes/craco_real_cube.npz", "measured/")
+main("../CRACO/Cubes/craco_full_cube.npz", "forecast/")

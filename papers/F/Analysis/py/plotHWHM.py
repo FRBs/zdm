@@ -1,3 +1,8 @@
+"""
+Obtains the lower "half-width half-max" of the log PDFs for the old and new cubes to compare how
+much the constraint on F improves after addition of the 2022 FRBs.
+"""
+
 import numpy as np
 import os
 import zdm
@@ -8,27 +13,27 @@ import matplotlib.pyplot as plt
 
 
 def main():
-    # cube_old = "../Real/Cubes/craco_real_old_cube.npz"
+    # Load cubes
     cube_old = "../CRACO/Cubes/craco_full_cube.npz"
     cube = "../Real/Cubes/craco_real_cube.npz"
 
-    # old cube
+    # Get PDFs of the old cube
     funcs, interp_mins, interp_maxs = getlogPDFs(cube_old)
     _, _, _, flogF = funcs
     _, _, _, logF_min = interp_mins
     _, _, _, logF_max = interp_maxs
     res = 1e3
-    thresh = 1e-3
     logFs = np.linspace(logF_min, logF_max, int(res))
 
     probs_old = np.exp(flogF(logFs))
     max_prob_old = np.max(probs_old)
     max_F_old = logFs[np.argmax(probs_old)]
 
+    # Find the half-max points
     sort_idx_old = np.argsort(np.abs(probs_old - (max_prob_old / 2)))
     half_max_Fs_old = logFs[sort_idx_old[1]]
 
-    # new cube
+    # Get PDFs of the new cube
     funcs, interp_mins, interp_maxs = getlogPDFs(cube)
     _, _, _, flogF = funcs
     _, _, _, logF_min = interp_mins
@@ -38,12 +43,10 @@ def main():
     max_prob = np.max(probs)
     max_F = logFs[np.argmax(probs)]
 
+    # Find the half-max points
     sort_idx = np.argsort(np.abs(probs - (max_prob / 2)))
     half_max_Fs = logFs[sort_idx[3]]
 
-    print("debugging", logFs[sort_idx])
-
-    # Left-sided half width half max
     print(
         "Left-sided half-width half-max for old cube: ",
         np.abs(max_F_old - np.min(half_max_Fs_old)),
@@ -88,6 +91,10 @@ def main():
 
 
 def getlogPDFs(cube):
+    """
+    Returns the log PDFs of the cubes with a flat prior H0.
+    """
+
     ######### sets the values of H0 for priors #####
     Planck_H0 = 67.4
     Planck_sigma = 0.5

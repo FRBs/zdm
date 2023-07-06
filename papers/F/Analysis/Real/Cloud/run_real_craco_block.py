@@ -1,3 +1,8 @@
+""" 
+This script generates the `.csv` files for the likelihood cube using real FRB observations (see Baptista+23)
+This script is modified to generate specific cube `.csv` files between a range of numbers that correspond to the indices along the H_0 dimension in the cube.
+""" 
+
 # Running this command: python ../py/build_real_cube.py -n 1 -m 3000 -o Output/craco_real1.csv --clobber -p ../Cubes/craco_real_cube.json
 
 import argparse

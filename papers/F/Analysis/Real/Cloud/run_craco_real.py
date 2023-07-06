@@ -1,5 +1,6 @@
-""" Run a Nautilus test """
-
+""" 
+This script generates the `.csv` files for the likelihood cube using real FRB observations (see Baptista+23)
+""" 
 # It should be possible to remove all the matplotlib calls from this
 # but in the current implementation it is not removed.
 import argparse

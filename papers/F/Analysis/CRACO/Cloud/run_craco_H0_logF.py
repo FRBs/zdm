@@ -1,4 +1,6 @@
-""" Run a Nautilus test """
+""" 
+This script generates the `.csv` files for a 2D synthetic likelihood cube using the CRACO data (only H0 and log_{10}F).
+""" 
 
 # It should be possible to remove all the matplotlib calls from this
 # but in the current implementation it is not removed.

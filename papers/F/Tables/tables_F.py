@@ -116,7 +116,8 @@ def mktex_measurements(outfile="results.tex"):
         "../Analysis/py/wH0_others_forecast/limits_others_$H_0 = 73.04$.dat"
     )
 
-    real_H0_wFprior_file = "../Analysis/py/wF_H0_PriorOnF/limits.dat"
+    real_H0_wFprior_file = "../Analysis/py/wF_others_measured/limits.dat"
+    craco_H0_wFprior_file = "../Analysis/py/wF_others_forecast/limits.dat"
 
     def process_limits(lim, precision=1):
         lower = str(round(float(lim[5:9]), precision))
@@ -126,6 +127,7 @@ def mktex_measurements(outfile="results.tex"):
 
     # No Prior Measurements
 
+    ############### H0 with no prior ##############
     with open(craco_no_prior) as f:
         craco_lines = f.readlines()
 
@@ -135,7 +137,7 @@ def mktex_measurements(outfile="results.tex"):
     craco_H0 = str(round(float(craco_lines[0].split("&")[1]), 1))
     craco_H0_lim = process_limits(craco_lines[0].split("&")[-2])
 
-    ############### H0 with no prior ###############
+    #
     real_H0 = str(round(float(real_lines[0].split("&")[1]), 1))
     real_H0_lim = process_limits(real_lines[0].split("&")[-2])
 
@@ -165,15 +167,63 @@ def mktex_measurements(outfile="results.tex"):
     tbfil.write(real_F_tex)
     tbfil.write(craco_F_tex)
 
+    # Uses real data only #
+    ############### lmean with no prior ##############
+    real_lmean = real_lines[1].split("&")[1]
+    real_lmean_lim = process_limits(real_lines[1].split("&")[-2], 2)
+    real_lmean_tex = f"\\newcommand{{\\lmeannoPrior}}{{\\ensuremath{{{real_lmean}{real_lmean_lim}}}}} \n"
+    tbfil.write(real_lmean_tex)
+
+    ############### lsigma with no prior ##############
+    real_lsigma = real_lines[2].split("&")[1]
+    real_lsigma_lim = process_limits(real_lines[2].split("&")[-2], 2)
+    real_lsigma_tex = f"\\newcommand{{\\lhostnoPrior}}{{\\ensuremath{{{real_lsigma}{real_lsigma_lim}}}}} \n"
+    tbfil.write(real_lsigma_tex)
+
+    ### -------- Measurements with priors --------- ###
+
     ############### H0 with F prior ###############
-    with open(real_H0_wFprior_file) as f:
-        real_H0_wFprior_lines = f.readlines()
 
-    real_H0_wFprior = str(round(float(real_H0_wFprior_lines[0].split("&")[1]), 1))
-    real_H0_wFprior_lim = process_limits(real_H0_wFprior_lines[0].split("&")[-2])
-    real_H0_wFprior_tex = f"\\newcommand{{\\fctHwPrior}}{{\\ensuremath{{{real_H0_wFprior}{real_H0_wFprior_lim}}}}} \n"
+    ## Synthetic Data ##
 
-    tbfil.write(real_H0_wFprior_tex)
+    with open(craco_H0_wFprior_file) as f:
+        craco_H0_wFprior_lines = f.readlines()
+
+    craco_H0_wFprior = str(round(float(craco_H0_wFprior_lines[0].split("&")[1]), 1))
+    craco_H0_wFprior_lim = process_limits(craco_H0_wFprior_lines[0].split("&")[-2])
+    craco_H0_wFprior_tex = f"\\newcommand{{\\fctHwPrior}}{{\\ensuremath{{{craco_H0_wFprior}{craco_H0_wFprior_lim}}}}} \n"
+
+    # craco_lmean_wFprior = str(round(float(craco_H0_wFprior_lines[1].split("&")[1]), 1))
+    # craco_lmean_wFprior_lim = process_limits(craco_H0_wFprior_lines[1].split("&")[-2])
+    # craco_lmean_wFprior_tex = f"\\newcommand{{\\fctlmeanwFPrior}}{{\\ensuremath{{{craco_lmean_wFprior}{craco_lmean_wFprior_lim}}}}} \n"
+
+    # craco_lsigma_wFprior = str(round(float(craco_H0_wFprior_lines[2].split("&")[1]), 1))
+    # craco_lsigma_wFprior_lim = process_limits(craco_H0_wFprior_lines[2].split("&")[-2])
+    # craco_lsigma_wFprior_tex = f"\\newcommand{{\\fctlhostwFPrior}}{{\\ensuremath{{{craco_lsigma_wFprior}{craco_lsigma_wFprior_lim}}}}} \n"
+
+    tbfil.write(craco_H0_wFprior_tex)
+    # tbfil.write(craco_lmean_wFprior_tex)
+    # tbfil.write(craco_lsigma_wFprior_tex)
+
+    ## Real Data  -- This doesn't make sense lol##
+    # with open(real_H0_wFprior_file) as f:
+    #     real_H0_wFprior_lines = f.readlines()
+
+    # real_H0_wFprior = str(round(float(real_H0_wFprior_lines[0].split("&")[1]), 1))
+    # real_H0_wFprior_lim = process_limits(real_H0_wFprior_lines[0].split("&")[-2])
+    # real_H0_wFprior_tex = f"\\newcommand{{\\HwFPrior}}{{\\ensuremath{{{real_H0_wFprior}{real_H0_wFprior_lim}}}}} \n"
+
+    # real_lmean_wFprior = str(round(float(real_H0_wFprior_lines[1].split("&")[1]), 1))
+    # real_lmean_wFprior_lim = process_limits(real_H0_wFprior_lines[1].split("&")[-2])
+    # real_lmean_wFprior_tex = f"\\newcommand{{\\lmeanwFPrior}}{{\\ensuremath{{{real_lmean_wFprior}{real_lmean_wFprior_lim}}}}} \n"
+
+    # real_lsigma_wFprior = str(round(float(real_H0_wFprior_lines[2].split("&")[1]), 1))
+    # real_lsigma_wFprior_lim = process_limits(real_H0_wFprior_lines[2].split("&")[-2])
+    # real_lsigma_wFprior_tex = f"\\newcommand{{\\lsigmawFPrior}}{{\\ensuremath{{{real_lsigma_wFprior}{real_lsigma_wFprior_lim}}}}} \n"
+
+    # tbfil.write(real_H0_wFprior_tex)
+    # tbfil.write(real_lmean_wFprior_tex)
+    # tbfil.write(real_lsigma_wFprior_tex)
 
     ############### F with H0 prior ###############
     # Measurements
@@ -183,6 +233,15 @@ def mktex_measurements(outfile="results.tex"):
 
     real_F_wH0prior = real_F_wH0prior_lines[-1].split("&")[1]
     real_F_wH0prior_lim = process_limits(real_F_wH0prior_lines[-1].split("&")[-2], 2)
+    real_F_wH0prior_tex = f"\\newcommand{{\\FwHPrior}}{{\\ensuremath{{{real_lsigma_wFprior}{real_lsigma_wFprior_lim}}}}} \n"
+
+    real_lmean_wH0prior = str(round(float(real_F_wH0prior_lines[1].split("&")[1]), 1))
+    real_lmean_wH0prior_lim = process_limits(real_F_wH0prior_lines[1].split("&")[-2])
+    real_lmean_wH0prior_tex = f"\\newcommand{{\\lmeanwHPrior}}{{\\ensuremath{{{real_lmean_wH0prior}{real_lmean_wH0prior_lim}}}}} \n"
+
+    real_lsigma_wH0prior = str(round(float(real_F_wH0prior_lines[2].split("&")[1]), 1))
+    real_lsigma_wH0prior_lim = process_limits(real_F_wH0prior_lines[2].split("&")[-2])
+    real_lsigma_wH0prior_tex = f"\\newcommand{{\\lsigmawHPrior}}{{\\ensuremath{{{real_lsigma_wH0prior}{real_lsigma_wH0prior_lim}}}}} \n"
 
     # CMB
     with open(real_F_CMB_file) as f:
@@ -209,6 +268,9 @@ def mktex_measurements(outfile="results.tex"):
     tbfil.write(real_F_wH0prior_tex)
     tbfil.write(real_F_CMB_tex)
     tbfil.write(real_F_SNe_tex)
+
+    tbfil.write(real_lmean_wH0prior_tex)
+    tbfil.write(real_lsigma_wH0prior_tex)
 
     # Forecasts
     with open(craco_F_wH0prior_file) as f:
