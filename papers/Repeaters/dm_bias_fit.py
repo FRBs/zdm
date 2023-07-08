@@ -6,18 +6,8 @@ It creates chime_bias_fit.pdf
 """
 import os
 from pkg_resources import resource_filename
-from zdm import cosmology as cos
-from zdm import misc_functions
-from zdm import parameters
-from zdm import survey
-from zdm import pcosmic
-from zdm import iteration as it
-from zdm.craco import loading
-from zdm import io
-from zdm import repeat_grid as rep
 
 import numpy as np
-from zdm import survey
 from matplotlib import pyplot as plt
 
 import scipy as sp
@@ -25,7 +15,7 @@ import scipy as sp
 import matplotlib
 import time
 
-matplotlib.rcParams['image.interpolation'] = None
+#matplotlib.rcParams['image.interpolation'] = None
 
 defaultsize=14
 ds=4
