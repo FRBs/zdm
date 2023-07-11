@@ -12,9 +12,19 @@ import matplotlib.pyplot as plt
 import utilities as ute
 import os
 
+import matplotlib
+matplotlib.rcParams['image.interpolation'] = None
+
+defaultsize=14
+ds=4
+font = {'family' : 'normal',
+        'weight' : 'normal',
+        'size'   : defaultsize}
+matplotlib.rc('font', **font)
+
 def main():
     
-    Poisson = True
+    Poisson = False
     
     ###### old data ######
     indir = 'FollowUpData/'
@@ -86,7 +96,7 @@ def main():
     Rgammas=cdata['arr_7']
     lrkps=cdata['arr_9']
     ltdm_krs=cdata['arr_11']
-    MCrank = cdata['arr_17']
+    MCrank = cdata['arr_18']
     
     
     if True:

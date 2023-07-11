@@ -1,6 +1,6 @@
 """ 
 This script plots the modelled CHIME efficiency as a function of DM
-This is plot ??? from the paper
+
 It creates chime_bias_fit.pdf
 
 """

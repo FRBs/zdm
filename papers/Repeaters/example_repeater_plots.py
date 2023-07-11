@@ -82,8 +82,6 @@ def main():
     NMC=100
     generate_MC_plots("CRAFT_ICS",sdir,100.,Rset1,NMC,load=True)
     
-    
-    exit()
     ############### Future Predictions Plots - Figs 19 ##################
     
     
@@ -403,7 +401,7 @@ def generate_MC_plots(name,sdir,Tfield,Rset,NMC,load=True):
     
     plt.plot(zbar,means,linewidth=3,label='$\\left<N_{\\rm bursts}\\right>$ per bin')
     plt.plot(zbar[1:],ul90[1:],linestyle=':',linewidth=2,label='90% upper limit')
-    plt.plot(zbar,std/means**0.5,linewidth=3,linestyle='--',label='$\\sigma \\left<N_{\\rm FRB}\\right>^{-0.5}$')
+    plt.plot(zbar,std/means**0.5,linewidth=3,linestyle='--',label='$\\sigma \\left<N_{\\rm bursts}\\right>^{-0.5}$')
     #plt.plot(zbar,ll90,linestyle=':',color=plt.gca().lines[-1].get_color())
     plt.xlim(0,1.2)
     plt.ylim(0,12)

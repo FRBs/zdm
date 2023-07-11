@@ -374,6 +374,7 @@ def make_beamfiles(decs_u,ras_u,results_u,decs_l,ras_l,results_l,smooth=2,Nbound
     
     #plt.hist(mean_bounds,bins=bounds,weights = eff_mean_hists,alpha=1.0,fill=False,color='black')
     #plt.plot(dec_vec_u, effs, label = 'smoothed exposure')
+    plt.text(-40,150,'(a)',fontsize=18)
     plt.legend()
     plt.yscale('log')
     plt.tight_layout()
@@ -402,6 +403,7 @@ def make_beamfiles(decs_u,ras_u,results_u,decs_l,ras_l,results_l,smooth=2,Nbound
         label=str(bounds[ibound])[0:5]+'$^{\\circ} < \\delta < $' + str(bounds[ibound+1])[0:5]+'$^{\\circ}$'
         plt.plot(bbar,mean_hists[ibound,:]*5,label=label,linestyle=linestyles[istyle])
     plt.legend(fontsize=10)
+    plt.text(3e-4,7e2,'(b)',fontsize=18)
     plt.tight_layout()
     plt.savefig(outdir+'chime_mean_hists.pdf')
     plt.close()

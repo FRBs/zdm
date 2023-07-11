@@ -91,6 +91,8 @@ def main():
         state.FRBdemo.lC = newC
         meaningful = it.ConvertToMeaningfulConstant(state)
         print("Number above Eref is ",meaningful)
+        print("in terms of FRBs/year, not day", meaningful*365)
+        print("as log10 ",np.log10(meaningful*365))
         
         with open("changing_constants.txt", "a") as myfile:
             myfile.write(str(i)+"   "+str(newC)+"   "+str(oldC)+"   "+str(meaningful)+"\n")

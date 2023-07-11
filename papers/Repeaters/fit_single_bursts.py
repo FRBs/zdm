@@ -300,6 +300,8 @@ def extreme_rsets(Rset1,Rset2,opdir='Extremes/',DMcut=None,chime_response=True,a
             loc='upper left', bbox_to_anchor=(0.4, 0.7))
         plt.gca().add_artist(leg1)
         plt.tight_layout()
+        
+        plt.text(-500,140,'(b)',fontsize=18)
         plt.savefig(opdir+'distributed_all_systematics.pdf')
         plt.close()
         
@@ -315,6 +317,7 @@ def extreme_rsets(Rset1,Rset2,opdir='Extremes/',DMcut=None,chime_response=True,a
             loc='upper left', bbox_to_anchor=(0.4, 0.7))
         plt.gca().add_artist(leg1)
         plt.tight_layout()
+        plt.text(-500,120,'(a)',fontsize=18)
         plt.savefig(opdir+'strong_all_systematics.pdf')
         plt.close()
         
