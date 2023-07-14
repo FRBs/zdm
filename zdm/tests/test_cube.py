@@ -114,33 +114,3 @@ def test_cube_run():
     zdm_v2= ds.p_DMgz + ds.p_z
     assert check_accuracy(zdm_v1,zdm_v2)
     
-    '''
-    # now check it has the right dimensions
-    with open(outfile, 'r') as infile:
-        lines=infile.readlines()
-        assert len(lines)==howmany+1
-        for i,line in enumerate(lines):
-            if i==0:
-                colmns = line.split(',')
-                continue
-            words=line.split(',')
-            
-            embed(header='106 of test_cube')
-            # three ways of calculating lltot
-            lltot_v0=float(words[-8])
-            lltot_v1=0
-            for j in np.arange(ns):
-                lltot_v1 += float(words[9+5*j])
-            lltot_v2=float(words[-5])+float(words[-6])+float(words[-7])
-            
-            # three ways of calculating p(z,DM)
-            zdm_v1=float(words[-3])+float(words[-4])
-            zdm_v2=float(words[-1])+float(words[-2])
-            
-            assert check_accuracy(zdm_v1,zdm_v2)
-            
-            assert check_accuracy(lltot_v0,lltot_v1)
-            assert check_accuracy(lltot_v0,lltot_v2)
-    '''
-
-#test_cube_run()            
