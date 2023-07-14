@@ -80,7 +80,9 @@ def set_state(alpha_method=1, cosmo=Planck18):
         
         vparams['host']['lmean'] = 2.18
         vparams['host']['lsigma'] = 0.48
-        
+    
+    vparams['energy']['luminosity_function'] = 2 # gamma function with splines
+    
     state.update_param_dict(vparams)
     state.set_astropy_cosmo(cosmo)
 
@@ -92,7 +94,8 @@ def survey_and_grid(survey_name:str='CRAFT/CRACO_1_5000',
             init_state=None,
             state_dict=None, iFRB:int=0,
                alpha_method=1, NFRB:int=100, 
-               lum_func:int=0,sdir=None):
+               lum_func:int=2,sdir=None,nz=500,ndm=1400,
+               nbins=5):
     """ Load up a survey and grid for a CRACO mock dataset
 
     Args:
@@ -102,7 +105,7 @@ def survey_and_grid(survey_name:str='CRAFT/CRACO_1_5000',
         NFRB (int, optional): Number of FRBs to analyze. Defaults to 100.
         iFRB (int, optional): Starting index for the FRBs.  Defaults to 0
         lum_func (int, optional): Flag for the luminosity function. 
-            0=power-law, 1=gamma.  Defaults to 0.
+            0=power-law, 1=gamma, 2=gamma+spline.  Defaults to 0.
         state_dict (dict, optional):
             Used to init state instead of alpha_method, lum_func parameters
 
@@ -131,7 +134,7 @@ def survey_and_grid(survey_name:str='CRAFT/CRACO_1_5000',
     zDMgrid, zvals,dmvals = misc_functions.get_zdm_grid(
         state, new=True, plot=False, method='analytic',
         datdir=resource_filename('zdm', 'GridData'),
-        zlog=False,nz=500)
+        zlog=False,nz=nz,ndm=ndm)
 
     ############## Initialise surveys ##############
     if sdir is not None:
@@ -139,7 +142,7 @@ def survey_and_grid(survey_name:str='CRAFT/CRACO_1_5000',
     else:
         sdir = os.path.join(resource_filename('zdm', 'craco'), 'MC_Surveys')
     isurvey = survey.load_survey(survey_name, state, dmvals,
-                                 NFRB=NFRB, sdir=sdir, Nbeams=5,
+                                 NFRB=NFRB, sdir=sdir, nbins=nbins,
                                  iFRB=iFRB)
     
     # generates zdm grid

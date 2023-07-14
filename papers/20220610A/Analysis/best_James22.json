@@ -1,0 +1,13 @@
+{
+    "state": {
+        "energy": {
+            "luminosity_function": 2
+        },
+        "FRBdemo": {
+            "alpha_method": 1
+        },
+        "cosmo": {
+            "fix_Omega_b_h2": true
+        }
+    }
+}

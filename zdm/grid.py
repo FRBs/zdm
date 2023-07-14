@@ -41,14 +41,21 @@ class Grid:
         self.b_fractions=None
         # State
         self.state = state
+        
 
         self.source_function=cos.choose_source_evolution_function(
             state.FRBdemo.source_evolution)
 
+        # Energetics
+        if self.state.energy.luminosity_function in [3]:
+            self.use_log10 = True
+        else:
+            self.use_log10 = False
         self.luminosity_function = self.state.energy.luminosity_function
         self.init_luminosity_functions()
         
-        self.nuObs=survey.meta['FBAR']*1e6 #from MHz to Hz
+        #self.nuObs=survey.meta['FBAR']*1e6 #from MHz to Hz
+        self.nuObs= np.median(survey.frbs['FBAR'])*1e6 #from MHz to Hz
         # Init the grid
         #   THESE SHOULD BE THE SAME ORDER AS self.update()
         self.parse_grid(zDMgrid.copy(),zvals.copy(),dmvals.copy())  
@@ -60,12 +67,18 @@ class Grid:
         else:
             efficiencies=survey.mean_efficiencies
             weights=None
-        self.calc_thresholds(survey.meta['THRESH'],
+        self.efficiencies=efficiencies
+        self.weights=weights
+        # Warning -- THRESH could be different for each FRB, but we don't treat it that way
+        self.calc_thresholds(np.median(survey.frbs['THRESH']),
                              efficiencies,
                              weights=weights)
+        # Calculate
         self.calc_pdv()
         self.set_evolution() # sets star-formation rate scaling with z - here, no evoltion...
         self.calc_rates() #includes sfr smearing factors and pdv mult
+
+        
 
     def init_luminosity_functions(self):
         """ Set the luminsoity function for FRB energetics """
@@ -85,7 +98,11 @@ class Grid:
             self.vector_cum_lf=energetics.vector_cum_gamma_spline
             self.array_diff_lf=energetics.array_diff_gamma
             self.vector_diff_lf=energetics.vector_diff_gamma
-            # Init
+        elif self.luminosity_function==3:  # Linear + log10
+            self.array_cum_lf=energetics.array_cum_gamma_linear
+            self.vector_cum_lf=energetics.vector_cum_gamma_linear
+            self.array_diff_lf=energetics.array_diff_gamma
+            self.vector_diff_lf=energetics.vector_diff_gamma
         else:
             raise ValueError("Luminosity function must be 0, not ",self.luminosity_function)
     
@@ -229,18 +246,30 @@ class Grid:
             self.b_fractions=np.zeros([self.zvals.size,self.dmvals.size,self.beam_b.size])
         
         # for some arbitrary reason, we treat the beamshape slightly differently... no need to keep an intermediate product!
-        for i,b in enumerate(self.beam_b):
+        main_beam_b = self.beam_b
+
+        # call log10 beam
+        if self.use_log10:
+            new_thresh = np.log10(self.thresholds) # use when calling in log10 space conversion
+            main_beam_b = np.log10(main_beam_b)
+
+        for i,b in enumerate(main_beam_b):
             for j,w in enumerate(self.eff_weights):
+                # using log10 space conversion
+                if self.use_log10:
+                    thresh = new_thresh[j,:,:] - b
+                else: # original
+                    thresh = self.thresholds[j,:,:]/b
+                
                 if j==0:
                     self.b_fractions[:,:,i] = self.beam_o[i]*w*self.array_cum_lf(
-                        self.thresholds[j,:,:]/b,Emin,Emax,
-                        self.state.energy.gamma)
+                        thresh,Emin,Emax,
+                        self.state.energy.gamma, self.use_log10)
                 else:
                     self.b_fractions[:,:,i] += self.beam_o[i]*w*self.array_cum_lf(
-                        self.thresholds[j,:,:]/b,Emin,Emax,
-                        self.state.energy.gamma)
-                
-                
+                        thresh,Emin,Emax,
+                        self.state.energy.gamma, self.use_log10)
+        
         # here, b-fractions are unweighted according to the value of b.
         self.fractions=np.sum(self.b_fractions,axis=2) # sums over b-axis [ we could ignore this step?]
         self.pdv=np.multiply(self.fractions.T,self.dV).T
@@ -272,7 +301,8 @@ class Grid:
         self.rates=self.pdv*self.sfr_smear
         
         
-    def calc_thresholds(self, F0:float, eff_table, 
+    def calc_thresholds(self, F0:float, 
+                        eff_table, 
                         bandwidth=1e9, 
                         nuRef=1.3e9, weights=None):
         """ Sets the effective survey threshold on the zdm grid
@@ -321,7 +351,6 @@ class Grid:
         # We loop over nthesh and generate a NDM x Nz array for each
         for i in np.arange(self.nthresh):
             self.thresholds[i,:,:]=np.outer(self.FtoE,Eff_thresh[i,:])
-        
         
         
     def smear_dm(self,smear:np.ndarray):#,mean:float,sigma:float):
@@ -706,6 +735,7 @@ class Grid:
             self.calc_thresholds(
                 self.F0,self.eff_table, bandwidth=self.bandwidth,
                 weights=self.eff_weights)
+            
         
         if calc_pdv or ALL:
             self.calc_pdv()

@@ -1563,34 +1563,10 @@ def initialise_grids(surveys: list, zDMgrid: np.ndarray,
         zvals,plot=True)
     grids=[]
     for survey in surveys:
-        '''
-        if wdist:
-            efficiencies=survey.efficiencies # two dimensions
-            weights=survey.wplist
-        else:
-            efficiencies=survey.mean_efficiencies
-            weights=None
-            #efficiencies=survey.get_efficiency(dmvals)
-        '''
+        print(f"Working on {survey.name}")
         
         grid=zdm_grid.Grid(survey, copy.deepcopy(state),
                            zDMgrid, zvals, dmvals, mask, wdist)
-        '''
-        grid.pass_grid(zDMgrid,zvals,dmvals)
-        grid.smear_dm(mask)#,logmean,logsigma)
-        
-        # TODO -- avoid code duplication with grid.update_grid()
-        # note - survey frequencies in MHz
-        grid.calc_thresholds(survey.meta['THRESH'],
-                             efficiencies,
-                             weights=weights,
-                             nuObs=survey.meta['FBAR']*1e6)
-        grid.calc_dV()
-        grid.calc_pdv()#survey.beam_b,
-                      #survey.beam_o) # calculates volumetric-weighted probabilities
-        grid.set_evolution() # sets star-formation rate scaling with z - here, no evoltion...
-        grid.calc_rates() # calculates rates by multiplying above with pdm plot
-        '''
         grids.append(grid)
     
     return grids
@@ -1956,11 +1932,13 @@ def plot_zdm_basic_paper(zDMgrid,zvals,dmvals,zmax=1,DMmax=1000,
 
 def plot_grid_2(zDMgrid,zvals,dmvals,
                 zmax=1,DMmax=1000,norm=0,log=True,name='temp.pdf',
-                label='$\\log_{10}p(DM_{\\rm EG},z)$',project=False,conts=False,
+                label='$\\log_{10}p(DM_{\\rm EG},z)$',ylabel='${\\rm DM}_{\\rm EG}$',
+                project=False,conts=False,
                 FRBZ=None,FRBDM=None,Aconts=False,
-                Macquart=None,title="Plot",
+                Macquart=None,title="Plot", cmap=None,
                 H0=None,showplot=False,DMlines=None,markersize=10,
-                clim = False):
+                clim = False,data_clr='red',special=None):
+
     """
     Very complicated routine for plotting 2D zdm grids 
 
@@ -1973,22 +1951,30 @@ def plot_grid_2(zDMgrid,zvals,dmvals,
         norm (int, optional): [description]. Defaults to 0.
         log (bool, optional): [description]. Defaults to True.
         name (str, optional): [description]. Defaults to 'temp.pdf'.
+        ylabel (str,optional): Label on y axis of plot. Defaults to '${\\rm DM}_{\\rm EG}$'
         label (str, optional): [description]. Defaults to '$\log_{10}p(DM_{\rm EG},z)$'.
         project (bool, optional): [description]. Defaults to False.
         conts (bool, optional): [description]. Defaults to False.
         FRBZ ([type], optional): [description]. Defaults to None.
         FRBDM ([type], optional): [description]. Defaults to None.
         Aconts (bool, optional): [description]. Defaults to False.
-        Macquart (state, optional): state object.  Used to generat the Maquart relation.
-            Defaults to None.
+        Macquart (state, optional): state object.  Used to generate the Maquart relation.
+            Defaults to None, i.e. do not show the Macquart relation.
         title (str, optional): [description]. Defaults to "Plot".
         H0 ([type], optional): [description]. Defaults to None.
-        showplot (bool, optional): [description]. Defaults to False.
-        clim ([type], optional): [description] pass colorbar limit. Defaults to False
+        showplot (bool, optional): use plt.show to show plot. Defaults to False.
+        clim ([float,float], optional): pair of floats giving colorbar limits.
+            Defaults to False (automatic limit)
+        cmap (str, optional): Alternate color map for PDF
+        data_clr (str, optional): Alternate color for data
+        special(list,optional): list of [z,dm] values to show as a special big star
     """
     if H0 is None:
         H0 = cos.cosmo.H0
-    cmx = plt.get_cmap('cubehelix')
+    if cmap is None:
+        cmx = plt.get_cmap('cubehelix')
+    else:
+        cmx = plt.get_cmap(cmap)
     
     ##### imshow of grid #######
     
@@ -2024,7 +2010,8 @@ def plot_grid_2(zDMgrid,zvals,dmvals,
     plt.sca(ax1)
     
     plt.xlabel('z')
-    plt.ylabel('${\\rm DM}_{\\rm EG}$')
+    plt.ylabel(ylabel)
+    
     nz,ndm=zDMgrid.shape
     
     
@@ -2040,13 +2027,13 @@ def plot_grid_2(zDMgrid,zvals,dmvals,
     dz=zvals[1]-zvals[0]
     if norm==1:
         zDMgrid /= ddm
-        if Aconts:
-            alevels /= ddm
+        #if Aconts:
+        #    alevels /= ddm
     elif norm==2:
         xnorm=np.sum(zDMgrid)
         zDMgrid /= xnorm
-        if Aconts:
-            alevels /= xnorm
+        #if Aconts:
+        #    alevels /= xnorm
     elif norm==3:
         zDMgrid /= np.max(zDMgrid)
     
@@ -2067,6 +2054,11 @@ def plot_grid_2(zDMgrid,zvals,dmvals,
             #    level of the countour to draw
             iwhich=np.where(cslist > ac)[0][0]
             alevels[i]=slist[iwhich]
+        
+        if norm == 1:
+            alevels /= ddm
+        elif norm == 2:
+            alevels /= xnorm
         
     ### generates contours *before* cutting array in DM ###
     ### might need to normalise contours by integer lengths, oh well! ###
@@ -2176,7 +2168,7 @@ def plot_grid_2(zDMgrid,zvals,dmvals,
             zstop = kDM*zvals[stop2] + (1.-kDM)*zvals[stop1]
             zstop /= (zvals[1]-zvals[0])
             DM /= (dmvals[1]-dmvals[0])
-            plt.plot([0,zstop],[DM,DM],color='red',linestyle=':')
+            plt.plot([0,zstop],[DM,DM],color=data_clr, linestyle=':')
             
     # plots contours i there
     if conts:
@@ -2195,7 +2187,7 @@ def plot_grid_2(zDMgrid,zvals,dmvals,
         sigmaDMhost=np.log(10**Macquart.host.lsigma)
         meanHost = np.exp(muDMhost + sigmaDMhost**2/2.)
         medianHost = np.exp(muDMhost) 
-        print(f"Host: mean={meanHost}, median={medianHost}")
+        #print(f"Host: mean={meanHost}, median={medianHost}")
         plt.ylim(0,ndm-1)
         plt.xlim(0,nz-1)
         zmax=zvals[-1]
@@ -2209,9 +2201,10 @@ def plot_grid_2(zDMgrid,zvals,dmvals,
         DMEG_median = (DM_cosmic+medianHost)/ddm
         plt.plot(zeval,DMEG_mean,color='blue',linewidth=2,
                  label='Macquart relation (mean)')
-        plt.plot(zeval,DMEG_median,color='blue',
-                 linewidth=2, ls='--',
-                 label='Macquart relation (median)')
+        # removed median, because it is only media of HOST not DM cosmic
+        #plt.plot(zeval,DMEG_median,color='blue',
+        #         linewidth=2, ls='--',
+        #         label='Macquart relation (median)')
         l=plt.legend(loc='lower right',fontsize=12)
         #l=plt.legend(bbox_to_anchor=(0.2, 0.8),fontsize=8)
         #for text in l.get_texts():
@@ -2232,8 +2225,13 @@ def plot_grid_2(zDMgrid,zvals,dmvals,
         iDMs=FRBDM/ddm
         iZ=FRBZ/dz
         OK = np.where(FRBZ>0)[0]
-        plt.plot(iZ[OK],iDMs[OK],'ro',linestyle="")
-        
+        plt.plot(iZ[OK],iDMs[OK],'o', color=data_clr, linestyle="")
+    
+    if special is not None:
+        iDM=special[0]/ddm
+        iz=special[1]/dz
+        plt.plot([iz],[iDM],'*', markersize=10,color="blue", linestyle="")
+    
     # do 1-D projected plots
     if project:
         plt.sca(acb)
@@ -2270,7 +2268,8 @@ def plot_grid_2(zDMgrid,zvals,dmvals,
             for i,Z in enumerate(FRBZ[OK]):
                 hvals[i]=xonly[np.where(zvals > Z)[0][0]]
             
-            axx.plot(FRBZ[OK],hvals,'ro',linestyle="",markersize=markersize)
+            axx.plot(FRBZ[OK],hvals,'ro',linestyle="",color=data_clr,markersize=markersize)
+
             for tick in axx.xaxis.get_major_ticks():
                         tick.label.set_fontsize(6)
     else:
@@ -2278,7 +2277,7 @@ def plot_grid_2(zDMgrid,zvals,dmvals,
         cbar.set_label(label)
         plt.tight_layout()
     
-    plt.savefig(name)
+    plt.savefig(name, dpi=300)
     if showplot:
         plt.show()
     plt.close()

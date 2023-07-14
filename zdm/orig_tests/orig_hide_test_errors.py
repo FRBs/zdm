@@ -8,12 +8,9 @@ gets saved to Pickle for massive speedups (e.g. if just fine-tuning plots); but 
 This is a legacy file from the original 'method' paper and will likely not be updated.
 
 """
-import cosmology as cos
-import argparse
+from zdm import cosmology as cos
 
 import numpy as np
-import zdm
-import pcosmic
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 import matplotlib.cm as cm
@@ -22,10 +19,8 @@ import os
 import sys
 
 import scipy as sp
-import time
 from matplotlib.ticker import NullFormatter
 import iteration as it
-import beams
 import pickle
 
 matplotlib.rcParams['image.interpolation'] = None
