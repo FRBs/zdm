@@ -45,7 +45,8 @@ def test_cube_run():
         grids.append(g)
     '''
     surveys, grids = real_loading.surveys_and_grids(
-        survey_names=names)
+        survey_names=names, 
+        nz=500, ndm=1400) # Small number to keep this cheap
     
     
     ### gets cube files
@@ -114,3 +115,5 @@ def test_cube_run():
     zdm_v2= ds.p_DMgz + ds.p_z
     assert check_accuracy(zdm_v1,zdm_v2)
     
+
+#test_cube_run()
