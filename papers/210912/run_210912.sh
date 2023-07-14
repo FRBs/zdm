@@ -12,6 +12,8 @@ width=0.07
 
 command="python pz_given_dm.py -d 1234. -i 30.9 -s CRAFT/ICS -H 50 -o 210912_pzgdm -S $SNR -w $width"
 
+
+
 echo $command
 $command
 

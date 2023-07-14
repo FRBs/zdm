@@ -27,6 +27,11 @@ def main(pargs):
     from zdm import parameters
     from zdm import cosmology as cos
     from zdm import misc_functions
+    from zdm import pcosmic
+    
+    
+    
+    
     
     limits = (2.5, 97.5)
     
@@ -51,6 +56,24 @@ def main(pargs):
     
     # Cosmology
     states=get_states(newEmax=True,width=pargs.width)
+    
+    DMhost=10.**states[0].host.lmean
+    ######### we first make approximate predictions given mean Macquart relation ######
+    DMhalo = states[0].MW.DMhalo # from Prochaska Zhang 2019
+    DM_FRB = pargs.DM_FRB
+    
+    
+    DMhost=84.
+    DM_ISM=16.3
+    
+    zvals = np.linspace(0.01,2,200)
+    dmbars = pcosmic.get_mean_DM(zvals,states[0])
+    DMhosts = DMhost/(1.+zvals)
+    
+    
+    
+    for i,z in enumerate(zvals):
+        print(z,DM_FRB-DMhalo-DM_ISM-DMhosts[i]-dmbars[i])
     
     #all states have identical cosmology
     cos.set_cosmology(states[0])
@@ -78,12 +101,9 @@ def main(pargs):
             s,igrid = survey_and_grid(survey_name=pargs.survey,NFRB=None,sdir=sdir,init_state=state)
             PDM_z = igrid.rates # z, DM
         
-        
-        
         # get the grid of p(DM|z)
         dmvals = igrid.dmvals
         zvals = igrid.zvals
-        
         
         # Fuss
         iDM = np.argmin(np.abs(dmvals - DM_EG))
