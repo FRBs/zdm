@@ -5,10 +5,78 @@ and other useful things
 
 
 import numpy as np
-global Nsingles
-global NReps
-NSingles = 474
-NReps = 18
+import os
+from pkg_resources import resource_filename
+from zdm import cosmology as cos
+from zdm import misc_functions
+from zdm import survey
+from zdm import grid
+
+def survey_and_grid(survey_name:str='CRAFT/CRACO_1_5000',
+            init_state=None,
+            state_dict=None, iFRB:int=0,
+               alpha_method=1, NFRB:int=100, 
+               lum_func:int=2,sdir=None):
+    """ Load up a survey and grid for a CRACO mock dataset
+
+    Args:
+        init_state (State, optional):
+            Initial state
+        survey_name (str, optional):  Defaults to 'CRAFT/CRACO_1_5000'.
+        NFRB (int, optional): Number of FRBs to analyze. Defaults to 100.
+        iFRB (int, optional): Starting index for the FRBs.  Defaults to 0
+        lum_func (int, optional): Flag for the luminosity function. 
+            0=power-law, 1=gamma.  Defaults to 0.
+        state_dict (dict, optional):
+            Used to init state instead of alpha_method, lum_func parameters
+
+    Raises:
+        IOError: [description]
+
+    Returns:
+        tuple: Survey, Grid objects
+    """
+    
+    # Init state
+    if init_state is None:
+        state = loading.set_state(alpha_method=alpha_method)
+        # Addiitonal updates
+        if state_dict is None:
+            state_dict = dict(cosmo=dict(fix_Omega_b_h2=True))
+            state.energy.luminosity_function = lum_func
+        state.update_param_dict(state_dict)
+    else:
+        state = init_state
+    
+    # Cosmology
+    cos.set_cosmology(state)
+    cos.init_dist_measures()
+    
+    # get the grid of p(DM|z)
+    zDMgrid, zvals,dmvals = misc_functions.get_zdm_grid(
+        state, new=True, plot=False, method='analytic',
+        datdir=resource_filename('zdm', 'GridData'),
+        zlog=False,nz=500)
+
+    ############## Initialise surveys ##############
+    if sdir is not None:
+        print("Searching for survey in directory ",sdir)
+    else:
+        sdir = os.path.join(resource_filename('zdm', 'craco'), 'MC_Surveys')
+    
+    
+    isurvey = survey.load_survey(survey_name, state, dmvals,
+                                 NFRB=NFRB, sdir=sdir, nbins=5,
+                                 iFRB=iFRB, original=True)
+    
+    # generates zdm grid
+    grids = misc_functions.initialise_grids(
+        [isurvey], zDMgrid, zvals, dmvals, state, wdist=True)
+    print("Initialised grid")
+
+    # Return Survey and Grid
+    return isurvey, grids[0]
+
 
 def make_bayes(arr,givenorm=False):
     """

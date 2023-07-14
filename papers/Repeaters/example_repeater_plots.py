@@ -69,7 +69,6 @@ def main():
     
     ###### generates the example plots for CRAFT ICS, using multiple times #######
     
-    ############### Initial plots -Figs 1 and 2 ##################
     
     # in case you wish to switch to another output directory
     opdir='ExamplePlots/'

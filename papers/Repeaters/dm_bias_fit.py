@@ -21,7 +21,7 @@ from zdm import survey
 from matplotlib import pyplot as plt
 
 import scipy as sp
-
+import utilities as ute
 import matplotlib
 import time
 
@@ -79,13 +79,13 @@ def fit_dm_bias():
         state=set_state(chime_response = True)
         t0=time.time()
         name = "CHIME_decbin0"
-        sc,gc = survey_and_grid(survey_name=name,NFRB=None,sdir=sdir,init_state=state) # should be equal to actual number of FRBs, but for this purpose it doesn't matter
+        sc,gc = ute.survey_and_grid(survey_name=name,NFRB=None,sdir=sdir,init_state=state) # should be equal to actual number of FRBs, but for this purpose it doesn't matter
         ec = sc.efficiencies[0,:]
         
         state=set_state(chime_response = False)
         t0=time.time()
         name = "CHIME_decbin0"
-        sn,gn = survey_and_grid(survey_name=name,NFRB=None,sdir=sdir,init_state=state) # should be equal to actual number of FRBs, but for this purpose it doesn't matter
+        sn,gn = ute.survey_and_grid(survey_name=name,NFRB=None,sdir=sdir,init_state=state) # should be equal to actual number of FRBs, but for this purpose it doesn't matter
         en = sn.efficiencies
         
         np.save(ldir + 'ec.npy',ec)

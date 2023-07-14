@@ -182,7 +182,7 @@ class OldSurvey:
         self.do_keyword_char('BEAM',which,None) # prefix of beam file
         self.do_keyword('TOBS',which,None) # total observation time, hr
         self.do_keyword('DIAM',which,None) # Telescope diamater (in case of Gauss beam)
-        #self.do_keyword('NBEAMS',which,1) # Number of beams (multiplies sr)
+        self.do_keyword('NBEAMS',which,1) # Number of beams (multiplies sr)
         self.do_keyword('NORM_FRB',which,self.NFRB) # number of FRBs to norm obs time by
         self.do_keyword('NBINS',which,1) # Number of bins for the analysis
         # Hack to recast as int
@@ -1041,12 +1041,10 @@ def load_survey(survey_name:str, state:parameters.State,
     else:
         dfile += '.ecsv'
 
-    #elif 'private' in survey_name: 
-    #    dfile = survey_name+'.dat'
+    
     #    if defNbeams is None:
     #        raise IOError("You must specify Nbeams with a private survey file")
-    else: # Should only be used for MC analysis
-        dfile = survey_name+'.dat'
+    
     
     #### NOTE: the following is deleted as  Nbeams now part of each survey
     #    defNbeams = 5
@@ -1155,7 +1153,7 @@ def refactor_old_survey_file(survey_name:str, outfile:str,
         separators=(',', ': '))
 
     # Write me
-    frbs.write(outfile, overwrite=clobber)
+    frbs.write(outfile, overwrite=clobber,format='ascii.ecsv')
     print(f"Wrote: {outfile}")
 
 def vet_frb_table(frb_tbl:pandas.DataFrame,
