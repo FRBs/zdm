@@ -9,7 +9,7 @@ from pkg_resources import resource_filename
 import pandas
 
 from zdm import iteration as it
-from zdm.craco import loading
+from zdm import real_loading
 from zdm import io
 from zdm.tests import tstutils
 
@@ -30,16 +30,22 @@ def test_cube_run():
     # Initialise survey and grid 
     # For this purporse, we only need two different surveys
     #names=['CRAFT/FE','CRAFT/ICS','CRAFT/ICS892','CRAFT/ICS1632','PKS/Mb']
-    names=['CRAFT/FE','CRAFT/ICS','CRAFT/ICS892','PKS/Mb']
-    sdir = os.path.join(resource_filename('zdm', 'data'), 'Surveys')
-    surveys=[]
-    grids=[]
+    names=['CRAFT/FE','CRAFT/ICS','CRAFT/ICS892',
+           'PKS/Mb']
+    #sdir = os.path.join(resource_filename('zdm', 'data'), 'Surveys')
+    #surveys=[]
+    #grids=[]
+
+    '''
+    # We should be using real_loading
     for name in names:
-        # We should be using real_loading
         s,g = loading.survey_and_grid(
             survey_name=name,NFRB=None,sdir=sdir) # should be equal to actual number of FRBs, but for this purpose it doesn't matter
         surveys.append(s)
         grids.append(g)
+    '''
+    surveys, grids = real_loading.surveys_and_grids(
+        survey_names=names)
     
     
     ### gets cube files

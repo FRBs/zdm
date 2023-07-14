@@ -84,8 +84,10 @@ def set_state(alpha_method=1, cosmo=Planck18):
     return state
 
 
-def surveys_and_grids(init_state=None, alpha_method=1, add_20220610A=False): 
-    """ Load up a survey and grid for a CRACO mock dataset
+def surveys_and_grids(init_state=None, alpha_method=1, 
+                      survey_names=None,
+                      add_20220610A=False): 
+    """ Load up a survey and grid for a real dataset
 
     Args:
         init_state (State, optional):
@@ -93,6 +95,8 @@ def surveys_and_grids(init_state=None, alpha_method=1, add_20220610A=False):
         survey_name (str, optional):  Defaults to 'CRAFT/CRACO_1_5000'.
         state_dict (dict, optional):
             Used to init state instead of alpha_method, lum_func parameters
+        survey_names (list, optional):
+            List of surveys to load
         add_20220610A (bool, optional):
             Include this FRB (a bit of a hack)
 
@@ -118,7 +122,8 @@ def surveys_and_grids(init_state=None, alpha_method=1, add_20220610A=False):
         datdir=resource_filename('zdm', 'GridData'))
     
     ############## Initialise surveys ##############
-    survey_names = ['CRAFT/FE', 
+    if survey_names is None:
+        survey_names = ['CRAFT/FE', 
                     'private_CRAFT_ICS_1632',
                     'private_CRAFT_ICS_892', 
                     'private_CRAFT_ICS_1272',

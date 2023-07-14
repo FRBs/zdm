@@ -982,7 +982,6 @@ def load_survey(survey_name:str, state:parameters.State,
     Returns:
         Survey: instance of the class
     """
-    print(f"Loading survey: {survey_name}")
     if sdir is None:
         sdir = os.path.join(
             resource_filename('zdm', 'data'), 'Surveys')
@@ -1016,6 +1015,8 @@ def load_survey(survey_name:str, state:parameters.State,
         dfile += '.dat'
     else:
         dfile += '.ecsv'
+
+    print(f"Loading survey: {survey_name} from {dfile}")
 
     # Do it
     if original:
