@@ -29,6 +29,7 @@ import scipy as sp
 import matplotlib
 import time
 from zdm import beams
+import utilities as ute
 beams.beams_path = 'BeamData/'
     
 
