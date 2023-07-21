@@ -52,7 +52,7 @@ spec:
             cd ../../..;
             cd papers/F/Analysis/Real/Cloud;
             mkdir Output;
-            python run_real_craco_block.py -s 1 -e 5;
+            python run_craco_real.py -t 41 -n 41 -s 1 -e 5;
             aws --endpoint http://rook-ceph-rgw-nautiluss3.rook s3 cp Output s3://zdm/Cubes/F/real/ --recursive --force;
         env:
           - name: "ENDPOINT_URL"

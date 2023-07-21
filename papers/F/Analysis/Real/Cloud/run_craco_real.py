@@ -42,8 +42,18 @@ def main(
     if int(ntotal / total_ncpu) != nper_cpu:
         raise IOError(f"Ncpu={total_ncpu} must divide evenly into ntotal={ntotal}")
 
+    start = pargs.start
+    end = pargs.end
+
     commands = []
-    for kk in range(pargs.ncpu):
+
+    nums = range(pargs.ncpu)
+
+    # Restrict to subset of CPUs if specified
+    if (start > 0) and (end > 0):
+        nums = np.arange(start-1, end, dtype="int")
+
+    for kk in nums:
         line = []
         # Which CPU is running out of the total?
         iCPU = (batch - 1) * pargs.ncpu + kk
@@ -102,6 +112,15 @@ def parse_option():
     parser.add_argument(
         "-b", "--batch", type=int, default=1, required=False, help="Batch number"
     )
+
+    # Optional restriction to subset of cube
+    parser.add_argument(
+        "-s", "--start", type=int, default=0, required=False, help="csv to start on",
+    )
+    parser.add_argument(
+        "-e", "--end", type=int, default=0, required=False, help="csv to end on (inclusive)",
+    )
+
     args = parser.parse_args()
 
     return args

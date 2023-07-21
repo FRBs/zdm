@@ -119,9 +119,9 @@ def surveys_and_grids(init_state=None, alpha_method=1, add_20220610A=False):
     
     ############## Initialise surveys ##############
     survey_names = ['CRAFT/FE', 
-                    'private_CRAFT_ICS_1632',
-                    'private_CRAFT_ICS_892', 
-                    'private_CRAFT_ICS_1272',
+                    'CRAFT_ICS_1632',
+                    'CRAFT_ICS_892', 
+                    'CRAFT_ICS_1272',
                     'PKS/Mb']
     if add_20220610A:
         survey_names[3] = 'CRAFT_ICS_w_220610'
