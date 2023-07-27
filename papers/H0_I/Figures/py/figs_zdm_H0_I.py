@@ -222,7 +222,7 @@ def fig_craco_varyH0_zDM(outfile,
         lstyles = ['-', '-', '-', ':']
         zticks = [0.5, 1.0, 1.5, 2.]
         ylim = (0., DMmax)
-    elif other_param == 'F':
+    elif other_param == 'logF':
         H0_values = [60., 70., 80., 60.]
         other_values = [fiducial_F, fiducial_F, fiducial_F, 0.5]
         lstyle = '-'
@@ -242,8 +242,8 @@ def fig_craco_varyH0_zDM(outfile,
         vparams['H0'] = H0
         if other_param == 'Emax':
             vparams['lEmax'] = fiducial_Emax + scl
-        elif other_param == 'F':
-            vparams['F'] = scl
+        elif other_param == 'logF':
+            vparams['logF'] = scl
         grid.update(vparams)
 
         # Unpack
@@ -279,8 +279,8 @@ def fig_craco_varyH0_zDM(outfile,
         # Label
         if other_param == 'Emax':
             labels.append(r"$H_0 = $"+f"{H0}, log "+r"$E_{\rm max}$"+f"= {vparams['lEmax']}")
-        elif other_param == 'F':
-            labels.append(r"$H_0 = $"+f"{H0}, F = {vparams['F']}")
+        elif other_param == 'logF':
+            labels.append(r"$H_0 = $"+f"{H0}, F = {vparams['logF']}")
 
     ###### gets decent axis labels, down to 1 decimal place #######
     ax=plt.gca()
@@ -327,7 +327,7 @@ def fig_craco_varyH0_other(outfile, params,
         H0_values = [60., 70., 80., 80.]
         other_values = [41.4, 41.4, 41.4, 41.3]
         lstyles = ['-', '-', '-', ':']
-    elif other_param == 'F':
+    elif other_param == 'logF':
         H0_values = [60., 70., 80., 60.]
         other_values = [fiducial_F, fiducial_F, fiducial_F, 0.5]
         lstyle = '-'
@@ -381,8 +381,11 @@ def fig_craco_varyH0_other(outfile, params,
 
         if first:
             if debug:
-                im=plt.imshow(cut_pgrid,cmap='jet',origin='lower', 
-                    interpolation='None',
+                im = plt.imshow(
+                    cut_pgrid,
+                    cmap="jet",
+                    origin="lower",
+                    interpolation="None",
                     # extent=[0., 2, 0, 2000.],
                 vmin=-30.,
                     aspect='auto')
@@ -406,28 +409,28 @@ def fig_craco_varyH0_other(outfile, params,
         legend_lines.append(leg[0])
 
         # Label
-        if other_param == 'Emax':
-            labels.append(r"$H_0 = $"+f"{H0}, log "+r"$E_{\rm max}$"+f"= {lEmax}")
-        elif other_param == 'F':
-            labels.append(r"$H_0 = $"+f"{H0}, F = {vparams['F']}")
+        if other_param == "Emax":
+            labels.append(r"$H_0 = $" + f"{H0}, log " + r"$E_{\rm max}$" + f"= {lEmax}")
+        elif other_param == "F":
+            labels.append(r"$H_0 = $" + f"{H0}, F = {vparams['logF']}")
 
     ###### gets decent axis labels, down to 1 decimal place #######
-    ax=plt.gca()
-    ax.legend(legend_lines, labels, loc='upper right')
+    ax = plt.gca()
+    ax.legend(legend_lines, labels, loc="upper right")
 
     # Ticks
     labels = [item.get_text() for item in ax.get_xticklabels()]
     for i in np.arange(len(labels)):
-        labels[i]=labels[i][0:4]
+        labels[i] = labels[i][0:4]
     ax.set_xticklabels(labels)
     labels = [item.get_text() for item in ax.get_yticklabels()]
     for i in np.arange(len(labels)):
-        if '.' in labels[i]:
-            labels[i]=labels[i].split('.')[0]
+        if "." in labels[i]:
+            labels[i] = labels[i].split(".")[0]
     ax.set_yticklabels(labels)
     ax.yaxis.labelpad = 0
-        
-    fig_utils.set_fontsize(ax, 15.)
+
+    fig_utils.set_fontsize(ax, 15.0)
 
     # Finish
     plt.tight_layout()
@@ -435,18 +438,19 @@ def fig_craco_varyH0_other(outfile, params,
     plt.close()
     print(f"Wrote: {outfile}")
 
-def fig_craco_H0vsEmax(outfile='fig_craco_H0vsEmax.png'):
+
+def fig_craco_H0vsEmax(outfile="fig_craco_H0vsEmax.png"):
     # Load the cube
-    cube_out = np.load('../Analysis/Cubes/craco_H0_Emax_cube.npz')
-    ll = cube_out['ll'] # log10
+    cube_out = np.load("../Analysis/Cubes/craco_H0_Emax_cube.npz")
+    ll = cube_out["ll"]  # log10
 
     # Slurp
-    lEmax = cube_out['lEmax']
-    H0 = cube_out['H0']
+    lEmax = cube_out["lEmax"]
+    H0 = cube_out["H0"]
     #
-    dE = lEmax[1]-lEmax[0]
+    dE = lEmax[1] - lEmax[0]
     dH = H0[1] - H0[0]
-        
+
     # Normalize
     ll -= ll.max()
 
@@ -454,33 +458,37 @@ def fig_craco_H0vsEmax(outfile='fig_craco_H0vsEmax.png'):
     plt.clf()
     ax = plt.gca()
 
-    im=plt.imshow(ll.T,cmap='jet',origin='lower', 
-                    interpolation='None', extent=[40.4-dE/2, 43.4+dE/2, 
-                                                  60.-dH/2, 80+dH/2],
-                aspect='auto', vmin=-4.
-                )#aspect=aspect)
+    im = plt.imshow(
+        ll.T,
+        cmap="jet",
+        origin="lower",
+        interpolation="None",
+        extent=[40.4 - dE / 2, 43.4 + dE / 2, 60.0 - dH / 2, 80 + dH / 2],
+        aspect="auto",
+        vmin=-4.0,
+    )  # aspect=aspect)
     # Color bar
-    cbar=plt.colorbar(im,fraction=0.046, shrink=1.2,aspect=15,pad=0.05)
-    cbar.set_label(r'$\Delta$ Log10 Likelihood')
+    cbar = plt.colorbar(im, fraction=0.046, shrink=1.2, aspect=15, pad=0.05)
+    cbar.set_label(r"$\Delta$ Log10 Likelihood")
     #
-    ax.set_xlabel('log Emax')
-    ax.set_ylabel('H0 (km/s/Mpc)')
+    ax.set_xlabel("log Emax")
+    ax.set_ylabel("H0 (km/s/Mpc)")
     plt.savefig(outfile, dpi=200)
     print(f"Wrote: {outfile}")
 
 
-def fig_craco_H0vsF(outfile='fig_craco_H0vsF.png'):
+def fig_craco_H0vsF(outfile="fig_craco_H0vsF.png"):
     # Load the cube
-    cube_out = np.load('../Analysis/Cubes/craco_H0_F_cube.npz')
-    ll = cube_out['ll'] # log10
+    cube_out = np.load("../Analysis/Cubes/craco_H0_F_cube.npz")
+    ll = cube_out["ll"]  # log10
 
     # Slurp
-    F = cube_out['F']
-    H0 = cube_out['H0']
+    F = cube_out["F"]
+    H0 = cube_out["H0"]
     #
-    dF = F[1]-F[0]
+    dF = F[1] - F[0]
     dH = H0[1] - H0[0]
-        
+
     # Normalize
     ll -= ll.max()
 
@@ -488,17 +496,21 @@ def fig_craco_H0vsF(outfile='fig_craco_H0vsF.png'):
     plt.clf()
     ax = plt.gca()
 
-    im=plt.imshow(ll.T,cmap='jet',origin='lower', 
-                    interpolation='None', extent=[0.1-dF/2, 0.5+dF/2, 
-                                                  60.-dH/2, 80+dH/2],
-                aspect='auto', vmin=-4.
-                )#aspect=aspect)
+    im = plt.imshow(
+        ll.T,
+        cmap="jet",
+        origin="lower",
+        interpolation="None",
+        extent=[0.1 - dF / 2, 0.5 + dF / 2, 60.0 - dH / 2, 80 + dH / 2],
+        aspect="auto",
+        vmin=-4.0,
+    )  # aspect=aspect)
     # Color bar
-    cbar=plt.colorbar(im,fraction=0.046, shrink=1.2,aspect=15,pad=0.05)
-    cbar.set_label(r'$\Delta$ Log10 Likelihood')
+    cbar = plt.colorbar(im, fraction=0.046, shrink=1.2, aspect=15, pad=0.05)
+    cbar.set_label(r"$\Delta$ Log10 Likelihood")
     #
-    ax.set_xlabel('F')
-    ax.set_ylabel('H0 (km/s/Mpc)')
+    ax.set_xlabel("F")
+    ax.set_ylabel("H0 (km/s/Mpc)")
     plt.savefig(outfile, dpi=200)
     print(f"Wrote: {outfile}")
 
@@ -619,10 +631,8 @@ def main(pargs):
 
 
     # Vary H0, F
-    if pargs.figure == 'varyH0F':
-        fig_craco_varyH0_zDM(outfile='fig_craco_varyH0F.png',
-                         other_param='F')
-
+    if pargs.figure == "varyH0F":
+        fig_craco_varyH0_zDM(outfile="fig_craco_varyH0F.png", other_param="F")
 
     # H0 vs. Emax
     if pargs.figure == 'H0vsEmax':
@@ -649,17 +659,21 @@ def parse_option():
         args: (dict) dictionary of the arguments.
     """
     parser = argparse.ArgumentParser("zdm H0 I Figures")
-    parser.add_argument("figure", type=str, 
-                        help="function to execute: ('fiducial, 'varyH0', 'H0vsEmax')")
-    #parser.add_argument('--cmap', type=str, help="Color map")
-    #parser.add_argument('--distr', type=str, default='normal',
+    parser.add_argument(
+        "figure",
+        type=str,
+        help="function to execute: ('fiducial, 'varyH0', 'H0vsEmax')",
+    )
+    # parser.add_argument('--cmap', type=str, help="Color map")
+    # parser.add_argument('--distr', type=str, default='normal',
     #                    help='Distribution to fit [normal, lognorm]')
     args = parser.parse_args()
-    
+
     return args
 
+
 # Command line execution
-if __name__ == '__main__':
+if __name__ == "__main__":
 
     pargs = parse_option()
     main(pargs)

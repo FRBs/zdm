@@ -47,10 +47,10 @@ from matplotlib import pyplot as plt
 def main():
     
     H0=80
-    F=0.32
+    logF=np.log10(0.32)
     
     # in case you wish to switch to another output directory
-    opdir='GridComponents_H'+str(H0)+'_F'+str(F)+'/'
+    opdir='GridComponents_H'+str(H0)+'_logF'+str(logF)+'/'
     if not os.path.exists(opdir):
         os.mkdir(opdir)
     
@@ -61,7 +61,7 @@ def main():
     # approximate best-fit values from recent analysis
     vparams = {}
     vparams['H0'] = H0 #real one is 73
-    vparams['F'] = F
+    vparams['logF'] = logF
     vparams['lEmax'] = 41.3
     vparams['gamma'] = -0.9
     vparams['alpha'] = 1
