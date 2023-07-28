@@ -1,3 +1,6 @@
+DOI: 
+https://doi.org/10.5281/zenodo.8192369
+
 #
 # Library of functions used for 
 # https://ui.adsabs.harvard.edu/abs/2021arXiv210108005J/abstract
