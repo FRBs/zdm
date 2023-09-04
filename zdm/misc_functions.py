@@ -1937,7 +1937,9 @@ def plot_grid_2(zDMgrid,zvals,dmvals,
                 FRBZ=None,FRBDM=None,Aconts=False,
                 Macquart=None,title="Plot", cmap=None,
                 H0=None,showplot=False,DMlines=None,markersize=10,
-                clim = False,data_clr='red',special=None):
+                clim = False,data_clr='red',special=None,
+                pdmgz=None
+                ):
 
     """
     Very complicated routine for plotting 2D zdm grids 
@@ -1968,6 +1970,8 @@ def plot_grid_2(zDMgrid,zvals,dmvals,
         cmap (str, optional): Alternate color map for PDF
         data_clr (str, optional): Alternate color for data
         special(list,optional): list of [z,dm] values to show as a special big star
+        pdmgz(list of floats, optional): a list of cumulative values of p(DM|z) to
+            plot. Must range from 0 to 1.
     """
     if H0 is None:
         H0 = cos.cosmo.H0
@@ -2037,6 +2041,24 @@ def plot_grid_2(zDMgrid,zvals,dmvals,
     elif norm==3:
         zDMgrid /= np.max(zDMgrid)
     
+    # sets up to plot contur-like things as a function of p(dm given z)
+    if pdmgz is not None:
+        # gets all values where zsum is not zero
+        z1d = np.sum(zDMgrid,axis=1) # sums over DM
+        OK = np.where(z1d > 0.)[0]
+        pdmgz_z = zvals[OK]
+        pdmgz_cs = np.cumsum(zDMgrid[OK,:],axis=1)
+        pdmgz_dm = np.zeros([pdmgz_z.size, len(pdmgz)])
+        for iz,z in enumerate(pdmgz_z):
+            this_cs = pdmgz_cs[iz,:]/pdmgz_cs[iz,-1]
+            for iv,val in enumerate(pdmgz):
+                i1 = np.where(this_cs < val)[0][-1]
+                i2 = i1+1
+                k2 = (val - this_cs[i1])/(this_cs[i2] - this_cs[i1])
+                k1 = 1.-k2
+                dmval = k1*dmvals[i1] + k2*dmvals[i2]
+                pdmgz_dm[iz,iv] = dmval
+    
     # sets contours according to norm
     if Aconts:
         slist=np.sort(zDMgrid.flatten())
@@ -2090,7 +2112,9 @@ def plot_grid_2(zDMgrid,zvals,dmvals,
                 
         ddm=dmvals[1]-dmvals[0]
         carray /= ddm # turns this into integer units for plotting
-        
+    
+    
+    
     iymax=np.where(dmvals > DMmax)[0]
     if len(iymax)>0:
         dmvals=dmvals[:iymax[0]]
@@ -2169,7 +2193,19 @@ def plot_grid_2(zDMgrid,zvals,dmvals,
             zstop /= (zvals[1]-zvals[0])
             DM /= (dmvals[1]-dmvals[0])
             plt.plot([0,zstop],[DM,DM],color=data_clr, linestyle=':')
-            
+    
+    # performs plots for the pdmgz variable
+    if pdmgz is not None:
+        styles = ['-','-','-']
+        widths = [2,3,2]
+        plt.ylim(0,ndm-1)
+        plt.xlim(0,nz-1)
+        # now converts to plot units [urgh...]
+        plot_z = np.arange(pdmgz_z.size)
+        for iv,val in enumerate(pdmgz):
+            plot_dm = pdmgz_dm[:,iv]/ddm # plot is in integer units
+            plt.plot(plot_z,plot_dm,linestyle=styles[iv],linewidth=widths[iv],color='white')
+        
     # plots contours i there
     if conts:
         plt.ylim(0,ndm-1)

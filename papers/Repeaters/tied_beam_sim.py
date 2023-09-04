@@ -1,7 +1,5 @@
 """
-
 Calculates CHIME beams
-
 
 Key assumptions:
     - Assumes a locally flat sky when calculating a synthesized beam
@@ -73,9 +71,6 @@ def main(mode='Standard'):
     pos_u = np.array([xs_u,ys_u]).T
     pos_l = np.array([xs_l,ys_l]).T
     
-    #envelope_u = np.zeros([xs_u.size])
-    #envelope_l = np.zeros([xs_l.size])
-    
     for i,beam in enumerate(beams):
         t0=time.time()
         #print("inputs :",[beam],pos_u,use_freqs)
@@ -94,8 +89,6 @@ def main(mode='Standard'):
         result_u[bigger_u] = sens_u[bigger_u]
         result_l[bigger_l] = sens_l[bigger_l]
         
-    
-    
     plot_points=False
     if plot_points:
         plt.figure()
@@ -114,8 +107,6 @@ def main(mode='Standard'):
     decs_l = decs_l.reshape([Ndec2,Nra])
     ras_u = ras_u.reshape([Ndec,Nra])
     ras_l = ras_l.reshape([Ndec2,Nra])
-    #result_u = result_u.reshape([Nfreq,Ndec,Nra])
-    #result_l = result_l.reshape([Nfreq,Ndec2,Nra])
     np.save(opdir+"decs_u.npy",decs_u)
     np.save(opdir+"decs_l.npy",decs_l)
     np.save(opdir+"ras_u.npy",ras_u)

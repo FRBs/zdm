@@ -556,7 +556,6 @@ def compare_rsets(Rset1,Rset2,pset=None,prefix="",Nbin=6,DMcut=None,chime_respon
             if ibin==0:
                 alldmr=s.DMEGs[ireps]
                 alldms=s.DMEGs[isingle]
-                print(type(alldms))
             else:
                 alldmr = np.concatenate((alldmr,s.DMEGs[ireps]))
                 alldms = np.concatenate((alldms,s.DMEGs[isingle]))

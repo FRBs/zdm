@@ -985,7 +985,8 @@ def make_widths(s:Survey,state):
 def load_survey(survey_name:str, state:parameters.State, 
                 dmvals:np.ndarray,
                 sdir:str=None, NFRB:int=None, 
-                nbins=None, iFRB:int=0, original:bool=False):
+                nbins=None, iFRB:int=0, original:bool=False,
+                dummy=False):
     """Load a survey
 
     Args:
@@ -1003,6 +1004,9 @@ def load_survey(survey_name:str, state:parameters.State,
             Requires that NFRB be set
         original (bool, optional): 
             Load the original survey file (not recommended)
+        dummy (bool,optional)
+            Skip many initialisation steps: used only when loading
+            survey parameters for conversion to the new survey format
 
     Raises:
         IOError: [description]
@@ -1061,12 +1065,12 @@ def load_survey(survey_name:str, state:parameters.State,
         srvy.name = survey_name
         srvy.process_survey_file(os.path.join(sdir, dfile), 
                                 NFRB=NFRB, iFRB=iFRB)
-        #srvy.process_survey_file(os.path.join(sdir, dfile), NFRB=NFRB, iFRB=iFRB)
-        srvy.init_DMEG(state.MW.DMhalo)
-        srvy.init_beam(method=state.beam.Bmethod, plot=False,
+        if not dummy:
+            srvy.init_DMEG(state.MW.DMhalo)
+            srvy.init_beam(method=state.beam.Bmethod, plot=False,
                     thresh=state.beam.Bthresh) # tells the survey to use the beam file
-        pwidths,pprobs=make_widths(srvy,state)
-        _ = srvy.get_efficiency_from_wlist(dmvals,pwidths,pprobs,
+            pwidths,pprobs=make_widths(srvy,state)
+            _ = srvy.get_efficiency_from_wlist(dmvals,pwidths,pprobs,
                                             model=state.width.Wbias) 
     else:                                
         srvy = Survey(state, 
@@ -1077,13 +1081,15 @@ def load_survey(survey_name:str, state:parameters.State,
     return srvy
 
 def refactor_old_survey_file(survey_name:str, outfile:str, 
-                             clobber:bool=False):
+                             clobber:bool=False,sdir=None):
     """Refactor an old survey file to the new format
 
     Args:
         survey_name (str): Name of the survey
         outfile (str): Name of the output file
         clbover (bool, optional): Clobber the output file. Defaults to False.
+        sdir: director to find survey in. Defaults to None, i.e.
+            the zdm/data/Survey/Original will be used
     """
     
     state = parameters.State()
@@ -1092,8 +1098,9 @@ def refactor_old_survey_file(survey_name:str, outfile:str,
     # Load up original
     isurvey = load_survey(survey_name, state, 
                          np.linspace(0., 2000., 1000),
-                         original=True)
-
+                         original=True,sdir=sdir,
+                         dummy=True)
+    
     # FRBs
     frbs = pandas.DataFrame(isurvey.frbs)
 
@@ -1101,6 +1108,9 @@ def refactor_old_survey_file(survey_name:str, outfile:str,
     # Telescope
     for field in srvy_data.telescope.fields:
         print(f"Ingesting {field}")
+        if not (field in isurvey.meta) or isurvey.meta[field] is None:
+            isurvey.meta[field]='-1'
+            print("Could not find field ",field," setting to -1")
         setattr(srvy_data.telescope,field, srvy_data.telescope.__dataclass_fields__[field].type(
                 isurvey.meta[field]))
 

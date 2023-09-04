@@ -29,7 +29,7 @@ def main():
     # Initialise surveys and grids
     
     # The below is for private, unpublished FRBs. You will NOT see this in the repository!
-    names = ['private_CRAFT_ICS','private_CRAFT_ICS_892','private_CRAFT_ICS_1632']
+    names = ['private_CRAFT_ICS_1300','private_CRAFT_ICS_892','private_CRAFT_ICS_1632']
     sdir='../data/Surveys/'
     
     # Public CRAFT FRBs
@@ -42,7 +42,7 @@ def main():
     # the observation time
     sumit=True
     
-    # approximate best-fit values from recent analysis
+    # approximate best-fit values from 220610 analysis
     vparams = {}
     vparams['H0'] = 73
     vparams['lEmax'] = 41.3
@@ -57,6 +57,14 @@ def main():
     grids=[]
     surveys=[]
     nozlist=[]
+    
+    from frb.dm import igm
+    zmax=1.4
+    nz=1000
+    DMbar, zeval = igm.average_DM(zmax, cumul=True, neval=nz+1)
+    for i,DM in enumerate(DMbar):
+        print(zeval[i],DM)
+    exit()
     for i,name in enumerate(names):
         s,g = loading.survey_and_grid(
             survey_name=name,NFRB=None,sdir=sdir) # should be equal to actual number of FRBs, but for this purpose it doesn't matter
@@ -77,11 +85,15 @@ def main():
             delete=np.where(g.dmvals > 2038)[0]
             g.rates[:,delete]=0.
         
+        print("meow",s.nozlist)
+        
         for iFRB in s.zlist:
             zvals.append(s.Zs[iFRB])
             dmvals.append(s.DMEGs[iFRB])
+        if s.nozlist is not None:
             for dm in s.DMEGs[s.nozlist]:
                 nozlist.append(dm)
+            #print("nolist is now ",nozlist)
         print("About to plot")
         ############# do 2D plots ##########
         misc_functions.plot_grid_2(g.rates,g.zvals,g.dmvals,
@@ -89,16 +101,54 @@ def main():
             project=False,FRBDM=s.DMEGs,FRBZ=s.frbs["Z"],Aconts=[0.01,0.1,0.5],zmax=1.5,
             DMmax=1500)#,DMlines=s.DMEGs[s.nozlist])
         
+        
     if sumit:
         # does the final plot of all data
         frbzvals=np.array(zvals)
         frbdmvals=np.array(dmvals)
         ############# do 2D plots ##########
-        misc_functions.plot_grid_2(g.rates,g.zvals,g.dmvals,
+        misc_functions.plot_grid_2(rtot,g.zvals,g.dmvals,
+            name=opdir+'combined_localised_FRBs_lines.pdf',norm=3,log=True,
+            label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$ [a.u.]',
+            project=False,FRBDM=frbdmvals,FRBZ=frbzvals,Aconts=[0.01,0.1,0.5],
+            zmax=2.0,DMmax=2000,DMlines=nozlist)
+        
+        misc_functions.plot_grid_2(rtot,g.zvals,g.dmvals,
             name=opdir+'combined_localised_FRBs.pdf',norm=3,log=True,
             label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$ [a.u.]',
             project=False,FRBDM=frbdmvals,FRBZ=frbzvals,Aconts=[0.01,0.1,0.5],
-            zmax=1.5,DMmax=2000,DMlines=nozlist)
-    
+            zmax=2.0,DMmax=2000)
+        
+        DMhost=80.
+        misc_functions.plot_grid_2(g.grid,g.zvals,g.dmvals,
+            name=opdir+'pdmIGMgz_localised_FRBs.pdf',norm=3,log=True,
+            label='$\\log_{10} p({\\rm DM}_{\\rm IGM}|z)$ [a.u.]',
+            ylabel='${\\rm DM}_{\\rm cosmic}$',
+            project=False,FRBDM=frbdmvals-DMhost,FRBZ=frbzvals,
+            zmax=1.2,DMmax=1400,
+            pdmgz=[0.05,0.5,0.95])
+        
+        misc_functions.plot_grid_2(g.grid,g.zvals,g.dmvals,
+            name=opdir+'pdmIGMgz_localised_FRBs_alt.pdf',norm=3,log=True,
+            label='$\\log_{10} p({\\rm DM}_{\\rm IGM}|z)$ [a.u.]',
+            ylabel='${\\rm DM}_{\\rm cosmic}$',
+            project=False,FRBDM=frbdmvals-DMhost,FRBZ=frbzvals,
+            zmax=1.2,DMmax=1400,cmap="Oranges",data_clr='black',
+            pdmgz=[0.05,0.5,0.95])
+        
+        
+        misc_functions.plot_grid_2(g.grid,g.zvals,g.dmvals,
+            name=opdir+'pdmEGgz_localised_FRBs.pdf',norm=3,log=True,
+            label='$\\log_{10} p({\\rm DM}_{\\rm EG}|z)$ [a.u.]',
+            project=False,FRBDM=frbdmvals,FRBZ=frbzvals,
+            zmax=1.2,DMmax=1400,
+            pdmgz=[0.05,0.5,0.95])
+        
+        misc_functions.plot_grid_2(g.smear_grid,g.zvals,g.dmvals,
+            name=opdir+'pdmEGgz_localised_FRBs_alt.pdf',norm=3,log=True,
+            label='$\\log_{10} p({\\rm DM}_{\\rm EG}|z)$ [a.u.]',
+            project=False,FRBDM=frbdmvals,FRBZ=frbzvals,
+            zmax=1.2,DMmax=1400,cmap="Oranges",data_clr='black',
+            pdmgz=[0.05,0.5,0.95])
     
 main()
