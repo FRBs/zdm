@@ -17,7 +17,7 @@ def survey_and_grid(survey_name:str='CRAFT/CRACO_1_5000',
             state_dict=None, iFRB:int=0,
                alpha_method=1, NFRB:int=100, 
                lum_func:int=2,sdir=None):
-    """ Load up a survey and grid for a CRACO mock dataset
+    """ Load up a survey and grid for CHIME data
 
     Args:
         init_state (State, optional):
@@ -67,7 +67,7 @@ def survey_and_grid(survey_name:str='CRAFT/CRACO_1_5000',
     
     isurvey = survey.load_survey(survey_name, state, dmvals,
                                  NFRB=NFRB, sdir=sdir, nbins=5,
-                                 iFRB=iFRB, original=True)
+                                 iFRB=iFRB, original=False)
     
     # generates zdm grid
     grids = misc_functions.initialise_grids(

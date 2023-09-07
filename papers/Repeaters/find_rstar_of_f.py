@@ -74,7 +74,7 @@ def main():
         os.mkdir(outdir)
     
     # For each possible state, calculates Rstar
-    sdir = os.path.join(resource_filename('zdm','../'),'papers/Repeaters/Surveys')
+    sdir = os.path.join(resource_filename('zdm','data/Surveys/'),'CHIME/')
     for i,state in enumerate(states):
         outfile = outdir+'rstar_set_'+str(i)+'_'+'_output.npz'
         oldoutfile=None
@@ -99,13 +99,12 @@ def converge_state(state,Rmins,Rmaxes,Rgammas,outfile,fgrid,oldoutfile=None,Nbin
     
     # old implementation
     # defines list of surveys to consider, together with Tpoint
-    sdir = os.path.join(resource_filename('zdm','../'),'papers/Repeaters/Surveys')
-    
+    sdir = os.path.join(resource_filename('zdm','data/Surveys/'),'CHIME/')
     
     bdir='Nbounds'+str(Nbin)+'/'
-    beams.beams_path = os.path.join(resource_filename('zdm','../'),'papers/Repeaters/'+bdir)
-    bounds = np.load(bdir+'bounds.npy')
-    solids = np.load(bdir+'solids.npy')
+    beams.beams_path = os.path.join(resource_filename('zdm','data/BeamData/CHIME/'),bdir)
+    bounds = np.load(beams.beams_path+'bounds.npy')
+    solids = np.load(beams.beams_path+'solids.npy')
     
     
     ss=[]

@@ -44,7 +44,7 @@ def main():
     Rset={"Rmin":3.9,"Rmax":4,"Rgamma":-1.1}
     
     # defines list of surveys to consider, together with Tpoint
-    sdir = os.path.join(resource_filename('zdm','../'),'papers/Repeaters/Surveys')
+    sdir = os.path.join(resource_filename('zdm','data/Surveys/'),'CHIME/')
     
     surveys = ["CHIME_beff","CHIME_30_fbar","CHIME_allb10"] #"CHIME_allb","CHIME_150_fbar",
     names = ["$T_{\\rm eff}$","$T({\\overline{B}})$","$\\overline{T}(B)$"]

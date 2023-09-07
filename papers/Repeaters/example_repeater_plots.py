@@ -65,7 +65,7 @@ def main():
     sets=[Rset3,Rset4] # only those sets *after* fitting to CHIME
     
     # defines list of surveys to consider, together with Tpoint
-    sdir = os.path.join(resource_filename('zdm', 'data'), 'Surveys')
+    sdir = os.path.join(resource_filename('zdm','data/Surveys/'),'CHIME/')
     
     ###### generates the example plots for CRAFT ICS, using multiple times #######
     

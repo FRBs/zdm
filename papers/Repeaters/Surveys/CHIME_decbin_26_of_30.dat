@@ -7,7 +7,7 @@ SNRTHRESH 10 # signal-to-noise threshold: scales jy ms to snr.
 TRES 0.983 #ms
 FRES 0.0244 #Mhz
 FBAR 600 # mean frequency (MHz)
-KEY  Xname         DM     DMG     SNR     WIDTH  NREP
+KEY  TNS         DM     DMG     SNR     WIDTH  NREP
 FRB  FRB20180730A  848.9   59.2   69.5    0.468  1 
 FRB  FRB20181222E  328.0   59.9   17.7    0.910  1 
 FRB  FRB20181230E 1041.7   54.5   13.9    1.880  1 

@@ -98,7 +98,7 @@ def extreme_rsets(Rset1,Rset2,opdir='Extremes/',DMcut=None,chime_response=True,a
     """
     # old implementation
     # defines list of surveys to consider, together with Tpoint
-    sdir = os.path.join(resource_filename('zdm','../'),'papers/Repeaters/Surveys')
+    sdir = os.path.join(resource_filename('zdm','data/Surveys/'),'CHIME/')
     
     # Labelling of plots
     # commented out, since CHIME response certainly correct!
@@ -378,7 +378,7 @@ def fit_chime_data(Rset,pset=None):
     # old implementation
     from zdm import old_working_repeat_grid as orep
     # defines list of surveys to consider, together with Tpoint
-    sdir = os.path.join(resource_filename('zdm','../'),'papers/Repeaters/Surveys')
+    sdir = os.path.join(resource_filename('zdm','data/Surveys/'),'CHIME/')
     
     Nbin=6
     ss=[]
@@ -437,12 +437,12 @@ def compare_rsets(Rset1,Rset2,pset=None,prefix="",Nbin=6,DMcut=None,chime_respon
     """
     # old implementation
     # defines list of surveys to consider, together with Tpoint
-    sdir = os.path.join(resource_filename('zdm','../'),'papers/Repeaters/Surveys')
+    sdir = os.path.join(resource_filename('zdm','data/Surveys/'),'CHIME/')
     
     bdir='Nbounds'+str(Nbin)+'/'
-    beams.beams_path = os.path.join(resource_filename('zdm','../'),'papers/Repeaters/'+bdir)
-    bounds = np.load(bdir+'bounds.npy')
-    solids = np.load(bdir+'solids.npy')
+    beams.beams_path = os.path.join(resource_filename('zdm','data/BeamData/CHIME/'),bdir)
+    bounds = np.load(beams.beams_path+'bounds.npy')
+    solids = np.load(beams.beams_path+'solids.npy')
     
     surveys=[]
     grids=[]
@@ -619,7 +619,7 @@ def compare_old_new(Rset,plot=True):
     # old implementation
     from zdm import old_working_repeat_grid as orep
     # defines list of surveys to consider, together with Tpoint
-    sdir = os.path.join(resource_filename('zdm','../'),'papers/Repeaters/Surveys')
+    sdir = os.path.join(resource_filename('zdm','data/Surveys/'),'CHIME/')
     
     Nbin=6
     surveys=[]

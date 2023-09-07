@@ -59,7 +59,7 @@ def fit_dm_bias():
     
     ######## PART 2: NAIVE EFFICIENCY ESTIMATES ############
     
-    sdir = os.path.join(resource_filename('zdm','../'),'papers/Repeaters/Surveys')
+    sdir = os.path.join(resource_filename('zdm','data/Surveys/'),'CHIME/')
     
     load=True
     ldir = 'DMBiasFit/'

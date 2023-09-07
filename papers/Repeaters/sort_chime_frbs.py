@@ -114,9 +114,9 @@ def main(Nbounds=6):
     #print(nreps)
     # now breaks this up into declination bins
     #The below is hard-coded and copied from "plot
-    bdir = "Nbounds"+str(Nbounds)+"/"
-    bfile = bdir + "bounds.npy"
-    bounds=np.load(bfile)
+    bdir='Nbounds'+str(Nbin)+'/'
+    beams.beams_path = os.path.join(resource_filename('zdm','data/BeamData/CHIME/'),bdir)
+    bounds = np.load(beams.beams_path+'bounds.npy')
     
     lowers=bounds[:-1]
     uppers=bounds[1:]

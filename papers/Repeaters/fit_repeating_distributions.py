@@ -73,7 +73,7 @@ def main(FC=1.0):
     # gets the possible states for evaluation
     states,names=st.get_states()
     
-    sdir = os.path.join(resource_filename('zdm','../'),'papers/Repeaters/Surveys')
+    sdir = os.path.join(resource_filename('zdm','data/Surveys/'),'CHIME/')
     
     outdir = 'Rfitting39_'+str(FC)+'/'
     if not os.path.exists(outdir):
@@ -104,13 +104,13 @@ def converge_state(state,Rmins,Rmaxes,Rgammas,outfile,oldoutfile=None,Nbin=6,ver
     
     # old implementation
     # defines list of surveys to consider, together with Tpoint
-    sdir = os.path.join(resource_filename('zdm','../'),'papers/Repeaters/Surveys')
+    sdir = os.path.join(resource_filename('zdm','data/Surveys/'),'CHIME/')
     
     
     bdir='Nbounds'+str(Nbin)+'/'
-    beams.beams_path = os.path.join(resource_filename('zdm','../'),'papers/Repeaters/'+bdir)
-    bounds = np.load(bdir+'bounds.npy')
-    solids = np.load(bdir+'solids.npy')
+    beams.beams_path = os.path.join(resource_filename('zdm','data/BeamData/CHIME/'),bdir)
+    bounds = np.load(beams.beams_path+'bounds.npy')
+    solids = np.load(beams.beams_path+'solids.npy')
     
     
     ss=[]
@@ -400,14 +400,13 @@ def loop_state(state,Rmins,Rmaxes,Rgammas,outfile,oldoutfile=None,Nbin=6,verbose
     
     # old implementation
     # defines list of surveys to consider, together with Tpoint
-    sdir = os.path.join(resource_filename('zdm','../'),'papers/Repeaters/Surveys')
+    sdir = os.path.join(resource_filename('zdm','data/Surveys/'),'CHIME/')
     
     
     bdir='Nbounds'+str(Nbin)+'/'
-    beams.beams_path = os.path.join(resource_filename('zdm','../'),'papers/Repeaters/'+bdir)
-    bounds = np.load(bdir+'bounds.npy')
-    solids = np.load(bdir+'solids.npy')
-    #bounds=np.array([-11,30,60,70,80,85,90])
+    beams.beams_path = os.path.join(resource_filename('zdm','data/BeamData/CHIME/'),bdir)
+    bounds = np.load(beams.beams_path+'bounds.npy')
+    solids = np.load(beams.beams_path+'solids.npy')
     
     ss=[]
     gs=[]

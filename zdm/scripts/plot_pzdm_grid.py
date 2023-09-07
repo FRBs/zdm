@@ -58,19 +58,21 @@ def main():
     surveys=[]
     nozlist=[]
     
-    from frb.dm import igm
-    zmax=1.4
-    nz=1000
-    DMbar, zeval = igm.average_DM(zmax, cumul=True, neval=nz+1)
-    for i,DM in enumerate(DMbar):
-        print(zeval[i],DM)
-    exit()
+    # writs the Macquart relation - temporary!
+    if False:
+        from frb.dm import igm
+        zmax=1.4
+        nz=1000
+        DMbar, zeval = igm.average_DM(zmax, cumul=True, neval=nz+1)
+        for i,DM in enumerate(DMbar):
+            print(zeval[i],DM)
+    
     for i,name in enumerate(names):
         s,g = loading.survey_and_grid(
             survey_name=name,NFRB=None,sdir=sdir) # should be equal to actual number of FRBs, but for this purpose it doesn't matter
         grids.append(g)
         surveys.append(s)
-        
+        exit()
         # set up new parameters
         g.update(vparams)
         

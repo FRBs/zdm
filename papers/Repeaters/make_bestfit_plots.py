@@ -409,7 +409,10 @@ def main(Nbin=30,FC=1.0):
     ######### produce decbin division plot ########
     
     bdir='Nbounds'+str(Nbin)+'/'
-    bounds = np.load(bdir+'bounds.npy')
+    beams.beams_path = os.path.join(resource_filename('zdm','data/BeamData/CHIME/'),bdir)
+    bounds = np.load(beams.beams_path+'bounds.npy')
+    solids = np.load(beams.beams_path+'solids.npy')
+    
     
     plt.figure()
     
@@ -498,7 +501,7 @@ def generate_state(state,Nbin=6,Rmult=1.,mcrs=None,tag=None,tmults=None):
     """
     # old implementation
     # defines list of surveys to consider, together with Tpoint
-    sdir = os.path.join(resource_filename('zdm','../'),'papers/Repeaters/Surveys')
+    sdir = os.path.join(resource_filename('zdm','data/Surveys/'),'CHIME/')
     
     ndm=1400
     nz=500
@@ -544,9 +547,9 @@ def generate_state(state,Nbin=6,Rmult=1.,mcrs=None,tag=None,tmults=None):
     tns = 0
     
     bdir='Nbounds'+str(Nbin)+'/'
-    beams.beams_path = os.path.join(resource_filename('zdm','../'),'papers/Repeaters/'+bdir)
-    bounds = np.load(bdir+'bounds.npy')
-    solids = np.load(bdir+'solids.npy')
+    beams.beams_path = os.path.join(resource_filename('zdm','data/BeamData/CHIME/'),bdir)
+    bounds = np.load(beams.beams_path+'bounds.npy')
+    solids = np.load(beams.beams_path+'solids.npy')
     
     # for MC distribution
     numbers = np.array([])

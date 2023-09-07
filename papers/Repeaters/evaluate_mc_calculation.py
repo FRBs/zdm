@@ -132,7 +132,7 @@ def evaluate_MC(infile,savefile,Nbin=6,wRgamma=-2.2,wRmax=30,Nreps=100):
     # gets the possible states for evaluation
     statelist,names = st.get_states()
     
-    sdir = os.path.join(resource_filename('zdm','../'),'papers/Repeaters/Surveys')
+    sdir = os.path.join(resource_filename('zdm','data/Surveys/'),'CHIME/')
     state = statelist[0]
     
     Rmins,Rmaxes,Rgammas = load_data(infile)
@@ -224,12 +224,12 @@ def initialise_grids(state,Nbin=6):
     
     # old implementation
     # defines list of surveys to consider, together with Tpoint
-    sdir = os.path.join(resource_filename('zdm','../'),'papers/Repeaters/Surveys')
+    sdir = os.path.join(resource_filename('zdm','data/Surveys/'),'CHIME/')
     
     bdir='Nbounds'+str(Nbin)+'/'
-    beams.beams_path = os.path.join(resource_filename('zdm','../'),'papers/Repeaters/'+bdir)
-    bounds = np.load(bdir+'bounds.npy')
-    solids = np.load(bdir+'solids.npy')
+    beams.beams_path = os.path.join(resource_filename('zdm','data/BeamData/CHIME/'),bdir)
+    bounds = np.load(beams.beams_path+'bounds.npy')
+    solids = np.load(beams.beams_path+'solids.npy')
     
     ss=[]
     gs=[]

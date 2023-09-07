@@ -188,6 +188,14 @@ class OldSurvey:
         # Hack to recast as int
         self.meta['NBINS']=int(self.meta['NBINS'])
         
+        # Adding beam keywords for backwards compatibility
+        # for CHIME: 3,0,0,CHIME
+        # Otherwise: 2,0,2,Quadrature
+        self.do_keyword('BMETHOD',which,2) # method to describe beam
+        self.do_keyword('BTHRESH',which,0) # mon beam value to include
+        self.do_keyword('WMETHOD',which,2) # method to deal with FRB widths
+        self.do_keyword('WBIAS',which,"Quadrature") # bias effect due to FRB width
+        
         # the following properties can either be FRB-by-FRB, or metadata
         which=3
         # perhaps we should set "-1" as the default for all of these,
@@ -208,7 +216,7 @@ class OldSurvey:
         self.do_keyword('SNR',which)
         self.do_keyword('DM',which)
         self.do_keyword('WIDTH',which,0.1) # defaults to unresolved width in time
-        self.do_keyword_char('ID',which,None, dtype='str') # obviously we don't need names,!
+        self.do_keyword_char('TNS',which,None, dtype='str') # obviously we don't need names,!
         self.do_keyword('Gl',which,None) # Galactic longitude
         self.do_keyword('Gb',which,None) # Galactic latitude
         #
@@ -315,6 +323,7 @@ class OldSurvey:
             self.meta[key] = mean/self.NFRB
         else:
             if default==None:
+                # do nothing if default is None - does not need to be present
                 self.meta[key]=None
                 self.frbs[key]=None
             elif default == '-1':
@@ -477,15 +486,21 @@ class Survey:
         self.process_survey_file(filename, NFRB, iFRB)
         # DM EG
         self.init_DMEG(state.MW.DMhalo)
-        # Beam
+        
+        # Allows survey metadata to over-ride parameter defaults if present.
+        # This is required when mixing CHIME and non-CHIME FRBs
+        beam_method = self.meta['BMETHOD']
+        beam_thresh = self.meta['BTHRESH']
+        width_bias = self.meta['WBIAS']
+        
         self.init_beam(
-                       method=state.beam.Bmethod, 
+                       method=beam_method, 
                        plot=False, 
-                       thresh=state.beam.Bthresh) # tells the survey to use the beam file
-        # Efficiency
+                       thresh=beam_thresh) # tells the survey to use the beam file
+        # Efficiency: width_method passed through "self" here
         pwidths,pprobs=make_widths(self, state)
         _ = self.get_efficiency_from_wlist(dmvals,
-                                       pwidths,pprobs) 
+                                       pwidths,pprobs,model=width_bias) 
 
     def init_DMEG(self,DMhalo):
         """ Calculates extragalactic DMs assuming halo DM """
@@ -850,11 +865,20 @@ def make_widths(s:Survey,state):
     Returns:
         list: list of widths
     """
-    # just extracting for now toget thrings straight
+    # variables which can be over-ridden by a survey, but which
+    # appear by default in the parameter set
+    
+    # method to use to calculate FRB width distribution
+    if 'WMETHOD' in s.meta and s.meta['WMETHOD'] is not None:
+        width_method = s.meta['WMETHOD']
+    else:
+        width_method = state.width.Wmethod
+    
+    # just extracting for now to get thrings straight
     nbins=state.width.Wbins
     scale=state.width.Wscale
     thresh=state.width.Wthresh
-    width_method=state.width.Wmethod
+    #width_method=state.width.Wmethod
     wlogmean=state.width.Wlogmean
     wlogsigma=state.width.Wlogsigma
     
@@ -1045,7 +1069,6 @@ def load_survey(survey_name:str, state:parameters.State,
     else:
         dfile += '.ecsv'
 
-    
     #    if defNbeams is None:
     #        raise IOError("You must specify Nbeams with a private survey file")
     
@@ -1067,11 +1090,16 @@ def load_survey(survey_name:str, state:parameters.State,
                                 NFRB=NFRB, iFRB=iFRB)
         if not dummy:
             srvy.init_DMEG(state.MW.DMhalo)
-            srvy.init_beam(method=state.beam.Bmethod, plot=False,
-                    thresh=state.beam.Bthresh) # tells the survey to use the beam file
+            
+            beam_method = srvy.meta['BMETHOD']
+            beam_thresh = srvy.meta['BTHRESH']
+            width_bias = srvy.meta['WBIAS']
+            
+            srvy.init_beam(method=beam_method, plot=False,
+                    thresh=beam_thresh) # tells the survey to use the beam file
             pwidths,pprobs=make_widths(srvy,state)
             _ = srvy.get_efficiency_from_wlist(dmvals,pwidths,pprobs,
-                                            model=state.width.Wbias) 
+                                            model=width_bias) 
     else:                                
         srvy = Survey(state, 
                          survey_name, 

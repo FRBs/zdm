@@ -85,7 +85,6 @@ def simplify_beam(logb,omega_b,nbins,thresh=0.,weight=1.5,method=1,savename=None
     rate=omega_b*b**weight
     crate=np.cumsum(rate)
     crate /= crate[-1]
-    
     if method==1:
         # tries to categorise each in increments of 1/nbins
         # i.e. each bin has equal probability of detecting an FRB

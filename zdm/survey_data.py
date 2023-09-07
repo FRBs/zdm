@@ -114,6 +114,29 @@ class Telescope(data_class.myDataClass):
                   'unit': '', 
                   'Notation': '',
                   })
+    WMETHOD: int = field(
+        default=2, 
+        metadata={'help': "Method of calculating FRB widths; 0 ignore, 1 std, 2 includes scattering", 
+                  'unit': '', 
+                  'Notation': '',
+                  })
+    WBIAS: str = field(
+        default="Quadrature", 
+        metadata={'help': "Method to calculate width bias", 
+                  'unit': '', 
+                  'Notation': '',
+                  })
+    BMETHOD: int = field(
+        default=2, 
+        metadata={'help': "Method for beam calculation. See beams.py:simplify_beam()", 
+                  'unit': '', 
+                  'Notation': '',
+                  })
+    BTHRESH: float = field(
+        default=0.0,
+        metadata={'help': 'Minimum value of beam sensitivity to consider',
+                  'unit': '',
+                  'Notation': 'B_{\rm min}'})
 
 @dataclass
 class Observing(data_class.myDataClass):
