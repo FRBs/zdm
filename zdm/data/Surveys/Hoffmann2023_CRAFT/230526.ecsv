@@ -7,8 +7,8 @@
 # - {name: DMG, datatype: float64}
 # - {name: FBAR, datatype: float64}
 # - {name: FRES, datatype: float64}
-# - {name: Gb, datatype: string, subtype: 'float64[null]'}
-# - {name: Gl, datatype: string, subtype: 'float64[null]'}
+# - {name: Gb, datatype: float64}
+# - {name: Gl, datatype: float64}
 # - {name: SNR, datatype: float64}
 # - {name: SNRTHRESH, datatype: float64}
 # - {name: THRESH, datatype: float64}
@@ -22,4 +22,4 @@
 #     BEAM\": \"lat50_log\",\n        \"DIAM\": 12.0,\n        \"NBEAMS\": 36,\n        \"NBINS\": 5\n    }\n}"}
 # schema: astropy-2.0
 TNS BW DM DMG FBAR FRES Gb Gl SNR SNRTHRESH THRESH TRES WIDTH XDec XRA Z
-20191228A 336.0 297.5 32.9 1271.5 1.0 "" "" 22.9 9.0 4.4 1.728 7.8 -29:35:37.85 22:57:43.269 0.243
+20230526 336.0 316.4 50.0 1271.5 1.0 -60.4 290.0 22.1 9.0 4.4 1.182 2.6 -52:46:07.7 01:29:27.5 0.157

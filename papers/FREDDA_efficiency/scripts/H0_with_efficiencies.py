@@ -21,6 +21,7 @@ import matplotlib.pyplot as plt
 
 #import time
 import numpy as np
+import os
 
 def main():
     """
@@ -28,61 +29,46 @@ def main():
     """
     # create new grids directly from updates state parameters in grid   
     
-    frb_names = ["181112", "190611", "190711", "191228", "210117", "210320", "210407", "210912", "220501", "230526"]
-    # frb_names = ["180924","181112", "190102", "190608", "190611", "190711", "190714", "191228", "210117", "210214", "210320", "210912", "211117"]
+    # frb_names = ["181112"]
+    frb_names = ["181112", "190611", "190711", "191228", "200430", "210117", "210320", "210407", "210912", "220501", "220725", "230526", "230708"]
+    # frb_names = ["230526", "230708"]
     # frb_names = ["190711"]
     edir='/fred/oz002/jhoffmann/FRB_library/zdm/zdm/data/Efficiencies/'
-    sdir='/fred/oz002/jhoffmann/FRB_library/zdm/zdm/data/Surveys/Hoffmann2023/'
+    sdir='/fred/oz002/jhoffmann/FRB_library/zdm/zdm/data/Surveys/Hoffmann2023_CRAFT/'
+    outdir='../llsum_files_CRAFT/'
 
-    H0s = np.linspace(50,100,50)
-    llsum_total = np.zeros(len(H0s), dtype=float)
-    llsum_total_exact = np.zeros(len(H0s), dtype=float)
+    print("outdir: " + outdir)
 
-    # plt.figure()
-    # plt.xlabel(r"H_0")
-    # plt.ylabel(r"log likelihood")
-    # fig, axes = plt.subplots(1,2, sharey=True)
+    # Initialise H0 array and save
+    H0s = np.linspace(65,75,500)
+    if not os.path.exists(outdir):
+        os.mkdir(outdir)
+    np.save(os.path.join(outdir,"H0s.npy"), H0s)
+
+    #===============================================================================
+    # # Do single survey
+    s,g = loading.survey_and_grid(survey_name="CRAFT_ICS",sdir=sdir,NFRB=None,model='Quadrature',edir=edir) 
+
+    # varies H0
+    llsum=[]
+    for H0 in H0s:
+        # updates grid to new parameter values
+        vparams = {}
+        vparams['H0'] = H0
+        g.update(vparams)
+        # returns log-likelihood sum for this survey and grid
+        llsum.append(get_likelihood(s,g))
+
+    np.save(os.path.join(outdir,"CRAFT_ICS.npy"), np.array(llsum))
+
+    #===============================================================================
     for name in frb_names:
+        print(name, flush=True)
         # Normal calculation
-        s,g = loading.survey_and_grid(survey_name=name,sdir=sdir,NFRB=None,model='Quadrature',edir=edir) 
-        # Calculation with efficiencies
-        s_exact,g_exact = loading.survey_and_grid(survey_name=name,sdir=sdir,NFRB=None,model=name,edir=edir)
-
-        # nozlist=[]
-        # DMmax=4000
-        # zmax=3
-  
-        # # Plotting difference in grids
-        # plt_rates = np.abs((g.rates - g2.rates)) / (g.rates + g2.rates) * 2
-        # plt_rates[np.isfinite(plt_rates)==False] = 0.0
-        # plt_rates[g.rates==0] = 0.0
-        # plt_rates[g2.rates==0] = 0.0
-
-        # plt.rc('font', size=16)
-        # plt.figure(figsize=(9,6))
-        # plt.pcolormesh(g.zvals, g.dmvals, plt_rates.T, shading='nearest')
-        # cbar = plt.colorbar()
-        # cbar.set_label(r"$\frac{2|p_{Cordes} - p_{Numeric}|}{p_{Cordes} + p_{Numeric}}$", fontsize=20)
-        # plt.xlabel("z")
-        # plt.ylabel(r"DM$_{\mathrm{IGM}}$")
-        # plt.show()
-        # plt.close()
-
-        # misc_functions.plot_grid_2(plt_rates,g.zvals,g.dmvals,
-        # name=name+'_diff.pdf',norm=3,log=True,
-        # label='$\\log_{10} p({\\rm DM}_{\\rm IGM} + {\\rm DM}_{\\rm host},z)$ [a.u.]',
-        # project=False,ylabel='${\\rm DM}_{\\rm IGM} + {\\rm DM}_{\\rm host}$',
-        # zmax=zmax,DMmax=DMmax,DMlines=nozlist,Macquart=g.state)
-
-        # misc_functions.plot_grid_2(g2.rates,g2.zvals,g2.dmvals,
-        # name=name+'_jordan_quad.pdf',norm=3,log=True,
-        # label='$\\log_{10} p({\\rm DM}_{\\rm IGM} + {\\rm DM}_{\\rm host},z)$ [a.u.]',
-        # project=False,ylabel='${\\rm DM}_{\\rm IGM} + {\\rm DM}_{\\rm host}$',
-        # zmax=zmax,DMmax=DMmax,DMlines=nozlist,Macquart=g2.state)
+        s,g = loading.survey_and_grid(survey_name=name,sdir=sdir,NFRB=None,model='Quadrature_s',edir=edir) 
 
         # varies H0
         llsum=[]
-        llsum_exact=[]
         for H0 in H0s:
             # updates grid to new parameter values
             vparams = {}
@@ -91,48 +77,27 @@ def main():
             # returns log-likelihood sum for this survey and grid
             llsum.append(get_likelihood(s,g))
 
+        np.save(os.path.join(outdir,name) + ".npy", np.array(llsum))
+
+        #===============================================================================
+        # Calculation with efficiencies
+        s_exact,g_exact = loading.survey_and_grid(survey_name=name,sdir=sdir,NFRB=None,model=name,edir=edir)
+
+        # varies H0
+        llsum_exact=[]
+
+        for H0 in H0s:
+            # updates grid to new parameter values
+            vparams = {}
+            vparams['H0'] = H0
+        
             g_exact.update(vparams)
             # returns log-likelihood sum for this survey and grid
             llsum_exact.append(get_likelihood(s_exact,g_exact))
         
-        llsum_total += np.array(llsum)
-        llsum_total_exact += np.array(llsum_exact)
+        np.save(os.path.join(outdir,name) + "_exact.npy", np.array(llsum_exact))
 
-        fig, axes = plt.subplots(1,1)
-        axes.plot(H0s, llsum, label="Quadrature")
-        axes.plot(H0s, llsum_exact - np.max(llsum_exact) + np.max(llsum), label="Exact")
-        axes.set_xlabel(r"$H_0$")
-        axes.set_ylabel(r"Normalised log(p($H_0$))")
-        axes.legend()
-
-        plt.savefig("../Figures/ll_" + name + '.png', format='png', bbox_inches='tight')
-        plt.close()
-
-    # axes[0].plot(H0s, llsum_total - np.max(llsum_total), label="Total")
-    # axes[0].legend()
-    # axes[0].set_title('Quadrature')
-    # axes[0].set_xlabel(r"$H_0$")
-    # axes[0].set_ylabel(r"Normalised log likelihood")
-
-    # axes[1].plot(H0s, llsum_total_exact - np.max(llsum_total_exact), label="Total")
-    # axes[1].legend()
-    # axes[1].set_title('Exact')
-    # axes[1].set_xlabel(r"$H_0$")
-
-    # plt.show()
-    # plt.close()
-
-    fig, axes = plt.subplots(1,1)
-    print(np.max(llsum_total))
-    print(np.max(llsum_total_exact))
-    axes.plot(H0s, llsum_total - np.max(llsum_total), label="Quadrature")
-    axes.plot(H0s, llsum_total_exact - np.max(llsum_total_exact), label="Exact")
-    axes.set_xlabel(r"$H_0$")
-    axes.set_ylabel(r"Normalised log(p($H_0$))")
-    axes.legend()
-    plt.savefig("../Figures/ll_total.png", format='png', bbox_inches='tight')
-    plt.close()
-
+#===============================================================================
 def get_likelihood(s,g,norm=True,Pn=False,psnr=True,dolist=0):
     """
     Returns total ikelihood for a single survey s and grid g

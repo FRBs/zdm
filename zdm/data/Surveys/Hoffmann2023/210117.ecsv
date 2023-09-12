@@ -22,4 +22,4 @@
 #     BEAM\": \"lat50_log\",\n        \"DIAM\": 12.0,\n        \"NBEAMS\": 36,\n        \"NBINS\": 5\n    }\n}"}
 # schema: astropy-2.0
 TNS BW DM DMG FBAR FRES Gb Gl SNR SNRTHRESH THRESH TRES WIDTH XDec XRA Z
-20210117A 336.0 730.0 34.4 1271.5 1.0 "" "" 27.1 9.0 4.4 1.182 3.4 -16:11:25.2 22:39:36.0 0.214
+20210117A 336.0 730.0 34.4 1271.5 1.0 "" "" 27.1 9.0 4.4 1.182 1.7 -16:11:25.2 22:39:36.0 0.214

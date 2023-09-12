@@ -22,4 +22,4 @@
 #     BEAM\": \"lat50_log\",\n        \"DIAM\": 12.0,\n        \"NBEAMS\": 36,\n        \"NBINS\": 5\n    }\n}"}
 # schema: astropy-2.0
 TNS BW DM DMG FBAR FRES Gb Gl SNR SNRTHRESH THRESH TRES WIDTH XDec XRA Z
-20190611B 336.0 322.2 57.6 1271.5 1.0 "" "" 9.3 9.0 4.4 1.728 2.0 -79:23:51.284 21:22:58.372 0.378
+20190611B 336.0 322.2 57.6 1271.5 1.0 "" "" 9.3 9.0 4.4 1.728 1.5 -79:23:51.284 21:22:58.372 0.378

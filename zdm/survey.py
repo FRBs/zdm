@@ -489,12 +489,12 @@ class Survey:
         # Efficiency
         if model=='Quadrature' or model=='Sammons':
             pwidths,pprobs=make_widths(self, state)
-            # pwidths = np.array([self.WIDTHs])
-            # pprobs = np.array([1])
             _ = self.get_efficiency_from_wlist(dmvals,pwidths,pprobs,
                                            model=model)
+        elif model=='Quadrature_s' or model=='Sammons_s':
+            self.efficiencies = calc_relative_sensitivity(None, dmvals, self.WIDTHs[0], self.FBARs[0], self.TRESs[0], self.FRESs[0], model=model[:-2], dsmear=None)
         else:
-            self.efficiencies = calc_relative_sensitivity(None, dmvals, None, None, None, None, model, None, edir)
+            self.efficiencies = calc_relative_sensitivity(None, dmvals, self.WIDTHs[0], self.FBARs[0], self.TRESs[0], self.FRESs[0], model=model, dsmear=None, edir=edir)
         
         # plt.figure()
         # for eff in self.efficiencies:
@@ -722,7 +722,7 @@ class Survey:
         
 # implements something like Mawson's formula for sensitivity
 # t_res in ms
-def calc_relative_sensitivity(DM_frb,DM,w,fbar,t_res,nu_res,model='Quadrature',dsmear=True,edir=''):
+def calc_relative_sensitivity(DM_frb,DM,w,fbar,t_res,nu_res,Nchan=336,max_idt=4096,model='Quadrature',dsmear=True,edir=''):
     """ Calculates DM-dependent sensitivity
     
     This function adjusts sensitivity to a given burst as a function of DM.
@@ -745,8 +745,7 @@ def calc_relative_sensitivity(DM_frb,DM,w,fbar,t_res,nu_res,model='Quadrature',d
         # Should contain DM in the first row and efficiencies in the second row
         sensitivity_array = np.load(filename)
         sensitivity = np.interp(DM, sensitivity_array[0,:], sensitivity_array[1,:], right=1e-10)
-        print("Max sensitivity exact: " + str(np.max(sensitivity)))
-    
+        
     else:
         # constant of DM
         k_DM=4.149 #ms GHz^2 pc^-1 cm^3
@@ -769,10 +768,16 @@ def calc_relative_sensitivity(DM_frb,DM,w,fbar,t_res,nu_res,model='Quadrature',d
         
         if model=='Quadrature':
             sensitivity=(uw**2+dm_smearing**2+t_res**2)**-0.25
-            print("Max sensitivity quadrature: " + str(np.max(sensitivity)))
         elif model=='Sammons':
             sensitivity=0.75*(0.93*dm_smearing + uw + 0.35*t_res)**-0.5
         # calculates relative sensitivity to bursts as a function of DM
+
+        f_low = fbar - (Nchan/2. - 1)*nu_res
+        f_high = fbar + (Nchan/2. - 1)*nu_res
+        max_dt = t_res * max_idt   # FREDDA searches up to 4096 time bins
+        max_dm = max_dt / (k_DM * ((f_low/1e3)**(-2) - (f_high/1e3)**(-2)))
+
+        sensitivity[DM > max_dm] = 1e-10
 
     return sensitivity
     
@@ -1065,7 +1070,7 @@ def load_survey(survey_name:str, state:parameters.State,
                                             pwidths,pprobs,
                                             model=model,edir=edir) 
         else:
-            srvy.efficiencies = calc_relative_sensitivity(None, dmvals, None, None, None, None, model, None, edir)
+            srvy.efficiencies = calc_relative_sensitivity(None, dmvals, None, None, None, None, model=model, dsmear=None, edir=edir)
     else:                                
         srvy = Survey(state, 
                          survey_name, 
