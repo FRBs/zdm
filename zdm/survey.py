@@ -8,6 +8,7 @@ import numpy as np
 import os
 from pkg_resources import resource_filename
 from scipy.integrate import quad
+from dataclasses import dataclass, fields
 
 import pandas
 from astropy.table import Table
@@ -23,6 +24,7 @@ from zdm import survey_data
 import matplotlib.pyplot as plt
 
 from IPython import embed
+
 
 class OldSurvey:
     """A class to hold an FRB survey
@@ -191,10 +193,10 @@ class OldSurvey:
         # Adding beam keywords for backwards compatibility
         # for CHIME: 3,0,0,CHIME
         # Otherwise: 2,0,2,Quadrature
-        self.do_keyword('BMETHOD',which,2) # method to describe beam
+        self.do_keyword('BMETHOD',which,3) # method to describe beam
         self.do_keyword('BTHRESH',which,0) # mon beam value to include
-        self.do_keyword('WMETHOD',which,2) # method to deal with FRB widths
-        self.do_keyword('WBIAS',which,"Quadrature") # bias effect due to FRB width
+        self.do_keyword('WMETHOD',which,0) # method to deal with FRB widths
+        self.do_keyword('WBIAS',which,"CHIME") # bias effect due to FRB width
         
         # the following properties can either be FRB-by-FRB, or metadata
         which=3
@@ -416,8 +418,6 @@ class OldSurvey:
             return [i for i, x in enumerate(lst) if x==val]
     
     def get_key(self,key):
-        #print(self.keys)
-        #print(self.keylist)
         if key in self.keys:
             return self.keys
     
@@ -535,9 +535,25 @@ class Survey:
         for key in self.survey_data.params:
             DC = self.survey_data.params[key]
             self.meta[key] = getattr(self.survey_data[DC],key)
-        # FRB data
+        
+        # Get default values from default frb data
+        default_frb = survey_data.FRB()
+        
+        # we now populate missing fields with the default values
+        for field in fields(default_frb):
+            # checks to see if this is a field in metadata: if so, takes priority
+            if field.name in self.meta.keys():
+                default_value = self.meta[field.name]
+            else:
+                default_value = getattr(default_frb, field.name)
+            
+            # iterate over fields, checking if they are populated
+            for i,val in enumerate(frb_tbl[field.name]):
+                if isinstance(val,np.ma.core.MaskedArray):
+                    frb_tbl[field.name][i] = default_value
+        
         self.frbs = frb_tbl.to_pandas()
-
+        
         # Cut down?
         if self.NFRB is None:
             self.NFRB=len(self.frbs)
@@ -548,11 +564,13 @@ class Survey:
             # Not sure the following linematters given the Error above
             themax = min(NFRB+iFRB,self.NFRB)
             self.frbs=self.frbs[iFRB:themax]
+        
+        
         # Vet
         vet_frb_table(self.frbs, mandatory=True)
-
+        
         # Pandas resolves None to Nan
-        if np.isfinite(self.frbs["Z"][0]):
+        if len(self.frbs["Z"])>0 and np.isfinite(self.frbs["Z"][0]):
             
             self.Zs=self.frbs["Z"].values
             # checks for any redhsifts identically equal to zero
@@ -575,6 +593,18 @@ class Survey:
             self.Zs=None
             self.nozlist=np.arange(self.NFRB)
             self.zlist=None
+        
+        if len(self.frbs) > 0:
+            # first, replacing missing values with survey values
+            
+            # replace default values with observed media values
+            self.meta['THRESH'] = np.median(self.frbs['THRESH'])
+            self.meta['BW'] = np.median(self.frbs['BW'])
+            self.meta['FBAR'] = np.median(self.frbs['FBAR'])
+            self.meta['FRES'] = np.median(self.frbs['FRES'])
+            self.meta['TRES'] = np.median(self.frbs['TRES'])
+            self.meta['WIDTH'] = np.median(self.frbs['WIDTH'])
+            self.meta['DMG'] = np.median(self.frbs['DMG'])
         
         ### processes galactic contributions
         self.process_dmg()
@@ -617,9 +647,7 @@ class Survey:
             DMGs=np.zeros([self.NFRB])
             for i,l in enumerate(self.frbs["Gl"]):
                 b=self.frbs["Gb"][i]
-                
                 ismDM = ne.DM(l, b, 100.)
-            
                 print(i,l,b,ismDM)
             DMGs=np.array(DMGs)
             self.frbs["DMG"]=DMGs
@@ -684,17 +712,18 @@ class Survey:
         
         """
         efficiencies=np.zeros([wlist.size,DMlist.size])
+        
         if addGalacticDM:
-            toAdd = self.DMhalo + np.mean(self.DMGs)
+            toAdd = self.DMhalo + self.meta['DMG']
         else:
             toAdd = 0.
         
         for i,w in enumerate(wlist):
             efficiencies[i,:]=calc_relative_sensitivity(
                 None,DMlist+toAdd,w,
-                np.median(self.frbs['FBAR']),
-                np.median(self.frbs['TRES']),
-                np.median(self.frbs['FRES']),
+                self.meta['FBAR'],
+                self.meta['TRES'],
+                self.meta['FRES'],
                 model=model,
                 dsmear=False)
         # keep an internal record of this
@@ -896,9 +925,9 @@ def make_widths(s:Survey,state):
     #    tres=s.meta['TRES']
     #    nu_res=s.meta['FRES']
     #    fbar=s.meta['FBAR']
-    tres=np.median(s.frbs['TRES'])
-    nu_res=np.median(s.frbs['FRES'])
-    fbar=np.median(s.frbs['FBAR'])
+    tres=s.meta['TRES']
+    nu_res=s.meta['FRES']
+    fbar=s.meta['FBAR']
     
     ###### calculate a characteristic scaling pulse width ########
     
@@ -921,7 +950,6 @@ def make_widths(s:Survey,state):
     # arrays to hold widths and weights
     weights=[]
     widths=[]
-    
     if width_method==0:
         # do not take a distribution, just use 1ms for everything
         # this is done for tests, for complex surveys such as CHIME,
@@ -1088,6 +1116,7 @@ def load_survey(survey_name:str, state:parameters.State,
         srvy.name = survey_name
         srvy.process_survey_file(os.path.join(sdir, dfile), 
                                 NFRB=NFRB, iFRB=iFRB)
+        
         if not dummy:
             srvy.init_DMEG(state.MW.DMhalo)
             

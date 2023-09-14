@@ -155,7 +155,7 @@ def main(Nbin=30,FC=1.0):
             
             tempsave = opdir+"temp"+str(j)+".npz"
             print("searching for ",tempsave)
-            if os.path.exists(tempsave):
+            if j != 0 and os.path.exists(tempsave):
                 data = np.load(tempsave)
                 
                 
@@ -702,6 +702,46 @@ def generate_state(state,Nbin=6,Rmult=1.,mcrs=None,tag=None,tmults=None):
     tot_exact_singles *= rnorm
     tot_exact_rbursts *= rnorm
     
+    # All repeater DMs from Cat1
+    375.9,102.0818182,158.05,150.4368421,1239.25,62.4,334.4166667,424.65,344.75,508.6,379.75,248.7,608.65,372.7,192.8,520.95
+    
+    
+    # FRB 20180916 https://ui.adsabs.harvard.edu/abs/2020Natur.577..190M/abstract
+    #z 0.0337, DMne2001 150.4
+    
+    
+    #FRB 20200120E (NOT in cat 1!) https://arxiv.org/abs/2103.01295
+    # z ~ 0.00084 # approx redshift for M81 at 3.6 Mpc
+    # DMne2001 = 87.8-40 = 47.8
+    
+    # FRB 20181030A (in cat 1, 62.4) https://arxiv.org/abs/2108.12122
+    # DMne2001: 62.4, z= 0.00385 (20 Mpc)
+    
+    # Michelli: https://ui.adsabs.harvard.edu/abs/2023ApJ...950..134M/abstract
+    # FRB 20180814A z~0.068 DMne2001 = 102
+    # FRB 20190303A  z=0.064, DMne2001 = 192.8
+    
+    # Ibik et al: https://arxiv.org/abs/2304.02638
+    #20200223B z=0.06024, DM=202.068-46  {NOT in cat1]
+    #20190110C z=0.122244, DM=186.3  [In catalogue 1, NOT a repeater! (just one burst)]
+    # 20191106C z=0.10775, DM=333.4-25. [NOT in cat 1, association only approx]
+    
+    DMhalo=50.
+    
+    special=[[202.068-46-DMhalo,186.3-DMhalo,333.4-25.-DMhalo],[0.06024,0.122244,0.10775]]
+    
+    # DMEG for unlocalised repeaters
+    repDMonly = np.array([375.9,158.05,1239.25,334.4166667,424.65,344.75,508.6,379.75,248.7,608.65,372.7,520.95])-DMhalo
+    # z and DM for localised repeaters
+    repzvals = np.array([0.0337,0.00385,0.068,0.064])
+    repdmeg = np.array([150.4, 62.4,102,192.8]) - DMhalo
+    
+    #misc_functions.plot_grid_2(rtot,g.zvals,g.dmvals,
+    #        name=opdir+'combined_localised_FRBs_lines.pdf',norm=3,log=True,
+    #        label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$ [a.u.]',
+    #        project=False,FRBDM=frbdmvals,FRBZ=frbzvals,Aconts=[0.01,0.1,0.5],
+    #        zmax=2.0,DMmax=2000,DMlines=nozlist)
+    
     # performs exact plotting
     for ia,array in enumerate([tot_exact_reps,tot_exact_singles,tot_exact_rbursts]):
         name = opdir + 'set_'+tag+'_'+which[ia]+".pdf"
@@ -709,7 +749,12 @@ def generate_state(state,Nbin=6,Rmult=1.,mcrs=None,tag=None,tmults=None):
             name=name,norm=3,log=True,label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$  [a.u.]',
             project=False,Aconts=[0.01,0.1,0.5],zmax=1.5,
             DMmax=1500)
-    
+        name = opdir + 'set_'+tag+'_'+which[ia]+"_wFRBs.pdf"
+        misc_functions.plot_grid_2(array,zvals,dmvals,
+            name=name,norm=3,log=True,label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$  [a.u.]',
+            project=False,Aconts=[0.01,0.1,0.5],zmax=1.5,
+            DMmax=1500,FRBDM=repdmeg,FRBZ=repzvals,
+            special=special,DMlines=repDMonly)
     
     bins=np.linspace(0,3000,16)
     

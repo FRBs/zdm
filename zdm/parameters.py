@@ -19,20 +19,6 @@ class AnalysisParams(data_class.myDataClass):
         metadata={'help': 'Full:  more detailed estimates. Takes more space and time \n'+\
                  'Std: faster - fine for max likelihood calculations, not as pretty'})
 
-# Beam parameters
-@dataclass
-class BeamParams(data_class.myDataClass):
-    Bmethod: int = field(
-        default=2,
-        metadata={'help': 'Method for calculation. See beams.py:simplify_beam() for options',
-                  'unit': ''})
-    Bthresh: float = field(
-        default=0.0,
-        metadata={'help': 'Minimum value of beam sensitivity to consider',
-                  'unit': '',
-                  'Notation': 'B_{\rm min}'})
-    #def __post_init__(self):
-    #    self.Nbeams = [5,5,5,10]
 
 # Cosmology parameters
 @dataclass
@@ -194,10 +180,6 @@ class WidthParams(data_class.myDataClass):
         metadata={'help': 'Starting fraction of intrinsic width for histogramming',
                   'unit': '',
                   'Notation': 'w_{\\rm min}'})
-    Wmethod: int = field(
-        default=2,
-        metadata={'help': 'Method of calculating FRB widths; 0 ignore, 1 std, 2 includes scattering',
-                  'unit': ''})
     Wbins: int = field(
         default=5,
         metadata={'help': 'Number of bins for FRB width distribution',
@@ -205,10 +187,6 @@ class WidthParams(data_class.myDataClass):
     Wscale: int = field(
         default=3.5,
         metadata={'help': 'Log-scaling of bins for width distribution',
-                  'unit': ''})
-    Wbias: str = field(
-        default='Quadrature',
-        metadata={'help': 'Method to calculate width bias',
                   'unit': ''})
     
 # FRB intrinsic scattering parameters
@@ -286,7 +264,6 @@ class State(data_class.myData):
         self.width = WidthParams()
         self.MW = MWParams()
         self.analysis = AnalysisParams()
-        self.beam = BeamParams()
         self.FRBdemo = FRBDemoParams()
         self.cosmo = CosmoParams()
         self.host = HostParams()

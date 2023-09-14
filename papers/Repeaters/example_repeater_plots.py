@@ -65,7 +65,7 @@ def main():
     sets=[Rset3,Rset4] # only those sets *after* fitting to CHIME
     
     # defines list of surveys to consider, together with Tpoint
-    sdir = os.path.join(resource_filename('zdm','data/Surveys/'),'CHIME/')
+    sdir = os.path.join(resource_filename('zdm','data/'),'Surveys/')
     
     ###### generates the example plots for CRAFT ICS, using multiple times #######
     
@@ -74,16 +74,14 @@ def main():
     opdir='ExamplePlots/'
     if not os.path.exists(opdir):
         os.mkdir(opdir)
-    #time_effect_for_survey("CRAFT_ICS",sdir,Rset2,suffix="_set2",xmax=1.2,ymax=0.35,label='(a)')#,xmax=1,ymax=2,suffix="_set2")
-    #time_effect_for_survey("CRAFT_ICS",sdir,Rset1,suffix="_set1",xmax=1.2,ymax=0.35,label='(b)')
+    time_effect_for_survey("CRAFT_ICS",sdir,Rset2,suffix="_set2",xmax=1.2,ymax=0.35,label='(a)')#,xmax=1,ymax=2,suffix="_set2")
+    time_effect_for_survey("CRAFT_ICS",sdir,Rset1,suffix="_set1",xmax=1.2,ymax=0.35,label='(b)')
     
     ############### Initial plots -Figs 1 and 2 ##################
     NMC=100
     generate_MC_plots("CRAFT_ICS",sdir,100.,Rset1,NMC,load=True)
     
     ############### Future Predictions Plots - Figs 19 ##################
-    
-    
     opdir = 'Predictions/'
     if not os.path.exists(opdir):
         os.mkdir(opdir)
@@ -171,23 +169,22 @@ def plot_survey(rgs,grid,opfile,name,xmax=None,ymax=None,norm=False,axis=1,scale
     if axis == 1:
         plt.xlabel('z')
         if norm:
-            plt.ylabel('N(z) dz [a.u.]')
+            plt.ylabel('N(z) [a.u.]')
         else:
-            plt.ylabel('N(z) dz')
+            plt.ylabel('N(z)')
         xvals = grid.zvals
         
     else:
         plt.xlabel('DM')
         if norm:
-            plt.ylabel('N(DM) dDM [a.u.]')
+            plt.ylabel('N(DM) [a.u.]')
         else:
-            plt.ylabel('N(DM) dDM [1000 pc cm$^{-3}$]$^{-1}$')
+            plt.ylabel('N(DM) [1000 pc cm$^{-3}$]$^{-1}$')
         xvals = grid.dmvals
     
     dz = xvals[1]-xvals[0]
     
     styles=['-','--','-.',':']
-    colours=['red','green','blue','orange','purple']
     lw=1.5
     
     colours=((230./256.,97/256.,0),(93/256.,58/256.,155/256.))
@@ -422,14 +419,14 @@ def time_effect_for_survey(name,sdir,Rset,xmax=None,ymax=None,suffix="",label=''
     
     plt.figure()
     plt.xlabel('z')
-    plt.ylabel('N(z)dz [day$^{-1}$]')
+    plt.ylabel('N(z) [day$^{-1}$]')
     plt.text(0.01,0.33,label)
     if xmax is not None:
         plt.xlim(0,xmax)
     if ymax is not None:
         plt.ylim(0,ymax)
     styles=['-','--','-.',':']
-    colours=['red','green','blue','orange','purple']
+    #colours=['red','green','blue','orange','purple']
     lw=1.5
     for i,Tfield in enumerate([10,100,1000]): #Here, T is in days: 10,100,1000 days
         rg=calc_reps(s,g,Tfield,Rparams=Rset,Nfields=1,opdir=None)
@@ -440,7 +437,7 @@ def time_effect_for_survey(name,sdir,Rset,xmax=None,ymax=None,suffix="",label=''
         #zproj /= np.sum(zproj)
         zproj /= dz
         zproj /= Tfield
-        plt.plot(rg.zvals,zproj,label="Single bursts",color=colours[i],linestyle="-",linewidth=lw)
+        plt.plot(rg.zvals,zproj,label="Single bursts",linestyle="-",linewidth=lw)#color=colours[i],
         
         # prints the peak in this
         imax=np.argmax(zproj)
@@ -451,7 +448,7 @@ def time_effect_for_survey(name,sdir,Rset,xmax=None,ymax=None,suffix="",label=''
         #zproj /= np.sum(zproj)
         zproj /= dz
         zproj /= Tfield
-        plt.plot(rg.zvals,zproj,label="Repeating sources",color=colours[i],linestyle=":",linewidth=lw)
+        plt.plot(rg.zvals,zproj,label="Repeating sources",linestyle=":",linewidth=lw,color=plt.gca().lines[-1].get_color())#color=colours[i],
         
         # prints the peak in this
         imax=np.argmax(zproj)
@@ -462,21 +459,21 @@ def time_effect_for_survey(name,sdir,Rset,xmax=None,ymax=None,suffix="",label=''
         #zproj /= np.sum(zproj)
         zproj /= dz
         zproj /= Tfield
-        plt.plot(rg.zvals,zproj,label="Bursts from repeaters",color=colours[i],linestyle="-.",linewidth=lw)
+        plt.plot(rg.zvals,zproj,label="Bursts from repeaters",linestyle="-.",linewidth=lw,color=plt.gca().lines[-1].get_color())#color=colours[i],
         
         total=rg.exact_singles + rg.exact_reps
         zproj=np.sum(total,axis=1)
         #zproj /= np.sum(zproj)
         zproj /= dz
         zproj /= Tfield
-        plt.plot(rg.zvals,zproj,label="Total progenitors",color=colours[i],linestyle="--",linewidth=lw)
+        plt.plot(rg.zvals,zproj,label="Total progenitors",linestyle="--",linewidth=lw,color=plt.gca().lines[-1].get_color())#color=colours[i],
         
         total=rg.exact_singles + rg.exact_rep_bursts
         zproj=np.sum(total,axis=1)
         #zproj /= np.sum(zproj)
         zproj /= dz
         zproj /= Tfield
-        plt.plot(rg.zvals,zproj,label="Total bursts",color="black",linestyle="-",linewidth=3)
+        plt.plot(rg.zvals,zproj,label="Total bursts",linestyle="-",linewidth=3,color='black')
         if i==0:
             plt.legend()
         
@@ -497,7 +494,7 @@ def time_effect_for_survey2(name,sdir,Rset):
     
     plt.figure()
     plt.xlabel('z')
-    plt.ylabel('N(z)dz [day$^{-1}$]')
+    plt.ylabel('N(z) [day$^{-1}$]')
     plt.xlim(0,0.4)
     plt.ylim(0,0.07)
     styles=['-','--','-.',':']
@@ -511,33 +508,33 @@ def time_effect_for_survey2(name,sdir,Rset):
         #zproj /= np.sum(zproj)
         zproj /= dz
         zproj /= Tfield
-        plt.plot(rg.zvals,zproj,label="Singles",color='red',linestyle=styles[i],linewidth=2)
+        plt.plot(rg.zvals,zproj,label="Singles",linestyle=styles[i],linewidth=2)#color='red',
         
         zproj=np.sum(rg.exact_reps,axis=1)
         #zproj /= np.sum(zproj)
         zproj /= dz
         zproj /= Tfield
-        plt.plot(rg.zvals,zproj,label="Repeaters",color='purple',linestyle=styles[i],linewidth=2)
+        plt.plot(rg.zvals,zproj,label="Repeaters",linestyle=styles[i],linewidth=2)#color='purple',
                     
         zproj=np.sum(rg.exact_rep_bursts,axis=1)
         #zproj /= np.sum(zproj)
         zproj /= dz
         zproj /= Tfield
-        plt.plot(rg.zvals,zproj,label="Bursts from repeaters",color='green',linestyle=styles[i],linewidth=2)
+        plt.plot(rg.zvals,zproj,label="Bursts from repeaters",linestyle=styles[i],linewidth=2) #color='green',
         
         total=rg.exact_singles + rg.exact_reps
         zproj=np.sum(total,axis=1)
         #zproj /= np.sum(zproj)
         zproj /= dz
         zproj /= Tfield
-        plt.plot(rg.zvals,zproj,label="Total progenitors",color='orange',linestyle=styles[i],linewidth=2)
+        plt.plot(rg.zvals,zproj,label="Total progenitors",linestyle=styles[i],linewidth=2)#color='orange',
         
         total=rg.exact_singles + rg.exact_rep_bursts
         zproj=np.sum(total,axis=1)
         #zproj /= np.sum(zproj)
         zproj /= dz
         zproj /= Tfield
-        plt.plot(rg.zvals,zproj,label="Total bursts",color='black',linestyle=styles[i],linewidth=3)
+        plt.plot(rg.zvals,zproj,label="Total bursts",linestyle=styles[i],linewidth=3)#color='black'
         if i==0:
             plt.legend()
     plt.tight_layout()

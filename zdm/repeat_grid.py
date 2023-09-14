@@ -564,7 +564,6 @@ class repeat_Grid:
             else:
                 nonzero = np.where(self.Rmult.flatten() > 1e-20)[0]
                 self.nonzeros[self.Nth]=nonzero
-        
         # the following is for saving time when updating
         if self.newRmin == False:
             avals=self.avals[self.Nth]
@@ -575,8 +574,6 @@ class repeat_Grid:
                 avals=self.Rmin*self.Rmult.flatten()
             self.avals[self.Nth] = avals
             
-            #print("1",np.max(avals),np.min(avals),np.max(self.Rmult.flatten()[nonzero]),np.min(self.Rmult.flatten()[nonzero]))
-        
         if self.newRmax == False:
             bvals=self.bvals[self.Nth]
         else:
@@ -636,7 +633,6 @@ class repeat_Grid:
                 norms1[NotTooLow] = interpolate.splev(avals[NotTooLow], energetics.igamma_splines[effGamma])
             
             self.snorms1[self.Nth] = norms1
-        
         # now do calculations
         if self.newRmax == False and self.newRgamma == False:
             norms2 = self.snorms2[self.Nth]
@@ -645,7 +641,6 @@ class repeat_Grid:
             if NTLb:
                 norms2[NotTooLowb] = interpolate.splev(bvals[NotTooLowb], energetics.igamma_splines[effGamma])
             self.snorms2[self.Nth] = norms2
-        
         # subtract components
         norms = norms1 - norms2
         
@@ -958,7 +953,6 @@ class repeat_Grid:
             # Rmult_final = \sum wi Rmulti
             # does this make sense? Effectively its the sum of rates. Well yes it does! AWESOME!
             # numerator for Rmult for this width
-            
             #Note: grid.thresholds already will include effect of alpha
             if iw==0:
                 Rmult = w*self.grid.array_cum_lf(self.grid.thresholds[iw,:,:]/beam_b,self.Emin,self.Emax,self.gamma)
@@ -969,20 +963,18 @@ class repeat_Grid:
         # calculates the expectation value for a single pointing
         # rates were "per day", now "per pointing time on field"
         Rmult *= time_days
-        
         # accounts for time dilation of intrinsic rate
         dilation=1./(1.+self.grid.zvals)
         # multiplies repeater rates by both base rate, and 1+z penalty
         # NEW NEW NEW NEW
         if self.grid.state.FRBdemo.alpha_method==1:
             # scales to frequency of interest
-            Rmult *= (self.grid.nuObs/self.grid.nuRef)**-self.grid.state.energy.alpha
+            fscale = (self.grid.nuObs/self.grid.nuRef)**-self.grid.state.energy.alpha
+            Rmult *= fscale
             #double negative here: dilation is 1/(1+z)
             # hence if rate goes as f^-alpha, f goes as (1+z), then we recover (1/1+z)**alpha
             dilation = dilation**(1.+self.grid.state.energy.alpha)
-        
         Rmult = (Rmult.T * dilation).T
-        
         return Rmult
     
     def MCsample(self,Rthresh,Rmult,doplots=False,tag=None):

@@ -54,8 +54,7 @@ class Grid:
         self.luminosity_function = self.state.energy.luminosity_function
         self.init_luminosity_functions()
         
-        #self.nuObs=survey.meta['FBAR']*1e6 #from MHz to Hz
-        self.nuObs= np.median(survey.frbs['FBAR'])*1e6 #from MHz to Hz
+        self.nuObs= survey.meta['FBAR']*1e6 #from MHz to Hz
         # Init the grid
         #   THESE SHOULD BE THE SAME ORDER AS self.update()
         self.parse_grid(zDMgrid.copy(),zvals.copy(),dmvals.copy())  
@@ -70,7 +69,9 @@ class Grid:
         self.efficiencies=efficiencies
         self.weights=weights
         # Warning -- THRESH could be different for each FRB, but we don't treat it that way
-        self.calc_thresholds(np.median(survey.frbs['THRESH']),
+        thresh = survey.meta["THRESH"]
+        # was np.median(survey.frbs['THRESH'])
+        self.calc_thresholds(thresh,
                              efficiencies,
                              weights=weights)
         # Calculate
@@ -247,7 +248,7 @@ class Grid:
         
         # for some arbitrary reason, we treat the beamshape slightly differently... no need to keep an intermediate product!
         main_beam_b = self.beam_b
-
+        
         # call log10 beam
         if self.use_log10:
             new_thresh = np.log10(self.thresholds) # use when calling in log10 space conversion
@@ -340,7 +341,6 @@ class Grid:
             self.eff_weights=weights/np.sum(weights) #normalises this!
             self.eff_table=eff_table
         Eff_thresh=F0/self.eff_table
-        
         self.EF(self.state.energy.alpha, bandwidth) #sets FtoE values - could have been done *WAY* earlier
         
         self.thresholds=np.zeros([self.nthresh,self.zvals.size,self.dmvals.size])
@@ -351,8 +351,7 @@ class Grid:
         # We loop over nthesh and generate a NDM x Nz array for each
         for i in np.arange(self.nthresh):
             self.thresholds[i,:,:]=np.outer(self.FtoE,Eff_thresh[i,:])
-        
-        
+            
     def smear_dm(self,smear:np.ndarray):#,mean:float,sigma:float):
         """ Smears DM using the supplied array.
         Example use: DMX contribution

@@ -102,8 +102,9 @@ def set_state(pset,chime_response=True,ischime=True):
     state.update_param_dict(state_dict)
     
     # changes the beam method to be the "exact" one, otherwise sets up for FRBs
-    if ischime:
-        state.beam.Bmethod=3
+    #originally, this was a state function, now in the survey
+    #if ischime:
+    #    state.beam.Bmethod=3
     
     
     # updates to most recent best-fit values
