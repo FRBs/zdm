@@ -13,7 +13,7 @@ igamma_linear_log10 = {}
 def init_igamma_splines(gammas, reinit=False):
     for gamma in gammas:
         if gamma not in igamma_splines.keys() or reinit:
-            print(f"Initializing igamma_spline for gamma={gamma}")
+            # print(f"Initializing igamma_spline for gamma={gamma}")
             # values
             avals = 10**np.linspace(-6, 6., 1000)
             numer = np.array([float(mpmath.gammainc(

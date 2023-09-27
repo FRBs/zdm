@@ -103,7 +103,14 @@ class FRBDemoParams(data_class.myDataClass):
 class MWParams(data_class.myDataClass):
     ISM: float = field(
         default=35.,
-        metadata={'help': 'Assumed DM for the Galactic ISM in units of pc/cm^3'})
+        metadata={'help': 'Assumed DM for the Galactic ISM',
+                  'unit': 'pc cm$^{-3}$',
+        })
+    uDMG: float = field(
+        default=0.,
+        metadata={'help': 'Fractional uncertainty in DM from Galactic ISM',
+                  'unit': '',
+        })
     DMhalo: float = field(
         default=50.,
         metadata={'help': 'DM for the Galactic halo',
@@ -255,6 +262,7 @@ class State(data_class.myData):
 
 
     def update_param(self, param:str, value):
+        # print(self.params)
         DC = self.params[param]
         setattr(self[DC], param, value)
         # Special treatment

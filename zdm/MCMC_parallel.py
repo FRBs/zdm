@@ -27,20 +27,28 @@ import time
 
 import multiprocessing as mp
 
-# matplotlib.rcParams['image.interpolation'] = None
-# import pcosmic
-# import igm
-
-# defaultsize=14
-# ds=4
-# font = {'family' : 'normal',
-#         'weight' : 'normal',
-#         'size'   : defaultsize}
-# matplotlib.rc('font', **font)
+from zdm.misc_functions import *
+import argparse
+parser = argparse.ArgumentParser()
+parser.add_argument(dest='files', nargs='+', help="Survey file names")
+parser.add_argument('-i','--initialise', default=None, type=str, help="Prefix used to initialise survey")
+parser.add_argument('-p','--pfile', default=None , type=str, help="File defining parameter ranges")
+parser.add_argument('-o','--opfile', default=None, type=str, help="Output file for the data")
+parser.add_argument('-w', '--walkers', default=20, type=int, help="Number of MCMC walkers")
+parser.add_argument('-s', '--steps', default=100, type=int, help="Number of MCMC steps")
+args = parser.parse_args()
 
 global params
 global surveys 
 global grids 
+
+# Check correct flags are specified
+if args.pfile is None or args.opfile is None:
+    if not (args.pfile is None and args.opfile is None):
+        print("All flags (except -i optional) are required unless this is only for initialisation in which case only -i should be specified.")
+        exit()
+
+#==============================================================================
 
 def main(args):
     
@@ -48,108 +56,60 @@ def main(args):
     global surveys 
     global grids 
     names=args.files
+    prefix=args.initialise
 
 
     ############## Initialise cosmology ##############
     # Location for maximisation output
     outdir='mcmc/'
-    
-    #cos.set_cosmology(Omega_m=1.2) setup for cosmology
+
     cos.init_dist_measures()
     state = loading.set_state()
     
-    #parser.add_argument(", help
     # get the grid of p(DM|z)
     zDMgrid, zvals,dmvals=get_zdm_grid(state,new=True,plot=False,method='analytic',save=True,datdir='MCMCData')
-    # NOTE: if this is new, we also need new surveys and grids!
     
     ############## Initialise surveys ##############
-    
-    # # constants of beam method
-    # thresh=0
-    # method=2
-    
-    # # constants of intrinsic width distribution
-    # Wlogmean=1.70267
-    # Wlogsigma=0.899148
-    # DMhalo=50
-    
-    prefix='mcmc'
-    # Wbins=5
-    # Wscale=3.5
-    # Nbeams=[5,5,10]
-    
-    # Five surveys: we need to distinguish between those with and without a time normalisation
-    if args.initialise == True:
+
+    if not os.path.exists('Pickle/'+prefix+'surveys.pkl'):
+        # Initialise surveys
         surveys = []
         for name in names:
             filename = 'data/Surveys/' + name
             s=survey.Survey(state, name, filename, dmvals)
 
             surveys.append(s)
-            # pwidths,pprobs=survey.make_widths(s,Wlogmean,Wlogsigma,Wbins,scale=Wscale)
-            # efficiencies=s.get_efficiency_from_wlist(dmvals,pwidths,pprobs)
-        
-        # FE1=survey.Survey()
-        # FE1.process_survey_file('Surveys/CRAFT_class_I_and_II.dat')
-        # FE1.init_DMEG(DMhalo)
-        # FE1.init_beam(nbins=Nbeams[0],method=2,plot=False,thresh=thresh) # tells the survey to use the beam file
-        # pwidths,pprobs=survey.make_widths(FE1,Wlogmean,Wlogsigma,Wbins,scale=Wscale)
-        # efficiencies=FE1.get_efficiency_from_wlist(dmvals,pwidths,pprobs)
-        
-        # # load ICS data
-        # ICS=survey.survey()
-        # ICS.process_survey_file('Surveys/CRAFT_ICS.dat')
-        # ICS.init_DMEG(DMhalo)
-        # ICS.init_beam(nbins=Nbeams[1],method=2,plot=False,thresh=thresh) # tells the survey to use the beam file
-        # pwidths,pprobs=survey.make_widths(ICS,Wlogmean,Wlogsigma,Wbins,scale=Wscale)
-        # efficiencies=ICS.get_efficiency_from_wlist(dmvals,pwidths,pprobs)
-        
-        # # load Parkes data
-        # p1=survey.survey()
-        # p1.process_survey_file('Surveys/parkes_mb_class_I_and_II.dat')
-        # p1.init_DMEG(DMhalo)
-        # p1.init_beam(nbins=Nbeams[2],method=2,plot=False,thresh=thresh) # need more bins for Parkes!
-        # pwidths,pprobs=survey.make_widths(p1,Wlogmean,Wlogsigma,Wbins,scale=Wscale)
-        # efficiencies=p1.get_efficiency_from_wlist(dmvals,pwidths,pprobs)
     
-        if not os.path.exists('Pickle/'):
-            os.mkdir('Pickle/')
+        # Initialise grids
+        grids=initialise_grids(surveys,zDMgrid, zvals,dmvals,state,wdist=True)
 
-        with open('Pickle/'+prefix+'surveys.pkl', 'wb') as output:
-            pickle.dump(surveys, output, pickle.HIGHEST_PROTOCOL)
-            pickle.dump(names, output, pickle.HIGHEST_PROTOCOL)
+        # Save surveys / grids in pickle format
+        if prefix != None:
+            if not os.path.exists('Pickle/'):
+                os.mkdir('Pickle/')
+
+            # Save surveys
+            print("Saving ",'Pickle/'+prefix+'surveys.pkl')
+            with open('Pickle/'+prefix+'surveys.pkl', 'wb') as output:
+                pickle.dump(surveys, output, pickle.HIGHEST_PROTOCOL)
+                pickle.dump(names, output, pickle.HIGHEST_PROTOCOL)
+
+            # Save grids
+            print("Saving ",'Pickle/'+prefix+'grids.pkl')
+            with open('Pickle/'+prefix+'grids.pkl', 'wb') as output:
+                pickle.dump(grids, output, pickle.HIGHEST_PROTOCOL)
     else:
         print("Loading ",'Pickle/'+prefix+'surveys.pkl')
+        # Load surveys
         with open('Pickle/'+prefix+'surveys.pkl', 'rb') as infile:
             surveys=pickle.load(infile)
             names=pickle.load(infile)
-    print("Initialised surveys ",names)
-    
-    
-    # initial parameter values. SHOULD BE LOGSIGMA 0.75! (WAS 0.25!?!?!?)
-    # these are meaningless btw - but the program is set up to require
-    # a parameter set when first initialising grids
-    # lEmin=30.
-    # lEmax=42.
-    # gamma=-0.7
-    # alpha=1.5
-    # sfr_n=1.
-    # lmean=np.log10(50)
-    # lsigma=0.5
-    # C=0.
-    # pset=[lEmin,lEmax,alpha,gamma,sfr_n,lmean,lsigma,C]
-    
-    # generates zdm grids for initial parameter set
-    # when submitting a job, make sure this is all pre-generated once
-    if args.initialise == True:
-        grids=initialise_grids(surveys,zDMgrid, zvals,dmvals,state,wdist=True)
-        with open('Pickle/'+prefix+'grids.pkl', 'wb') as output:
-            pickle.dump(grids, output, pickle.HIGHEST_PROTOCOL)
-    else:
+
+        # Load grids
         with open('Pickle/'+prefix+'grids.pkl', 'rb') as infile:
             grids=pickle.load(infile)
-    print("Initialised grids")
+
+    print("Initialised grids and surveys ",names)
     
     # If not initialising only, run mcmc
     if args.pfile is not None and args.opfile is not None:
@@ -166,6 +126,7 @@ def main(args):
     else:
         print("No parameter or output file provided. Assuming only initialising and no MCMC running is done.")
 
+#==============================================================================
 
 def mcmc_likelihoods(outfile:str, walkers:int, steps:int):
 
@@ -184,6 +145,8 @@ def mcmc_likelihoods(outfile:str, walkers:int, steps:int):
 
     return
 
+#==============================================================================
+
 def calc_log_posterior(param_vals):
 
     global params
@@ -194,10 +157,17 @@ def calc_log_posterior(param_vals):
     # given every value is in the correct range. If any value is not in the correct range, log posterior is -inf
     in_priors = True
     param_dict = {}
+    uDMG=0.0
+    DMhalo=None
     for i, (key,val) in enumerate(params.items()):
         if param_vals[i] < val['min'] or param_vals[i] > val['max']:
             in_priors = False
             break
+        # if key == 'uDMG':
+        #     uDMG = param_vals[i]
+        # if key == 'DMhalo':
+        #     DMhalo=val
+        # else:
         param_dict[key] = param_vals[i]
 
     if in_priors == False:
@@ -207,30 +177,45 @@ def calc_log_posterior(param_vals):
         # for grid in grids:
         #     grid.update(param_dict)
 
-        it.minimise_const_only(param_dict, grids, surveys)
+        # minimise_const_only does the grid updating so we don't need to do it explicitly beforehand
+        # print(param_dict)
+        try:
+            it.minimise_const_only(param_dict, grids, surveys)
 
-        llsum = 0
-        for s, grid in zip(surveys, grids):
-            if s.nD==1:
-                llsum1, lllist, expected = it.calc_likelihoods_1D(grid, s, psnr=True, dolist=1)
-                llsum += llsum1
+            # calculate all the likelihoods
+            llsum = 0
+            for s, grid in zip(surveys, grids):
+                # if DMhalo != None:
+                #     s.init_DMEG(DMhalo)
+                if 'DMhalo' in param_dict:
+                    s.init_DMEG(param_dict['DMhalo'])
 
-                print(llsum, lllist)
-            elif s.nD==2:
-                llsum1, lllist, expected = it.calc_likelihoods_2D(grid, s, psnr=True, dolist=1)
-                llsum += llsum1
-
-                print(llsum, lllist)
-            elif s.nD==3:
-                llsum1, lllist1, expected1 = it.calc_likelihoods_1D(grid, s, psnr=True, dolist=1)
-                llsum2, lllist2, expected2 = it.calc_likelihoods_2D(grid, s, psnr=True, dolist=1, Pn=False)
-                llsum += llsum1 + llsum2
-
-                print(llsum, lllist1, lllist2)
-            else:
-                print("Implementation is only completed for nD 1-3.")
-                exit()
+                llsum += get_likelihood(grid,s)
             
+                # if 'uDMG' in param_dict:
+                #     # x = np.linspace(st.norm.ppf(0.01), st.norm.ppf(0.99), 10)
+                    
+                #     n_samps = 100
+                #     mus = s.DMGs
+
+                #     DM_ISMs = []
+                #     for mu in mus:
+                #         DM_ISMs.append(np.random.normal(mu, mu*param_dict['uDMG'], n_samps))
+
+                #     DM_ISMs = np.array(DM_ISMs)
+                #     print(DM_ISMs.shape)
+
+                #     for j in range(n_samps):
+                #         setattr(s, "DMGs", DM_ISMs[:,j])
+                #         llsum += get_likelihood(grid,s) / n_samps
+
+                #     setattr(s, "DMGs", mus)
+
+                # else:
+                #     llsum += get_likelihood(grid,s)
+        except ValueError as e:
+            print("ValueError, setting likelihood to -inf: " + str(e))
+            llsum = -np.inf
 
     if np.isnan(llsum):
         print("llsum was NaN. Setting to -infinity", param_dict)    
@@ -239,6 +224,8 @@ def calc_log_posterior(param_vals):
     print("Posterior calc time: " + str(time.time()-t0) + " seconds", flush=True)
 
     return llsum
+
+#==============================================================================
 
 def mcmc_runner(logpf, outfile, nwalkers=10, nsteps=100):
     global params
@@ -268,30 +255,33 @@ def mcmc_runner(logpf, outfile, nwalkers=10, nsteps=100):
 
     return posterior_sample
 
-# def commasep(s):
-#     if s == None:
-#         return None
-#     else:
-#         return list(map(str, 
-#                         s.split(',')))
+#==============================================================================
 
-# test for command-line arguments here
-from zdm.misc_functions import *
-import argparse
-parser = argparse.ArgumentParser()
-parser.add_argument(dest='files', nargs='+', help="Survey file names")
-parser.add_argument('-i','--initialise', default=False, action='store_true', help="Initialise surveys")
-parser.add_argument('-p','--pfile', default=None , type=str, help="File defining parameter ranges")
-parser.add_argument('-o','--opfile', default=None, type=str, help="Output file for the data")
-parser.add_argument('-w', '--walkers', default=20, type=int, help="Number of MCMC walkers")
-parser.add_argument('-s', '--steps', default=100, type=int, help="Number of MCMC steps")
-args = parser.parse_args()
+def get_likelihood(grid, s):
 
-# Check correct flags are specified
-if args.pfile is None and args.opfile is None:
-    if args.pfile is None or args.opfile is None:
-        print("All flags (except -i optional) are required unless this is only for initialisation in which case only -i should be specified.")
+    if s.nD==1:
+        llsum1, lllist, expected = it.calc_likelihoods_1D(grid, s, psnr=True, dolist=1)
+        llsum = llsum1
+
+        # print(llsum, lllist)
+    elif s.nD==2:
+        llsum1, lllist, expected = it.calc_likelihoods_2D(grid, s, psnr=True, dolist=1)
+        llsum = llsum1
+
+        # print(llsum, lllist)
+    elif s.nD==3:
+        llsum1, lllist1, expected1 = it.calc_likelihoods_1D(grid, s, psnr=True, dolist=1)
+        llsum2, lllist2, expected2 = it.calc_likelihoods_2D(grid, s, psnr=True, dolist=1, Pn=False)
+        llsum = llsum1 + llsum2
+
+        # print(llsum, lllist1, lllist2)
+    else:
+        print("Implementation is only completed for nD 1-3.")
         exit()
+
+    return llsum
+
+#==============================================================================
 
 # t = time.process_time()
 main(args)
