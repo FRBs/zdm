@@ -5,6 +5,9 @@ This script is a test.
 It simply loads in CHIME data and makes sure
 everything can be read correctly.
 
+It also demonstrates how to generate "repeat grids"
+for a dataset.
+
 """
 from pkg_resources import resource_filename
 
@@ -52,6 +55,11 @@ def main(Nbin=6):
         s,g = loading.survey_and_grid(survey_name=name,NFRB=None,sdir=sdir)#,init_state=state)
         print("Loaded dec bin ",ibin)
         
+        # The below is specific to CHIME data. For CRAFT and other
+        # FRB surveys, do not use "bmethod=2", and you will have to
+        # enter the time per field and Nfields manually.
+        # Also, for other surveys, you do not need to iterate over
+        # declination bins!
         rg = rep.repeat_Grid(g,Tfield=s.TOBS,Nfields=1,MC=False,opdir=None,bmethod=2)
         print("Loaded repeat grid")
         

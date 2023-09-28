@@ -1,7 +1,14 @@
 """ 
-This script creates zdm grids and plots localised FRBs
+This script shows how to use repeating FRB grids.
 
-It can also generate a summed histogram from all CRAFT data
+It produces four outputs in the "Repeaters" directory,
+showing zDM for:
+- 1: All bursts (single bursts, and bursts from repeating sources)
+- 2: FRBs expected as single bursts
+- 3: Repeating FRBs (each source counts once)
+- 4: Bursts from repeaters (each source counts Nburst times)
+
+We expect 1 = 2+4 (if not, it's a bug!)
 
 """
 import os
@@ -27,12 +34,8 @@ def main():
     if not os.path.exists(opdir):
         os.mkdir(opdir)
     
-    # The below is for private, unpublished FRBs. You will NOT see this in the repository!
-    name = 'private_CRAFT_ICS'
-    
-    # if True, this generates a summed histogram of all the surveys, weighted by
-    # the observation time
-    sumit=True
+    # standard 1.4 GHz CRAFT data
+    name = 'CRAFT_ICS'
     
     state = parameters.State()
     
@@ -73,12 +76,27 @@ def main():
     
     # adds repeating grid
     rg = rep.repeat_Grid(g,Tfield=Tfield,Nfields=1,MC=True,opdir='Repeaters/')
-    exit()
+    
     ############# do 2D plots ##########
     misc_functions.plot_grid_2(g.rates,g.zvals,g.dmvals,
-        name=opdir+name+'.pdf',norm=3,log=True,label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$  [a.u.]',
+        name=opdir+name+'all_frbs.pdf',norm=3,log=True,label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$  [a.u.]',
         project=False,FRBDM=s.DMEGs,FRBZ=s.frbs["Z"],Aconts=[0.01,0.1,0.5],zmax=1.5,
-        DMmax=1500)#,DMlines=s.DMEGs[s.nozlist])
+        DMmax=1500)
+    
+    misc_functions.plot_grid_2(rg.exact_singles,g.zvals,g.dmvals,
+        name=opdir+name+'single_frbs.pdf',norm=3,log=True,label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$  [a.u.]',
+        project=False,FRBDM=s.DMEGs,FRBZ=s.frbs["Z"],Aconts=[0.01,0.1,0.5],zmax=1.5,
+        DMmax=1500)
+    
+    misc_functions.plot_grid_2(rg.exact_reps,g.zvals,g.dmvals,
+        name=opdir+name+'repeating_sources.pdf',norm=3,log=True,label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$  [a.u.]',
+        project=False,FRBDM=s.DMEGs,FRBZ=s.frbs["Z"],Aconts=[0.01,0.1,0.5],zmax=1.5,
+        DMmax=1500)
+    
+    misc_functions.plot_grid_2(rg.exact_rep_bursts,g.zvals,g.dmvals,
+        name=opdir+name+'bursts_from_repeaters.pdf',norm=3,log=True,label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$  [a.u.]',
+        project=False,FRBDM=s.DMEGs,FRBZ=s.frbs["Z"],Aconts=[0.01,0.1,0.5],zmax=1.5,
+        DMmax=1500)
 
 def survey_and_grid(survey_name:str='CRAFT/CRACO_1_5000',
             init_state=None,

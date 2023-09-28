@@ -1027,12 +1027,9 @@ class repeat_Grid:
         mean_rate[np.isnan(mean_rate.flatten())]=0.
         mean_rate=mean_rate.reshape([self.grid.zvals.size,self.grid.dmvals.size])
         
-        
-        
         # Rmult here is the rate multiplier due to the distance
         # that is, mean_rate is rate per repeater on average, n reps is number of repeaters, and
         # Rmult is the scaling between the repeater rate and the observed rate
-        
         
         expected_bursts = expected_number_of_repeaters * mean_rate * Rmult * MCmult
         
@@ -1276,82 +1273,4 @@ class repeat_Grid:
         else:
             N2reps = C_r*(R3**(gamma+1) - R1**(gamma+1))/(gamma+1)
         p2no_reps = np.exp(-N2reps)
-
-
-def poisson_z(Robs,*args):
-    """ integrates Poisson probabilities
-    
-    UNFINISHED
-    """
-    
-    for i in np.arange(20)+1: # number of repeaters - already done 0!
-        
-        # total p_zero given N: AND condition
-        #pz is the probability of detecting a burst from that repeaters
-        pz_total = poisson_N*pz**N 
-            
-        #now: chance of a burst given repeaters
-        while(1):
-            # Poisson probability of N repeaters: loop over N, keep going until p is negligible
-            
-            
-            # chance of zero bursts per repeaters
-            np.integrate.quad(N1,N3)
-            
-            
-        
-        if Rmax > R3:
-            # p3None now contains chance that none of these are actually in the volume
-            if Rmin > R3:
-                p3None = np.exp(-Cr) # all the repeaters!
-            else:
-                # there may be some FRBs which we are *guaranteed* to see
-                # thus calculate the probability they exist
-                # \int_(Rthresh)^(Rmax) C_r R^gamma dN
-                Ntot_exp3 = C_r*(Rmax**(gamma+1) - R3**(gamma+1))/(gamma+1)
-                p3None = np.exp(-Ntot_exp3)
-        else:
-            p3None=1.
-        
-        
-        # we first identify if we are in the "not many repeaters' regime
-        # in that case, we can assume there are 0 or 1 repeaters in each volume
-        
-        
-        
-        ######## regime 3: strong repeaters ########
-        # we assume p(>2 bursts) = 1.
-        if Nmax > N3thresh:
-            # p3None now contains chance that none of these are actually in the volume
-            if Nmin > N3thresh:
-                p3None = np.exp(-Cr)
-            else:
-                # there may be some FRBs which we are *guaranteed* to see
-                # thus calculate the probability they exist
-                # \int_(Rthresh)^(Rmax) C_r R^gamma dN
-                R3thresh = Rmax * N3thresh / Nmax 
-                
-                Ntot_exp3 = C_r*(Rmax**(gamma+1) - R3thresh**(gamma+1))/(gamma+1)
-                p3None = np.exp(-Ntot_exp3)
-        else:
-            p3None=1.
-            
-        
-            
-def calc_p_rep(Cr,V):
-    """
-    Calculates the probability that any repeater at all resides
-    in a volume.
-    
-    This is purely a function of the volume (Gpc^3) and the
-    total repeater density Cr (repeaters Gpc^-3)
-    
-    """
-    
-    # generates expected number of repeaters
-    Expected = Cr*V
-    
-    # generates random number of repeaters
-    Nrep = np.random.poisson(Expected)
-    
 
