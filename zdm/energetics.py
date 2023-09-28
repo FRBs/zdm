@@ -42,7 +42,7 @@ def init_igamma_linear(gammas:list, reinit:bool=False,
             print(f"Initializing igamma_linear for gamma={gamma} with log10")
 
             # values
-            avals = 10**np.linspace(-7.5, 6., 1000)
+            avals = 10**np.linspace(-8, 6., 1000)
 
             numer = np.array([float(mpmath.gammainc(
                 gamma, a=iEE)) for iEE in avals])

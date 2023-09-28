@@ -1,0 +1,38 @@
+{
+  "state": {
+    "energy": {
+      "luminosity_function": 3
+    },
+    "FRBdemo": {
+      "alpha_method": 1
+    },
+    "cosmo": {
+      "fix_Omega_b_h2": true
+    }
+  },
+  "cube": {
+    "parameter_order": [
+      "lC",
+      "logF",
+      "H0"
+    ]
+  },
+  "H0": {
+    "DC": "cosmo",
+    "min": 60.0,
+    "max": 80.0,
+    "n": 5
+  },
+  "logF": {
+    "DC": "IGM",
+    "min": -1.7,
+    "max": 0,
+    "n": 5
+  },
+  "lC": {
+    "DC": "FRBdemo",
+    "min": -0.911,
+    "max": -0.911,
+    "n": -1
+  }
+}

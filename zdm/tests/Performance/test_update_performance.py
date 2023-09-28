@@ -127,9 +127,9 @@ def test_performance(likelihoods=True,detail=0,verbose=True):
     # retrieves a state
     state=grids[0].state
     #list of parameters to vary
-    plist=['H0','F','lEmin','lEmax','gamma','alpha','sfr_n','lmean','lsigma']
+    plist=['H0','logF','lEmin','lEmax','gamma','alpha','sfr_n','lmean','lsigma']
     # original values for the loop
-    ovals=[state.cosmo.H0,state.IGM.F,
+    ovals=[state.cosmo.H0,state.IGM.logF,
         state.energy.lEmin,state.energy.lEmax,state.energy.gamma,state.energy.alpha,
         state.FRBdemo.sfr_n,
         state.host.lmean,state.host.lsigma]

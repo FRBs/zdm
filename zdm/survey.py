@@ -562,7 +562,7 @@ class Survey:
             if self.NFRB < NFRB+iFRB:
                 raise ValueError("Cannot return sufficient FRBs, did you mean NFRB=None?")
             # Not sure the following linematters given the Error above
-            themax = min(NFRB+iFRB,self.NFRB)
+            themax = max(NFRB+iFRB,self.NFRB)
             self.frbs=self.frbs[iFRB:themax]
         
         
@@ -1068,6 +1068,7 @@ def load_survey(survey_name:str, state:parameters.State,
     """
     
     print(f"Loading survey: {survey_name}")
+
     if sdir is None:
         sdir = os.path.join(
             resource_filename('zdm', 'data'), 'Surveys')
@@ -1083,6 +1084,7 @@ def load_survey(survey_name:str, state:parameters.State,
         dfile = 'CRAFT_ICS_892'
     elif survey_name == 'CRAFT/ICS1632':
         dfile = 'CRAFT_ICS_1632'
+
     elif survey_name == 'PKS/Mb':
         dfile = 'parkes_mb_class_I_and_II'
     elif 'private' in survey_name: 
@@ -1097,18 +1099,7 @@ def load_survey(survey_name:str, state:parameters.State,
     else:
         dfile += '.ecsv'
 
-    #    if defNbeams is None:
-    #        raise IOError("You must specify Nbeams with a private survey file")
-    
-    
-    #### NOTE: the following is deleted as  Nbeams now part of each survey
-    #    defNbeams = 5
-    ## survey data over-writes the defaults
-    ## Note this only applies for some beam methods
-    #if Nbeams is None:
-    #    Nbeams = defNbeams
-    #srvy.init_beam(nbins=Nbeams, method=state.beam.Bmethod, plot=False,
-    #            thresh=state.beam.Bthresh) # tells the survey to use the beam file
+    print(f"Loading survey: {survey_name} from {dfile}")
 
     # Do it
     if original:
@@ -1153,10 +1144,17 @@ def refactor_old_survey_file(survey_name:str, outfile:str,
     srvy_data = survey_data.SurveyData()
     
     # Load up original
+
+    # temporary workaround for private survey files... sorry X!
+
+    nbins = None
+    if 'private' in survey_name:
+        nbins = 5 # only works for the CRAFT private samples
+
     isurvey = load_survey(survey_name, state, 
                          np.linspace(0., 2000., 1000),
                          original=True,sdir=sdir,
-                         dummy=True)
+                         dummy=True, nbins=nbins)
     
     # FRBs
     frbs = pandas.DataFrame(isurvey.frbs)
@@ -1220,7 +1218,8 @@ def refactor_old_survey_file(survey_name:str, outfile:str,
         separators=(',', ': '))
 
     # Write me
-    frbs.write(outfile, overwrite=clobber,format='ascii.ecsv')
+    frbs.write(outfile, overwrite=clobber, format='ascii.ecsv')
+    
     print(f"Wrote: {outfile}")
 
 def vet_frb_table(frb_tbl:pandas.DataFrame,
