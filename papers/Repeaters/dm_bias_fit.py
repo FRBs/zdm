@@ -15,8 +15,6 @@ import utilities as ute
 import matplotlib
 import time
 
-#matplotlib.rcParams['image.interpolation'] = None
-
 defaultsize=14
 ds=4
 font = {'family' : 'normal',

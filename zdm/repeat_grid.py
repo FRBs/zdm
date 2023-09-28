@@ -200,9 +200,18 @@ class repeat_Grid:
 
     def update(self,Rmin = None,Rmax = None,Rgamma = None):
         """
-        Routine to update based upon new Rmin,Rmax,gamma parameters
-        
+        Routine to update based upon new Rmin,Rmax,gamma parameters.
         It does *not* handle new grid parameters like Emin, Emax and so on.
+        A to-do item will be to see if there is any fast way of applying
+        those updates - currently, an entire new grid must be generated.
+        
+        Inputs:
+            Rmin (float): Minimum repetition rate (per day)
+            Rmax (float): Maximum repetition rate (per day)
+            Rgamma (float): Differential power-law index
+                of the repetition rate between Rmin and Rmax
+        
+        If the above are None, it assumes they have been left unchanged.
         """
         ### first check which have changed ###
         self.newRmin = False
@@ -317,8 +326,12 @@ class repeat_Grid:
             - Calculate rate scaling between energy at which repeat rates
               are defined, and energy threshold
         
-        MC: if True or int, perform MC evaluations
-            if False, use the analytic method
+        Exact: if True, performs an "exact" analytic calculation of
+            the singles and repeater rates.
+        
+        MC (bool or int): if bool and True, perform a single MC evaluation
+            if bool and False, use the analytic method
+            if int >0: performs MC Monte Carlo evaluations 
         
         Pthresh: only if MC is true
             threshold above which to allow progenitors to produce multilke bursts

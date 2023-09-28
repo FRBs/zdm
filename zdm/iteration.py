@@ -1712,22 +1712,6 @@ def ConvertToMeaningfulConstant(state,Eref=1e39):
     const *= factor
     return const
 
-def OldConvertToMeaningfulConstant(pset):
-    """ Gets the flux constant, and quotes it above some energy minimum Emin """
-    
-    # Units: IF TOBS were in yr, it would be smaller, and raw const greater.
-    # also converts per Mpcs into per Gpc3
-    units=1e9*365.25
-    
-    const = (10**pset[7])*units # to cubic Gpc and days to year
-    Eref=1e40 #erg per Hz
-    Emin=10**pset[0]
-    Emax=10**pset[1]
-    gamma=pset[3]
-    factor=(Eref/Emin)**gamma - (Emax/Emin)**gamma
-    const *= factor
-    return const
-
 def Poisson_p(observed, expected):
     """ returns the Poisson likelihood """
     p=poisson.pmf(observed,expected)

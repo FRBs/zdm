@@ -34,7 +34,7 @@ Obsolete, but potentially useful, files are contained in "Obsolete"
 
 This produces a fit to the DM bias from CHIME Cat1.
 Output is placed in "DMBiasFit/". The main figure
-produced is "chime_bias_fit.py.
+produced is "chime_bias_fit.pdf.
 
 The key output of this has already been copied
 to "survey.py" in /zdm/ to model the response of
