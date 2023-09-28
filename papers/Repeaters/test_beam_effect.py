@@ -14,7 +14,7 @@ from zdm import iteration as it
 from zdm.craco import loading
 from zdm import io
 from zdm import repeat_grid as rep
-
+from zdm import beams
 import pickle
 import numpy as np
 from zdm import survey
@@ -48,7 +48,9 @@ def main():
     
     surveys = ["CHIME_beff","CHIME_30_fbar","CHIME_allb10"] #"CHIME_allb","CHIME_150_fbar",
     names = ["$T_{\\rm eff}$","$T({\\overline{B}})$","$\\overline{T}(B)$"]
-    # we need to calculate special B functions for each
+    
+    #special beams path for this unique beam data
+    beams.beams_path = os.path.join(resource_filename('zdm','../paper/Repetition/'),'BeamData/')
     
     # in case you wish to switch to another output directory
     opdir='Beamtests/'
@@ -59,9 +61,6 @@ def main():
     rgs=[]
     
     state = set_state()
-    
-    from zdm import beams
-    beams.beams_path = '/Users/cjames/CRAFT/FRB_library/Git/H0paper/papers/Repeaters/BeamData/'
     
     # intiial test for 10 days on field. This is WRONG however.
     # should be set to time per dt (in days) interval multiplied by number of days

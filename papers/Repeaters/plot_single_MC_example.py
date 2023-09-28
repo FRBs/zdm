@@ -18,7 +18,6 @@ from zdm import repeat_grid as rep
 from zdm import misc_functions
 from zdm import survey
 from zdm import beams
-beams.beams_path = '/Users/cjames/CRAFT/FRB_library/Git/H0paper/papers/Repeaters/BeamData/'
 
 import matplotlib
 matplotlib.rcParams['image.interpolation'] = None

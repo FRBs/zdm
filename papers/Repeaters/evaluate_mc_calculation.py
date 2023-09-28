@@ -57,9 +57,6 @@ import matplotlib
 import time
 from zdm import beams
 
-
-beams.beams_path = '/Users/cjames/CRAFT/FRB_library/Git/H0paper/papers/Repeaters/BeamData/'
-
 matplotlib.rcParams['image.interpolation'] = None
 
 defaultsize=14

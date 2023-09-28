@@ -20,7 +20,6 @@ from zdm import repeat_grid as rep
 from zdm import misc_functions
 from zdm import survey
 from zdm import beams
-beams.beams_path = '/Users/cjames/CRAFT/FRB_library/Git/H0paper/papers/Repeaters/BeamData/'
 
 global opdir
 opdir = 'BestfitCalculations/unrestrained'
@@ -91,7 +90,7 @@ def main():
         states[iset].rep.Rgamma = Rgamma
         make_decbin_division(iset,states[iset],N1,N2)
         exit()
-        # repeats fro strong FRBs
+        # repeats for strong FRBs
         states[iset].rep.Rmin = 9.
         states[iset].rep.Rmax = 10.
         states[iset].rep.Rgamma = -1.1
@@ -302,9 +301,6 @@ def generate_state(state,Nbin,plot=False,tag=None,tmults=None):
     
     ndm=1400
     nz=500
-    
-    #Nbin=6
-    #bounds=np.array([-11,30,60,70,80,85,90])
     
     # holds grids and surveys
     ss = []

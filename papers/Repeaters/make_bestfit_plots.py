@@ -42,8 +42,6 @@ from zdm import repeat_grid as rep
 from zdm import misc_functions
 from zdm import survey
 from zdm import beams
-beams.beams_path = '/Users/cjames/CRAFT/FRB_library/Git/H0paper/papers/Repeaters/BeamData/'
-
 import matplotlib
 matplotlib.rcParams['image.interpolation'] = None
 
@@ -86,6 +84,7 @@ def main(Nbin=30,FC=1.0):
     NMChist = 100
     mcrs=np.linspace(1.5,0.5+NMChist,NMChist) # from 1.5 to 100.5 inclusive
     
+    # Time multipliers for investigations into time-dependence
     tmults=np.logspace(-1,3,9)
     #tmults=None
     
@@ -155,34 +154,35 @@ def main(Nbin=30,FC=1.0):
             
             tempsave = opdir+"temp"+str(j)+".npz"
             print("searching for ",tempsave)
-            if j != 0 and os.path.exists(tempsave):
+            if os.path.exists(tempsave):
                 data = np.load(tempsave)
                 
                 
                 dms=data['arr_0']
-                ss=data['arr_1']
-                rs=data['arr_2']
-                bs=data['arr_3']
-                nss=data['arr_4']
-                nrs=data['arr_5']
-                nbs=data['arr_6']
-                Mh=data['arr_7']
-                fitv=data['arr_8']
-                copyMh=data['arr_9']
-                Cnreps=data['arr_10']
-                Cnss=data['arr_11']
-                Cnrs=data['arr_12']
+                zs=data['arr_1']
+                ss=data['arr_2']
+                rs=data['arr_3']
+                bs=data['arr_4']
+                nss=data['arr_5']
+                nrs=data['arr_6']
+                nbs=data['arr_7']
+                Mh=data['arr_8']
+                fitv=data['arr_9']
+                copyMh=data['arr_10']
+                Cnreps=data['arr_11']
+                Cnss=data['arr_12']
+                Cnrs=data['arr_13']
                 if tmults is not None:
-                    tms=data['arr_13']
-                    tmr=data['arr_14']
-                    tmb=data['arr_15']
+                    tms=data['arr_14']
+                    tmr=data['arr_15']
+                    tmb=data['arr_16']
             else:
                 print("Doing ",j)
                 # returns dms, singles,repeaters, bursts, and same for tmult data, all as f(dm)
-                dms,ss,rs,bs,nss,nrs,nbs,Mh,fitv,copyMh,Cnreps,Cnss,Cnrs,tms,tmr,tmb = \
+                dms,zs,ss,rs,bs,nss,nrs,nbs,Mh,fitv,copyMh,Cnreps,Cnss,Cnrs,tms,tmr,tmb,tds,tdr,tdb = \
                     generate_state(states[i],mcrs=mcrs,tag=str(i)+"_"+sm[j],Rmult=1000.,tmults=tmults,Nbin=Nbin)
             
-                np.savez(tempsave,dms,ss,rs,bs,nss,nrs,nbs,Mh,fitv,copyMh,Cnreps,Cnss,Cnrs,tms,tmr,tmb)
+                np.savez(tempsave,dms,zs,ss,rs,bs,nss,nrs,nbs,Mh,fitv,copyMh,Cnreps,Cnss,Cnrs,tms,tmr,tmb,tds,tdr,tdb)
                 print("Artificially stopped to avoid memory leaks.")
                 print("Please keep re-running until this message disappears")
                 exit()
@@ -602,8 +602,6 @@ def generate_state(state,Nbin=6,Rmult=1.,mcrs=None,tag=None,tmults=None):
         nr = np.sum(dmr)
         ns = np.sum(dms)
         
-        
-        
         if tmults is not None:
             #tmultlists[0] += ns
             #tmultlistr[0] += nr
@@ -707,17 +705,27 @@ def generate_state(state,Nbin=6,Rmult=1.,mcrs=None,tag=None,tmults=None):
     
     
     # FRB 20180916 https://ui.adsabs.harvard.edu/abs/2020Natur.577..190M/abstract
-    #z 0.0337, DMne2001 150.4
+    # spiral galaxy at ~150 MPc, firm localisation. Cat 1 FRB
+    # z 0.0337, DMne2001 150.4
     
-    
-    #FRB 20200120E (NOT in cat 1!) https://arxiv.org/abs/2103.01295
+    # FRB 20200120E (NOT in cat 1!) https://arxiv.org/abs/2103.01295
+    # globular cluster, 100% association
     # z ~ 0.00084 # approx redshift for M81 at 3.6 Mpc
     # DMne2001 = 87.8-40 = 47.8
     
     # FRB 20181030A (in cat 1, 62.4) https://arxiv.org/abs/2108.12122
+    # host is NGC galaxy, 100% likely association. Cat 1 FRB
     # DMne2001: 62.4, z= 0.00385 (20 Mpc)
     
+    
+    # 20201124A: https://ui.adsabs.harvard.edu/abs/2021ApJ...919L..23F/abstract
+    # this one had a burts storm, localised by ASKAP
+    # 100% firm localisation
+    # DM = 414.1 -140.1, z=0.0979
+    
+    
     # Michelli: https://ui.adsabs.harvard.edu/abs/2023ApJ...950..134M/abstract
+    # from improved localisation paper
     # FRB 20180814A z~0.068 DMne2001 = 102
     # FRB 20190303A  z=0.064, DMne2001 = 192.8
     
@@ -726,21 +734,18 @@ def generate_state(state,Nbin=6,Rmult=1.,mcrs=None,tag=None,tmults=None):
     #20190110C z=0.122244, DM=186.3  [In catalogue 1, NOT a repeater! (just one burst)]
     # 20191106C z=0.10775, DM=333.4-25. [NOT in cat 1, association only approx]
     
+    #TOTAL: 9 sources
+    
     DMhalo=50.
     
-    special=[[202.068-46-DMhalo,186.3-DMhalo,333.4-25.-DMhalo],[0.06024,0.122244,0.10775]]
+    # why only 7 here!?!??!!?
+    special=[[202.068-46-DMhalo,186.3-DMhalo,333.4-25.-DMhalo,414.1-140.1-DMhalo,47.8],[0.06024,0.122244,0.10775,0.0979,0.00084]]
     
     # DMEG for unlocalised repeaters
     repDMonly = np.array([375.9,158.05,1239.25,334.4166667,424.65,344.75,508.6,379.75,248.7,608.65,372.7,520.95])-DMhalo
     # z and DM for localised repeaters
     repzvals = np.array([0.0337,0.00385,0.068,0.064])
     repdmeg = np.array([150.4, 62.4,102,192.8]) - DMhalo
-    
-    #misc_functions.plot_grid_2(rtot,g.zvals,g.dmvals,
-    #        name=opdir+'combined_localised_FRBs_lines.pdf',norm=3,log=True,
-    #        label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$ [a.u.]',
-    #        project=False,FRBDM=frbdmvals,FRBZ=frbzvals,Aconts=[0.01,0.1,0.5],
-    #        zmax=2.0,DMmax=2000,DMlines=nozlist)
     
     # performs exact plotting
     for ia,array in enumerate([tot_exact_reps,tot_exact_singles,tot_exact_rbursts]):
@@ -750,11 +755,12 @@ def generate_state(state,Nbin=6,Rmult=1.,mcrs=None,tag=None,tmults=None):
             project=False,Aconts=[0.01,0.1,0.5],zmax=1.5,
             DMmax=1500)
         name = opdir + 'set_'+tag+'_'+which[ia]+"_wFRBs.pdf"
-        misc_functions.plot_grid_2(array,zvals,dmvals,
-            name=name,norm=3,log=True,label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$  [a.u.]',
-            project=False,Aconts=[0.01,0.1,0.5],zmax=1.5,
-            DMmax=1500,FRBDM=repdmeg,FRBZ=repzvals,
-            special=special,DMlines=repDMonly)
+        if ia == 0:
+            misc_functions.plot_grid_2(array,zvals,dmvals,
+                name=name,norm=3,log=True,label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$  [a.u.]',
+                project=False,Aconts=[0.01,0.1,0.5],zmax=1.5,
+                DMmax=1500,FRBDM=repdmeg,FRBZ=repzvals,
+                special=special,DMlines=repDMonly)
     
     bins=np.linspace(0,3000,16)
     
@@ -799,12 +805,11 @@ def generate_state(state,Nbin=6,Rmult=1.,mcrs=None,tag=None,tmults=None):
     # Mh: MC histogram
     # fitv: fitted values
     # copyMh: Mh with over-written too-low values
+    if tmults is None:
+        tmultlists=None
+        tmultlistr=None
+        tmultlistb=None
+    return dmvals,zvals,tdms,tdmr,tdmb,nss,nrs,nbs,Mh,fitv,copyMh,Chist,Cnss,\
+            Cnrs,tmultlists,tmultlistr,tmultlistb,tot_exact_singles,tot_exact_reps,tot_exact_rbursts # returns singles and total bursts
     
-    if tmults is not None:
-        return dmvals,tdms,tdmr,tdmb,nss,nrs,nbs,Mh,fitv,copyMh,Chist,Cnss,\
-            Cnrs,tmultlists,tmultlistr,tmultlistb # returns singles and total bursts
-    else:
-        return dmvals,tdms,tdmr,tdmb,nss,nrs,nbs,Mh,fitv,copyMh,Chist,Cnss,\
-            Cnrs,None,None,None # returns singles and total bursts
-
 main()

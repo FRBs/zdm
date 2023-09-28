@@ -30,7 +30,6 @@ from scipy.stats import poisson
 import matplotlib
 import time
 from zdm import beams
-beams.beams_path = '/Users/cjames/CRAFT/FRB_library/Git/H0paper/papers/Repeaters/BeamData/'
 
 Planck_H0=67.4
 
@@ -73,6 +72,9 @@ def add_mc(state,outfile,outfile2,Nbin=6,verbose=False,Rstar = 0.3,\
     
     """
     
+    
+    bdir='Nbounds'+str(Nbin)+'/'
+    beams.beams_path = os.path.join(resource_filename('zdm','data/BeamData/CHIME/'),bdir)
     
     ############## loads CHIME surveys and grids #############
     

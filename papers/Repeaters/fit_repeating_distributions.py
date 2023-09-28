@@ -38,7 +38,6 @@ from scipy.stats import poisson
 import matplotlib
 import time
 from zdm import beams
-beams.beams_path = '/Users/cjames/CRAFT/FRB_library/Git/H0paper/papers/Repeaters/BeamData/'
 
 Planck_H0=67.4
 

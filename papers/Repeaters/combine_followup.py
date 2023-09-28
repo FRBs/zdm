@@ -3,7 +3,8 @@ This script combines the results from C.W.James et al, ApJ  895 L22 (2020)
 with those from this work to create a joint limit.
 
 
-NOTE: the numpy files can be found at /Users/cjames/CRAFT/Paper/FollowUpRepitition/LimitPrecalculations
+NOTE: Clancy keeps the numpy files at /Users/cjames/CRAFT/Paper/FollowUpRepitition/LimitPrecalculations
+Please ask him if you want access.
 """
 
 
