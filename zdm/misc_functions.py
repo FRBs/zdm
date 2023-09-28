@@ -2475,7 +2475,7 @@ def plot_grid_2(
     norm=0,
     log=True,
     name="temp.pdf",
-    label='$\\log_{10}p(DM_{\\rm EG},z)$',ylabel='${\\rm DM}_{\\rm EG}$',
+    label='$\\log_{10}p(DM_{\\rm EG},z)$',
     ylabel="${\\rm DM}_{\\rm EG}$",
     project=False,
     conts=False,
