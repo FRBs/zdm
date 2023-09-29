@@ -193,10 +193,19 @@ class OldSurvey:
         # Adding beam keywords for backwards compatibility
         # for CHIME: 3,0,0,CHIME
         # Otherwise: 2,0,2,Quadrature
-        self.do_keyword('BMETHOD',which,3) # method to describe beam
-        self.do_keyword('BTHRESH',which,0) # mon beam value to include
-        self.do_keyword('WMETHOD',which,0) # method to deal with FRB widths
-        self.do_keyword('WBIAS',which,"CHIME") # bias effect due to FRB width
+        if False:
+            # set for CHIME. In theory, could test for this using
+            # the filename.
+            self.do_keyword('BMETHOD',which,3) # method to describe beam
+            self.do_keyword('BTHRESH',which,0) # mon beam value to include
+            self.do_keyword('WMETHOD',which,0) # method to deal with FRB widths
+            self.do_keyword('WBIAS',which,"CHIME") # bias effect due to FRB width
+        else:
+            # set for all other FRBs
+            self.do_keyword('BMETHOD',which,2) # method to describe beam
+            self.do_keyword('BTHRESH',which,0) # mon beam value to include
+            self.do_keyword('WMETHOD',which,2) # method to deal with FRB widths
+            self.do_keyword('WBIAS',which,"Quadrature") # bias effect due to FRB width
         
         # the following properties can either be FRB-by-FRB, or metadata
         which=3
@@ -584,7 +593,11 @@ class Survey:
             self.zlist = np.where(self.Zs > 0.)[0]
             if len(self.zlist) < self.NFRB:
                 self.nozlist = np.where(self.Zs < 0.)[0]
-                self.nD=3 # code for both
+                if len(self.nozlist) == len(self.Zs):
+                    self.nD=1 # they all had -1 as their redshift!
+                    self.zlist=None
+                else:
+                    self.nD=3 # code for both
             else:
                 self.nozlist = None
                 self.nD=2
@@ -594,17 +607,20 @@ class Survey:
             self.nozlist=np.arange(self.NFRB)
             self.zlist=None
         
+        print("Loaded FRB info")
+        
         if len(self.frbs) > 0:
             # first, replacing missing values with survey values
             
             # replace default values with observed media values
+            # it's unclear if median or mean is the best here
             self.meta['THRESH'] = np.median(self.frbs['THRESH'])
             self.meta['BW'] = np.median(self.frbs['BW'])
             self.meta['FBAR'] = np.median(self.frbs['FBAR'])
             self.meta['FRES'] = np.median(self.frbs['FRES'])
             self.meta['TRES'] = np.median(self.frbs['TRES'])
             self.meta['WIDTH'] = np.median(self.frbs['WIDTH'])
-            self.meta['DMG'] = np.median(self.frbs['DMG'])
+            self.meta['DMG'] = np.mean(self.frbs['DMG'])
         
         ### processes galactic contributions
         self.process_dmg()
@@ -1162,23 +1178,20 @@ def refactor_old_survey_file(survey_name:str, outfile:str,
     # Fill in fixed survey_data from meta
     # Telescope
     for field in srvy_data.telescope.fields:
-        print(f"Ingesting {field}")
         if not (field in isurvey.meta) or isurvey.meta[field] is None:
             isurvey.meta[field]='-1'
             print("Could not find field ",field," setting to -1")
         setattr(srvy_data.telescope,field, srvy_data.telescope.__dataclass_fields__[field].type(
                 isurvey.meta[field]))
-
+        
     # Observing
     for field in srvy_data.observing.fields:
-        print(f"Ingesting {field}")
         if field !='NORM_FRB' or 'NORM_FRB' in isurvey.meta:
             setattr(srvy_data.observing,field, srvy_data.observing.__dataclass_fields__[field].type(
                 isurvey.meta[field]))
         else:
             srvy_data.observing.NORM_FRB = len(frbs)
-
-
+            
     # Trim down FRB table
     for key in srvy_data.to_dict().keys():
         for key2 in srvy_data.to_dict()[key]:

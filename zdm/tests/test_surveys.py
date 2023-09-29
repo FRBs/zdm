@@ -23,6 +23,15 @@ import pytest
 #  Move all of init into __init__()
 #  Refactor the rest of Survey
 
+def run_all():
+    """
+    Here to allow local tests of all the test routines in this file
+    """
+    test_load_new_grid()
+    test_load_new_survey()
+    test_load_old()
+    test_refactor()
+
 def test_load_new_grid():
     state = parameters.State()
     # Cosmology
@@ -52,6 +61,7 @@ def test_load_new_survey():
     old_survey = survey.load_survey('CRAFT/FE', state,
                          np.linspace(0., 2000., 1000),
                          original=True)
+    
     # Test
     assert np.all(np.isclose(old_survey.efficiencies, 
                              isurvey.efficiencies))
@@ -67,24 +77,25 @@ def test_load_old():
     assert isurvey.name == 'CRAFT_class_I_and_II'
 
 def test_refactor():
+    """
+    This test writes a new ecsv, then compares this
+    "new" survey with the old one.
+    """
     outfile = tstutils.data_path('tmp.ecsv')
     if os.path.isfile(outfile):
         os.remove(outfile)
     # Generate
     survey.refactor_old_survey_file('CRAFT/FE', outfile)
-    # Read
-    frb_tbl = Table.read(outfile,
-                        format='ascii.ecsv')
-    srvy_data = survey_data.SurveyData.from_jsonstr(
-        frb_tbl.meta['survey_data'])
-    frbs = frb_tbl.to_pandas()
-
-    # Vet
-    survey.vet_frb_table(frbs, mandatory=True)
-
+    
+    srvy = survey.load_survey('tmp', 
+                        parameters.State(),
+                         np.linspace(0., 2000., 1000),
+                        sdir=tstutils.data_path(''))
+    
     # Test
-    assert np.isclose(srvy_data.observing.TOBS, 1274.6) 
+    assert np.isclose(srvy.TOBS, 1274.6) 
 
     # Clean up
     os.remove(outfile)
     
+run_all()

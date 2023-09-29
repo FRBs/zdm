@@ -27,9 +27,9 @@ def set_state(alpha_method=1, cosmo=Planck18):
     vparams['FRBdemo']['alpha_method'] = alpha_method
     vparams['FRBdemo']['source_evolution'] = 0
     
-    vparams['beam'] = {}
-    vparams['beam']['Bthresh'] = 0
-    vparams['beam']['Bmethod'] = 2
+    #vparams['beam'] = {}
+    #vparams['beam']['Bthresh'] = 0
+    #vparams['beam']['Bmethod'] = 2
     
     vparams['width'] = {}
     vparams['width']['Wlogmean'] = 1.70267
@@ -37,7 +37,7 @@ def set_state(alpha_method=1, cosmo=Planck18):
     vparams['width']['Wbins'] = 10
     vparams['width']['Wscale'] = 2
     vparams['width']['Wthresh'] = 0.5
-    vparams['width']['Wmethod'] = 2
+    #vparams['width']['Wmethod'] = 2
     
     vparams['scat'] = {}
     vparams['scat']['Slogmean'] = 0.7
