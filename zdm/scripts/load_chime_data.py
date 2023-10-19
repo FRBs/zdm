@@ -45,8 +45,8 @@ def main(Nbin=6):
     # loads beam data
     bdir='Nbounds'+str(Nbin)+'/'
     beams.beams_path = os.path.join(resource_filename('zdm','data/BeamData/CHIME/'),bdir)
-    bounds = np.load(beams.beams_path+'bounds.npy')
-    solids = np.load(beams.beams_path+'solids.npy')
+    #bounds = np.load(beams.beams_path+'bounds.npy')
+    #solids = np.load(beams.beams_path+'solids.npy')
     
     
     # Loops through CHIME declination bins
