@@ -8,6 +8,7 @@ import numpy as np
 import os
 from pkg_resources import resource_filename
 from scipy.integrate import quad
+from dataclasses import dataclass, fields
 
 import pandas
 from astropy.table import Table
@@ -24,6 +25,7 @@ import matplotlib.pyplot as plt
 
 from IPython import embed
 
+
 class OldSurvey:
     """A class to hold an FRB survey
 
@@ -39,11 +41,6 @@ class OldSurvey:
         #self.fbar= #mean frequency
         #self.sens_meth="None"
     
-    # NEXT STEP: go ahead and try to generate a weighted DM-z distribution, see how you go! (fool...)
-    #def get_jyms():
-    #    for i in np.arange(self.NFRB):
-    #        jyms=width**0.5 * SNR/efficiency
-    
     def get_efficiency(self,DMlist,model="Quadrature",dsmear=True):
         """ Gets efficiency to FRBs
         Returns a list of relative efficiencies
@@ -51,7 +48,8 @@ class OldSurvey:
         """
         efficiencies=np.zeros([self.NFRB,DMlist.size])
         for i in np.arange(self.NFRB):
-            efficiencies[i,:]=calc_relative_sensitivity(self.DMs[i],DMlist,self.WIDTHs[i],self.FBARs[i],self.TRESs[i],self.FRESs[i],model=model,dsmear=dsmear)
+            efficiencies[i,:]=calc_relative_sensitivity(self.DMs[i],DMlist,self.WIDTHs[i],
+                self.FBARs[i],self.TRESs[i],self.FRESs[i],model=model,dsmear=dsmear)
         # keep an internal record of this
         self.efficiencies=efficiencies
         self.DMlist=DMlist
@@ -88,7 +86,8 @@ class OldSurvey:
         """
         efficiencies=np.zeros([wlist.size,DMlist.size])
         if addGalacticDM:
-            toAdd = self.DMhalo + np.mean(self.DMGs)
+            # the following is safe against surveys with zero FRBs
+            toAdd = self.DMhalo + self.meta["DMG"]
         else:
             toAdd = 0.
         
@@ -162,8 +161,8 @@ class OldSurvey:
         else:
             self.NFRB = min(keys.count('FRB'),NFRB)
         if self.NFRB==0:
-            raise ValueError('No FRBs found in file '+filename) #change this?
-
+            print('No FRBs found in file '+filename) #was error, but actually we want this
+        
         self.meta['NFRB']=self.NFRB
         
         #### separates FRB and non-FRB keys
@@ -191,16 +190,36 @@ class OldSurvey:
         # Hack to recast as int
         self.meta['NBINS']=int(self.meta['NBINS'])
         
+        # Adding beam keywords for backwards compatibility
+        # for CHIME: 3,0,0,CHIME
+        # Otherwise: 2,0,2,Quadrature
+        if False:
+            # set for CHIME. In theory, could test for this using
+            # the filename.
+            self.do_keyword('BMETHOD',which,3) # method to describe beam
+            self.do_keyword('BTHRESH',which,0) # mon beam value to include
+            self.do_keyword('WMETHOD',which,0) # method to deal with FRB widths
+            self.do_keyword('WBIAS',which,"CHIME") # bias effect due to FRB width
+        else:
+            # set for all other FRBs
+            self.do_keyword('BMETHOD',which,2) # method to describe beam
+            self.do_keyword('BTHRESH',which,0) # mon beam value to include
+            self.do_keyword('WMETHOD',which,2) # method to deal with FRB widths
+            self.do_keyword('WBIAS',which,"Quadrature") # bias effect due to FRB width
+        
         # the following properties can either be FRB-by-FRB, or metadata
         which=3
-        
+        # perhaps we should set "-1" as the default for all of these,
+        # to force people to manually enter that data, and not
+        # accidentally use ASKAP default values?
         self.do_keyword('THRESH',which)
         self.do_keyword('TRES',which,1.265)
         self.do_keyword('FRES',which,1)
         self.do_keyword('FBAR',which,1196)
         self.do_keyword('BW',which,336)
         self.do_keyword('SNRTHRESH',which,9.5)
-        self.do_keyword('DMG',which,None) # Galactic contribution to DM
+        self.do_keyword('DMG',which,35) # Galactic contribution to DM, defaults to 35 if no FRBs present
+        self.do_keyword('NREP',which,1) # listed under either, since all FRBs could indeed by once-off
         
         
         # The following properties can only be FRB-by-FRB
@@ -208,7 +227,7 @@ class OldSurvey:
         self.do_keyword('SNR',which)
         self.do_keyword('DM',which)
         self.do_keyword('WIDTH',which,0.1) # defaults to unresolved width in time
-        self.do_keyword_char('ID',which,None, dtype='str') # obviously we don't need names,!
+        self.do_keyword_char('TNS',which,None, dtype='str') # obviously we don't need names,!
         self.do_keyword('Gl',which,None) # Galactic longitude
         self.do_keyword('Gb',which,None) # Galactic latitude
         #
@@ -304,7 +323,7 @@ class OldSurvey:
             self.meta[key]=float(self.info[ik][0])
             self.frbs[key]=np.full([self.NFRB],float(self.info[ik][0])) # fills with this value
             
-        elif (which != 1) and (self.keylist.count(key)==1): #info varies according to each FRB
+        elif (which != 1) and (self.keylist.count(key)==1) and self.NFRB >0: #info varies according to each FRB
             ik=self.keylist.index(key)
             mean=0.
             values=np.zeros([self.NFRB])
@@ -315,6 +334,7 @@ class OldSurvey:
             self.meta[key] = mean/self.NFRB
         else:
             if default==None:
+                # do nothing if default is None - does not need to be present
                 self.meta[key]=None
                 self.frbs[key]=None
             elif default == '-1':
@@ -407,8 +427,6 @@ class OldSurvey:
             return [i for i, x in enumerate(lst) if x==val]
     
     def get_key(self,key):
-        #print(self.keys)
-        #print(self.keylist)
         if key in self.keys:
             return self.keys
     
@@ -477,15 +495,21 @@ class Survey:
         self.process_survey_file(filename, NFRB, iFRB)
         # DM EG
         self.init_DMEG(state.MW.DMhalo)
-        # Beam
+        
+        # Allows survey metadata to over-ride parameter defaults if present.
+        # This is required when mixing CHIME and non-CHIME FRBs
+        beam_method = self.meta['BMETHOD']
+        beam_thresh = self.meta['BTHRESH']
+        width_bias = self.meta['WBIAS']
+        
         self.init_beam(
-                       method=state.beam.Bmethod, 
+                       method=beam_method, 
                        plot=False, 
-                       thresh=state.beam.Bthresh) # tells the survey to use the beam file
-        # Efficiency
+                       thresh=beam_thresh) # tells the survey to use the beam file
+        # Efficiency: width_method passed through "self" here
         pwidths,pprobs=make_widths(self, state)
         _ = self.get_efficiency_from_wlist(dmvals,
-                                       pwidths,pprobs) 
+                                       pwidths,pprobs,model=width_bias) 
 
     def init_DMEG(self,DMhalo):
         """ Calculates extragalactic DMs assuming halo DM """
@@ -520,9 +544,25 @@ class Survey:
         for key in self.survey_data.params:
             DC = self.survey_data.params[key]
             self.meta[key] = getattr(self.survey_data[DC],key)
-        # FRB data
+        
+        # Get default values from default frb data
+        default_frb = survey_data.FRB()
+        
+        # we now populate missing fields with the default values
+        for field in fields(default_frb):
+            # checks to see if this is a field in metadata: if so, takes priority
+            if field.name in self.meta.keys():
+                default_value = self.meta[field.name]
+            else:
+                default_value = getattr(default_frb, field.name)
+            
+            # iterate over fields, checking if they are populated
+            for i,val in enumerate(frb_tbl[field.name]):
+                if isinstance(val,np.ma.core.MaskedArray):
+                    frb_tbl[field.name][i] = default_value
+        
         self.frbs = frb_tbl.to_pandas()
-
+        
         # Cut down?
         if self.NFRB is None:
             self.NFRB=len(self.frbs)
@@ -533,11 +573,13 @@ class Survey:
             # Not sure the following linematters given the Error above
             themax = max(NFRB+iFRB,self.NFRB)
             self.frbs=self.frbs[iFRB:themax]
+        
+        
         # Vet
         vet_frb_table(self.frbs, mandatory=True)
-
+        
         # Pandas resolves None to Nan
-        if np.isfinite(self.frbs["Z"].values[0]):
+        if len(self.frbs["Z"])>0 and np.isfinite(self.frbs["Z"][0]):
             
             self.Zs=self.frbs["Z"].values
             # checks for any redhsifts identically equal to zero
@@ -551,7 +593,11 @@ class Survey:
             self.zlist = np.where(self.Zs > 0.)[0]
             if len(self.zlist) < self.NFRB:
                 self.nozlist = np.where(self.Zs < 0.)[0]
-                self.nD=3 # code for both
+                if len(self.nozlist) == len(self.Zs):
+                    self.nD=1 # they all had -1 as their redshift!
+                    self.zlist=None
+                else:
+                    self.nD=3 # code for both
             else:
                 self.nozlist = None
                 self.nD=2
@@ -560,6 +606,21 @@ class Survey:
             self.Zs=None
             self.nozlist=np.arange(self.NFRB)
             self.zlist=None
+        
+        print("Loaded FRB info")
+        
+        if len(self.frbs) > 0:
+            # first, replacing missing values with survey values
+            
+            # replace default values with observed media values
+            # it's unclear if median or mean is the best here
+            self.meta['THRESH'] = np.median(self.frbs['THRESH'])
+            self.meta['BW'] = np.median(self.frbs['BW'])
+            self.meta['FBAR'] = np.median(self.frbs['FBAR'])
+            self.meta['FRES'] = np.median(self.frbs['FRES'])
+            self.meta['TRES'] = np.median(self.frbs['TRES'])
+            self.meta['WIDTH'] = np.median(self.frbs['WIDTH'])
+            self.meta['DMG'] = np.mean(self.frbs['DMG'])
         
         ### processes galactic contributions
         self.process_dmg()
@@ -602,9 +663,7 @@ class Survey:
             DMGs=np.zeros([self.NFRB])
             for i,l in enumerate(self.frbs["Gl"]):
                 b=self.frbs["Gb"][i]
-                
                 ismDM = ne.DM(l, b, 100.)
-            
                 print(i,l,b,ismDM)
             DMGs=np.array(DMGs)
             self.frbs["DMG"]=DMGs
@@ -669,17 +728,18 @@ class Survey:
         
         """
         efficiencies=np.zeros([wlist.size,DMlist.size])
+        
         if addGalacticDM:
-            toAdd = self.DMhalo + np.mean(self.DMGs)
+            toAdd = self.DMhalo + self.meta['DMG']
         else:
             toAdd = 0.
         
         for i,w in enumerate(wlist):
             efficiencies[i,:]=calc_relative_sensitivity(
                 None,DMlist+toAdd,w,
-                np.median(self.frbs['FBAR']),
-                np.median(self.frbs['TRES']),
-                np.median(self.frbs['FRES']),
+                self.meta['FBAR'],
+                self.meta['TRES'],
+                self.meta['FRES'],
                 model=model,
                 dsmear=False)
         # keep an internal record of this
@@ -691,7 +751,6 @@ class Survey:
         self.mean_efficiencies=mean_efficiencies #be careful here!!! This may not be what we want!
         return efficiencies
     
-            
     def __repr__(self):
         """ Over-ride print representation
 
@@ -715,9 +774,34 @@ def calc_relative_sensitivity(DM_frb,DM,w,fbar,t_res,nu_res,model='Quadrature',d
     time- and frequency-resolutions etc.
     
     NOTE: DM_frb *only* used if dsmear = True: combine these to default to None?
+    
+    Arguments:
+        DM_frb [float]: measured DM of a particular FRB. Used only if dsmear=True.
+        DMs [np.ndarray] DMs at which to calculate the DM bias effect. pc/cm3
+        w [float]: FRB width [ms]
+        fbar: mean frequency of the observation [Mhz]
+        t_res: time resolution of the observation [ms]
+        nu_res: frequency resolution of the observation [Mhz]
+        model: Quadrature,Sammons, or CHIME: method to calculate bias
+        dsmear: subtract DM smearing from measured width to calculate intrinsic
     """
     
-    # constant of DM
+    # this model returns the parameterised CHIME DM-dependent sensitivity
+    # it is independent of width
+    if model=='CHIME':
+        # polynomial coefficients for fit to CHIME DM bias data (4th order poly)
+        coeffs = np.array([ 7.79309074e-03, -2.09210057e-01,  1.93122752e+00,
+            -7.05813760e+00, 8.93355593e+00])
+        # this constant normalises the above to a peak efficiency of 100%
+        coeffs /= 1.118694423940629
+        # fit is to natural log of DM values
+        ldm = np.log(DM)
+        rate = np.polyval(coeffs,ldm)
+        # scale rate by assumed Cartesian logN-logS
+        sensitivity = rate**(2./3.)
+        return sensitivity
+        
+    # constant of DM; this is ~0.1% accurate, which is good enough here.
     k_DM=4.149 #ms GHz^2 pc^-1 cm^3
     
     # total smearing factor within a channel
@@ -741,13 +825,10 @@ def calc_relative_sensitivity(DM_frb,DM,w,fbar,t_res,nu_res,model='Quadrature',d
     elif model=='Sammons':
         sensitivity=0.75*(0.93*dm_smearing + uw + 0.35*t_res)**-0.5
     else:
-        raise ValueError(model," is an unknown DM smearing model --- use Sammons or Quadrature")
+        raise ValueError(model," is an unknown DM smearing model --- use CHIME, Quadrature, or Sammons")
     # calculates relative sensitivity to bursts as a function of DM
     return sensitivity
     
-    """ Tries to get intelligent choices for width binning assuming some intrinsic distribution
-    Probably should make this a 'self' function.... oh well, for the future!
-    """
 
 def geometric_lognormals(lmu1,ls1,lmu2,ls2,bins=None,
                          Nrand=10000,plot=False,Nbins=101):
@@ -821,18 +902,28 @@ def make_widths(s:Survey,state):
 
     The \sum_i p(w_i) should sum to unity always. Each w_i is used 
     to calculate a separate efficiency table.
-
+    
     Args:
-        s (Survey): 
+        s (Survey,required): instance of survey class
+        state (state class,required): instance of the state class
 
     Returns:
         list: list of widths
     """
-    # just extracting for now toget thrings straight
+    # variables which can be over-ridden by a survey, but which
+    # appear by default in the parameter set
+    
+    # method to use to calculate FRB width distribution
+    if 'WMETHOD' in s.meta and s.meta['WMETHOD'] is not None:
+        width_method = s.meta['WMETHOD']
+    else:
+        width_method = state.width.Wmethod
+    
+    # just extracting for now to get thrings straight
     nbins=state.width.Wbins
     scale=state.width.Wscale
     thresh=state.width.Wthresh
-    width_method=state.width.Wmethod
+    #width_method=state.width.Wmethod
     wlogmean=state.width.Wlogmean
     wlogsigma=state.width.Wlogsigma
     
@@ -850,9 +941,9 @@ def make_widths(s:Survey,state):
     #    tres=s.meta['TRES']
     #    nu_res=s.meta['FRES']
     #    fbar=s.meta['FBAR']
-    tres=np.median(s.frbs['TRES'])
-    nu_res=np.median(s.frbs['FRES'])
-    fbar=np.median(s.frbs['FBAR'])
+    tres=s.meta['TRES']
+    nu_res=s.meta['FRES']
+    fbar=s.meta['FBAR']
     
     ###### calculate a characteristic scaling pulse width ########
     
@@ -867,7 +958,7 @@ def make_widths(s:Survey,state):
     
     # initialise min/max of width bins
     wmax=wequality*thresh
-    wmin=wmax*np.exp(-3.*wlogsigma)
+    wmin=wmax*np.exp(-3.*wlogsigma) # three standard deviations below the mean
     # keeps track of numerical normalisation to ensure it ends up at unity
     wsum=0.
     
@@ -875,8 +966,13 @@ def make_widths(s:Survey,state):
     # arrays to hold widths and weights
     weights=[]
     widths=[]
-    
-    if width_method==1:
+    if width_method==0:
+        # do not take a distribution, just use 1ms for everything
+        # this is done for tests, for complex surveys such as CHIME,
+        # or for estimating the properties of a single FRB
+        weights.append(1.)
+        widths.append(np.exp(slogmean))
+    elif width_method==1:
         # take intrinsic lognrmal width distribution only
         # normalisation of a log-normal
         norm=(2.*np.pi)**-0.5/wlogsigma
@@ -942,7 +1038,7 @@ def make_widths(s:Survey,state):
             wmin = wmax
             wmax *= scale
     else:
-        raise ValueError("Width method in make_widths must be 1 or 2, not ",width_method)
+        raise ValueError("Width method in make_widths must be 0, 1 or 2, not ",width_method)
     weights[-1] += 1.-wsum #adds defecit here
     weights=np.array(weights)
     widths=np.array(widths)
@@ -957,7 +1053,8 @@ def make_widths(s:Survey,state):
 def load_survey(survey_name:str, state:parameters.State, 
                 dmvals:np.ndarray,
                 sdir:str=None, NFRB:int=None, 
-                nbins=None, iFRB:int=0, original:bool=False):
+                nbins=None, iFRB:int=0, original:bool=False,
+                dummy=False):
     """Load a survey
 
     Args:
@@ -975,6 +1072,9 @@ def load_survey(survey_name:str, state:parameters.State,
             Requires that NFRB be set
         original (bool, optional): 
             Load the original survey file (not recommended)
+        dummy (bool,optional)
+            Skip many initialisation steps: used only when loading
+            survey parameters for conversion to the new survey format
 
     Raises:
         IOError: [description]
@@ -982,6 +1082,9 @@ def load_survey(survey_name:str, state:parameters.State,
     Returns:
         Survey: instance of the class
     """
+    
+    print(f"Loading survey: {survey_name}")
+
     if sdir is None:
         sdir = os.path.join(
             resource_filename('zdm', 'data'), 'Surveys')
@@ -1004,13 +1107,9 @@ def load_survey(survey_name:str, state:parameters.State,
         dfile = survey_name
         if nbins is None:
             raise IOError("You must specify nbins with a private survey file")
-    else: # Should only be used for MC analysis
+    else:
         dfile = survey_name
-        if nbins is None:
-            nbins = 5
-        else:
-            nbins=nbins
-
+    
     if original:
         dfile += '.dat'
     else:
@@ -1024,30 +1123,37 @@ def load_survey(survey_name:str, state:parameters.State,
         srvy.name = survey_name
         srvy.process_survey_file(os.path.join(sdir, dfile), 
                                 NFRB=NFRB, iFRB=iFRB)
-        #srvy.process_survey_file(os.path.join(sdir, dfile), NFRB=NFRB, iFRB=iFRB)
-        srvy.init_DMEG(state.MW.DMhalo)
-        srvy.init_beam(method=state.beam.Bmethod, plot=False,
-                    thresh=state.beam.Bthresh) # tells the survey to use the beam file
-        pwidths,pprobs=make_widths(srvy,state)
-        _ = srvy.get_efficiency_from_wlist(dmvals,
-                                        pwidths,pprobs) 
+        
+        if not dummy:
+            srvy.init_DMEG(state.MW.DMhalo)
+            
+            beam_method = srvy.meta['BMETHOD']
+            beam_thresh = srvy.meta['BTHRESH']
+            width_bias = srvy.meta['WBIAS']
+            
+            srvy.init_beam(method=beam_method, plot=False,
+                    thresh=beam_thresh) # tells the survey to use the beam file
+            pwidths,pprobs=make_widths(srvy,state)
+            _ = srvy.get_efficiency_from_wlist(dmvals,pwidths,pprobs,
+                                            model=width_bias) 
     else:                                
         srvy = Survey(state, 
                          survey_name, 
                          os.path.join(sdir, dfile), 
                          dmvals,
                          NFRB=NFRB, iFRB=iFRB)
-
     return srvy
 
 def refactor_old_survey_file(survey_name:str, outfile:str, 
-                             clobber:bool=False):
+                             clobber:bool=False,sdir=None):
     """Refactor an old survey file to the new format
 
     Args:
         survey_name (str): Name of the survey
         outfile (str): Name of the output file
         clbover (bool, optional): Clobber the output file. Defaults to False.
+        sdir: director to find survey in. Defaults to None, i.e.
+            the zdm/data/Survey/Original will be used
     """
     
     state = parameters.State()
@@ -1063,28 +1169,29 @@ def refactor_old_survey_file(survey_name:str, outfile:str,
 
     isurvey = load_survey(survey_name, state, 
                          np.linspace(0., 2000., 1000),
-                         original=True, nbins=nbins)
-
+                         original=True,sdir=sdir,
+                         dummy=True, nbins=nbins)
+    
     # FRBs
     frbs = pandas.DataFrame(isurvey.frbs)
 
     # Fill in fixed survey_data from meta
     # Telescope
     for field in srvy_data.telescope.fields:
-        print(f"Ingesting {field}")
+        if not (field in isurvey.meta) or isurvey.meta[field] is None:
+            isurvey.meta[field]='-1'
+            print("Could not find field ",field," setting to -1")
         setattr(srvy_data.telescope,field, srvy_data.telescope.__dataclass_fields__[field].type(
                 isurvey.meta[field]))
-
+        
     # Observing
     for field in srvy_data.observing.fields:
-        print(f"Ingesting {field}")
         if field !='NORM_FRB' or 'NORM_FRB' in isurvey.meta:
             setattr(srvy_data.observing,field, srvy_data.observing.__dataclass_fields__[field].type(
                 isurvey.meta[field]))
         else:
             srvy_data.observing.NORM_FRB = len(frbs)
-
-
+            
     # Trim down FRB table
     for key in srvy_data.to_dict().keys():
         for key2 in srvy_data.to_dict()[key]:
@@ -1125,6 +1232,7 @@ def refactor_old_survey_file(survey_name:str, outfile:str,
 
     # Write me
     frbs.write(outfile, overwrite=clobber, format='ascii.ecsv')
+    
     print(f"Wrote: {outfile}")
 
 def vet_frb_table(frb_tbl:pandas.DataFrame,

@@ -2475,7 +2475,7 @@ def plot_grid_2(
     norm=0,
     log=True,
     name="temp.pdf",
-    label="$\\log_{10}p(DM_{\\rm EG},z)$",
+    label='$\\log_{10}p(DM_{\\rm EG},z)$',
     ylabel="${\\rm DM}_{\\rm EG}$",
     project=False,
     conts=False,
@@ -2488,8 +2488,11 @@ def plot_grid_2(
     H0=None,
     showplot=False,
     DMlines=None,
+    markersize=10,
+    clim=False,
     data_clr="red",
     special=None,
+    pdmgz=None
 ):
     """
     Very complicated routine for plotting 2D zdm grids 
@@ -2510,14 +2513,18 @@ def plot_grid_2(
         FRBZ ([type], optional): [description]. Defaults to None.
         FRBDM ([type], optional): [description]. Defaults to None.
         Aconts (bool, optional): [description]. Defaults to False.
-        Macquart (state, optional): state object.  Used to generat the Maquart relation.
-            Defaults to None.
+        Macquart (state, optional): state object.  Used to generate the Maquart relation.
+            Defaults to None, i.e. do not show the Macquart relation.
         title (str, optional): [description]. Defaults to "Plot".
         H0 ([type], optional): [description]. Defaults to None.
-        showplot (bool, optional): [description]. Defaults to False.
+        showplot (bool, optional): use plt.show to show plot. Defaults to False.
+        clim ([float,float], optional): pair of floats giving colorbar limits.
+            Defaults to False (automatic limit)
         cmap (str, optional): Alternate color map for PDF
         data_clr (str, optional): Alternate color for data
-        special: list of [z,dm] values to show as a special big star
+        special(list,optional): list of [z,dm] values to show as a special big star
+        pdmgz(list of floats, optional): a list of cumulative values of p(DM|z) to
+            plot. Must range from 0 to 1.
     """
     if H0 is None:
         H0 = cos.cosmo.H0
@@ -2553,18 +2560,14 @@ def plot_grid_2(
         axx = plt.axes(rect_1Dx)
         axy = plt.axes(rect_1Dy)
         acb = plt.axes(rect_cb)
-        # axx.xaxis.set_major_formatter(NullFormatter())
-        # axy.yaxis.set_major_formatter(NullFormatter())
     else:
         plt.figure()
-        # rect_2D=[0,0,1,1]
         ax1 = plt.axes()
 
     plt.sca(ax1)
 
     plt.xlabel("z")
     plt.ylabel(ylabel)
-    # plt.title(title+str(H0)) # I have removed this default title, use a file naming convention instead
 
     nz, ndm = zDMgrid.shape
 
@@ -2573,7 +2576,7 @@ def plot_grid_2(
         zvals = zvals[: ixmax[0]]
         nz = zvals.size
         zDMgrid = zDMgrid[: ixmax[0], :]
-
+    
     # currently this is "per cell" - now to change to "per DM"
     # normalises the grid by the bin width, i.e. probability per bin, not probability density
     ddm = dmvals[1] - dmvals[0]
@@ -2590,6 +2593,24 @@ def plot_grid_2(
     elif norm == 3:
         zDMgrid /= np.max(zDMgrid)
 
+    # sets up to plot contour-like things as a function of p(dm given z)
+    if pdmgz is not None:
+        # gets all values where zsum is not zero
+        z1d = np.sum(zDMgrid,axis=1) # sums over DM
+        OK = np.where(z1d > 0.)[0]
+        pdmgz_z = zvals[OK]
+        pdmgz_cs = np.cumsum(zDMgrid[OK,:],axis=1)
+        pdmgz_dm = np.zeros([pdmgz_z.size, len(pdmgz)])
+        for iz,z in enumerate(pdmgz_z):
+            this_cs = pdmgz_cs[iz,:]/pdmgz_cs[iz,-1]
+            for iv,val in enumerate(pdmgz):
+                i1 = np.where(this_cs < val)[0][-1]
+                i2 = i1+1
+                k2 = (val - this_cs[i1])/(this_cs[i2] - this_cs[i1])
+                k1 = 1.-k2
+                dmval = k1*dmvals[i1] + k2*dmvals[i2]
+                pdmgz_dm[iz,iv] = dmval
+    
     # sets contours according to norm
     if Aconts:
         slist = np.sort(zDMgrid.flatten())
@@ -2649,7 +2670,7 @@ def plot_grid_2(
         dmvals = dmvals[: iymax[0]]
         zDMgrid = zDMgrid[:, : iymax[0]]
         ndm = dmvals.size
-
+    
     if log:
         # checks against zeros for a log-plot
         orig = np.copy(zDMgrid)
@@ -2726,13 +2747,26 @@ def plot_grid_2(
             cDM1 /= cDM1[-1]
             cDM2 = np.cumsum(tempgrid[:, iDM2])
             cDM2 /= cDM2[-1]
+            
             stop1 = np.where(cDM1 < 0.99)[0][-1]
             stop2 = np.where(cDM2 < 0.99)[0][-1]
             zstop = kDM * zvals[stop2] + (1.0 - kDM) * zvals[stop1]
             zstop /= zvals[1] - zvals[0]
             DM /= dmvals[1] - dmvals[0]
             plt.plot([0, zstop], [DM, DM], color=data_clr, linestyle=":")
-
+    
+    # performs plots for the pdmgz variable
+    if pdmgz is not None:
+        styles = ['-','-','-']
+        widths = [2,3,2]
+        plt.ylim(0,ndm-1)
+        plt.xlim(0,nz-1)
+        # now converts to plot units [urgh...]
+        plot_z = np.arange(pdmgz_z.size)
+        for iv,val in enumerate(pdmgz):
+            plot_dm = pdmgz_dm[:,iv]/ddm # plot is in integer units
+            plt.plot(plot_z,plot_dm,linestyle=styles[iv],linewidth=widths[iv],color='white')
+    
     # plots contours i there
     if conts:
         plt.ylim(0, ndm - 1)
@@ -2779,12 +2813,16 @@ def plot_grid_2(
         # 	text.set_color("white")
 
     # limit to a reasonable range if logscale
+    
     if log:
         themax = np.nanmax(zDMgrid)
         themin = int(themax - 4)
         themax = int(themax)
         plt.clim(themin, themax)
-
+    
+    if clim:
+        plt.clim(clim[0], clim[1])
+    
     ##### add FRB host galaxies at some DM/redshift #####
     if FRBZ is not None:
         iDMs = FRBDM / ddm
@@ -2818,11 +2856,14 @@ def plot_grid_2(
 
         # if plotting DM only, put this on the axy axis showing DM distribution
         if FRBDM is not None:
-            hvals = np.zeros(FRBDM.size)
-            for i, DM in enumerate(FRBDM):
-                hvals[i] = yonly[np.where(dmvals > DM)[0][0]]
-
-            axy.plot(hvals, FRBDM, "ro", linestyle="")
+            hvals=np.zeros(FRBDM.size)
+            for i,DM in enumerate(FRBDM):
+                if DM > dmvals[-1]:
+                    havls[i] = 0
+                else:
+                    hvals[i] = yonly[np.where(dmvals > DM)[0][0]]
+            
+            axy.plot(hvals,FRBDM,'ro',linestyle="")
             for tick in axy.yaxis.get_major_ticks():
                 tick.label.set_fontsize(6)
 
@@ -2831,7 +2872,7 @@ def plot_grid_2(
             hvals = np.zeros(FRBZ[OK].size)
             for i, Z in enumerate(FRBZ[OK]):
                 hvals[i] = xonly[np.where(zvals > Z)[0][0]]
-            axx.plot(FRBZ[OK], hvals, "o", color=data_clr, linestyle="")
+            axx.plot(FRBZ[OK], hvals, "ro", color=data_clr, linestyle="", markersize=markersize)
             for tick in axx.xaxis.get_major_ticks():
                 tick.label.set_fontsize(6)
     else:

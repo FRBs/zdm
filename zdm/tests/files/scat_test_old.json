@@ -16,10 +16,6 @@
         "NewGrids": true,
         "sprefix": "Std"
     },
-    "beam": {
-        "Bthresh": 0.0,
-        "Bmethod": 2
-    },
     "cosmo": {
         "H0": 67.66,
         "Omega_b": 0.04897,
@@ -44,7 +40,6 @@
         "Wlogmean": 1.70267,
         "Wlogsigma": 0.899148,
         "Wthresh": 0.5,
-        "Wmethod": 1,
         "Wbins": 5,
         "Wscale": 3.5
     },

@@ -2,7 +2,7 @@ BW    288 #MHz
 FRES  1 #MHz
 NFRB 1 #Number of FRBs
 DIAM 12
-NBEAMS 36
+NBINS 5
 BEAM lat50_log #prefix of beam file
 FBAR 1320
 TRES  1.7 #ms

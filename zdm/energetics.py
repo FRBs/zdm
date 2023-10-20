@@ -7,19 +7,22 @@ from IPython import embed
 igamma_splines = {}
 igamma_linear = {}
 igamma_linear_log10 = {}
+SplineMin = -6
+SplineMax = 6
+NSpline = 1000
 
 ############## this section defines different luminosity functions ##########
 
 def init_igamma_splines(gammas, reinit=False):
+    global SplineMin,SplineMax,NSpline
     for gamma in gammas:
         if gamma not in igamma_splines.keys() or reinit:
             print(f"Initializing igamma_spline for gamma={gamma}")
-            # values
-            avals = 10**np.linspace(-6, 6., 1000)
+            avals = 10**np.linspace(SplineMin, SplineMax, NSpline)
             numer = np.array([float(mpmath.gammainc(
                 gamma, a=iEE)) for iEE in avals])
             # iGamma
-            igamma_splines[gamma] = interpolate.splrep(avals, numer)
+            igamma_splines[gamma] = interpolate.splrep(avals, numer,k=3)
 
 def init_igamma_linear(gammas:list, reinit:bool=False, 
                        log:bool=False):
@@ -214,8 +217,13 @@ def vector_cum_gamma_spline(Eth:np.ndarray, *params):
     result=numer/norm
 
     # Low end
-    low= Eth < Emin
-    result[low]=1.
+    low = Eth < Emin
+    
+    if np.isscalar(result):
+        if low:
+            result = 1.
+    else:
+        result[low]=1.
     return result
 
 def vector_cum_gamma_linear(Eth:np.ndarray, *params):

@@ -1,0 +1,17 @@
+FBAR  1250 #MHz
+BW    500 #MHz
+FRES  0.122 #MHz
+TRES  0.196608 #ms.
+BEAM parkes_mb_log #prefix of beam file. OK, this needs to be scaled. to-do!
+DIAM 300
+NBEAMS 19
+TOBS 69.46 # days.
+NFRB 4 #Number of FRBs
+THRESH 0.0146 #Jy ms to a 1 ms burst [CHECK!!!]
+SNRTHRESH 7 # signal-to-noise threshold: scales jy ms to snr
+KEY    ID    Gl 	Gb	DM	WIDTH   SNR	DMG
+# from CRAFTS survey paper
+FRB 181017	117.9	-51.4	1845.2	1.43	17	34.96
+FRB 181118	205.2	21.5	1187.7	5.3	13	69.57
+FRB 181130	118.9	-43.4	1705.5	9.5	26	38.57
+FRB 181123	184.06	-13.47	1812	0.6	95	97.17

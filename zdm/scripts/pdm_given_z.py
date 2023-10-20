@@ -1,8 +1,6 @@
 """ Calculate p(DM|z) for a given DM and survey
 """
 
-# It should be possible to remove all the matplotlib calls from this
-# but in the current implementation it is not removed.
 import argparse
 
 from IPython import embed
@@ -11,8 +9,6 @@ def main(pargs):
     
     import numpy as np
     from matplotlib import pyplot as plt
-    
-    print("Can't solve local environment")
 
     from frb import mw
     from frb.figures.utils import set_fontsize 

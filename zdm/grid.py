@@ -52,9 +52,8 @@ class Grid:
             self.use_log10 = False
         self.luminosity_function = self.state.energy.luminosity_function
         self.init_luminosity_functions()
-
-        #self.nuObs=survey.meta['FBAR']*1e6 #from MHz to Hz
-        self.nuObs= np.median(survey.frbs['FBAR'])*1e6 #from MHz to Hz
+        self.nuObs= survey.meta['FBAR']*1e6 #from MHz to Hz
+        
         # Init the grid
         #   THESE SHOULD BE THE SAME ORDER AS self.update()
         self.parse_grid(zDMgrid.copy(), zvals.copy(), dmvals.copy())
@@ -70,7 +69,9 @@ class Grid:
             efficiencies=survey.mean_efficiencies
             weights=None
         # Warning -- THRESH could be different for each FRB, but we don't treat it that way
-        self.calc_thresholds(np.median(survey.frbs['THRESH']),
+        thresh = survey.meta["THRESH"]
+        # was np.median(survey.frbs['THRESH'])
+        self.calc_thresholds(thresh,
                              efficiencies,
                              weights=weights)
         # Calculate
@@ -219,19 +220,15 @@ class Grid:
 
     def set_evolution(self):  # ,n,alpha=None):
         """ Scales volumetric rate by SFR """
-        # self.sfr1n=n
-        # if alpha is not None:
-        #    self.alpha=alpha
-        # self.sfr=cos.sfr(self.zvals)**n #old hard-coded value
-        self.sfr = self.source_function(self.zvals, self.state.FRBdemo.sfr_n)
-        if self.state.FRBdemo.alpha_method == 1:
-            self.sfr *= (1.0 + self.zvals) ** (
-                -self.state.energy.alpha
-            )  # reduces rate with alpha
+        self.sfr=self.source_function(self.zvals,
+                                      self.state.FRBdemo.sfr_n)
+        if self.state.FRBdemo.alpha_method==1:
+            self.sfr *= (1.0 + self.zvals)**(-self.state.energy.alpha) #reduces rate with alpha
+
             # changes absolute normalisation at z=0 according to central frequency
             self.sfr *= (
                 self.nuObs / self.nuRef
-            ) ** -self.state.energy.alpha  # alpha positive, nuObs<nuref, expected rate increases
+                ) ** -self.state.energy.alpha  # alpha positive, nuObs<nuref, expected rate increases
 
     def calc_pdv(self, beam_b=None, beam_o=None):
         """ Calculates the rate per cell.
@@ -270,7 +267,7 @@ class Grid:
 
         # for some arbitrary reason, we treat the beamshape slightly differently... no need to keep an intermediate product!
         main_beam_b = self.beam_b
-
+        
         # call log10 beam
         if self.use_log10:
             new_thresh = np.log10(
@@ -378,20 +375,19 @@ class Grid:
             self.eff_table = eff_table
         Eff_thresh = F0 / self.eff_table
 
-        self.EF(
-            self.state.energy.alpha, bandwidth
-        )  # sets FtoE values - could have been done *WAY* earlier
+        self.EF(self.state.energy.alpha, bandwidth)  # sets FtoE values - could have been done *WAY* earlier
 
         self.thresholds = np.zeros([self.nthresh, self.zvals.size, self.dmvals.size])
+
         # Performs an outer multiplication of conversion from fluence to energy.
         # The FtoE array has one value for each redshift.
         # The effective threshold array has one value for each combination of
         # FRB width (nthresh) and DM.
         # We loop over nthesh and generate a NDM x Nz array for each
         for i in np.arange(self.nthresh):
-            self.thresholds[i, :, :] = np.outer(self.FtoE, Eff_thresh[i, :])
-
-    def smear_dm(self, smear: np.ndarray):  # ,mean:float,sigma:float):
+            self.thresholds[i,:,:] = np.outer(self.FtoE, Eff_thresh[i,:])
+            
+    def smear_dm(self, smear:np.ndarray):  # ,mean:float,sigma:float):
         """ Smears DM using the supplied array.
         Example use: DMX contribution
 

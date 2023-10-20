@@ -20,29 +20,6 @@ class AnalysisParams(data_class.myDataClass):
         },
     )
 
-
-# Beam parameters
-@dataclass
-class BeamParams(data_class.myDataClass):
-    Bmethod: int = field(
-        default=2,
-        metadata={
-            "help": "Method for calculation. See beams.py:simplify_beam() for options",
-            "unit": "",
-        },
-    )
-    Bthresh: float = field(
-        default=0.0,
-        metadata={
-            "help": "Minimum value of beam sensitivity to consider",
-            "unit": "",
-            "Notation": "B_{\rm min}",
-        },
-    )
-    # def __post_init__(self):
-    #    self.Nbeams = [5,5,5,10]
-
-
 # Cosmology parameters
 @dataclass
 class CosmoParams(data_class.myDataClass):
@@ -129,6 +106,42 @@ class FRBDemoParams(data_class.myDataClass):
     )
 
 
+
+# FRB Demographics -- repeaters
+@dataclass
+class RepeatParams(data_class.myDataClass):
+    Rmin: float = field(
+        default=1e-3,
+        metadata={'help': 'Minimum repeater rate',
+                  'unit': 'day^-1',
+                  'Notation': '$R_{\rm min}$',
+                  })
+    Rmax: float = field(
+        default=10,
+        metadata={'help': 'Maximum repeater rate',
+                  'unit': 'day^-1',
+                  'Notation': '$R_{\rm max}$',
+                  })
+    Rgamma: float = field(
+        default = -2.375,
+        metadata={'help': 'differential index of repeater density',
+                  'unit': '',
+                  'Notation': '$\gamma_r$',
+                  })
+    RC: float = field(
+        default = 1e-2,
+        metadata={'help': 'Constant repeater density',
+                  'unit': 'Repeaters day / Gpc^-3',
+                  'Notation': '$C_R$',
+                  })
+    RE0: float = field(
+        default = 1.e39,
+        metadata={'help': 'Energy at which rates are defined',
+                  'unit': 'erg',
+                  'Notation': '$E_R$',
+                  })
+                  
+
 # Galactic parameters
 @dataclass
 class MWParams(data_class.myDataClass):
@@ -207,13 +220,7 @@ class WidthParams(data_class.myDataClass):
             "Notation": "w_{\\rm min}",
         },
     )
-    Wmethod: int = field(
-        default=2,
-        metadata={
-            "help": "Method of calculating FRB widths; 1 std, 2 includes scattering",
-            "unit": "",
-        },
-    )
+
     Wbins: int = field(
         default=5,
         metadata={"help": "Number of bins for FRB width distribution", "unit": ""},
@@ -319,14 +326,14 @@ class State(data_class.myData):
         self.width = WidthParams()
         self.MW = MWParams()
         self.analysis = AnalysisParams()
-        self.beam = BeamParams()
         self.FRBdemo = FRBDemoParams()
         self.cosmo = CosmoParams()
         self.host = HostParams()
         self.IGM = IGMParams()
         self.energy = EnergeticsParams()
+        self.rep = RepeatParams()
 
-    def update_param(self, param: str, value):
+    def update_param(self, param:str, value):
         DC = self.params[param]
         setattr(self[DC], param, value)
         # Special treatment

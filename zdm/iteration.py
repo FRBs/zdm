@@ -625,7 +625,6 @@ def calc_likelihoods_2D(grid,survey,
             bEobs=bEths*survey.Ss[survey.zlist]
             for j,w in enumerate(grid.eff_weights):
                 temp=grid.array_diff_lf(bEobs[j,:],Emin,Emax,gamma) * FtoE #one dim in beamshape, one dim in FRB
-                
                 psnr += temp.T*survey.beam_o[i]*w #multiplies by beam factors and weight
                 
         # at this stage, we have the amplitude from diff power law 
@@ -1692,19 +1691,23 @@ def CalculateMeaningfulConstant(pset,grid,survey,newC=False):
     const *= factor
     return const
 
-def ConvertToMeaningfulConstant(pset):
+def ConvertToMeaningfulConstant(state,Eref=1e39):
     """ Gets the flux constant, and quotes it above some energy minimum Emin """
     
     # Units: IF TOBS were in yr, it would be smaller, and raw const greater.
     # also converts per Mpcs into per Gpc3
     units=1e9*365.25
     
-    const = (10**pset[7])*units # to cubic Gpc and days to year
-    Eref=1e40 #erg per Hz
-    Emin=10**pset[0]
-    Emax=10**pset[1]
-    gamma=pset[3]
-    factor=(Eref/Emin)**gamma - (Emax/Emin)**gamma
+    const = (10**state.FRBdemo.lC)*units # to cubic Gpc and days to year
+    #Eref=1e39 #erg per Hz
+    Emin=10**state.energy.lEmin
+    Emax=10**state.energy.lEmax
+    gamma=state.energy.gamma
+    if state.energy.luminosity_function == 0:
+        factor=(Eref/Emin)**gamma - (Emax/Emin)**gamma
+    else:
+        from zdm import energetics
+        factor = energetics.vector_cum_gamma(np.array([Eref]),Emin,Emax,gamma)
     const *= factor
     return const
 
@@ -1842,9 +1845,10 @@ def minimise_const_only(vparams:dict,grids:list,surveys:list,
                     args=data,bounds=bounds)
         dC=result.x
     t1=time.process_time()
-    #newC=pset[7]+dC
-    #newC=vparams['lC']+float(dC)
+    
+    # constant needs to include the starting value of .lC
     newC = grids[j].state.FRBdemo.lC + float(dC)
+    # likelihood is calculated  *relative* to the starting value
     llC=-minus_poisson_ps(dC,data)
 
     return newC,llC

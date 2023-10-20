@@ -62,7 +62,7 @@ class FRB(data_class.myDataClass):
                   'Notation': '',
                   })
     THRESH: float = field( 
-        default=0., 
+        default=1., 
         metadata={'help': "Threshold fluence used to detect an FRB", 
                   'unit': 'Jy ms', 
                   'Notation': '',
@@ -84,8 +84,8 @@ class FRB(data_class.myDataClass):
                   'Notation': '',
                   })
     Z: float = field( 
-        default=0.1, 
-        metadata={'help': "redshift", 
+        default=-1., 
+        metadata={'help': "redshift; -1 means unlocalised", 
                   'unit': '', 
                   'Notation': '',
                   })
@@ -96,14 +96,26 @@ class Telescope(data_class.myDataClass):
         default='', 
         metadata={'help': "Beam file", 
                   })
+    BW: float = field( 
+        default=336., 
+        metadata={'help': "Mean Frequency (observed)", 
+                  'unit': 'MHz', 
+                  'Notation': '',
+                  })
     DIAM: float = field(
         default=0., 
         metadata={'help': "Individual antenna diameter", 
                   'unit': 'm', 
                   'Notation': '',
                   })
+    DMG: float = field( 
+        default=30., 
+        metadata={'help': "Galactic contribution to DM",
+                  'unit': 'pc/cm**3', 
+                  'Notation': '',
+                  })
     NBEAMS: int = field(
-        default=0, 
+        default=1, 
         metadata={'help': "Number of beams/antennae", 
                   'unit': '', 
                   'Notation': '',
@@ -114,7 +126,59 @@ class Telescope(data_class.myDataClass):
                   'unit': '', 
                   'Notation': '',
                   })
-
+    WMETHOD: int = field(
+        default=2, 
+        metadata={'help': "Method of calculating FRB widths; 0 ignore, 1 std, 2 includes scattering", 
+                  'unit': '', 
+                  'Notation': '',
+                  })
+    WBIAS: str = field(
+        default="Quadrature", 
+        metadata={'help': "Method to calculate width bias", 
+                  'unit': '', 
+                  'Notation': '',
+                  })
+    BMETHOD: int = field(
+        default=2, 
+        metadata={'help': "Method for beam calculation. See beams.py:simplify_beam()", 
+                  'unit': '', 
+                  'Notation': '',
+                  })
+    BTHRESH: float = field(
+        default=0.0,
+        metadata={'help': 'Minimum value of beam sensitivity to consider',
+                  'unit': '',
+                  'Notation': 'B_{\rm min}'})
+    THRESH: float = field( 
+        default=1., 
+        metadata={'help': "Threshold fluence used to detect an FRB", 
+                  'unit': 'Jy ms', 
+                  'Notation': '',
+                  })
+    FBAR: float = field( 
+        default=1300., 
+        metadata={'help': "Mean frequency",
+                  'unit': 'MHz', 
+                  'Notation': '',
+                  })
+    FRES: float = field( 
+        default=1., 
+        metadata={'help': "Frequency resolution",
+                  'unit': 'MHz', 
+                  'Notation': '',
+                  })
+    TRES: float = field( 
+        default=1.26, 
+        metadata={'help': "Time resolution",
+                  'unit': 'ms', 
+                  'Notation': '',
+                  })
+    WIDTH: float = field( 
+        default=0.1, 
+        metadata={'help': "Intrinsic width of the event", 
+                  'unit': 'ms', 
+                  'Notation': '',
+                  })
 @dataclass
 class Observing(data_class.myDataClass):
     NORM_FRB: int = field(

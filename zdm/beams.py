@@ -33,7 +33,7 @@ def gauss_beam(thresh=1e-3,nbins=10,freq=1.4e9,D=64,sigma=None):
     omega_b=np.full([nbins],2*np.pi*dlnb*sigma**2) #omega_b per dlnb - makes sense
     return b,omega_b
 
-def load_beam(prefix,basedir=beams_path):
+def load_beam(prefix):
     """
     Loads beams data, returns it with beam values b in log space
     
@@ -46,6 +46,7 @@ def load_beam(prefix,basedir=beams_path):
         which the calculation has been performed.
     
     """
+    basedir=beams_path
     logb=np.load(os.path.join(basedir,prefix+'_bins.npy'))
     # standard, gets best beam estimates: no truncation
     omega_b=np.load(os.path.join(basedir,prefix+'_hist.npy'))
@@ -53,7 +54,7 @@ def load_beam(prefix,basedir=beams_path):
     # checks if the log-bins are 10^logb or just actual b values
     #in a linear scale the first few may be zero...
     N=np.array(np.where(logb < 0))
-    if N.size ==0: #it must be a linear array
+    if N.size == 0: #it must be a linear array
         logb=np.log10(logb)
     
     if logb.size == omega_b.size+1:
@@ -84,7 +85,6 @@ def simplify_beam(logb,omega_b,nbins,thresh=0.,weight=1.5,method=1,savename=None
     rate=omega_b*b**weight
     crate=np.cumsum(rate)
     crate /= crate[-1]
-    
     if method==1:
         # tries to categorise each in increments of 1/nbins
         # i.e. each bin has equal probability of detecting an FRB
@@ -152,8 +152,12 @@ def simplify_beam(logb,omega_b,nbins,thresh=0.,weight=1.5,method=1,savename=None
     elif method==3:
         # returns full beam! INSANE!!!!!!
         # new arrays
-        new_b=b
-        new_o=omega_b
+        if np.isscalar(b):
+            new_b=np.array([b])
+            new_o=np.array([omega_b])
+        else:
+            new_b=np.array(b)
+            new_o=np.array(omega_b)
     elif method==4: # tries very hard to get the first few bins, then becomes sparser from there
         # makes a log-space of binning, starting from the end and working back
         ntot=b.size

@@ -29,9 +29,12 @@ def test_cube_run():
     # use default parameters
     # Initialise survey and grid 
     # For this purporse, we only need two different surveys
-    #names=['CRAFT/FE','CRAFT/ICS','CRAFT/ICS892','CRAFT/ICS1632','PKS/Mb']
-    names=['CRAFT/FE','CRAFT/ICS','CRAFT/ICS892',
-           'PKS/Mb']
+    # the defaults are below - passing these will do nothing
+    survey_names = ['CRAFT/FE', 
+                    'CRAFT_ICS_1632',
+                    'CRAFT_ICS_892', 
+                    'CRAFT_ICS_1272',
+                    'PKS/Mb']
     #sdir = os.path.join(resource_filename('zdm', 'data'), 'Surveys')
     #surveys=[]
     #grids=[]
@@ -45,7 +48,6 @@ def test_cube_run():
         grids.append(g)
     '''
     surveys, grids = real_loading.surveys_and_grids(
-        survey_names=names, 
         nz=500, ndm=1400) # Small number to keep this cheap
     
     
@@ -94,7 +96,7 @@ def test_cube_run():
     #    pDM|z_tot, pz_tot,pz|DM_tot, pDM_tot
     # =18+Nsurveys*5
     
-    ns=len(names)
+    ns=len(surveys)
 
     # Load with pandas to assess
     df = pandas.read_csv(outfile)
