@@ -268,7 +268,18 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=False,Pn=True,do
         
         # get vector of thresholds as function of z and threshold/weight list
         # note that the dimensions are, nthresh (weights), z, DM
-        Eths = grid.thresholds[:,:,idms1]*(1.-dkdms)+ grid.thresholds[:,:,idms2]*dkdms
+        if grid.state.MW.uDMG == 0.0:
+            # Linear interpolation
+            Eths = grid.thresholds[:,:,idms1]*(1.-dkdms)+ grid.thresholds[:,:,idms2]*dkdms
+        else:
+            Eths = np.zeros([grid.thresholds.shape[0], grid.thresholds.shape[1], len(idms1)])
+            # For each FRB
+            for i in range(len(idms1)):
+                # For each width
+                for j in range(Eths.shape[0]):
+                    # For each redshift
+                    for k in range(Eths.shape[1]):
+                        Eths[j,k,i] = np.sum(grid.thresholds[j,k,iweights[i]] * dm_weights[i])
         
         ##### IGNORE THIS, PVALS NOW CONTAINS CORRECT NORMALISATION ######
         # we have previously calculated p(DM), normalised by the global sum over all DM (i.e. given 1 FRB detection)
@@ -634,17 +645,27 @@ def calc_likelihoods_2D(grid,survey,
         # psnr for that beam only. But this requires a much more
         # refined view of 'b', rather than the crude standatd 
         # parameterisation
-        
+
         # calculate vector of grid thresholds
         Emax=10**grid.state.energy.lEmax
         Emin=10**grid.state.energy.lEmin
         gamma=grid.state.energy.gamma
         #Eths has dimensions of width likelihoods and nobs
         # i.e. later, the loop over j,w uses the first index
-        Eths = grid.thresholds[:,izs1,idms1]*(1.-dkdms)*(1-dkzs)
-        Eths += grid.thresholds[:,izs2,idms1]*(1.-dkdms)*dkzs
-        Eths += grid.thresholds[:,izs1,idms2]*dkdms*(1-dkzs)
-        Eths += grid.thresholds[:,izs2,idms2]*dkdms*dkzs
+        if grid.state.MW.uDMG == 0.0:
+            # Linear interpolation
+            Eths = grid.thresholds[:,izs1,idms1]*(1.-dkdms)*(1-dkzs)
+            Eths += grid.thresholds[:,izs2,idms1]*(1.-dkdms)*dkzs
+            Eths += grid.thresholds[:,izs1,idms2]*dkdms*(1-dkzs)
+            Eths += grid.thresholds[:,izs2,idms2]*dkdms*dkzs
+        else:
+            Eths = np.zeros([grid.thresholds.shape[0], len(izs1)])
+            # For each FRB
+            for i in range(len(izs1)):
+                # For each width
+                for j in range(grid.thresholds.shape[0]):
+                    Eths[j,i] = np.sum(grid.thresholds[j,izs1[i],iweights[i]] * dm_weights[i] * (1.-dkzs[i]) 
+                                    + grid.thresholds[j,izs2[i],iweights[i]] * dm_weights[i] * dkzs[i])
         
         FtoE = grid.FtoE[izs1]*(1.-dkzs)
         FtoE += grid.FtoE[izs2]*dkzs
@@ -746,7 +767,7 @@ def calc_likelihoods_2D(grid,survey,
     elif dolist==5:
         return llsum,lllist,expected,dolist5_return
 
-def calc_DMG_weights(DMobs, DMGs, uDMGs, dmvals):
+def calc_DMG_weights(DMobs, DMGs, uDMGs, dmvals, n_sig=3):
     """
     Given an uncertainty on the DMG value, calculate the weights of DM values to integrate over
 
@@ -755,6 +776,7 @@ def calc_DMG_weights(DMobs, DMGs, uDMGs, dmvals):
         DMGs = Array of each DM_ISM value
         uDMGs = Fractional uncertainty in DMG values
         dmvals = Vector of DM values used
+        n_sig = number of standard deviations to integrate over
 
     Returns:
         weights = Relative weights for each of the DM grid points
@@ -769,8 +791,8 @@ def calc_DMG_weights(DMobs, DMGs, uDMGs, dmvals):
         uDMG = DMG * uDMGs
 
         # Determine lower and upper DM values used
-        min = st.norm.ppf(0.003, loc=DMobs[i], scale=uDMG)
-        max = st.norm.ppf(0.997, loc=DMobs[i], scale=uDMG)
+        min = DMobs[i] - n_sig*uDMG
+        max = DMobs[i] + n_sig*uDMG
 
         # Determine indices of where the DM vector
         mask = (dmvals > min) * (dmvals < max)

@@ -14,7 +14,7 @@
         "parameter_order": ["lC", "sfr_n", "alpha", "lmean", "lsigma", "lEmax", "gamma", "H0"]
     },
     "mcmc": {
-        "parameter_order": ["F", "sfr_n", "alpha", "lmean", "lsigma", "lEmax", "gamma", "H0", "lEmin", "DMhalo", "uDMG"]
+        "parameter_order": ["sfr_n", "alpha", "lmean", "lsigma", "lEmax", "gamma", "H0", "lEmin", "DMhalo"]
     },
     "mcmc_full": {
         "parameter_order": ["F", "sfr_n", "alpha", "lmean", "lsigma", "lEmax", "gamma", "H0", "lEmin", "DMhalo", "uDMG"]
@@ -26,19 +26,19 @@
     },
     "lEmax": {
         "DC": "energy",
-        "min": 40.0,
+        "min": 40.4,
         "max": 42.0, 
         "n": 10
     },
     "lEmin": {
         "DC": "energy",
-        "min": 13.0, 
+        "min": 15.0, 
         "max": 35.0
     },
     "DMhalo": {
         "DC": "MW",
         "min": 5.0, 
-        "max": 150.0
+        "max": 100.0
     },
     "uDMG": {
         "DC": "MW",
@@ -47,8 +47,8 @@
     },
     "H0": {
         "DC": "cosmo",
-        "min": 25.0, 
-        "max": 130.0, 
+        "min": 35.0, 
+        "max": 110.0, 
         "n": 10
     },
     "alpha": {
@@ -72,7 +72,7 @@
     "lmean": {
         "DC": "host",
         "min": 0.5, 
-        "max": 4.0, 
+        "max": 3.2, 
         "n": 4
     },
     "lsigma": {
