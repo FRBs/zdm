@@ -10,6 +10,7 @@ from scipy.optimize import minimize
 # to hold one of these parameters constant, just remove it from the arg set here
 from zdm import cosmology as cos
 from scipy.stats import poisson
+import scipy.stats as st
 # internal counter
 NCF=0
 
@@ -200,7 +201,16 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=False,Pn=True,do
     idms1=kdms.astype('int')
     idms2=idms1+1
     dkdms=kdms-idms1
-    pvals=pdm[idms1]*(1.-dkdms) + pdm[idms2]*dkdms
+
+    if grid.state.MW.uDMG == 0.0:
+        # Linear interpolation
+        pvals=pdm[idms1]*(1.-dkdms) + pdm[idms2]*dkdms
+    else:
+        dm_weights, iweights = calc_DMG_weights(DMobs, survey.DMGs[survey.nozlist], grid.state.MW.uDMG, dmvals)
+        pvals = np.zeros(len(idms1))
+        for i in range(len(idms1)):
+            pvals[i]=np.sum(pdm[iweights[i]]*dm_weights[i])
+    
     #print(idms1)
     #print(dkdms)
     if norm:
@@ -223,8 +233,16 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=False,Pn=True,do
         expected *= 10**grid.state.FRBdemo.lC
         observed=survey.NORM_FRB
         Pn=Poisson_p(observed,expected)
-        Nll=np.log10(Pn)
-        lllist.append(Nll)
+        if Pn==0:
+            # print("Pn returned 0. Loglikelihood set to -infinity.")
+            # print("Observed: " + str(observed) + ", Expected: " + str(expected))
+            # print("Normalisation:" + str(10**grid.state.FRBdemo.lC))
+            Nll=-np.inf
+            if dolist==0:
+                return Nll
+        else:
+            Nll=np.log10(Pn)
+        lllist.append(Nll) 
         llsum += Nll
     else:
         lllist.append(0)
@@ -250,7 +268,18 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=False,Pn=True,do
         
         # get vector of thresholds as function of z and threshold/weight list
         # note that the dimensions are, nthresh (weights), z, DM
-        Eths = grid.thresholds[:,:,idms1]*(1.-dkdms)+ grid.thresholds[:,:,idms2]*dkdms
+        if grid.state.MW.uDMG == 0.0:
+            # Linear interpolation
+            Eths = grid.thresholds[:,:,idms1]*(1.-dkdms)+ grid.thresholds[:,:,idms2]*dkdms
+        else:
+            Eths = np.zeros([grid.thresholds.shape[0], grid.thresholds.shape[1], len(idms1)])
+            # For each FRB
+            for i in range(len(idms1)):
+                # For each width
+                for j in range(Eths.shape[0]):
+                    # For each redshift
+                    for k in range(Eths.shape[1]):
+                        Eths[j,k,i] = np.sum(grid.thresholds[j,k,iweights[i]] * dm_weights[i])
         
         ##### IGNORE THIS, PVALS NOW CONTAINS CORRECT NORMALISATION ######
         # we have previously calculated p(DM), normalised by the global sum over all DM (i.e. given 1 FRB detection)
@@ -492,11 +521,20 @@ def calc_likelihoods_2D(grid,survey,
     izs2=izs1+1
     dkzs=kzs-izs1 # applies to izs2
     
-    # Linear interpolation
-    pvals = rates[izs1,idms1]*(1.-dkdms)*(1-dkzs)
-    pvals += rates[izs2,idms1]*(1.-dkdms)*dkzs
-    pvals += rates[izs1,idms2]*dkdms*(1-dkzs)
-    pvals += rates[izs2,idms2]*dkdms*dkzs
+    # Calculate probability
+
+    if grid.state.MW.uDMG == 0.0:
+        # Linear interpolation
+        pvals = rates[izs1,idms1]*(1.-dkdms)*(1-dkzs)
+        pvals += rates[izs2,idms1]*(1.-dkdms)*dkzs
+        pvals += rates[izs1,idms2]*dkdms*(1-dkzs)
+        pvals += rates[izs2,idms2]*dkdms*dkzs
+    else:
+        dm_weights, iweights = calc_DMG_weights(DMobs, survey.DMGs[survey.zlist], grid.state.MW.uDMG, dmvals)
+        pvals = np.zeros(len(izs1))
+        for i in range(len(izs1)):
+            pvals[i] = np.sum(rates[izs1[i],iweights[i]] * dm_weights[i] * (1.-dkzs[i]) 
+                              + rates[izs2[i],iweights[i]] * dm_weights[i] * dkzs[i])
     
     bad= pvals <= 0.
     flg_bad = False
@@ -552,7 +590,15 @@ def calc_likelihoods_2D(grid,survey,
         expected *= 10**grid.state.FRBdemo.lC
         observed=survey.NORM_FRB
         Pn=Poisson_p(observed,expected)
-        Pll=np.log10(Pn)
+        if Pn==0:
+            # print("Pn returned 0. Loglikelihood set to -infinity.")
+            # print("Observed: " + str(observed) + ", Expected: " + str(expected))
+            # print("Normalisation:" + str(10**grid.state.FRBdemo.lC))
+            Pll=-np.inf
+            if dolist==0:
+                return Pll
+        else:
+            Pll=np.log10(Pn)
         lllist.append(Pll)
         if verbose:
             print(f'Pll term = {Pll}')
@@ -599,17 +645,27 @@ def calc_likelihoods_2D(grid,survey,
         # psnr for that beam only. But this requires a much more
         # refined view of 'b', rather than the crude standatd 
         # parameterisation
-        
+
         # calculate vector of grid thresholds
         Emax=10**grid.state.energy.lEmax
         Emin=10**grid.state.energy.lEmin
         gamma=grid.state.energy.gamma
         #Eths has dimensions of width likelihoods and nobs
         # i.e. later, the loop over j,w uses the first index
-        Eths = grid.thresholds[:,izs1,idms1]*(1.-dkdms)*(1-dkzs)
-        Eths += grid.thresholds[:,izs2,idms1]*(1.-dkdms)*dkzs
-        Eths += grid.thresholds[:,izs1,idms2]*dkdms*(1-dkzs)
-        Eths += grid.thresholds[:,izs2,idms2]*dkdms*dkzs
+        if grid.state.MW.uDMG == 0.0:
+            # Linear interpolation
+            Eths = grid.thresholds[:,izs1,idms1]*(1.-dkdms)*(1-dkzs)
+            Eths += grid.thresholds[:,izs2,idms1]*(1.-dkdms)*dkzs
+            Eths += grid.thresholds[:,izs1,idms2]*dkdms*(1-dkzs)
+            Eths += grid.thresholds[:,izs2,idms2]*dkdms*dkzs
+        else:
+            Eths = np.zeros([grid.thresholds.shape[0], len(izs1)])
+            # For each FRB
+            for i in range(len(izs1)):
+                # For each width
+                for j in range(grid.thresholds.shape[0]):
+                    Eths[j,i] = np.sum(grid.thresholds[j,izs1[i],iweights[i]] * dm_weights[i] * (1.-dkzs[i]) 
+                                    + grid.thresholds[j,izs2[i],iweights[i]] * dm_weights[i] * dkzs[i])
         
         FtoE = grid.FtoE[izs1]*(1.-dkzs)
         FtoE += grid.FtoE[izs2]*dkzs
@@ -709,6 +765,47 @@ def calc_likelihoods_2D(grid,survey,
                 pvals.copy(), wzpsnr.copy())
     elif dolist==5:
         return llsum,lllist,expected,dolist5_return
+
+def calc_DMG_weights(DMobs, DMGs, uDMGs, dmvals, n_sig=3):
+    """
+    Given an uncertainty on the DMG value, calculate the weights of DM values to integrate over
+
+    Inputs:
+        DMobs = Observed DM
+        DMGs = Array of each DM_ISM value
+        uDMGs = Fractional uncertainty in DMG values
+        dmvals = Vector of DM values used
+        n_sig = number of standard deviations to integrate over
+
+    Returns:
+        weights = Relative weights for each of the DM grid points
+        iweights = Indices of the corresponding weights
+    """
+    weights = []
+    iweights = []
+
+    # Loop through the DMG of each FRB in the survey and determine the weights
+    for i,DMG in enumerate(DMGs):
+        # Get absolute uncertainty in DMG
+        uDMG = DMG * uDMGs
+
+        # Determine lower and upper DM values used
+        min = DMobs[i] - n_sig*uDMG
+        max = DMobs[i] + n_sig*uDMG
+
+        # Determine indices of where the DM vector
+        mask = (dmvals > min) * (dmvals < max)
+        idxs = np.where(mask)
+
+        # Get weights
+        x = dmvals[idxs]
+        weight = st.norm.pdf(x, loc=DMobs[i], scale=uDMG)
+        weight = weight / np.sum(weight)
+        weights.append(weight)
+        iweights.append(idxs)
+
+    return weights, iweights
+
 
 def check_cube_opfile(run,howmany,opfile):
     """
@@ -1767,7 +1864,10 @@ def minus_poisson_ps(log10C,data):
     lp=0
     for i,r in enumerate(rs):
         Pn=Poisson_p(os[i],r)
-        lp += np.log10(Pn)
+        if (Pn == 0):
+            lp = -np.inf
+        else:
+            lp += np.log10(Pn)
     return -lp
     
 

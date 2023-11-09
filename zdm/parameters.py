@@ -146,18 +146,21 @@ class RepeatParams(data_class.myDataClass):
 @dataclass
 class MWParams(data_class.myDataClass):
     ISM: float = field(
-        default=35.0,
-        metadata={"help": "Assumed DM for the Galactic ISM in units of pc/cm^3"},
-    )
+        default=35.,
+        metadata={'help': 'Assumed DM for the Galactic ISM',
+                  'unit': 'pc cm$^{-3}$',
+        })
+    uDMG: float = field(
+        default=0.5,
+        metadata={'help': 'Fractional uncertainty in DM from Galactic ISM',
+                  'unit': '',
+        })
     DMhalo: float = field(
-        default=50.0,
-        metadata={
-            "help": "DM for the Galactic halo",
-            "unit": "pc cm$^{-3}$",
-            "Notation": "{\\rm DM}_{\\rm halo}",
-        },
-    )
-
+        default=50.,
+        metadata={'help': 'DM for the Galactic halo',
+                  'unit': 'pc cm$^{-3}$',
+                  'Notation': '{\\rm DM}_{\\rm halo}',
+        })
 
 # Host parameters -- host
 @dataclass
@@ -334,6 +337,7 @@ class State(data_class.myData):
         self.rep = RepeatParams()
 
     def update_param(self, param:str, value):
+        # print(self.params)
         DC = self.params[param]
         setattr(self[DC], param, value)
         # Special treatment
