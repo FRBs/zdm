@@ -24,6 +24,7 @@ tmp.npy
 *.pkl
 
 # Distribution / packaging
+.zdm_env/
 .Python
 build/
 develop-eggs/

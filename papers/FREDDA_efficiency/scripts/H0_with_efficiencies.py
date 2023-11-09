@@ -3,30 +3,12 @@ This file is intended to load a grid, and generate a single
 slice of likelihoods through H0
 
 """
-#
-import pytest
-
-#from pkg_resources import resource_filename
-#import os
-
-
 from zdm import iteration as it
 from zdm.craco import loading
-from zdm import misc_functions
-import matplotlib.pyplot as plt
-#from zdm import io
-#from zdm.tests import tstutils
-
-#from IPython import embed
-
-#import time
 import numpy as np
 import os
 
 def main():
-    """
-    Write stuff here
-    """
     # create new grids directly from updates state parameters in grid   
     
     # frb_names = ["181112"]
@@ -35,7 +17,7 @@ def main():
     # frb_names = ["190711"]
     edir='/fred/oz002/jhoffmann/FRB_library/zdm/zdm/data/Efficiencies/'
     sdir='/fred/oz002/jhoffmann/FRB_library/zdm/zdm/data/Surveys/Hoffmann2023_CRAFT/'
-    outdir='../llsum_files_CRAFT/'
+    outdir='../test/'
 
     print("outdir: " + outdir)
 
@@ -47,25 +29,26 @@ def main():
 
     #===============================================================================
     # # Do single survey
-    s,g = loading.survey_and_grid(survey_name="CRAFT_ICS",sdir=sdir,NFRB=None,model='Quadrature',edir=edir) 
+    # s,g = loading.survey_and_grid(survey_name="CRAFT_ICS",sdir=sdir,NFRB=None) 
 
-    # varies H0
-    llsum=[]
-    for H0 in H0s:
-        # updates grid to new parameter values
-        vparams = {}
-        vparams['H0'] = H0
-        g.update(vparams)
-        # returns log-likelihood sum for this survey and grid
-        llsum.append(get_likelihood(s,g))
+    # # varies H0
+    # llsum=[]
+    # for H0 in H0s:
+    #     # updates grid to new parameter values
+    #     vparams = {}
+    #     vparams['H0'] = H0
+    #     g.update(vparams)
+    #     # returns log-likelihood sum for this survey and grid
+    #     llsum.append(get_likelihood(s,g))
 
-    np.save(os.path.join(outdir,"CRAFT_ICS.npy"), np.array(llsum))
+    # np.save(os.path.join(outdir,"CRAFT_ICS.npy"), np.array(llsum))
 
     #===============================================================================
+    # Each FRB as individual survey
     for name in frb_names:
         print(name, flush=True)
         # Normal calculation
-        s,g = loading.survey_and_grid(survey_name=name,sdir=sdir,NFRB=None,model='Quadrature_s',edir=edir) 
+        s,g = loading.survey_and_grid(survey_name=name,sdir=sdir,NFRB=None) 
 
         # varies H0
         llsum=[]
@@ -81,7 +64,7 @@ def main():
 
         #===============================================================================
         # Calculation with efficiencies
-        s_exact,g_exact = loading.survey_and_grid(survey_name=name,sdir=sdir,NFRB=None,model=name,edir=edir)
+        s_exact,g_exact = loading.survey_and_grid(survey_name=name,sdir=sdir,NFRB=None,edir=edir)
 
         # varies H0
         llsum_exact=[]
