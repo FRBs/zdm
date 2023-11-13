@@ -25,6 +25,7 @@ tmp.npy
 
 # Distribution / packaging
 .zdm_env/
+requirements.txt
 .Python
 build/
 develop-eggs/

@@ -18,8 +18,8 @@
 # - {name: XRA, datatype: string}
 # - {name: Z, datatype: float64}
 # meta: !!omap
-# - {survey_data: "{\n    \"observing\": {\n        \"NORM_FRB\": 13,\n        \"TOBS\": 92.7\n    },\n    \"telescope\": {\n        \"\
-#     BEAM\": \"lat50_log\",\n        \"DIAM\": 12.0,\n        \"NBEAMS\": 36,\n        \"NBINS\": 5\n    }\n}"}
+# - {survey_data: "{\n    \"observing\": {\n        \"NORM_FRB\": 8,\n        \"TOBS\": 62.0\n    },\n    \"telescope\": {\n        \"\
+#     BEAM\": \"ASKAP_892\",\n        \"DIAM\": 12.0,\n        \"NBEAMS\": 1,\n        \"NBINS\": 5,\n        \"WBIAS\": \"210320\"\n    }\n}"}
 # schema: astropy-2.0
 TNS BW DM DMG FBAR FRES Gb Gl SNR SNRTHRESH THRESH TRES WIDTH XDec XRA Z
-20211127 336.0 234.83 42.5 1271.5 1.0 "" "" 37.9 9.0 4.4 1.182 1.41 -18:49:28.4 13:19:09.5 0.046946
+20210320 336.0 384.8 42.2 864.5 1.0 "" "" 15.3 9.0 4.4 1.728 0.21 -16:09:05.1 13:37:50.08605 0.28

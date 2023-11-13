@@ -3,9 +3,11 @@
 # SBATCH --output=H0_slice.out
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=1
-#SBATCH --time=04:00:00
+#SBATCH --time=08:00:00
 #SBATCH --export=NONE
 #SBATCH --mem=1G
+
+source $ZDM/.zdm_env/bin/activate
 
 cd $ZDM/papers/FREDDA_efficiency/scripts
 # conda activate zdm

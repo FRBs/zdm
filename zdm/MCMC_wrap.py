@@ -61,7 +61,7 @@ def main(args):
         surveys = []
         for name in names:
             filename = 'data/Surveys/' + name
-            s=survey.Survey(state, name, filename, dmvals)
+            s=survey.Survey(state, name, filename, dmvals, edir='data/Efficiencies/')
 
             surveys.append(s)
     
