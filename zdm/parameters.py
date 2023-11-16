@@ -151,7 +151,7 @@ class MWParams(data_class.myDataClass):
                   'unit': 'pc cm$^{-3}$',
         })
     uDMG: float = field(
-        default=0.5,
+        default=0.,
         metadata={'help': 'Fractional uncertainty in DM from Galactic ISM',
                   'unit': '',
         })

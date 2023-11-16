@@ -193,6 +193,12 @@ class Observing(data_class.myDataClass):
                   'unit': 'hours', 
                   'Notation': '',
                   })
+    DM_MAX: float = field(
+        default=None, 
+        metadata={'help': "Ignore localisations above this DM", 
+                  'unit': 'pc/cm**3', 
+                  'Notation': '',
+                  })
 
 class SurveyData(data_class.myData):
     """ Hold the SurveyData in a convenient object

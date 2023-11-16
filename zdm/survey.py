@@ -577,10 +577,16 @@ class Survey:
             themax = max(NFRB+iFRB,self.NFRB)
             self.frbs=self.frbs[iFRB:themax]
         
-        
         # Vet
         vet_frb_table(self.frbs, mandatory=True)
         
+        # Change FRBs exceeding DM_MAX to unlocalised
+        print(self.meta["DM_MAX"])
+        if self.meta["DM_MAX"] != None:
+            high_dm = np.where(self.frbs["DM"] > self.meta["DM_MAX"])[0]
+            self.frbs["Z"].values[high_dm] = -1.0
+            print(self.frbs["TNS"].values[high_dm])
+
         # Pandas resolves None to Nan
         if len(self.frbs["Z"])>0 and np.isfinite(self.frbs["Z"][0]):
             
@@ -656,7 +662,9 @@ class Survey:
         """ Estimates galactic DM according to
         Galactic lat and lon only if not otherwise provided
         """
+        print(self.frbs["DMG"].values)
         if not np.isfinite(self.frbs["DMG"].values[0]):
+            print("Checking Gl and Gb")
             if np.isfinite(self.frbs["Gl"].values[0]) and np.isfinite(self.frbs["Gb"].values[0]):
                 raise ValueError('Can not estimate Galactic contributions.\
                     Please enter Galactic coordinates, or else manually enter \
@@ -1133,6 +1141,7 @@ def load_survey(survey_name:str, state:parameters.State,
     # Hard code real surveys
     if survey_name == 'CRAFT/FE':
         dfile = 'CRAFT_class_I_and_II'
+        dfile = 'DSA2'
     elif survey_name == 'CRAFT/ICS':
         dfile = 'CRAFT_ICS'
     elif survey_name == 'CRAFT/ICS892':

@@ -23,8 +23,8 @@ from zdm.misc_functions import *
 
 #==============================================================================
 
-def mcmc_likelihoods(outfile:str, walkers:int, steps:int, params, surveys, grids):
-    posterior_sample = mcmc_runner(calc_log_posterior, outfile, params, surveys, grids, nwalkers=walkers,nsteps=steps)
+def mcmc_likelihoods(outfile:str, walkers:int, steps:int, params, surveys, grids, ncpus=1):
+    posterior_sample = mcmc_runner(calc_log_posterior, outfile, params, surveys, grids, nwalkers=walkers, nsteps=steps, ncpus=ncpus)
 
     posterior_dict = {}
     for i,k in enumerate(params):
@@ -87,7 +87,7 @@ def calc_log_posterior(param_vals, params, surveys, grids):
 
 #==============================================================================
 
-def mcmc_runner(logpf, outfile, params, surveys, grids, nwalkers=10, nsteps=100):
+def mcmc_runner(logpf, outfile, params, surveys, grids, nwalkers=10, nsteps=100, ncpus=1):
     ndim = len(params)
     starting_guesses = []
 
@@ -102,7 +102,7 @@ def mcmc_runner(logpf, outfile, params, surveys, grids, nwalkers=10, nsteps=100)
     backend.reset(nwalkers, ndim)
 
     start = time.time()
-    with mp.Pool(nwalkers) as pool:
+    with mp.Pool(ncpus) as pool:
         sampler = emcee.EnsembleSampler(nwalkers, ndim, logpf, args=[params, surveys, grids], backend=backend, pool=pool)
         sampler.run_mcmc(starting_guesses, nsteps, progress=True)
     end = time.time()

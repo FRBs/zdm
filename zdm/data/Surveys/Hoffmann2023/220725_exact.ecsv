@@ -14,12 +14,13 @@
 # - {name: THRESH, datatype: float64}
 # - {name: TRES, datatype: float64}
 # - {name: WIDTH, datatype: float64}
+# - {name: XC, datatype: string}
 # - {name: XDec, datatype: string}
 # - {name: XRA, datatype: string}
 # - {name: Z, datatype: float64}
 # meta: !!omap
-# - {survey_data: "{\n    \"observing\": {\n        \"NORM_FRB\": 13,\n        \"TOBS\": 92.7\n    },\n    \"telescope\": {\n        \"\
-#     BEAM\": \"lat50_log\",\n        \"DIAM\": 12.0,\n        \"NBEAMS\": 36,\n        \"NBINS\": 5,\n        \"WBIAS\": \"220725\"\n    }\n}"}
+# - {survey_data: "{\n    \"observing\": {\n        \"NORM_FRB\": 8,\n        \"TOBS\": 62.0\n    },\n    \"telescope\": {\n        \"\
+#     BEAM\": \"ASKAP_892\",\n        \"DIAM\": 12.0,\n        \"NBEAMS\": 1,\n        \"NBINS\": 5,\n        \"WBIAS\": \"220725\"\n    }\n}"}
 # schema: astropy-2.0
-TNS BW DM DMG FBAR FRES Gb Gl SNR SNRTHRESH THRESH TRES WIDTH XDec XRA Z
-20220725 336.0 290.4 30.7 920.5 1.0 -36.0 353.3 12.7 9.0 4.4 1.182 1.8 -36:07:51.2 23:33:32.1 0.1926
+TNS BW DM DMG FBAR FRES Gb Gl SNR SNRTHRESH THRESH TRES WIDTH XC XDec XRA Z
+20220725 336.0 290.4 30.7 920.5 1.0 -36.0 353.3 12.7 9.0 4.4 1.182 1.8 closepack36/45/0.9 -36:07:51.2 23:33:32.1 0.1926

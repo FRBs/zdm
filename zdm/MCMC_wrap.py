@@ -21,7 +21,6 @@ from zdm.MCMC import *
 import pickle
 import json
 
-import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument(dest='files', nargs='+', help="Survey file names")
 parser.add_argument('-i','--initialise', default=None, type=str, help="Prefix used to initialise survey")
@@ -29,6 +28,7 @@ parser.add_argument('-p','--pfile', default=None , type=str, help="File defining
 parser.add_argument('-o','--opfile', default=None, type=str, help="Output file for the data")
 parser.add_argument('-w', '--walkers', default=20, type=int, help="Number of MCMC walkers")
 parser.add_argument('-s', '--steps', default=100, type=int, help="Number of MCMC steps")
+parser.add_argument('-n', '--ncpus', default=1, type=int, help="Number of CPU cores (used to determine number of parallel processes)")
 args = parser.parse_args()
 
 # Check correct flags are specified
@@ -107,7 +107,7 @@ def main(args):
         # Select from dictionary the necessary parameters to be changed
         params = {k: mcmc_dict[k] for k in mcmc_dict['mcmc']['parameter_order']}
 
-        mcmc_likelihoods(outdir + args.opfile, args.walkers, args.steps, params, surveys, grids)
+        mcmc_likelihoods(outdir + args.opfile, args.walkers, args.steps, params, surveys, grids, ncpus=args.ncpus)
     else:
         print("No parameter or output file provided. Assuming only initialising and no MCMC running is done.")
 
