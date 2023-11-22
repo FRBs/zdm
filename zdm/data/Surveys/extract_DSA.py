@@ -31,9 +31,9 @@ def main():
     parser.add_argument('--fbar', dest='FBAR', default=1405, type=int, help="Central observational frequency (MHz)")
     parser.add_argument('--df', dest='FRES', default=0.244141, type=float, help="Frequency resolution (MHz)")
     parser.add_argument('-s', dest='SNRTHRESH', default=8.5, type=float, help="SNR threshold")
-    parser.add_argument('--th', dest='THRESH', default=0.0146, type=float, help="Fluence threshold (Jy ms)")
+    parser.add_argument('--th', dest='THRESH', default=1.187, type=float, help="Fluence threshold (Jy ms)")
     parser.add_argument('-t', dest='TOBS', default=None, type=float, help="Observation time (hours)")
-    parser.add_argument('--dt', dest='TRES', default=0.000262144, type=float, help="Time resolution (ms)")
+    parser.add_argument('--dt', dest='TRES', default=0.262144, type=float, help="Time resolution (ms)")
     parser.add_argument('-n', dest='NBEAMS', default=256, type=float, help="Number of beams")
 
     args = parser.parse_args()
@@ -58,7 +58,7 @@ def main():
         }
 
     t.meta['survey_data']['telescope'] = {
-        'BEAM': "parkes_mb_log",
+        'BMETHOD': 0, # Gaussian beam
         'DIAM': 4.65,
         'NBEAMS': args.NBEAMS,
         'NBINS': 10
@@ -71,13 +71,6 @@ def main():
 
     coords = SkyCoord(ra=XRA, dec=XDec, frame='icrs', unit="deg")
     gcoords = coords.galactic
-
-    TNS=[data_array[i,9][5:14] for i in range(data_array.shape[0])]
-    print(TNS)
-    print(XRA)
-    print(coords.ra)
-    print(XDec)
-    print(coords.dec)
 
     Gl = gcoords.l
     Gb = gcoords.b

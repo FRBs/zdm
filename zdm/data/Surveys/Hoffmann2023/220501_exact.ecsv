@@ -19,7 +19,7 @@
 # - {name: XRA, datatype: string}
 # - {name: Z, datatype: float64}
 # meta: !!omap
-# - {survey_data: "{\n    \"observing\": {\n        \"NORM_FRB\": 8,\n        \"TOBS\": 62.0\n    },\n    \"telescope\": {\n        \"\
+# - {survey_data: "{\n    \"telescope\": {\n        \"\
 #     BEAM\": \"ASKAP_892\",\n        \"DIAM\": 12.0,\n        \"NBEAMS\": 1,\n        \"NBINS\": 5,\n        \"WBIAS\": \"220501\"\n    }\n}"}
 # schema: astropy-2.0
 TNS BW DM DMG FBAR FRES Gb Gl SNR SNRTHRESH THRESH TRES WIDTH XC XDec XRA Z

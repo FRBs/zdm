@@ -188,7 +188,7 @@ class Observing(data_class.myDataClass):
                   'Notation': '',
                   })
     TOBS: float = field(
-        default=0., 
+        default=None, 
         metadata={'help': "Total observing time", 
                   'unit': 'hours', 
                   'Notation': '',

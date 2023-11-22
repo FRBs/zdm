@@ -517,7 +517,9 @@ class Survey:
     def init_DMEG(self,DMhalo):
         """ Calculates extragalactic DMs assuming halo DM """
         self.DMhalo=DMhalo
-        self.DMEGs=self.DMs-self.DMGs-DMhalo
+        self.DMEGs_obs=self.DMs-self.DMGs-DMhalo
+        self.DMEGs = np.copy(self.DMEGs_obs)
+        self.DMEGs[self.DMEGs < 0] = 10. # Minimum value of 10. pc/cm^3
 
     def process_survey_file(self,filename:str, 
                             NFRB:int=None,
@@ -581,11 +583,9 @@ class Survey:
         vet_frb_table(self.frbs, mandatory=True)
         
         # Change FRBs exceeding DM_MAX to unlocalised
-        print(self.meta["DM_MAX"])
         if self.meta["DM_MAX"] != None:
             high_dm = np.where(self.frbs["DM"] > self.meta["DM_MAX"])[0]
             self.frbs["Z"].values[high_dm] = -1.0
-            print(self.frbs["TNS"].values[high_dm])
 
         # Pandas resolves None to Nan
         if len(self.frbs["Z"])>0 and np.isfinite(self.frbs["Z"][0]):
@@ -662,7 +662,6 @@ class Survey:
         """ Estimates galactic DM according to
         Galactic lat and lon only if not otherwise provided
         """
-        print(self.frbs["DMG"].values)
         if not np.isfinite(self.frbs["DMG"].values[0]):
             print("Checking Gl and Gb")
             if np.isfinite(self.frbs["Gl"].values[0]) and np.isfinite(self.frbs["Gb"].values[0]):
@@ -681,9 +680,10 @@ class Survey:
             self.DMGs=DMGs
 
     def init_beam(self,plot=False,
-                  method=1,thresh=1e-3,Gauss=False):
+                  method=1,thresh=1e-3):
         """ Initialises the beam """
-        if Gauss:
+        # Gaussian beam if method == 0
+        if method==0:
             b,omegab=beams.gauss_beam(thresh=thresh,
                                       nbins=self.meta["NBINS"],
                                       freq=self.meta["FBAR"],D=self.meta["DIAM"])
@@ -969,7 +969,6 @@ def make_widths(s:Survey,state):
     slogsigma=state.scat.Slogsigma
     sfnorm=state.scat.Sfnorm
     sfpower=state.scat.Sfpower
-    
     
     # constant of DM
     k_DM=4.149 #ms GHz^2 pc^-1 cm^3

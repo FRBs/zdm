@@ -191,7 +191,7 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=False,Pn=True,do
         DMobs=survey.DMEGs[survey.nozlist]
     else:
         raise ValueError("No non-localised FRBs in this survey, cannot calculate 1D likelihoods")
-    
+
     # start by collapsing over z
     # TODO: this is slow - should collapse only used columns
     pdm=np.sum(rates,axis=0)
@@ -206,7 +206,8 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=False,Pn=True,do
         # Linear interpolation
         pvals=pdm[idms1]*(1.-dkdms) + pdm[idms2]*dkdms
     else:
-        dm_weights, iweights = calc_DMG_weights(DMobs, survey.DMGs[survey.nozlist], grid.state.MW.uDMG, dmvals)
+        # Need to pass DMEGs_obs instead of DMEGs for cases where DMEGs_obs is negaative (DMEGs defaults to 5 pc/cm^3)
+        dm_weights, iweights = calc_DMG_weights(survey.DMEGs_obs[survey.nozlist], survey.DMGs[survey.nozlist], grid.state.MW.uDMG, dmvals)
         pvals = np.zeros(len(idms1))
         for i in range(len(idms1)):
             pvals[i]=np.sum(pdm[iweights[i]]*dm_weights[i])
@@ -530,7 +531,8 @@ def calc_likelihoods_2D(grid,survey,
         pvals += rates[izs1,idms2]*dkdms*(1-dkzs)
         pvals += rates[izs2,idms2]*dkdms*dkzs
     else:
-        dm_weights, iweights = calc_DMG_weights(DMobs, survey.DMGs[survey.zlist], grid.state.MW.uDMG, dmvals)
+        # Need to pass DMEGs_obs for cases where it is negative (DMEGs will default to 5 pc/cm^3)
+        dm_weights, iweights = calc_DMG_weights(survey.DMEGs_obs[survey.zlist], survey.DMGs[survey.zlist], grid.state.MW.uDMG, dmvals)
         pvals = np.zeros(len(izs1))
         for i in range(len(izs1)):
             pvals[i] = np.sum(rates[izs1[i],iweights[i]] * dm_weights[i] * (1.-dkzs[i]) 
@@ -723,7 +725,6 @@ def calc_likelihoods_2D(grid,survey,
         # the normalisation - should be the un-normalised values.
         
         wzpsnr /= pvals
-        
         
         # keeps individual FRB values
         longlist += np.log10(wzpsnr)
