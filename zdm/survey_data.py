@@ -190,13 +190,25 @@ class Observing(data_class.myDataClass):
     TOBS: float = field(
         default=None, 
         metadata={'help': "Total observing time", 
-                  'unit': 'hours', 
+                  'unit': 'days', 
                   'Notation': '',
                   })
-    DM_MAX: float = field(
+    MAX_DM: float = field(
         default=None, 
-        metadata={'help': "Ignore localisations above this DM", 
+        metadata={'help': "Maximum searched DM", 
                   'unit': 'pc/cm**3', 
+                  'Notation': '',
+                  })
+    MAX_IDT: int = field(
+        default=None,
+        metadata={'help': "Maximum number of time samples seaarched (4096 for CRAFT ICS)",
+                  'unit': '',
+                  'Notation': '',
+                  })
+    DISCARD_Zs: bool = field(
+        default=False,
+        metadata={'help': "Ignore localisations above the DM of the lowest, unlocalised source",
+                  'unit': '',
                   'Notation': '',
                   })
 

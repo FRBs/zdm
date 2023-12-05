@@ -498,7 +498,8 @@ class Survey:
         self.process_survey_file(filename, NFRB, iFRB)
         # DM EG
         self.init_DMEG(state.MW.DMhalo)
-        
+        # Zs
+        self.init_zs()
         # Allows survey metadata to over-ride parameter defaults if present.
         # This is required when mixing CHIME and non-CHIME FRBs
         beam_method = self.meta['BMETHOD']
@@ -517,9 +518,54 @@ class Survey:
     def init_DMEG(self,DMhalo):
         """ Calculates extragalactic DMs assuming halo DM """
         self.DMhalo=DMhalo
-        self.DMEGs_obs=self.DMs-self.DMGs-DMhalo
-        self.DMEGs = np.copy(self.DMEGs_obs)
-        self.DMEGs[self.DMEGs < 0] = 10. # Minimum value of 10. pc/cm^3
+        self.DMEGs=self.DMs-self.DMGs-DMhalo
+        # self.DMEGs_obs=self.DMs-self.DMGs-DMhalo
+        # self.DMEGs = np.copy(self.DMEGs_obs)
+        # self.DMEGs[self.DMEGs < 0] = 10. # Minimum value of 10. pc/cm^3
+    
+    def init_zs(self):
+        """Gets zlist and nozlist and determines which z values to use"""
+         # Ignore localisations above the minimum unlocalised DM
+        if self.meta["DISCARD_Zs"] == True:
+            nozlist = np.where(self.frbs["Z"] < 0.)[0]
+            if len(nozlist != 0):
+                min_noz = np.min(self.DMEGs[nozlist])
+
+                high_dm = np.where(self.DMEGs > min_noz)[0]
+                # print(self.frbs["Z"].values)
+                self.frbs["Z"].values[high_dm] = -1.0
+                # print(self.frbs["Z"].values)
+                # print(self.DMEGs)
+                print("Ignoring localisations with DMEG > " + str(min_noz))
+
+        # Pandas resolves None to Nan
+        if len(self.frbs["Z"])>0 and np.isfinite(self.frbs["Z"][0]):
+            
+            self.Zs=self.frbs["Z"].values
+            # checks for any redhsifts identically equal to zero
+            #exactly zero can be bad... only happens in MC generation
+            # 0.001 is chosen as smallest redshift in original fit
+            zeroz = np.where(self.Zs == 0.)[0]
+            if len(zeroz) >0:
+                self.Zs[zeroz]=0.001
+            
+            # checks to see if there are any FRBs which are localised
+            self.zlist = np.where(self.Zs > 0.)[0]
+            if len(self.zlist) < self.NFRB:
+                self.nozlist = np.where(self.Zs < 0.)[0]
+                if len(self.nozlist) == len(self.Zs):
+                    self.nD=1 # they all had -1 as their redshift!
+                    self.zlist=None
+                else:
+                    self.nD=3 # code for both
+            else:
+                self.nozlist = None
+                self.nD=2
+        else:
+            self.nD=1
+            self.Zs=None
+            self.nozlist=np.arange(self.NFRB)
+            self.zlist=None
 
     def process_survey_file(self,filename:str, 
                             NFRB:int=None,
@@ -581,40 +627,6 @@ class Survey:
         
         # Vet
         vet_frb_table(self.frbs, mandatory=True)
-        
-        # Change FRBs exceeding DM_MAX to unlocalised
-        if self.meta["DM_MAX"] != None:
-            high_dm = np.where(self.frbs["DM"] > self.meta["DM_MAX"])[0]
-            self.frbs["Z"].values[high_dm] = -1.0
-
-        # Pandas resolves None to Nan
-        if len(self.frbs["Z"])>0 and np.isfinite(self.frbs["Z"][0]):
-            
-            self.Zs=self.frbs["Z"].values
-            # checks for any redhsifts identically equal to zero
-            #exactly zero can be bad... only happens in MC generation
-            # 0.001 is chosen as smallest redshift in original fit
-            zeroz = np.where(self.Zs == 0.)[0]
-            if len(zeroz) >0:
-                self.Zs[zeroz]=0.001
-            
-            # checks to see if there are any FRBs which are localised
-            self.zlist = np.where(self.Zs > 0.)[0]
-            if len(self.zlist) < self.NFRB:
-                self.nozlist = np.where(self.Zs < 0.)[0]
-                if len(self.nozlist) == len(self.Zs):
-                    self.nD=1 # they all had -1 as their redshift!
-                    self.zlist=None
-                else:
-                    self.nD=3 # code for both
-            else:
-                self.nozlist = None
-                self.nD=2
-        else:
-            self.nD=1
-            self.Zs=None
-            self.nozlist=np.arange(self.NFRB)
-            self.zlist=None
         
         print("Loaded FRB info")
         
@@ -756,6 +768,8 @@ class Survey:
                 self.meta['FBAR'],
                 self.meta['TRES'],
                 self.meta['FRES'],
+                max_idt=self.meta['MAX_IDT'],
+                max_dm=self.meta['MAX_DM'],
                 model=model,
                 dsmear=False,
                 edir=edir)
@@ -780,7 +794,7 @@ class Survey:
         
 # implements something like Mawson's formula for sensitivity
 # t_res in ms
-def calc_relative_sensitivity(DM_frb,DM,w,fbar,t_res,nu_res,Nchan=336,max_idt=4096,model='Quadrature',dsmear=True,edir=''):
+def calc_relative_sensitivity(DM_frb,DM,w,fbar,t_res,nu_res,Nchan=336,max_idt=None,max_dm=None,model='Quadrature',dsmear=True,edir=''):
     """ Calculates DM-dependent sensitivity
     
     This function adjusts sensitivity to a given burst as a function of DM.
@@ -847,12 +861,16 @@ def calc_relative_sensitivity(DM_frb,DM,w,fbar,t_res,nu_res,Nchan=336,max_idt=40
             sensitivity=0.75*(0.93*dm_smearing + uw + 0.35*t_res)**-0.5
         # calculates relative sensitivity to bursts as a function of DM
 
-        f_low = fbar - (Nchan/2. - 1)*nu_res
-        f_high = fbar + (Nchan/2. - 1)*nu_res
-        max_dt = t_res * max_idt   # FREDDA searches up to 4096 time bins
-        max_dm = max_dt / (k_DM * ((f_low/1e3)**(-2) - (f_high/1e3)**(-2)))
+        # Set sensitivity to 0 above the maximum searched DM
+        if max_dm != None:
+            sensitivity[DM > max_dm] = 1e-2 # Effectively 0 but not small enough to break it...
+        if max_idt != None:
+            f_low = fbar - (Nchan/2. - 1)*nu_res
+            f_high = fbar + (Nchan/2. - 1)*nu_res
+            max_dt = t_res * max_idt   # FREDDA searches up to 4096 time bins
+            max_dm2 = max_dt / (k_DM * ((f_low/1e3)**(-2) - (f_high/1e3)**(-2)))
 
-        sensitivity[DM > max_dm] = 1e-10
+            sensitivity[DM > max_dm2] = 1e-2 # Effectively 0 but not small enough to break it...
     
     # If model not CHIME, Quadrature or Sammons assume it is a filename
     else:
@@ -863,7 +881,7 @@ def calc_relative_sensitivity(DM_frb,DM,w,fbar,t_res,nu_res,Nchan=336,max_idt=40
 
         # Should contain DM in the first row and efficiencies in the second row
         sensitivity_array = np.load(filename)
-        sensitivity = np.interp(DM, sensitivity_array[0,:], sensitivity_array[1,:], right=1e-10)
+        sensitivity = np.interp(DM, sensitivity_array[0,:], sensitivity_array[1,:], right=1e-2)
 
     return sensitivity
     

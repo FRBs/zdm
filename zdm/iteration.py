@@ -206,8 +206,7 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=False,Pn=True,do
         # Linear interpolation
         pvals=pdm[idms1]*(1.-dkdms) + pdm[idms2]*dkdms
     else:
-        # Need to pass DMEGs_obs instead of DMEGs for cases where DMEGs_obs is negaative (DMEGs defaults to 5 pc/cm^3)
-        dm_weights, iweights = calc_DMG_weights(survey.DMEGs_obs[survey.nozlist], survey.DMGs[survey.nozlist], grid.state.MW.uDMG, dmvals)
+        dm_weights, iweights = calc_DMG_weights(DMobs, survey.DMGs[survey.nozlist], grid.state.MW.uDMG, dmvals)
         pvals = np.zeros(len(idms1))
         for i in range(len(idms1)):
             pvals[i]=np.sum(pdm[iweights[i]]*dm_weights[i])
@@ -531,8 +530,7 @@ def calc_likelihoods_2D(grid,survey,
         pvals += rates[izs1,idms2]*dkdms*(1-dkzs)
         pvals += rates[izs2,idms2]*dkdms*dkzs
     else:
-        # Need to pass DMEGs_obs for cases where it is negative (DMEGs will default to 5 pc/cm^3)
-        dm_weights, iweights = calc_DMG_weights(survey.DMEGs_obs[survey.zlist], survey.DMGs[survey.zlist], grid.state.MW.uDMG, dmvals)
+        dm_weights, iweights = calc_DMG_weights(DMobs, survey.DMGs[survey.zlist], grid.state.MW.uDMG, dmvals)
         pvals = np.zeros(len(izs1))
         for i in range(len(izs1)):
             pvals[i] = np.sum(rates[izs1[i],iweights[i]] * dm_weights[i] * (1.-dkzs[i]) 
@@ -767,12 +765,12 @@ def calc_likelihoods_2D(grid,survey,
     elif dolist==5:
         return llsum,lllist,expected,dolist5_return
 
-def calc_DMG_weights(DMobs, DMGs, uDMGs, dmvals, n_sig=3):
+def calc_DMG_weights(DMEGs, DMGs, uDMGs, dmvals, n_sig=3):
     """
     Given an uncertainty on the DMG value, calculate the weights of DM values to integrate over
 
     Inputs:
-        DMobs = Observed DM
+        DMEGs = Extragalactic DMs
         DMGs = Array of each DM_ISM value
         uDMGs = Fractional uncertainty in DMG values
         dmvals = Vector of DM values used
@@ -791,17 +789,24 @@ def calc_DMG_weights(DMobs, DMGs, uDMGs, dmvals, n_sig=3):
         uDMG = DMG * uDMGs
 
         # Determine lower and upper DM values used
-        min = DMobs[i] - n_sig*uDMG
-        max = DMobs[i] + n_sig*uDMG
+        delta = n_sig*uDMG
+        min = DMEGs[i] - delta
+        # actual DMG can't be less than 0, so if delta is larger than DMG:
+        # DMEG = DM_tot - DMG - DMhalo
+        # DMEG_max = DM_tot - DMhalo = DMEG + DMG
+        if delta > DMG:
+            max = DMEGs[i] + DMG
+        else:
+            max = DMEGs[i] + delta
 
-        # Determine indices of where the DM vector
+        # Determine indices of where the DM is between min and max
         mask = (dmvals > min) * (dmvals < max)
         idxs = np.where(mask)
 
         # Get weights
         x = dmvals[idxs]
-        weight = st.norm.pdf(x, loc=DMobs[i], scale=uDMG)
-        weight = weight / np.sum(weight)
+        weight = st.norm.pdf(x, loc=DMEGs[i], scale=uDMG)
+        weight = weight / np.sum(weight)    # Re-normalise
         weights.append(weight)
         iweights.append(idxs)
 
