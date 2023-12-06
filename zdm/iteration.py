@@ -168,7 +168,7 @@ def maximise_likelihood(grid,survey):
 
 
 
-def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=False,Pn=True,dolist=0):
+def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=False,Pn=True,dolist=0,repeaters=False,singles=False):
     """ Calculates 1D likelihoods using only observedDM values
     Here, Zfrbs is a dummy variable allowing it to be treated like a 2D function
     for purposes of calling.
@@ -202,11 +202,11 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=False,Pn=True,do
     idms2=idms1+1
     dkdms=kdms-idms1
 
-    if grid.state.MW.uDMG == 0.0:
+    if grid.state.MW.sigmaDMG == 0.0:
         # Linear interpolation
         pvals=pdm[idms1]*(1.-dkdms) + pdm[idms2]*dkdms
     else:
-        dm_weights, iweights = calc_DMG_weights(DMobs, survey.DMGs[survey.nozlist], grid.state.MW.uDMG, dmvals)
+        dm_weights, iweights = calc_DMG_weights(DMobs, survey.DMGs[survey.nozlist], grid.state.MW.sigmaDMG, dmvals)
         pvals = np.zeros(len(idms1))
         for i in range(len(idms1)):
             pvals[i]=np.sum(pdm[iweights[i]]*dm_weights[i])
@@ -268,7 +268,7 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=False,Pn=True,do
         
         # get vector of thresholds as function of z and threshold/weight list
         # note that the dimensions are, nthresh (weights), z, DM
-        if grid.state.MW.uDMG == 0.0:
+        if grid.state.MW.sigmaDMG == 0.0:
             # Linear interpolation
             Eths = grid.thresholds[:,:,idms1]*(1.-dkdms)+ grid.thresholds[:,:,idms2]*dkdms
         else:
@@ -523,14 +523,14 @@ def calc_likelihoods_2D(grid,survey,
     
     # Calculate probability
 
-    if grid.state.MW.uDMG == 0.0:
+    if grid.state.MW.sigmaDMG == 0.0:
         # Linear interpolation
         pvals = rates[izs1,idms1]*(1.-dkdms)*(1-dkzs)
         pvals += rates[izs2,idms1]*(1.-dkdms)*dkzs
         pvals += rates[izs1,idms2]*dkdms*(1-dkzs)
         pvals += rates[izs2,idms2]*dkdms*dkzs
     else:
-        dm_weights, iweights = calc_DMG_weights(DMobs, survey.DMGs[survey.zlist], grid.state.MW.uDMG, dmvals)
+        dm_weights, iweights = calc_DMG_weights(DMobs, survey.DMGs[survey.zlist], grid.state.MW.sigmaDMG, dmvals)
         pvals = np.zeros(len(izs1))
         for i in range(len(izs1)):
             pvals[i] = np.sum(rates[izs1[i],iweights[i]] * dm_weights[i] * (1.-dkzs[i]) 
@@ -652,7 +652,7 @@ def calc_likelihoods_2D(grid,survey,
         gamma=grid.state.energy.gamma
         #Eths has dimensions of width likelihoods and nobs
         # i.e. later, the loop over j,w uses the first index
-        if grid.state.MW.uDMG == 0.0:
+        if grid.state.MW.sigmaDMG == 0.0:
             # Linear interpolation
             Eths = grid.thresholds[:,izs1,idms1]*(1.-dkdms)*(1-dkzs)
             Eths += grid.thresholds[:,izs2,idms1]*(1.-dkdms)*dkzs
@@ -765,14 +765,14 @@ def calc_likelihoods_2D(grid,survey,
     elif dolist==5:
         return llsum,lllist,expected,dolist5_return
 
-def calc_DMG_weights(DMEGs, DMGs, uDMGs, dmvals, n_sig=3):
+def calc_DMG_weights(DMEGs, DMGs, sigmaDMGs, dmvals, n_sig=3):
     """
     Given an uncertainty on the DMG value, calculate the weights of DM values to integrate over
 
     Inputs:
         DMEGs = Extragalactic DMs
         DMGs = Array of each DM_ISM value
-        uDMGs = Fractional uncertainty in DMG values
+        sigmaDMGs = Fractional uncertainty in DMG values
         dmvals = Vector of DM values used
         n_sig = number of standard deviations to integrate over
 
@@ -786,10 +786,10 @@ def calc_DMG_weights(DMEGs, DMGs, uDMGs, dmvals, n_sig=3):
     # Loop through the DMG of each FRB in the survey and determine the weights
     for i,DMG in enumerate(DMGs):
         # Get absolute uncertainty in DMG
-        uDMG = DMG * uDMGs
+        sigmaDMG = DMG * sigmaDMGs
 
         # Determine lower and upper DM values used
-        delta = n_sig*uDMG
+        delta = n_sig*sigmaDMG
         min = DMEGs[i] - delta
         # actual DMG can't be less than 0, so if delta is larger than DMG:
         # DMEG = DM_tot - DMG - DMhalo
@@ -805,7 +805,7 @@ def calc_DMG_weights(DMEGs, DMGs, uDMGs, dmvals, n_sig=3):
 
         # Get weights
         x = dmvals[idxs]
-        weight = st.norm.pdf(x, loc=DMEGs[i], scale=uDMG)
+        weight = st.norm.pdf(x, loc=DMEGs[i], scale=sigmaDMG)
         weight = weight / np.sum(weight)    # Re-normalise
         weights.append(weight)
         iweights.append(idxs)

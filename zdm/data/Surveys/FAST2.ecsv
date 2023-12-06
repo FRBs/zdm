@@ -20,7 +20,7 @@
 # - {name: Z, datatype: string, subtype: 'float64[null]'}
 # meta: !!omap
 # - {survey_data: '{"observing": {"NORM_FRB": 5, "TOBS": 2.59, "MAX_DM": 3700}, "telescope": {"BEAM": "parkes_mb_log", "DIAM": 300.0, "NBEAMS": 19,
-#     "NBINS": 1}}'}
+#     "NBINS": 10}}'}
 # schema: astropy-2.0
 TNS BW DM DMG FBAR FRES Gb Gl NREP SNR SNRTHRESH THRESH TRES WIDTH XDec XRA Z
 210126 500.0 1990.4 724.0 1250.0 0.122 "" "" 1 13.60 7.0 0.0146 0.196608 10.8 "" "" ""

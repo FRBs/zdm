@@ -205,10 +205,10 @@ class Observing(data_class.myDataClass):
                   'unit': '',
                   'Notation': '',
                   })
-    DISCARD_Zs: bool = field(
-        default=False,
-        metadata={'help': "Ignore localisations above the DM of the lowest, unlocalised source",
-                  'unit': '',
+    MAX_LOC_DMEG: int = field(
+        default=-1,
+        metadata={'help': "Ignore zs with DMEG larger than 'x'. \n-1: Use all zs \n0: 'x' = smallest DMEG for an FRB without a z \n>0: 'x' = this value",
+                  'unit': 'pc/cm**3',
                   'Notation': '',
                   })
 

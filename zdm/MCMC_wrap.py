@@ -23,26 +23,37 @@ import json
 
 parser = argparse.ArgumentParser()
 parser.add_argument(dest='files', nargs='+', help="Survey file names")
-parser.add_argument('-i','--initialise', default=None, type=str, help="Prefix used to initialise survey")
+parser.add_argument('-i','--initialise', default=None, type=str, help="Save surveys and grids with Pickle")
 parser.add_argument('-p','--pfile', default=None , type=str, help="File defining parameter ranges")
 parser.add_argument('-o','--opfile', default=None, type=str, help="Output file for the data")
 parser.add_argument('-w', '--walkers', default=20, type=int, help="Number of MCMC walkers")
 parser.add_argument('-s', '--steps', default=100, type=int, help="Number of MCMC steps")
-parser.add_argument('-n', '--ncpus', default=1, type=int, help="Number of CPU cores (used to determine number of parallel processes)")
+parser.add_argument('-n', '--nthreads', default=1, type=int, help="Number of threads")
 args = parser.parse_args()
 
 # Check correct flags are specified
 if args.pfile is None or args.opfile is None:
     if not (args.pfile is None and args.opfile is None):
-        print("All flags (except -i optional) are required unless this is only for initialisation in which case only -i should be specified.")
+        print("-p and -o flags are required")
         exit()
 
 #==============================================================================
 
 def main(args):
+    """
+    Handles the setup for MCMC runs. This involves reading / creating the
+    surveys and grids, reading the parameters and prior ranges and then 
+    beginning the MCMC run.
+
+    Inputs:
+        args = Command line parameters
+    
+    Outputs:
+        None
+    """
+
     names=args.files
     prefix=args.initialise
-
 
     ############## Initialise cosmology ##############
     # Location for maximisation output
@@ -55,8 +66,7 @@ def main(args):
     zDMgrid, zvals,dmvals=get_zdm_grid(state,new=True,plot=False,method='analytic',save=True,datdir='MCMCData')
     
     ############## Initialise surveys ##############
-
-    if not os.path.exists('Pickle/'+prefix+'surveys.pkl'):
+    if prefix is None or not os.path.exists('Pickle/'+prefix+'surveys.pkl'):
         # Initialise surveys
         surveys = []
         for name in names:
@@ -107,7 +117,7 @@ def main(args):
         # Select from dictionary the necessary parameters to be changed
         params = {k: mcmc_dict[k] for k in mcmc_dict['mcmc']['parameter_order']}
 
-        mcmc_likelihoods(outdir + args.opfile, args.walkers, args.steps, params, surveys, grids, ncpus=args.ncpus)
+        mcmc_runner(calc_log_posterior, outdir + args.opfile, params, surveys, grids, nwalkers=args.walkers, nsteps=args.steps, nthreads=args.nthreads)
     else:
         print("No parameter or output file provided. Assuming only initialising and no MCMC running is done.")
 

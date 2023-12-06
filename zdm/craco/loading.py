@@ -108,7 +108,10 @@ def survey_and_grid(survey_name:str='CRAFT/CRACO_1_5000',
             0=power-law, 1=gamma, 2=gamma+spline.  Defaults to 0.
         state_dict (dict, optional):
             Used to init state instead of alpha_method, lum_func parameters
-
+        sdir (string, optional): Directory containing surveys
+        edir (string, optional): 
+            Directory containing efficiency files if using FRB-specific responses
+            
     Raises:
         IOError: [description]
 

@@ -87,7 +87,8 @@ def set_state(alpha_method=1, cosmo=Planck18):
 def surveys_and_grids(init_state=None, alpha_method=1, 
                       survey_names=None,
                       add_20220610A=False,
-                      nz:int=2000, ndm:int=5600): 
+                      nz:int=2000, ndm:int=5600,
+                      edir=''): 
     """ Load up a survey and grid for a real dataset
 
     Args:
@@ -104,6 +105,8 @@ def surveys_and_grids(init_state=None, alpha_method=1,
             Number of redshift bins
         ndm (int, optional):
             Number of DM bins
+        edir (string, optional):
+            Directory containing efficiency files if using FRB-specific responses
 
     Raises:
         IOError: [description]
@@ -143,7 +146,7 @@ def surveys_and_grids(init_state=None, alpha_method=1,
         print(f"Initializing {survey_name}")
         surveys.append(survey.load_survey(survey_name, 
                                           state, dmvals,
-                                          nbins=nbeam))
+                                          nbins=nbeam, edir=edir))
     print("Initialised surveys")
 
     # generates zdm grid

@@ -1,7 +1,7 @@
 """
 File: MCMC.py
 Author: Jordan Hoffmann
-Date: 28/09/23
+Date: 06/12/23
 Purpose: 
     Contains functions used for MCMC runs of the zdm code. MCMC_wrap.py is the 
     main function which does the calling and this holds functions which do the 
@@ -23,22 +23,21 @@ from zdm.misc_functions import *
 
 #==============================================================================
 
-def mcmc_likelihoods(outfile:str, walkers:int, steps:int, params, surveys, grids, ncpus=1):
-    posterior_sample = mcmc_runner(calc_log_posterior, outfile, params, surveys, grids, nwalkers=walkers, nsteps=steps, ncpus=ncpus)
-
-    posterior_dict = {}
-    for i,k in enumerate(params):
-        posterior_dict[k] = posterior_sample[:,:,i]
-    
-    with open(outfile+'.pkl', 'wb') as fp:
-        pickle.dump(posterior_dict, fp, pickle.HIGHEST_PROTOCOL)
-    # np.save(outfile,posterior_sample)
-
-    return
-
-#==============================================================================
-
 def calc_log_posterior(param_vals, params, surveys, grids):
+    """
+    Calculates the log posterior for a given set of parameters. Assumes uniform
+    priors between the minimum and maximum values provided in 'params'.
+
+    Inputs:
+        param_vals  =   Array of the parameter values for this step
+        params      =   Dictionary of the parameter names, min and max values
+        surveys     =   List of surveys being used
+        grids       =   List of grids corresponding to the surveys
+    
+    Outputs:
+        llsum       =   Total log likelihood for param_vals which is equivalent
+                        to log posterior (un-normalised) due to uniform priors
+    """
 
     t0 = time.time()
     # Can use likelihoods instead of posteriors because we only use uniform priors which just changes normalisation of posterior 
@@ -87,7 +86,25 @@ def calc_log_posterior(param_vals, params, surveys, grids):
 
 #==============================================================================
 
-def mcmc_runner(logpf, outfile, params, surveys, grids, nwalkers=10, nsteps=100, ncpus=1):
+def mcmc_runner(logpf, outfile, params, surveys, grids, nwalkers=10, nsteps=100, nthreads=1):
+    """
+    Handles the MCMC running.
+
+    Inputs:
+        logpf       =   Log posterior function handle
+        outfile     =   Name of the output file (excluding .h5 extension)
+        params      =   Dictionary of the parameter names, min and max values
+        surveys     =   List of surveys being used
+        grids       =   List of grids corresponding to the surveys
+        nwalkers    =   Number of walkers
+        nsteps      =   Number of steps per walker
+        nthreads    =   Number of threads to use for parallelised runs
+    
+    Outputs:
+        posterior_sample    =   Final sample
+        outfile.h5          =   HDF5 file containing the sampler
+    """
+        
     ndim = len(params)
     starting_guesses = []
 
@@ -102,7 +119,7 @@ def mcmc_runner(logpf, outfile, params, surveys, grids, nwalkers=10, nsteps=100,
     backend.reset(nwalkers, ndim)
 
     start = time.time()
-    with mp.Pool(ncpus) as pool:
+    with mp.Pool(nthreads) as pool:
         sampler = emcee.EnsembleSampler(nwalkers, ndim, logpf, args=[params, surveys, grids], backend=backend, pool=pool)
         sampler.run_mcmc(starting_guesses, nsteps, progress=True)
     end = time.time()
@@ -115,6 +132,16 @@ def mcmc_runner(logpf, outfile, params, surveys, grids, nwalkers=10, nsteps=100,
 #==============================================================================
 
 def get_likelihood(grid, s):
+    """
+    Returns the likelihood for the grid given the survey.
+
+    Inputs:
+        grid    =   Grid used
+        s       =   Survey to compare with the grid
+    
+    Outputs:
+        llsum   =   Total loglikelihood for the grid
+    """
 
     if s.nD==1:
         llsum1, lllist, expected = it.calc_likelihoods_1D(grid, s, psnr=True, dolist=1)

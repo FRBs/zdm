@@ -525,18 +525,20 @@ class Survey:
     
     def init_zs(self):
         """Gets zlist and nozlist and determines which z values to use"""
-         # Ignore localisations above the minimum unlocalised DM
-        if self.meta["DISCARD_Zs"] == True:
+
+        # Ignore redshifts above MAX_LOC_DMEG
+        self.min_noz = self.meta["MAX_LOC_DMEG"]
+        # Ignore redshifts above the minimum unlocalised DM if MAX_LOC_DMEG==0
+        if self.min_noz == 0:
             nozlist = np.where(self.frbs["Z"] < 0.)[0]
             if len(nozlist != 0):
-                min_noz = np.min(self.DMEGs[nozlist])
+                self.min_noz = np.min(self.DMEGs[nozlist])
 
-                high_dm = np.where(self.DMEGs > min_noz)[0]
-                # print(self.frbs["Z"].values)
-                self.frbs["Z"].values[high_dm] = -1.0
-                # print(self.frbs["Z"].values)
-                # print(self.DMEGs)
-                print("Ignoring localisations with DMEG > " + str(min_noz))
+        # Do not get rid of redshifts if MAX_LOC_DMEG==-1
+        if self.min_noz >= 0:
+            high_dm = np.where(self.DMEGs > self.min_noz)[0]
+            self.frbs["Z"].values[high_dm] = -1.0
+            print("Ignoring redshifts with DMEG > " + str(self.min_noz))
 
         # Pandas resolves None to Nan
         if len(self.frbs["Z"])>0 and np.isfinite(self.frbs["Z"][0]):
@@ -674,7 +676,7 @@ class Survey:
         """ Estimates galactic DM according to
         Galactic lat and lon only if not otherwise provided
         """
-        if not np.isfinite(self.frbs["DMG"].values[0]):
+        if len(self.frbs["TNS"].values) != 0 and not np.isfinite(self.frbs["DMG"].values[0]):
             print("Checking Gl and Gb")
             if np.isfinite(self.frbs["Gl"].values[0]) and np.isfinite(self.frbs["Gb"].values[0]):
                 raise ValueError('Can not estimate Galactic contributions.\
@@ -1026,7 +1028,7 @@ def make_widths(s:Survey,state):
         # this is done for tests, for complex surveys such as CHIME,
         # or for estimating the properties of a single FRB
         weights.append(1.)
-        widths.append(np.exp(slogmean)) #NOTE: should this be wlogmean??
+        widths.append(np.exp(wlogmean))
     elif width_method==1:
         # take intrinsic lognrmal width distribution only
         # normalisation of a log-normal
