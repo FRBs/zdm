@@ -1160,7 +1160,6 @@ def load_survey(survey_name:str, state:parameters.State,
     # Hard code real surveys
     if survey_name == 'CRAFT/FE':
         dfile = 'CRAFT_class_I_and_II'
-        dfile = 'DSA2'
     elif survey_name == 'CRAFT/ICS':
         dfile = 'CRAFT_ICS'
     elif survey_name == 'CRAFT/ICS892':
@@ -1254,6 +1253,9 @@ def refactor_old_survey_file(survey_name:str, outfile:str,
         
     # Observing
     for field in srvy_data.observing.fields:
+        if not (field in isurvey.meta) or isurvey.meta[field] is None:
+            isurvey.meta[field]='-1'
+            print("Could not find field ",field," setting to -1")
         if field !='NORM_FRB' or 'NORM_FRB' in isurvey.meta:
             setattr(srvy_data.observing,field, srvy_data.observing.__dataclass_fields__[field].type(
                 isurvey.meta[field]))
