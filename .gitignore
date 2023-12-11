@@ -20,8 +20,12 @@ tmp.npy
 *.npy
 *.dat
 *.csv
+*.h5
+*.pkl
 
 # Distribution / packaging
+.zdm_env/
+requirements.txt
 .Python
 build/
 develop-eggs/

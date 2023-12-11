@@ -41,7 +41,7 @@ class OldSurvey:
         #self.fbar= #mean frequency
         #self.sens_meth="None"
     
-    def get_efficiency(self,DMlist,model="Quadrature",dsmear=True):
+    def get_efficiency(self,DMlist,model="Quadrature",dsmear=True,edir=''):
         """ Gets efficiency to FRBs
         Returns a list of relative efficiencies
         as a function of dispersion measure for each FRB.
@@ -49,7 +49,7 @@ class OldSurvey:
         efficiencies=np.zeros([self.NFRB,DMlist.size])
         for i in np.arange(self.NFRB):
             efficiencies[i,:]=calc_relative_sensitivity(self.DMs[i],DMlist,self.WIDTHs[i],
-                self.FBARs[i],self.TRESs[i],self.FRESs[i],model=model,dsmear=dsmear)
+                self.FBARs[i],self.TRESs[i],self.FRESs[i],model=model,dsmear=dsmear,edir=edir)
         # keep an internal record of this
         self.efficiencies=efficiencies
         self.DMlist=DMlist
@@ -60,7 +60,8 @@ class OldSurvey:
     
     def get_efficiency_from_wlist(self,DMlist,wlist,plist, 
                                   model="Quadrature", 
-                                  addGalacticDM=True):
+                                  addGalacticDM=True,
+                                  edir=''):
         """ Gets efficiency to FRBs
         Returns a list of relative efficiencies
         as a function of dispersion measure for each width given in wlist
@@ -98,7 +99,8 @@ class OldSurvey:
                 np.median(self.frbs['TRES']),
                 np.median(self.frbs['FRES']),
                 model=model,
-                dsmear=False)
+                dsmear=False,
+                edir=edir)
         # keep an internal record of this
         self.efficiencies=efficiencies
         self.wplist=plist
@@ -477,7 +479,8 @@ class Survey:
                  filename:str, 
                  dmvals:np.ndarray,
                  NFRB:int=None, 
-                 iFRB:int=0):
+                 iFRB:int=0,
+                 edir=''):
         """ Init an FRB Survey class
 
         Args:
@@ -495,7 +498,8 @@ class Survey:
         self.process_survey_file(filename, NFRB, iFRB)
         # DM EG
         self.init_DMEG(state.MW.DMhalo)
-        
+        # Zs
+        self.init_zs()
         # Allows survey metadata to over-ride parameter defaults if present.
         # This is required when mixing CHIME and non-CHIME FRBs
         beam_method = self.meta['BMETHOD']
@@ -509,12 +513,61 @@ class Survey:
         # Efficiency: width_method passed through "self" here
         pwidths,pprobs=make_widths(self, state)
         _ = self.get_efficiency_from_wlist(dmvals,
-                                       pwidths,pprobs,model=width_bias) 
+                                       pwidths,pprobs,model=width_bias, edir=edir) 
 
     def init_DMEG(self,DMhalo):
         """ Calculates extragalactic DMs assuming halo DM """
         self.DMhalo=DMhalo
         self.DMEGs=self.DMs-self.DMGs-DMhalo
+        # self.DMEGs_obs=self.DMs-self.DMGs-DMhalo
+        # self.DMEGs = np.copy(self.DMEGs_obs)
+        # self.DMEGs[self.DMEGs < 0] = 10. # Minimum value of 10. pc/cm^3
+    
+    def init_zs(self):
+        """Gets zlist and nozlist and determines which z values to use"""
+
+        # Ignore redshifts above MAX_LOC_DMEG
+        self.min_noz = self.meta["MAX_LOC_DMEG"]
+        # Ignore redshifts above the minimum unlocalised DM if MAX_LOC_DMEG==0
+        if self.min_noz == 0:
+            nozlist = np.where(self.frbs["Z"] < 0.)[0]
+            if len(nozlist != 0):
+                self.min_noz = np.min(self.DMEGs[nozlist])
+
+        # Do not get rid of redshifts if MAX_LOC_DMEG==-1
+        if self.min_noz >= 0:
+            high_dm = np.where(self.DMEGs > self.min_noz)[0]
+            self.frbs["Z"].values[high_dm] = -1.0
+            print("Ignoring redshifts with DMEG > " + str(self.min_noz))
+
+        # Pandas resolves None to Nan
+        if len(self.frbs["Z"])>0 and np.isfinite(self.frbs["Z"][0]):
+            
+            self.Zs=self.frbs["Z"].values
+            # checks for any redhsifts identically equal to zero
+            #exactly zero can be bad... only happens in MC generation
+            # 0.001 is chosen as smallest redshift in original fit
+            zeroz = np.where(self.Zs == 0.)[0]
+            if len(zeroz) >0:
+                self.Zs[zeroz]=0.001
+            
+            # checks to see if there are any FRBs which are localised
+            self.zlist = np.where(self.Zs > 0.)[0]
+            if len(self.zlist) < self.NFRB:
+                self.nozlist = np.where(self.Zs < 0.)[0]
+                if len(self.nozlist) == len(self.Zs):
+                    self.nD=1 # they all had -1 as their redshift!
+                    self.zlist=None
+                else:
+                    self.nD=3 # code for both
+            else:
+                self.nozlist = None
+                self.nD=2
+        else:
+            self.nD=1
+            self.Zs=None
+            self.nozlist=np.arange(self.NFRB)
+            self.zlist=None
 
     def process_survey_file(self,filename:str, 
                             NFRB:int=None,
@@ -574,38 +627,8 @@ class Survey:
             themax = max(NFRB+iFRB,self.NFRB)
             self.frbs=self.frbs[iFRB:themax]
         
-        
         # Vet
         vet_frb_table(self.frbs, mandatory=True)
-        
-        # Pandas resolves None to Nan
-        if len(self.frbs["Z"])>0 and np.isfinite(self.frbs["Z"][0]):
-            
-            self.Zs=self.frbs["Z"].values
-            # checks for any redhsifts identically equal to zero
-            #exactly zero can be bad... only happens in MC generation
-            # 0.001 is chosen as smallest redshift in original fit
-            zeroz = np.where(self.Zs == 0.)[0]
-            if len(zeroz) >0:
-                self.Zs[zeroz]=0.001
-            
-            # checks to see if there are any FRBs which are localised
-            self.zlist = np.where(self.Zs > 0.)[0]
-            if len(self.zlist) < self.NFRB:
-                self.nozlist = np.where(self.Zs < 0.)[0]
-                if len(self.nozlist) == len(self.Zs):
-                    self.nD=1 # they all had -1 as their redshift!
-                    self.zlist=None
-                else:
-                    self.nD=3 # code for both
-            else:
-                self.nozlist = None
-                self.nD=2
-        else:
-            self.nD=1
-            self.Zs=None
-            self.nozlist=np.arange(self.NFRB)
-            self.zlist=None
         
         print("Loaded FRB info")
         
@@ -648,13 +671,14 @@ class Survey:
         self.NBEAMS=1
         
         print("FRB survey sucessfully initialised with ",self.NFRB," FRBs starting from", self.iFRB)
-
+    
     def process_dmg(self):
         """ Estimates galactic DM according to
         Galactic lat and lon only if not otherwise provided
         """
-        if self.frbs["DMG"] is None:
-            if self.frbs["Gl"] is None or self.frbs["Gb"] is None:
+        if len(self.frbs["TNS"].values) != 0 and not np.isfinite(self.frbs["DMG"].values[0]):
+            print("Checking Gl and Gb")
+            if np.isfinite(self.frbs["Gl"].values[0]) and np.isfinite(self.frbs["Gb"].values[0]):
                 raise ValueError('Can not estimate Galactic contributions.\
                     Please enter Galactic coordinates, or else manually enter \
                     it as DMG')
@@ -670,9 +694,10 @@ class Survey:
             self.DMGs=DMGs
 
     def init_beam(self,plot=False,
-                  method=1,thresh=1e-3,Gauss=False):
+                  method=1,thresh=1e-3):
         """ Initialises the beam """
-        if Gauss:
+        # Gaussian beam if method == 0
+        if method==0:
             b,omegab=beams.gauss_beam(thresh=thresh,
                                       nbins=self.meta["NBINS"],
                                       freq=self.meta["FBAR"],D=self.meta["DIAM"])
@@ -703,7 +728,8 @@ class Survey:
 
     def get_efficiency_from_wlist(self,DMlist,wlist,plist, 
                                   model="Quadrature", 
-                                  addGalacticDM=True):
+                                  addGalacticDM=True,
+                                  edir=''):
         """ Gets efficiency to FRBs
         Returns a list of relative efficiencies
         as a function of dispersion measure for each width given in wlist
@@ -719,12 +745,16 @@ class Survey:
             list of relative probabilities for FRBs to have widths of wlist
         
         model: method of estimating efficiency as function of width, DM, and time resolution
-            Takes values of "Quadrature" or "Sammons" (from Mawson Sammons summer project)
+            Takes values of "Quadrature", "Sammons" (from Mawson Sammons summer project),
+                            "CHIME" or a file name
         
         addGalacticDM:
             - True: this routine adds in contributions from the MW Halo and ISM, i.e.
                 it acts like DMlist is an extragalactic DM
             - False: just used the supplied DMlist
+        
+        edir:
+            - Directory where efficiency files are contained. Only relevant if specific FRB responses are used
         
         """
         efficiencies=np.zeros([wlist.size,DMlist.size])
@@ -740,8 +770,11 @@ class Survey:
                 self.meta['FBAR'],
                 self.meta['TRES'],
                 self.meta['FRES'],
+                max_idt=self.meta['MAX_IDT'],
+                max_dm=self.meta['MAX_DM'],
                 model=model,
-                dsmear=False)
+                dsmear=False,
+                edir=edir)
         # keep an internal record of this
         self.efficiencies=efficiencies
         self.wplist=plist
@@ -763,7 +796,7 @@ class Survey:
         
 # implements something like Mawson's formula for sensitivity
 # t_res in ms
-def calc_relative_sensitivity(DM_frb,DM,w,fbar,t_res,nu_res,model='Quadrature',dsmear=True):
+def calc_relative_sensitivity(DM_frb,DM,w,fbar,t_res,nu_res,Nchan=336,max_idt=None,max_dm=None,model='Quadrature',dsmear=True,edir=''):
     """ Calculates DM-dependent sensitivity
     
     This function adjusts sensitivity to a given burst as a function of DM.
@@ -782,7 +815,9 @@ def calc_relative_sensitivity(DM_frb,DM,w,fbar,t_res,nu_res,model='Quadrature',d
         fbar: mean frequency of the observation [Mhz]
         t_res: time resolution of the observation [ms]
         nu_res: frequency resolution of the observation [Mhz]
-        model: Quadrature,Sammons, or CHIME: method to calculate bias
+        model: Quadrature,Sammons, or CHIME: method to calculate bias. 
+                NOTE: Quadrature_s and Sammons_s should be input to this function as
+                        just Quadrature and Sammons respectively
         dsmear: subtract DM smearing from measured width to calculate intrinsic
     """
     
@@ -799,34 +834,57 @@ def calc_relative_sensitivity(DM_frb,DM,w,fbar,t_res,nu_res,model='Quadrature',d
         rate = np.polyval(coeffs,ldm)
         # scale rate by assumed Cartesian logN-logS
         sensitivity = rate**(2./3.)
-        return sensitivity
-        
-    # constant of DM; this is ~0.1% accurate, which is good enough here.
-    k_DM=4.149 #ms GHz^2 pc^-1 cm^3
-    
-    # total smearing factor within a channel
-    dm_smearing=2*(nu_res/1.e3)*k_DM*DM/(fbar/1e3)**3 #smearing factor of FRB in the band
-    
-    # this assumes that what we see are measured widths including all the smearing factors
-    # hence we must first adjust for this prior to estimating the DM-dependence
-    # for this we use the *true* DM at which the FRB was observed
-    if dsmear==True:
-        measured_dm_smearing=2*(nu_res/1.e3)*k_DM*DM_frb/(fbar/1e3)**3 #smearing factor of FRB in the band
-        uw=w**2-measured_dm_smearing**2-t_res**2 # uses the quadrature model to calculate intrinsic width uw
-        if uw < 0:
-            uw=0
-        else:
-            uw=uw**0.5
-    else:
-        uw=w
-    
-    if model=='Quadrature':
-        sensitivity=(uw**2+dm_smearing**2+t_res**2)**-0.5
-    elif model=='Sammons':
-        sensitivity=0.75*(0.93*dm_smearing + uw + 0.35*t_res)**-0.5
-    else:
-        raise ValueError(model," is an unknown DM smearing model --- use CHIME, Quadrature, or Sammons")
+
     # calculates relative sensitivity to bursts as a function of DM
+    # Check for Quadrature and Sammons
+    elif model == 'Quadrature' or model == 'Sammons':
+        # constant of DM
+        k_DM=4.149 #ms GHz^2 pc^-1 cm^3
+        
+        # total smearing factor within a channel
+        dm_smearing=2*(nu_res/1.e3)*k_DM*DM/(fbar/1e3)**3 #smearing factor of FRB in the band
+        
+        # this assumes that what we see are measured widths including all the smearing factors
+        # hence we must first adjust for this prior to estimating the DM-dependence
+        # for this we use the *true* DM at which the FRB was observed
+        if dsmear==True:
+            measured_dm_smearing=2*(nu_res/1.e3)*k_DM*DM_frb/(fbar/1e3)**3 #smearing factor of FRB in the band
+            uw=w**2-measured_dm_smearing**2-t_res**2 # uses the quadrature model to calculate intrinsic width uw
+            if uw < 0:
+                uw=0
+            else:
+                uw=uw**0.5
+        else:
+            uw=w
+        
+        if model=='Quadrature':
+            sensitivity=(uw**2+dm_smearing**2+t_res**2)**-0.25
+        elif model=='Sammons':
+            sensitivity=0.75*(0.93*dm_smearing + uw + 0.35*t_res)**-0.5
+        # calculates relative sensitivity to bursts as a function of DM
+
+        # Set sensitivity to 0 above the maximum searched DM
+        if max_dm != None:
+            sensitivity[DM > max_dm] = 1e-2 # Effectively 0 but not small enough to break it...
+        if max_idt != None:
+            f_low = fbar - (Nchan/2. - 1)*nu_res
+            f_high = fbar + (Nchan/2. - 1)*nu_res
+            max_dt = t_res * max_idt   # FREDDA searches up to 4096 time bins
+            max_dm2 = max_dt / (k_DM * ((f_low/1e3)**(-2) - (f_high/1e3)**(-2)))
+
+            sensitivity[DM > max_dm2] = 1e-2 # Effectively 0 but not small enough to break it...
+    
+    # If model not CHIME, Quadrature or Sammons assume it is a filename
+    else:
+        filename = os.path.expanduser(os.path.join(edir, model + ".npy"))
+        
+        if not os.path.exists(filename):
+            raise ValueError("Model is not CHIME, Quadrature or Sammons and hence is expected to be the name of a file containing the efficiencies but " + filename + " does not exist.")
+
+        # Should contain DM in the first row and efficiencies in the second row
+        sensitivity_array = np.load(filename)
+        sensitivity = np.interp(DM, sensitivity_array[0,:], sensitivity_array[1,:], right=1e-2)
+
     return sensitivity
     
 
@@ -932,7 +990,6 @@ def make_widths(s:Survey,state):
     sfnorm=state.scat.Sfnorm
     sfpower=state.scat.Sfpower
     
-    
     # constant of DM
     k_DM=4.149 #ms GHz^2 pc^-1 cm^3
     
@@ -971,7 +1028,7 @@ def make_widths(s:Survey,state):
         # this is done for tests, for complex surveys such as CHIME,
         # or for estimating the properties of a single FRB
         weights.append(1.)
-        widths.append(np.exp(slogmean))
+        widths.append(np.exp(wlogmean))
     elif width_method==1:
         # take intrinsic lognrmal width distribution only
         # normalisation of a log-normal
@@ -1037,6 +1094,14 @@ def make_widths(s:Survey,state):
             # updates widths of bin mins and maxes
             wmin = wmax
             wmax *= scale
+    
+    elif width_method==3:
+        # use specific width of FRB. This requires there to be only a single FRB in the survey
+        if s.meta['NFRB'] != 1:
+            raise ValueError("If width method in make_widths is 3 only one FRB should be specified in the survey but ", str(s.meta['NFRB']), " FRBs were specified")
+        else:
+            weights.append(1.)
+            widths.append(s.frbs['WIDTH'][0])
     else:
         raise ValueError("Width method in make_widths must be 0, 1 or 2, not ",width_method)
     weights[-1] += 1.-wsum #adds defecit here
@@ -1054,7 +1119,8 @@ def load_survey(survey_name:str, state:parameters.State,
                 dmvals:np.ndarray,
                 sdir:str=None, NFRB:int=None, 
                 nbins=None, iFRB:int=0, original:bool=False,
-                dummy=False):
+                dummy=False,
+                edir=''):
     """Load a survey
 
     Args:
@@ -1141,7 +1207,8 @@ def load_survey(survey_name:str, state:parameters.State,
                          survey_name, 
                          os.path.join(sdir, dfile), 
                          dmvals,
-                         NFRB=NFRB, iFRB=iFRB)
+                         NFRB=NFRB, iFRB=iFRB,
+                         edir=edir)
     return srvy
 
 def refactor_old_survey_file(survey_name:str, outfile:str, 
@@ -1186,6 +1253,9 @@ def refactor_old_survey_file(survey_name:str, outfile:str,
         
     # Observing
     for field in srvy_data.observing.fields:
+        if not (field in isurvey.meta) or isurvey.meta[field] is None:
+            isurvey.meta[field]='-1'
+            print("Could not find field ",field," setting to -1")
         if field !='NORM_FRB' or 'NORM_FRB' in isurvey.meta:
             setattr(srvy_data.observing,field, srvy_data.observing.__dataclass_fields__[field].type(
                 isurvey.meta[field]))

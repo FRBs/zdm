@@ -23,7 +23,7 @@ from matplotlib import pyplot as plt
 def main():
 
     # in case you wish to switch to another output directory
-    opdir = "Localised_FRBs/"
+    opdir = "DSA_zdm/"
     if not os.path.exists(opdir):
         os.mkdir(opdir)
 
@@ -40,11 +40,12 @@ def main():
     # names = ["FAST", "Arecibo", "parkes_mb_class_I_and_II"]
     
     sdir = "../data/Surveys/"
-    names = ["parkes_mb_class_I_and_II"]
+    # names = ["private_CRAFT_ICS_1632"]
+    names = ["parkes_mb_class_I_and_II", "DSA3"]
 
     # if True, this generates a summed histogram of all the surveys, weighted by
     # the observation time
-    sumit=True
+    sumit=False
     
     # approximate best-fit values from 220610 analysis
     vparams = {}
@@ -76,6 +77,8 @@ def main():
             survey_name=name,NFRB=None,sdir=sdir) # should be equal to actual number of FRBs, but for this purpose it doesn't matter
         grids.append(g)
         surveys.append(s)
+
+        # print(g.rates)
         
         # set up new parameters
         g.update(vparams)
@@ -93,14 +96,16 @@ def main():
         
         print("meow",s.nozlist)
         
-        for iFRB in s.zlist:
-            zvals.append(s.Zs[iFRB])
-            dmvals.append(s.DMEGs[iFRB])
+        if s.zlist is not None:
+            for iFRB in s.zlist:
+                zvals.append(s.Zs[iFRB])
+                dmvals.append(s.DMEGs[iFRB])
         if s.nozlist is not None:
             for dm in s.DMEGs[s.nozlist]:
                 nozlist.append(dm)
             #print("nolist is now ",nozlist)
         print("About to plot")
+        # print(g.rates)
         ############# do 2D plots ##########
         
         misc_functions.plot_grid_2(

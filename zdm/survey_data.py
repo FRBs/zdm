@@ -188,9 +188,27 @@ class Observing(data_class.myDataClass):
                   'Notation': '',
                   })
     TOBS: float = field(
-        default=0., 
+        default=None, 
         metadata={'help': "Total observing time", 
-                  'unit': 'hours', 
+                  'unit': 'days', 
+                  'Notation': '',
+                  })
+    MAX_DM: float = field(
+        default=None, 
+        metadata={'help': "Maximum searched DM", 
+                  'unit': 'pc/cm**3', 
+                  'Notation': '',
+                  })
+    MAX_IDT: int = field(
+        default=None,
+        metadata={'help': "Maximum number of time samples seaarched (4096 for CRAFT ICS)",
+                  'unit': '',
+                  'Notation': '',
+                  })
+    MAX_LOC_DMEG: int = field(
+        default=-1,
+        metadata={'help': "Ignore zs with DMEG larger than 'x'. \n-1: Use all zs \n0: 'x' = smallest DMEG for an FRB without a z \n>0: 'x' = this value",
+                  'unit': 'pc/cm**3',
                   'Notation': '',
                   })
 
