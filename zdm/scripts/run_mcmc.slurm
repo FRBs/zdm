@@ -1,6 +1,6 @@
 #!/bin/bash
-#SBATCH --job-name=DSA_FAST_CRAFT_4
-#SBATCH --output=../mcmc/DSA_FAST_CRAFT_4.out
+#SBATCH --job-name=NO_Emin_F
+#SBATCH --output=../mcmc/NO_Emin_F.out
 #SBATCH --ntasks=20
 #SBATCH --time=24:00:00
 #SBATCH --export=NONE
@@ -14,7 +14,7 @@ source $ZDM/.zdm_env/bin/activate
 
 cd $ZDM/zdm
 
-outfile="DSA_FAST_CRAFT_4"
+outfile="NO_Emin_F"
 walkers=40
 steps=2000
 
@@ -29,7 +29,7 @@ surveys="DSA.ecsv FAST.ecsv FAST2.ecsv CRAFT_class_I_and_II.ecsv private_CRAFT_I
 # surveys=$(ls Hoffmann2023/*.ecsv)
 # cd $ZDM/zdm
 
-echo "Outfile: $outfile.out"
+echo "Outfile: $outfile.h5"
 echo "Walkers: $walkers"
 echo "Steps: $steps"
 

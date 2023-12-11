@@ -2483,7 +2483,7 @@ def plot_grid_2(
     FRBDM=None,
     Aconts=False,
     Macquart=None,
-    title="Plot",
+    title=None,
     cmap=None,
     H0=None,
     showplot=False,
@@ -2492,7 +2492,8 @@ def plot_grid_2(
     clim=False,
     data_clr="red",
     special=None,
-    pdmgz=None
+    pdmgz=None,
+    save=True
 ):
     """
     Very complicated routine for plotting 2D zdm grids 
@@ -2880,7 +2881,11 @@ def plot_grid_2(
         cbar.set_label(label)
         plt.tight_layout()
 
-    plt.savefig(name, dpi=300)
+    if title is not None:
+        plt.title(title)
+
+    if save:
+        plt.savefig(name, dpi=300)
     if showplot:
         plt.show()
     plt.close()

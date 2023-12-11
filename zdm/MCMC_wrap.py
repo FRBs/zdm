@@ -56,7 +56,7 @@ def main(args):
     prefix=args.initialise
 
     ############## Initialise cosmology ##############
-    # Location for maximisation output
+    # Location for output
     outdir='mcmc/'
 
     cos.init_dist_measures()
