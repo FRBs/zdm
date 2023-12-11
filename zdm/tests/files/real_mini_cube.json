@@ -13,14 +13,6 @@
     "cube": {
         "parameter_order": ["lC", "sfr_n", "alpha", "lmean", "lsigma", "lEmax", "gamma", "H0"]
     },
-    "mcmc": {
-        "parameter_order": ["F", "sfr_n", "alpha", "lmean", "lsigma", "lEmax", "gamma", "H0"]
-    },
-    "F": {
-        "DC": "cosmo",
-        "min": 0.0,
-        "max": 1.0
-    },
     "lEmax": {
         "DC": "energy",
         "min": 39.0, 
