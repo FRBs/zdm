@@ -15,31 +15,15 @@ import os
 
 from zdm import survey
 from zdm import cosmology as cos
-from zdm.craco import loading
+from zdm import real_loading as loading
 from zdm.MCMC import *
 
 import pickle
 import json
 
-parser = argparse.ArgumentParser()
-parser.add_argument(dest='files', nargs='+', help="Survey file names")
-parser.add_argument('-i','--initialise', default=None, type=str, help="Save surveys and grids with Pickle")
-parser.add_argument('-p','--pfile', default=None , type=str, help="File defining parameter ranges")
-parser.add_argument('-o','--opfile', default=None, type=str, help="Output file for the data")
-parser.add_argument('-w', '--walkers', default=20, type=int, help="Number of MCMC walkers")
-parser.add_argument('-s', '--steps', default=100, type=int, help="Number of MCMC steps")
-parser.add_argument('-n', '--nthreads', default=1, type=int, help="Number of threads")
-args = parser.parse_args()
-
-# Check correct flags are specified
-if args.pfile is None or args.opfile is None:
-    if not (args.pfile is None and args.opfile is None):
-        print("-p and -o flags are required")
-        exit()
-
 #==============================================================================
 
-def main(args):
+def main():
     """
     Handles the setup for MCMC runs. This involves reading / creating the
     surveys and grids, reading the parameters and prior ranges and then 
@@ -51,74 +35,70 @@ def main(args):
     Outputs:
         None
     """
-
-    names=args.files
-    prefix=args.initialise
-
-    ############## Initialise cosmology ##############
-    # Location for output
-    outdir='mcmc/'
-
-    cos.init_dist_measures()
-    state = loading.set_state()
     
-    # get the grid of p(DM|z)
-    zDMgrid, zvals,dmvals=get_zdm_grid(state,new=True,plot=False,method='analytic',save=True,datdir='MCMCData')
-    
-    ############## Initialise surveys ##############
-    if prefix is None or not os.path.exists('Pickle/'+prefix+'surveys.pkl'):
-        # Initialise surveys
+    # Parsing command line
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-f', '--files', default=None, nargs='?', type=commasep, help="Survey file names")
+    parser.add_argument('-r', '--rep_surveys', default=None, nargs='?', type=commasep, help="Surveys to consider repeaters in")
+    parser.add_argument('-p','--pfile', default=None , type=str, help="File defining parameter ranges")
+    parser.add_argument('-o','--opfile', default=None, type=str, help="Output file for the data")
+    parser.add_argument('-w', '--walkers', default=20, type=int, help="Number of MCMC walkers")
+    parser.add_argument('-s', '--steps', default=100, type=int, help="Number of MCMC steps")
+    parser.add_argument('-n', '--nthreads', default=1, type=int, help="Number of threads")
+    parser.add_argument('--sdir', default=None, type=str, help="Directory containing surveys")
+    parser.add_argument('--edir', default=None, type=str, help="Directory containing efficiency files")
+    parser.add_argument('--outdir', default="", type=str, help="Output directory")
+    args = parser.parse_args()
+
+    # Check correct flags are specified
+    if args.pfile is None or args.opfile is None:
+        print("-p and -o flags are required")
+        exit()
+
+    # Initialise surveys and grids
+    if args.files is not None:
+        surveys, grids = loading.surveys_and_grids(survey_names = args.files, repeaters=False, sdir=args.sdir, edir=args.edir)
+    else:
         surveys = []
-        for name in names:
-            filename = 'data/Surveys/' + name
-            s=survey.Survey(state, name, filename, dmvals, edir='data/Efficiencies/')
-
+        grids = []
+    
+    if args.rep_surveys is not None:
+        rep_surveys, rep_grids = loading.surveys_and_grids(survey_names = args.rep_surveys, repeaters=True, sdir=args.sdir, edir=args.edir)
+        for s,g in zip(rep_surveys, rep_grids):
             surveys.append(s)
-    
-        # Initialise grids
-        grids=initialise_grids(surveys,zDMgrid, zvals,dmvals,state,wdist=True)
+            grids.append(g)
 
-        # Save surveys / grids in pickle format
-        if prefix != None:
-            if not os.path.exists('Pickle/'):
-                os.mkdir('Pickle/')
+    if len(surveys) == 0:
+        raise ValueError("No surveys to use!")
 
-            # Save surveys
-            print("Saving ",'Pickle/'+prefix+'surveys.pkl')
-            with open('Pickle/'+prefix+'surveys.pkl', 'wb') as output:
-                pickle.dump(surveys, output, pickle.HIGHEST_PROTOCOL)
-                pickle.dump(names, output, pickle.HIGHEST_PROTOCOL)
-
-            # Save grids
-            print("Saving ",'Pickle/'+prefix+'grids.pkl')
-            with open('Pickle/'+prefix+'grids.pkl', 'wb') as output:
-                pickle.dump(grids, output, pickle.HIGHEST_PROTOCOL)
-    else:
-        print("Loading ",'Pickle/'+prefix+'surveys.pkl')
-        # Load surveys
-        with open('Pickle/'+prefix+'surveys.pkl', 'rb') as infile:
-            surveys=pickle.load(infile)
-            names=pickle.load(infile)
-
-        # Load grids
-        with open('Pickle/'+prefix+'grids.pkl', 'rb') as infile:
-            grids=pickle.load(infile)
-
-    print("Initialised grids and surveys ",names)
-    
-    # If not initialising only, run mcmc
-    if args.pfile is not None and args.opfile is not None:
-        if not os.path.exists(outdir):
-            os.mkdir(outdir)
+    # Make output directory
+    if args.outdir != "" and not os.path.exists(args.outdir):
+        os.mkdir(args.outdir)
         
-        with open(args.pfile) as f:
-            mcmc_dict = json.load(f)
+    with open(args.pfile) as f:
+        mcmc_dict = json.load(f)
 
-        # Select from dictionary the necessary parameters to be changed
-        params = {k: mcmc_dict[k] for k in mcmc_dict['mcmc']['parameter_order']}
+    # Select from dictionary the necessary parameters to be changed
+    params = {k: mcmc_dict[k] for k in mcmc_dict['mcmc']['parameter_order']}
 
-        mcmc_runner(calc_log_posterior, outdir + args.opfile, params, surveys, grids, nwalkers=args.walkers, nsteps=args.steps, nthreads=args.nthreads)
-    else:
-        print("No parameter or output file provided. Assuming only initialising and no MCMC running is done.")
+    mcmc_runner(calc_log_posterior, os.path.join(args.outdir, args.opfile), params, surveys, grids, nwalkers=args.walkers, nsteps=args.steps, nthreads=args.nthreads)
 
-main(args)
+#==============================================================================
+"""
+Function: commasep
+Date: 23/08/2022
+Purpose:
+    Turn a string of variables seperated by commas into a list
+
+Imports:
+    s = String of variables
+
+Exports:
+    List conversion of s
+"""
+def commasep(s):
+    return list(map(str, s.split(',')))
+
+#==============================================================================
+
+main()

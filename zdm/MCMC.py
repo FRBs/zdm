@@ -70,7 +70,7 @@ def calc_log_posterior(param_vals, params, surveys, grids):
                 if 'DMhalo' in param_dict:
                     s.init_DMEG(param_dict['DMhalo'])
 
-                llsum += get_likelihood(grid,s)
+                llsum += it.get_log_likelihood(grid,s)
 
         except ValueError as e:
             print("ValueError, setting likelihood to -inf: " + str(e))
@@ -128,41 +128,5 @@ def mcmc_runner(logpf, outfile, params, surveys, grids, nwalkers=10, nsteps=100,
     posterior_sample = sampler.get_chain()
 
     return posterior_sample
-
-#==============================================================================
-
-def get_likelihood(grid, s):
-    """
-    Returns the likelihood for the grid given the survey.
-
-    Inputs:
-        grid    =   Grid used
-        s       =   Survey to compare with the grid
-    
-    Outputs:
-        llsum   =   Total loglikelihood for the grid
-    """
-
-    if s.nD==1:
-        llsum1, lllist, expected = it.calc_likelihoods_1D(grid, s, psnr=True, dolist=1)
-        llsum = llsum1
-
-        # print(llsum, lllist)
-    elif s.nD==2:
-        llsum1, lllist, expected = it.calc_likelihoods_2D(grid, s, psnr=True, dolist=1)
-        llsum = llsum1
-
-        # print(llsum, lllist)
-    elif s.nD==3:
-        llsum1, lllist1, expected1 = it.calc_likelihoods_1D(grid, s, psnr=True, dolist=1)
-        llsum2, lllist2, expected2 = it.calc_likelihoods_2D(grid, s, psnr=True, dolist=1, Pn=False)
-        llsum = llsum1 + llsum2
-
-        # print(llsum, lllist1, lllist2)
-    else:
-        print("Implementation is only completed for nD 1-3.")
-        exit()
-
-    return llsum
 
 #==============================================================================

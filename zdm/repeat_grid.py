@@ -36,7 +36,7 @@ Some notes regarding time dilation:
         grid.sfr, if alpha_method=0, includes the rate scaling with alpha
         However, here we use this to calculate the number of progenitors,
         thus we must calculate sfr from first principles if alpha_method=1.
-        This is now handled by assigning self.use_sfr to be self.grid.sfr
+        This is now handled by assigning self.use_sfr to be self.sfr
         when alpha_method=0, or it is recalculated if alpha_method=1
         
 """
@@ -70,7 +70,7 @@ energetics.SplineMax = 6.
 energetics.NSpline = int((energetics.SplineMax-energetics.SplineMin)*1000)
 
 
-class repeat_Grid:
+class repeat_Grid(grid.Grid):
     """
     This class is designed to take a p(z,DM) grid and calculate the
     effects of repeating FRBs.
@@ -89,8 +89,8 @@ class repeat_Grid:
     """
     
     
-    def __init__(self,grid,Tfield=None,Nfields=None,opdir=None,Exact=True,
-        MC=False,verbose=False,bmethod=1):
+    def __init__(self, survey, state, zDMgrid, zvals, dmvals, smear_mask, wdist, 
+                 Tfield=None,Nfields=None,opdir=None,Exact=True, MC=False,verbose=False,bmethod=1):
         """
         Initialises repeater class
         Args:
@@ -105,24 +105,22 @@ class repeat_Grid:
                     then becomes a multiplier of the time.
         """
         
-        # inherets key properties from the grid's state parameters
-        self.state=grid.state
-        self.grid=grid
+        super().__init__(survey, state, zDMgrid, zvals, dmvals, smear_mask, wdist)
         
         # these define the repeating population - repeaters with
         # rates between Rmin and Rmax with a power-law of Rgamma
         # dN(R)/dR ~ R**Rgamma
-        self.Rmin=grid.state.rep.Rmin
-        self.Rmax=grid.state.rep.Rmax
-        self.Rgamma=grid.state.rep.Rgamma
+        self.Rmin=10**state.rep.lRmin
+        self.Rmax=10**state.rep.lRmax
+        self.Rgamma=state.rep.Rgamma
         self.newRmin = True
         self.newRmax = True
         self.newRgamma = True
         
         # get often-used data from the grid - for simplicity
-        self.Emin = 10**self.grid.state.energy.lEmin
-        self.Emax = 10**self.grid.state.energy.lEmax
-        self.gamma= self.grid.state.energy.gamma
+        self.Emin = 10**self.state.energy.lEmin
+        self.Emax = 10**self.state.energy.lEmax
+        self.gamma= self.state.energy.gamma
         
         self.Rmults=None
         self.Rmult=None
@@ -145,25 +143,21 @@ class repeat_Grid:
             self.opdir=None
             doplots=False
         
-        # redshift array
-        self.zvals=self.grid.zvals
-        
-        # checks we have the necessary data to construct Nfields and Tfield
+        # checks we have the necessary data to construct Nfields and Tfield        
         if Nfields is not None:
             self.Nfields=Nfields
-        elif grid.survey.meta.has_key('Nfields'):
-            self.Nfields = grid.survey.meta['Nfields']
         else:
-            self.Nfields = 1
-            #raise ValueError("Nfields not specified")
-        
+            self.Nfields = survey.Nfields
+
         if Tfield is not None:
             self.Tfield=Tfield
-        elif grid.survey.meta.has_key('Tfield'):
-            self.Tfield = grid.survey.meta['Tfield']
         else:
-            raise ValueError("Tfield not specified")
+            self.Tfield = survey.Tfield
         
+        if survey.TOBS != self.Nfields * self.Tfield:
+            survey.TOBS = self.Nfields * self.Tfield
+            print("TOBS set to Nfields x Tfield = " + str(survey.TOBS))
+
         # calculates constant Rc in front of dN/dR = Rc R^Rgamma
         # this needs to be updated if any of the repeat parameters change
         #self.Rc,self.NRtot=self.calc_constant(verbose=verbose)
@@ -175,9 +169,9 @@ class repeat_Grid:
             print("Calculated constant as ",self.Rc)
         
         # number of expected FRBs per volume in a given field
-        self.Nexp_field = self.grid.dV*self.Rc
+        self.Nexp_field = self.dV*self.Rc
         # undoes the time-dilation effect, which is included in the FRB rate scaling
-        self.Nexp_field *= (1.+self.grid.zvals) # previously was reduced by this amount
+        self.Nexp_field *= (1.+self.zvals) # previously was reduced by this amount
         self.Nexp = self.Nexp_field * self.Nfields
         
         # the below has units of Mpc^3 per zbin, and multiplied by p(DM|z) for each bin
@@ -185,81 +179,72 @@ class repeat_Grid:
         # This is actually accounted for in the rate scaling of repeaters
         # Here, we want the actual volume, hence must remove this factor
         # recently removed this from sim_repeaters function
-        self.tvolume_grid = (self.grid.smear_grid.T * (self.grid.dV * (1. + self.grid.zvals))).T
+        self.tvolume_grid = (self.smear_grid.T * (self.dV * (1. + self.zvals))).T
         #volume_grid *= Solid #accounts for solid angle viewed at that beam sensitivity
         #self.volume_grid = volume_grid
         
         
         # to remove alpha effect from grid.sfr if alpha_method==1
-        if self.grid.state.FRBdemo.alpha_method==1:
-            self.use_sfr = self.grid.source_function(self.grid.zvals,self.grid.state.FRBdemo.sfr_n)
+        if self.state.FRBdemo.alpha_method==1:
+            self.use_sfr = self.source_function(self.zvals,self.state.FRBdemo.sfr_n)
         else:
-            self.use_sfr = self.grid.sfr
+            self.use_sfr = self.sfr
         
         self.calc_Rthresh(Exact=Exact,MC=MC,doplots=doplots)
 
-    def update(self,Rmin = None,Rmax = None,Rgamma = None):
+    def update(self, vparams: dict, ALL=False, prev_grid=None):
         """
         Routine to update based upon new Rmin,Rmax,gamma parameters.
-        It does *not* handle new grid parameters like Emin, Emax and so on.
-        A to-do item will be to see if there is any fast way of applying
-        those updates - currently, an entire new grid must be generated.
         
         Inputs:
-            Rmin (float): Minimum repetition rate (per day)
-            Rmax (float): Maximum repetition rate (per day)
-            Rgamma (float): Differential power-law index
-                of the repetition rate between Rmin and Rmax
-        
-        If the above are None, it assumes they have been left unchanged.
+            vparams (dict):  dict containing the parameters
+                to be updated and their values
+            prev_grid (Grid, optional):
+                If provided, it is assumed this grid has been
+                updated on items that need not be repeated for
+                the current grid.  i.e. Speed up!
+            ALL (bool, optional):  If True, update the full grid
         """
+        super().update(vparams, ALL, prev_grid)
+
         ### first check which have changed ###
         self.newRmin = False
         self.newRmax = False
         self.newRgamma = False
-        
-        
-        if Rmin is not None and Rmin != self.Rmin:
+
+        if super().chk_upd_param("lRmin", vparams, update=True):
             self.newRmin = True
-            self.Rmin = Rmin
-            self.grid.state.rep.Rmin = Rmin
+            self.Rmin = 10**self.state.rep.lRmin
         
-        if Rmax is not None and Rmax != self.Rmax:
+        if super().chk_upd_param("lRmax", vparams, update=True):
             self.newRmax = True
-            self.Rmax = Rmax
-            self.grid.state.rep.Rmax = Rmax
+            self.Rmax = 10**self.state.rep.lRmax
         
-        if Rgamma is not None and Rgamma != self.Rgamma:
+        if super().chk_upd_param("Rgamma", vparams, update=True):
             self.newRgamma = True
-            self.Rgamma = Rgamma
-            self.grid.state.rep.Rgamma = Rgamma
+            self.Rgamma = self.state.rep.Rgamma
         
-        if not (self.newRmin or self.newRmax or self.newRgamma):
-            # nothing has changed
-            print("WARNING: updating repeat grid, but the parameters ",
-                Rmin,Rmax,Rgamma," are not new")
-            return
-        
-        ### do this if *any* parameters change ###
-        # keep for later speed-ups
-        oldRc = self.Rc
-        self.calc_constant(verbose=False)
-        
-        # simple linear scaling of the number of repeaters per field
-        self.Nexp *= self.Rc / oldRc
-        self.Nexp_field *= self.Rc / oldRc
-        
-        ### everything up to here updates the main 'init' function
-        # now proceed to "calc_Rthresh"
-        # Rmult does *not* need to be re-calculated
-        # In calc_Rthresh, it already checks if this
-        # has already been done. Also with summed Rmult.
-        # Thus calling calc_Rthresh should jump straight to
-        # calling "sim repeaters". Everything in
-        # calc_Rthresh after that is necessary if anything changes
-        # hence: just calling calc_Rthresh is good!
-        # if we are updating, never do plots, waste of time!
-        self.calc_Rthresh(Exact=self.Exact,MC=self.MC,doplots=False)
+        if (self.newRmin or self.newRmax or self.newRgamma):
+            ### do this if *any* parameters change ###
+            # keep for later speed-ups
+            oldRc = self.Rc
+            self.calc_constant(verbose=False)
+            
+            # simple linear scaling of the number of repeaters per field
+            self.Nexp *= self.Rc / oldRc
+            self.Nexp_field *= self.Rc / oldRc
+            
+            ### everything up to here updates the main 'init' function
+            # now proceed to "calc_Rthresh"
+            # Rmult does *not* need to be re-calculated
+            # In calc_Rthresh, it already checks if this
+            # has already been done. Also with summed Rmult.
+            # Thus calling calc_Rthresh should jump straight to
+            # calling "sim repeaters". Everything in
+            # calc_Rthresh after that is necessary if anything changes
+            # hence: just calling calc_Rthresh is good!
+            # if we are updating, never do plots, waste of time!
+            self.calc_Rthresh(Exact=self.Exact,MC=self.MC,doplots=False)
         
         
     def calc_constant(self,verbose=False):
@@ -287,12 +272,12 @@ class repeat_Grid:
         # sets repeater constant as per global FRB rate constant
         # C is in bursts per Gpc^3 per year
         # rate is thus in bursts/year
-        C=10**(self.grid.state.FRBdemo.lC)
+        C=10**(self.state.FRBdemo.lC)
         if verbose:
             print("Initial burst rate above ",self.Emin," is ",C*1e9*365.25," per Gpc^-3 per year")
         
         # account for repeat parameters being defined at a different energy than Emin
-        fraction = self.grid.vector_cum_lf(self.state.rep.RE0,self.Emin,self.Emax,self.gamma)
+        fraction = self.vector_cum_lf(self.state.rep.RE0,self.Emin,self.Emax,self.gamma)
         
         C = C*fraction
         
@@ -312,7 +297,7 @@ class repeat_Grid:
         
         self.Rc = Rc
         self.NRtot = Ntot
-        self.grid.state.rep.RC = Rc
+        self.state.rep.RC = Rc
         return Rc,Ntot
     
     
@@ -348,13 +333,13 @@ class repeat_Grid:
         # R = (2P)**0.5
         Rthresh = (2.*Pthresh)**0.5 #only works for small rates
         # we loop over beam values. Sets up Rmults array to hold these
-        self.Nbeams = self.grid.beam_b.size
+        self.Nbeams = self.beam_b.size
         # create a list of rate multipliers
         if self.Rmults is None:
             
-            nb = self.grid.beam_b.size
-            nz = self.grid.zvals.size
-            ndm = self.grid.dmvals.size
+            nb = self.beam_b.size
+            nz = self.zvals.size
+            ndm = self.dmvals.size
             
             # create empty arrays for saving for later
             self.Rmults = np.zeros([nb,nz,ndm])
@@ -370,22 +355,22 @@ class repeat_Grid:
                 self.TooLow=[None]
                 self.nonzeros=[None]
             else: # We have Omega(B) for fixed T.
-                self.avals=[None]*self.grid.beam_b.size
-                self.bvals=[None]*self.grid.beam_b.size
-                self.snorms1=[None]*self.grid.beam_b.size
-                self.snorms2=[None]*self.grid.beam_b.size
-                self.znorms1=[None]*self.grid.beam_b.size
-                self.znorms2=[None]*self.grid.beam_b.size
-                self.nonzeros=[None]*self.grid.beam_b.size
-                self.NotTooLows=[None]*self.grid.beam_b.size
-                self.NotTooLowbs=[None]*self.grid.beam_b.size
-                self.TooLow=[None]*self.grid.beam_b.size
+                self.avals=[None]*self.beam_b.size
+                self.bvals=[None]*self.beam_b.size
+                self.snorms1=[None]*self.beam_b.size
+                self.snorms2=[None]*self.beam_b.size
+                self.znorms1=[None]*self.beam_b.size
+                self.znorms2=[None]*self.beam_b.size
+                self.nonzeros=[None]*self.beam_b.size
+                self.NotTooLows=[None]*self.beam_b.size
+                self.NotTooLowbs=[None]*self.beam_b.size
+                self.TooLow=[None]*self.beam_b.size
             
-            for ib,b in enumerate(self.grid.beam_b):
+            for ib,b in enumerate(self.beam_b):
                 if self.bmethod==1:
                     time=self.Tfield # here, time is total time on field
                 else:
-                    time=self.grid.beam_o[ib]*self.Nfields # here, o is time on field, not solid angle
+                    time=self.beam_o[ib]*self.Nfields # here, o is time on field, not solid angle
                 Rmult=self.calcRmult(b,time)
                 # keeps a record of this Rmult, and sets the current value
                 self.Rmults[ib,:,:] = Rmult
@@ -404,9 +389,9 @@ class repeat_Grid:
                 expNrep,Nreps,single_array,mult_array,summed_array,exp_array,\
                     poisson_rates,numbers = MCset
         else:
-            for ib,b in enumerate(self.grid.beam_b):
+            for ib,b in enumerate(self.beam_b):
                 self.Nth=ib # sets internal logging for faster recalculation
-                exactset,MCset = self.sim_repeaters(Rthresh,b,self.grid.beam_o[ib],
+                exactset,MCset = self.sim_repeaters(Rthresh,b,self.beam_o[ib],
                     doplots=doplots,Exact=Exact,MC=MC,Rmult=self.Rmults[ib])
                 if ib==0:
                     if Exact:
@@ -455,13 +440,13 @@ class repeat_Grid:
             
             # Initially, Poisson is unweighted by constants or observation time
             # We now need to multiply by Tobs and the constant
-            #Poisson *= self.Tfield * 10**(self.grid.state.FRBdemo.lC)
+            #Poisson *= self.Tfield * 10**(self.state.FRBdemo.lC)
             TotalSingle = poisson_rates + single_array
             single_array + summed_array
             total_bursts = TotalSingle + summed_array # single bursts plus bursts from repeaters
             
         # calculates the expected number of bursts in the no-repeater case from grid info
-        no_repeaters = self.grid.rates * self.Tfield * 10**(self.grid.state.FRBdemo.lC)
+        no_repeaters = self.rates * self.Tfield * 10**(self.state.FRBdemo.lC)
         
     def perform_exact_calculations(self,slow=False):
         """
@@ -832,7 +817,7 @@ class repeat_Grid:
                 z[i,j]=zero*self.Rc
                 n[i,j]=nrep*self.Rc
                 m[i,j]=mult*self.Rc
-                print(i,j,self.grid.zvals[i],n[i,j],exact_reps[i,j],n[i,j]-exact_reps[i,j])
+                print(i,j,self.zvals[i],n[i,j],exact_reps[i,j],n[i,j]-exact_reps[i,j])
                 #norms2[i,j] = float(mpmath.gammainc(effGamma, a=a, b=b))
                 if zonly:
                     break
@@ -897,7 +882,7 @@ class repeat_Grid:
             self.do_z_plot([total,exact_singles,exact_rep_bursts],
                 self.opdir+'zproj_exact_components_'+str(beam_b)[0:5]+'.pdf',
                 label=['Total','One-off FRBs','bursts from repeaters'])
-            self.do_z_plot(total-self.grid.rates*self.Tfield*10**(self.grid.state.FRBdemo.lC),
+            self.do_z_plot(total-self.rates*self.Tfield*10**(self.state.FRBdemo.lC),
                 self.opdir+'zproj_exact_difference_'+str(beam_b)[0:5]+'.pdf',log=False,
                 label='difference with rates')
             
@@ -915,14 +900,14 @@ class repeat_Grid:
             dmzRthresh[stochastic]=self.Rmin
             
             #dmzRthresh[:]=self.Rmin # makes everything stochastic. Ouch!
-            dmzRthresh = dmzRthresh.reshape([self.grid.zvals.size,self.grid.dmvals.size])
+            dmzRthresh = dmzRthresh.reshape([self.zvals.size,self.dmvals.size])
             
             # now estimates total rate from bursts with R < dmzRthresh
             # this is integrating R dR from dmzRthresh to Rmax
             Rfraction = (self.Rmax**(self.Rgamma+2.)-dmzRthresh**(self.Rgamma+2.))/(self.Rmax**(self.Rgamma+2.)-self.Rmin**(self.Rgamma+2.))
             Poisson = 1.-Rfraction
             # currently, 
-            poisson_rates = self.grid.rates * Poisson * 10**(self.grid.state.FRBdemo.lC) * Solid * self.Tfield
+            poisson_rates = self.rates * Poisson * 10**(self.state.FRBdemo.lC) * Solid * self.Tfield
             #print("Number of single FRBs from insignificant FRBs ",np.sum(poisson_rates)) #FRBs per 2000 dats per steradian
         
             # returns zdm grid with values being number of single bursts, number of repeaters, number of repeat bursts
@@ -961,32 +946,32 @@ class repeat_Grid:
         """
         # calculates Rmult over a range of burst widths and probabilities
         #print("Calculating Rmult using ",beam_b)
-        for iw,w in enumerate(self.grid.eff_weights):
+        for iw,w in enumerate(self.eff_weights):
             # we want to calculate for each point an Rmult such that
             # Rmult_final = \sum wi Rmulti
             # does this make sense? Effectively its the sum of rates. Well yes it does! AWESOME!
             # numerator for Rmult for this width
             #Note: grid.thresholds already will include effect of alpha
             if iw==0:
-                Rmult = w*self.grid.array_cum_lf(self.grid.thresholds[iw,:,:]/beam_b,self.Emin,self.Emax,self.gamma)
+                Rmult = w*self.array_cum_lf(self.thresholds[iw,:,:]/beam_b,self.Emin,self.Emax,self.gamma)
             else:
-                Rmult += w*self.grid.array_cum_lf(self.grid.thresholds[iw,:,:]/beam_b,self.Emin,self.Emax,self.gamma)
-        Rmult /= self.grid.vector_cum_lf(self.state.rep.RE0,self.Emin,self.Emax,self.gamma)
+                Rmult += w*self.array_cum_lf(self.thresholds[iw,:,:]/beam_b,self.Emin,self.Emax,self.gamma)
+        Rmult /= self.vector_cum_lf(self.state.rep.RE0,self.Emin,self.Emax,self.gamma)
         
         # calculates the expectation value for a single pointing
         # rates were "per day", now "per pointing time on field"
         Rmult *= time_days
         # accounts for time dilation of intrinsic rate
-        dilation=1./(1.+self.grid.zvals)
+        dilation=1./(1.+self.zvals)
         # multiplies repeater rates by both base rate, and 1+z penalty
         # NEW NEW NEW NEW
-        if self.grid.state.FRBdemo.alpha_method==1:
+        if self.state.FRBdemo.alpha_method==1:
             # scales to frequency of interest
-            fscale = (self.grid.nuObs/self.grid.nuRef)**-self.grid.state.energy.alpha
+            fscale = (self.nuObs/self.nuRef)**-self.state.energy.alpha
             Rmult *= fscale
             #double negative here: dilation is 1/(1+z)
             # hence if rate goes as f^-alpha, f goes as (1+z), then we recover (1/1+z)**alpha
-            dilation = dilation**(1.+self.grid.state.energy.alpha)
+            dilation = dilation**(1.+self.state.energy.alpha)
         Rmult = (Rmult.T * dilation).T
         return Rmult
     
@@ -1038,7 +1023,7 @@ class repeat_Grid:
         
         mean_rate=mean_rate.flatten()
         mean_rate[np.isnan(mean_rate.flatten())]=0.
-        mean_rate=mean_rate.reshape([self.grid.zvals.size,self.grid.dmvals.size])
+        mean_rate=mean_rate.reshape([self.zvals.size,self.dmvals.size])
         
         # Rmult here is the rate multiplier due to the distance
         # that is, mean_rate is rate per repeater on average, n reps is number of repeaters, and
@@ -1127,7 +1112,7 @@ class repeat_Grid:
             # array is all zeroes
             print("Not plotting ",savename," it is redundant")
             return
-        aspect=(self.grid.zvals[-1]/self.grid.dmvals[-1])
+        aspect=(self.zvals[-1]/self.dmvals[-1])
         plt.figure()
         plt.xlabel('z')
         plt.ylabel('DM')
@@ -1137,7 +1122,7 @@ class repeat_Grid:
             cmin=cmax-lrange
         else:
             toplot=array
-        plt.imshow(toplot.T,origin='lower',extent=(0.,self.grid.zvals[-1],0.,self.grid.dmvals[-1]),aspect=aspect)
+        plt.imshow(toplot.T,origin='lower',extent=(0.,self.zvals[-1],0.,self.dmvals[-1]),aspect=aspect)
         cbar=plt.colorbar()
         if log:
             plt.clim(cmin,cmax)
@@ -1157,7 +1142,7 @@ class repeat_Grid:
         plt.figure()
         plt.xlabel('z')
         plt.ylabel('p(z)')
-        plt.xlim(0,self.grid.zvals[-1])
+        plt.xlim(0,self.zvals[-1])
         plt.xlim(0,0.5)
         if log:
             plt.yscale('log')
@@ -1169,13 +1154,13 @@ class repeat_Grid:
                     if i==0:
                         norm=zproj
                     else:
-                        plt.plot(self.grid.zvals,zproj/norm,label=label[i])
+                        plt.plot(self.zvals,zproj/norm,label=label[i])
                 else:
-                    plt.plot(self.grid.zvals,zproj,label=label[i])
+                    plt.plot(self.zvals,zproj,label=label[i])
             plt.legend()
         else:
             zproj=np.sum(array,axis=1)
-            plt.plot(self.grid.zvals,zproj,label=label)
+            plt.plot(self.zvals,zproj,label=label)
         
         plt.tight_layout()
         plt.savefig(savename)
@@ -1229,7 +1214,7 @@ class repeat_Grid:
         
         The following gives the fraction of the total luminosity function visible
             at any given distance. It has already been integrated over beamshape and width
-            self.grid.fractions
+            self.fractions
         
         # breaks the calculation into many steps. These are:
             # High repetition regime: chance of detecting an FRB given a repeater is 100%
@@ -1244,8 +1229,8 @@ class repeat_Grid:
         
         # this gives the scaling between an intrinsic rate R0 and an observable rate effR0
         # this shifts the effective rate distribution to
-        effRmin=self.Rmin*self.grid.fractions
-        effRmax=self.Rmax*self.grid.fractions
+        effRmin=self.Rmin*self.fractions
+        effRmax=self.Rmax*self.fractions
         
         # converts rates into expected burst numbers gives a certain observation time
         Nmin = effRmin*Tobs
@@ -1262,7 +1247,7 @@ class repeat_Grid:
             if Rmax < R1:
                 # this is simply the original calculation from the grid
                 # all bursts are independent
-                Ntot_exp1 = self.grid.rates * Tobs * C
+                Ntot_exp1 = self.rates * Tobs * C
                 
                 
                 # internal calculation as check:

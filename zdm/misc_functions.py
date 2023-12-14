@@ -22,6 +22,7 @@ from zdm import beams
 from zdm import cosmology as cos
 from zdm import survey
 from zdm import grid as zdm_grid
+from zdm import repeat_grid as zdm_repeat_grid
 from zdm import pcosmic
 from zdm import parameters
 
@@ -1912,6 +1913,7 @@ def initialise_grids(
     dmvals: np.ndarray,
     state: parameters.State,
     wdist=True,
+    repeaters=False,
 ):
     """ For a list of surveys, construct a zDMgrid object
     wdist indicates a distribution of widths in the survey,
@@ -1942,9 +1944,15 @@ def initialise_grids(
     for survey in surveys:
         print(f"Working on {survey.name}")
 
-        grid = zdm_grid.Grid(
-            survey, copy.deepcopy(state), zDMgrid, zvals, dmvals, mask, wdist
-        )
+        if repeaters:
+            grid = zdm_repeat_grid.repeat_Grid(
+                survey, copy.deepcopy(state), zDMgrid, zvals, dmvals, mask, wdist
+            )
+        else:
+            grid = zdm_grid.Grid(
+                survey, copy.deepcopy(state), zDMgrid, zvals, dmvals, mask, wdist
+            )
+
         grids.append(grid)
 
     return grids

@@ -1,11 +1,11 @@
 #!/bin/bash
-#SBATCH --job-name=NO_Emin_F
-#SBATCH --output=../mcmc/NO_Emin_F.out
-#SBATCH --ntasks=20
-#SBATCH --time=24:00:00
+#SBATCH --job-name=test_reps
+#SBATCH --output=../mcmc/test_reps.out
+#SBATCH --ntasks=1
+#SBATCH --time=1:00:00
 #SBATCH --export=NONE
-# SBATCH --mem=50GB
-#SBATCH --mem-per-cpu=3GB
+#SBATCH --mem=20GB
+# SBATCH --mem-per-cpu=3GB
 
 # source /fred/oz002/jhoffmann/FRB_library/setup.sh
 # source /fred/oz002/jhoffmann/FRB_library/loadzdm.sh
@@ -14,11 +14,14 @@ source $ZDM/.zdm_env/bin/activate
 
 cd $ZDM/zdm
 
-outfile="NO_Emin_F"
-walkers=40
-steps=2000
+outfile="test_reps"
+walkers=20
+steps=10
 
-surveys="DSA.ecsv FAST.ecsv FAST2.ecsv CRAFT_class_I_and_II.ecsv private_CRAFT_ICS_892.ecsv private_CRAFT_ICS_1300.ecsv private_CRAFT_ICS_1632.ecsv parkes_mb_class_I_and_II.ecsv"
+surveys=""
+rep_surveys="test_reps"
+
+# surveys="DSA,FAST,FAST2,CRAFT_class_I_and_II,private_CRAFT_ICS_892,private_CRAFT_ICS_1300,private_CRAFT_ICS_1632,parkes_mb_class_I_and_II"
 
 # Used when treating each FRB as an individual survey in HOFFMANN2023
 # cd data/Surveys/
@@ -33,4 +36,4 @@ echo "Outfile: $outfile.h5"
 echo "Walkers: $walkers"
 echo "Steps: $steps"
 
-python MCMC_wrap.py $surveys -p tests/files/real_mini_mcmc2.json -o $outfile -w $walkers -s $steps -n 20
+python MCMC_wrap.py -f $surveys -r $rep_surveys -p data/MCMC/params.json -o $outfile -w $walkers -s $steps -n 1

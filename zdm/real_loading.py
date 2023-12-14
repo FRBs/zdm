@@ -88,7 +88,8 @@ def surveys_and_grids(init_state=None, alpha_method=1,
                       survey_names=None,
                       add_20220610A=False,
                       nz:int=2000, ndm:int=5600,
-                      edir=''): 
+                      repeaters=False,
+                      sdir=None, edir=None): 
     """ Load up a survey and grid for a real dataset
 
     Args:
@@ -140,18 +141,23 @@ def surveys_and_grids(init_state=None, alpha_method=1,
     if add_20220610A:
         survey_names[3] = 'CRAFT_ICS_w_220610'
 
-    beams = [5,5,5,5,10]
     surveys = []
-    for nbeam, survey_name in zip(beams, survey_names):
-        print(f"Initializing {survey_name}")
-        surveys.append(survey.load_survey(survey_name, 
-                                          state, dmvals,
-                                          nbins=nbeam, edir=edir))
+    for survey_name in survey_names:
+        # print(f"Initializing {survey_name}")
+        s = survey.load_survey(survey_name, 
+                               state, dmvals, 
+                               sdir=sdir, edir=edir)
+        # Check necessary parameters exist if considering repeaters
+        if repeaters:
+            s.init_repeaters()
+
+        surveys.append(s)
+        
     print("Initialised surveys")
 
     # generates zdm grid
     grids = misc_functions.initialise_grids(
-        surveys, zDMgrid, zvals, dmvals, state, wdist=True)
+        surveys, zDMgrid, zvals, dmvals, state, wdist=True, repeaters=repeaters)
     print("Initialised grids")
 
     # Return Survey and Grid

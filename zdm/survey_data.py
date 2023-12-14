@@ -3,6 +3,7 @@
 from dataclasses import dataclass, field
 
 from zdm import data_class
+import numpy as np
 
 @dataclass
 class FRB(data_class.myDataClass):
@@ -49,6 +50,12 @@ class FRB(data_class.myDataClass):
                   'unit': 'deg', 
                   'Notation': '',
                   })
+    # NREP: np.int64 = field( 
+    #     default=1, 
+    #     metadata={'help': "Number of repetitions detected", 
+    #               'unit': '', 
+    #               'Notation': '',
+    #               })
     SNR: float = field( 
         default=0., 
         metadata={'help': "S/N", 
@@ -187,10 +194,34 @@ class Observing(data_class.myDataClass):
                   'unit': '', 
                   'Notation': '',
                   })
+    NORM_REPS: int = field(
+        default=None, 
+        metadata={'help': "Number of repeaters for TOBS", 
+                  'unit': '', 
+                  'Notation': '',
+                  })
+    NORM_SINGLES: int = field(
+        default=None, 
+        metadata={'help': "Number of singles for TOBS", 
+                  'unit': '', 
+                  'Notation': '',
+                  })
     TOBS: float = field(
         default=None, 
         metadata={'help': "Total observing time", 
                   'unit': 'days', 
+                  'Notation': '',
+                  })
+    TFIELD: float = field(
+        default=None, 
+        metadata={'help': "Observing time per field", 
+                  'unit': 'days', 
+                  'Notation': '',
+                  })
+    NFIELDS: int = field(
+        default=None,
+        metadata={'help': "Number of observing fields",
+                  'unit': '',
                   'Notation': '',
                   })
     MAX_DM: float = field(

@@ -11,6 +11,7 @@ from scipy.optimize import minimize
 from zdm import cosmology as cos
 from scipy.stats import poisson
 import scipy.stats as st
+from zdm import repeat_grid as zdm_repeat_grid
 # internal counter
 NCF=0
 
@@ -167,6 +168,64 @@ def maximise_likelihood(grid,survey):
     return results
 
 
+def get_log_likelihood(grid, s, norm=True):
+    """
+    Returns the likelihood for the grid given the survey.
+
+    Inputs:
+        grid    =   Grid used
+        s       =   Survey to compare with the grid
+    
+    Outputs:
+        llsum   =   Total loglikelihood for the grid
+    """
+
+    if isinstance(grid, zdm_repeat_grid.repeat_Grid):
+        # Repeaters
+        if s.nDr==1:
+            llsum1, lllist, expected = calc_likelihoods_1D(grid, s, norm=norm, psnr=True, dolist=1, repeaters=True)
+            llsum = llsum1
+        elif s.nDr==2:
+            llsum1, lllist, expected = calc_likelihoods_2D(grid, s, norm=norm, psnr=True, dolist=1, repeaters=True)
+            llsum = llsum1
+        elif s.nDr==3:
+            llsum1, lllist1, expected1 = calc_likelihoods_1D(grid, s, norm=norm, psnr=True, dolist=1, repeaters=True)
+            llsum2, lllist2, expected2 = calc_likelihoods_2D(grid, s, norm=norm, psnr=True, dolist=1, repeaters=True, Pn=False)
+            llsum = llsum1 + llsum2
+        else:
+            print("Implementation is only completed for nD 1-3.")
+            exit()
+        
+        # Singles
+        if s.nDs==1:
+            llsum1, lllist, expected = calc_likelihoods_1D(grid, s, norm=norm, psnr=True, dolist=1, singles=True)
+            llsum += llsum1
+        elif s.nDs==2:
+            llsum1, lllist, expected = calc_likelihoods_2D(grid, s, norm=norm, psnr=True, dolist=1, singles=True)
+            llsum += llsum1
+        elif s.nDs==3:
+            llsum1, lllist1, expected1 = calc_likelihoods_1D(grid, s, norm=norm, psnr=True, dolist=1, singles=True)
+            llsum2, lllist2, expected2 = calc_likelihoods_2D(grid, s, norm=norm, psnr=True, dolist=1, singles=True, Pn=False)
+            llsum = llsum + llsum1 + llsum2
+        else:
+            print("Implementation is only completed for nD 1-3.")
+            exit()
+    else:
+        if s.nD==1:
+            llsum1, lllist, expected = calc_likelihoods_1D(grid, s, norm=norm, psnr=True, dolist=1)
+            llsum = llsum1
+        elif s.nD==2:
+            llsum1, lllist, expected = calc_likelihoods_2D(grid, s, norm=norm, psnr=True, dolist=1)
+            llsum = llsum1
+        elif s.nD==3:
+            llsum1, lllist1, expected1 = calc_likelihoods_1D(grid, s, norm=norm, psnr=True, dolist=1)
+            llsum2, lllist2, expected2 = calc_likelihoods_2D(grid, s, norm=norm, psnr=True, dolist=1, Pn=False)
+            llsum = llsum1 + llsum2
+        else:
+            print("Implementation is only completed for nD 1-3.")
+            exit()
+
+    return llsum
 
 def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=False,Pn=True,dolist=0,repeaters=False,singles=False):
     """ Calculates 1D likelihoods using only observedDM values
@@ -184,13 +243,34 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=False,Pn=True,do
     
     Pn: Calculate the probability of observing N bursts (Poisson)
     """
-    rates=grid.rates
+    
+    # Determine which array to perform operations on and initialise
+    if repeaters and singles: 
+        raise ValueError("Specify the likelihood for repeaters or singles, not both") 
+    elif repeaters: 
+        rates = grid.exact_reps 
+        if survey.nozreps is not None:
+            DMobs=survey.DMEGs[survey.nozreps]
+            nozlist=survey.nozreps
+        else:
+            raise ValueError("No non-localised singles in this survey, cannot calculate 1D likelihoods")
+    elif singles: 
+        rates = grid.exact_singles 
+        if survey.nozsingles is not None:
+            DMobs=survey.DMEGs[survey.nozsingles]
+            nozlist=survey.nozsingles
+        else:
+            raise ValueError("No non-localised repeaters in this survey, cannot calculate 1D likelihoods")
+    else: 
+        rates=grid.rates 
+        if survey.nozlist is not None:
+            DMobs=survey.DMEGs[survey.nozlist]
+            nozlist=survey.nozlist
+        else:
+            raise ValueError("No non-localised FRBs in this survey, cannot calculate 1D likelihoods")
+
     dmvals=grid.dmvals
     zvals=grid.zvals
-    if survey.nozlist is not None:
-        DMobs=survey.DMEGs[survey.nozlist]
-    else:
-        raise ValueError("No non-localised FRBs in this survey, cannot calculate 1D likelihoods")
 
     # start by collapsing over z
     # TODO: this is slow - should collapse only used columns
@@ -206,7 +286,7 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=False,Pn=True,do
         # Linear interpolation
         pvals=pdm[idms1]*(1.-dkdms) + pdm[idms2]*dkdms
     else:
-        dm_weights, iweights = calc_DMG_weights(DMobs, survey.DMGs[survey.nozlist], grid.state.MW.sigmaDMG, dmvals)
+        dm_weights, iweights = calc_DMG_weights(DMobs, survey.DMGs[nozlist], grid.state.MW.sigmaDMG, dmvals)
         pvals = np.zeros(len(idms1))
         for i in range(len(idms1)):
             pvals[i]=np.sum(pdm[iweights[i]]*dm_weights[i])
@@ -231,7 +311,12 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=False,Pn=True,do
     if Pn and (survey.TOBS is not None):
         expected=CalculateIntegral(grid,survey)
         expected *= 10**grid.state.FRBdemo.lC
-        observed=survey.NORM_FRB
+        if repeaters:
+            observed=survey.NORM_REPS
+        elif singles:
+            observed=survey.NORM_SINGLES
+        else:
+            observed=survey.NORM_FRB
         Pn=Poisson_p(observed,expected)
         if Pn==0:
             # print("Pn returned 0. Loglikelihood set to -infinity.")
@@ -301,7 +386,7 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=False,Pn=True,do
             bEths=Eths/b #this is the only bit that depends on j, but OK also!
             #now wbEths is the same 2D grid
             #wbEths=bEths #this is the only bit that depends on j, but OK also!
-            bEobs=bEths*survey.Ss[survey.nozlist] #should correctly multiply the last dimensions
+            bEobs=bEths*survey.Ss[nozlist] #should correctly multiply the last dimensions
             for j,w in enumerate(grid.eff_weights):
                 temp=(grid.array_diff_lf(bEobs[j,:,:],Emin,Emax,gamma).T*grid.FtoE).T
                 zpsnr += temp*survey.beam_o[i]*w #weights this be beam solid angle and efficiency
@@ -440,7 +525,8 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=False,Pn=True,do
 def calc_likelihoods_2D(grid,survey,
                         doplot=False,norm=True,psnr=True,
                         printit=False,Pn=True,dolist=0,
-                        verbose=False):
+                        verbose=False,
+                        repeaters=False,singles=False):
     """ Calculates 2D likelihoods using observed DM,z values
     
     grid: the grid object calculated from survey
@@ -484,15 +570,36 @@ def calc_likelihoods_2D(grid,survey,
     # an FRB has been observed. The normalisation
     # below is proportional to the total rate (ish)
     
-    rates=grid.rates
+    # Determine which array to perform operations on and initialise
+    if repeaters and singles: 
+        raise ValueError("Specify the likelihood for repeaters or singles, not both") 
+    elif repeaters: 
+        rates = grid.exact_reps 
+        if survey.zreps is not None:
+            DMobs=survey.DMEGs[survey.zreps]
+            Zobs=survey.Zs[survey.zreps]
+            zlist=survey.zreps
+        else:
+            raise ValueError("No localised singles in this survey, cannot calculate 1D likelihoods")
+    elif singles: 
+        rates = grid.exact_singles 
+        if survey.zsingles is not None:
+            DMobs=survey.DMEGs[survey.zsingles]
+            Zobs=survey.Zs[survey.zsingles]
+            zlist=survey.zsingles
+        else:
+            raise ValueError("No localised repeaters in this survey, cannot calculate 1D likelihoods")
+    else: 
+        rates=grid.rates 
+        if survey.zlist is not None:
+            DMobs=survey.DMEGs[survey.zlist]
+            Zobs=survey.Zs[survey.zlist]
+            zlist=survey.zlist
+        else:
+            raise ValueError("No nlocalised FRBs in this survey, cannot calculate 1D likelihoods")
+        
     zvals=grid.zvals
     dmvals=grid.dmvals
-    if survey.zlist is not None:
-        DMobs=survey.DMEGs[survey.zlist]
-        Zobs=survey.Zs[survey.zlist]
-    else:
-        raise ValueError("No localised FRBs in this survey, cannot calculate 2D likelihoods")
-    
     
     #if survey.meta["TOBS"] is not None:
     #	TotalRate=np.sum(rates)*survey.meta["TOBS"]
@@ -530,7 +637,7 @@ def calc_likelihoods_2D(grid,survey,
         pvals += rates[izs1,idms2]*dkdms*(1-dkzs)
         pvals += rates[izs2,idms2]*dkdms*dkzs
     else:
-        dm_weights, iweights = calc_DMG_weights(DMobs, survey.DMGs[survey.zlist], grid.state.MW.sigmaDMG, dmvals)
+        dm_weights, iweights = calc_DMG_weights(DMobs, survey.DMGs[zlist], grid.state.MW.sigmaDMG, dmvals)
         pvals = np.zeros(len(izs1))
         for i in range(len(izs1)):
             pvals[i] = np.sum(rates[izs1[i],iweights[i]] * dm_weights[i] * (1.-dkzs[i]) 
@@ -588,7 +695,12 @@ def calc_likelihoods_2D(grid,survey,
     if Pn and (survey.TOBS is not None):
         expected=CalculateIntegral(grid,survey)
         expected *= 10**grid.state.FRBdemo.lC
-        observed=survey.NORM_FRB
+        if repeaters:
+            observed=survey.NORM_REPS
+        elif singles:
+            observed=survey.NORM_SINGLES
+        else:
+            observed=survey.NORM_FRB
         Pn=Poisson_p(observed,expected)
         if Pn==0:
             # print("Pn returned 0. Loglikelihood set to -infinity.")
@@ -678,7 +790,7 @@ def calc_likelihoods_2D(grid,survey,
         psnr=np.zeros(Eths.shape[1])
         for i,b in enumerate(survey.beam_b):
             bEths=Eths/b # array of shape NFRB, 1/b
-            bEobs=bEths*survey.Ss[survey.zlist]
+            bEobs=bEths*survey.Ss[zlist]
             for j,w in enumerate(grid.eff_weights):
                 temp=grid.array_diff_lf(bEobs[j,:],Emin,Emax,gamma) * FtoE #one dim in beamshape, one dim in FRB
                 psnr += temp.T*survey.beam_o[i]*w #multiplies by beam factors and weight

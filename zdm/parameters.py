@@ -110,14 +110,14 @@ class FRBDemoParams(data_class.myDataClass):
 # FRB Demographics -- repeaters
 @dataclass
 class RepeatParams(data_class.myDataClass):
-    Rmin: float = field(
-        default=1e-3,
+    lRmin: float = field(
+        default=-3.,
         metadata={'help': 'Minimum repeater rate',
                   'unit': 'day^-1',
                   'Notation': '$R_{\rm min}$',
                   })
-    Rmax: float = field(
-        default=10,
+    lRmax: float = field(
+        default=1.,
         metadata={'help': 'Maximum repeater rate',
                   'unit': 'day^-1',
                   'Notation': '$R_{\rm max}$',
