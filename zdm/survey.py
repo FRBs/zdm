@@ -533,30 +533,36 @@ class Survey:
             self.singleslist = np.where(self.frbs["NREP"] == 1)[0]
 
             #------------------------------------------------------------------
-            # Check we have the necessary data to construct Nfields and Tfield        
-            self.Nfields = self.meta['NFIELDS']
-            self.Tfield = self.meta['TFIELD']
+            self.drift_scan = self.meta['DRIFT_SCAN']
 
-            if self.Nfields is None:
-                if self.Tfield is None or self.TOBS is None:
-                    raise ValueError("At least 2 of NFIELDS, TFIELD and TOBS must be set in repeater surveys")
+            if self.drift_scan == 2:
+                self.Nfields = 1
+                self.Tfield = self.TOBS
+            elif self.drift_scan == 1:
+                # Check we have the necessary data to construct Nfields and Tfield        
+                self.Nfields = self.meta['NFIELDS']
+                self.Tfield = self.meta['TFIELD']
+
+                if self.Nfields is None:
+                    if self.Tfield is None or self.TOBS is None:
+                        raise ValueError("At least 2 of NFIELDS, TFIELD and TOBS must be set in repeater surveys")
+                    else:
+                        self.Nfields = int(round(self.TOBS / self.Tfield))
+                        # To account for rounding errors - TOBS is used anyways
+                        self.Tfield = self.TOBS / self.Nfields
+                elif self.Tfield is None:
+                    if self.TOBS is None:
+                        raise ValueError("At least 2 of NFIELDS, TFIELD and TOBS must be set in repeater surveys")
+                    else:
+                        self.TOBS = self.Tfield * self.Nfields
+                elif self.TOBS is None:
+                    self.TOBS = self.Nfields * self.Tfield
                 else:
-                    self.Nfields = int(round(self.TOBS / self.Tfield))
-                    # To account for rounding errors - TOBS is used anyways
+                    # All three are set
+                    print("TOBS, TFIELD and NFIELDS all specified")
                     self.Tfield = self.TOBS / self.Nfields
-            elif self.Tfield is None:
-                if self.TOBS is None:
-                    raise ValueError("At least 2 of NFIELDS, TFIELD and TOBS must be set in repeater surveys")
-                else:
-                    self.TOBS = self.Tfield * self.Nfields
-            elif self.TOBS is None:
-                self.TOBS = self.Nfields * self.Tfield
-            else:
-                # All three are set
-                print("TOBS, TFIELD and NFIELDS all specified")
-                self.Tfield = self.TOBS / self.Nfields
-            
-            print("set TOBS = " + str(self.TOBS) + ", TFIELD = " + str(self.Tfield) + ", NFIELDS = " + str(self.Nfields))
+                
+                print("set TOBS = " + str(self.TOBS) + ", TFIELD = " + str(self.Tfield) + ", NFIELDS = " + str(self.Nfields))
             
             #------------------------------------------------------------------
             # Check we have number of repeaters / singles

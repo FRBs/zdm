@@ -87,7 +87,7 @@ def set_state(alpha_method=1, cosmo=Planck18):
 def surveys_and_grids(init_state=None, alpha_method=1, 
                       survey_names=None,
                       add_20220610A=False,
-                      nz:int=2000, ndm:int=5600,
+                      nz:int=500, ndm:int=1400,
                       repeaters=False,
                       sdir=None, edir=None): 
     """ Load up a survey and grid for a real dataset
@@ -147,9 +147,9 @@ def surveys_and_grids(init_state=None, alpha_method=1,
         s = survey.load_survey(survey_name, 
                                state, dmvals, 
                                sdir=sdir, edir=edir)
-        # Check necessary parameters exist if considering repeaters
-        if repeaters:
-            s.init_repeaters()
+        # # Check necessary parameters exist if considering repeaters
+        # if repeaters:
+        #     s.init_repeaters()
 
         surveys.append(s)
         

@@ -90,23 +90,20 @@ class repeat_Grid(grid.Grid):
     
     
     def __init__(self, survey, state, zDMgrid, zvals, dmvals, smear_mask, wdist, 
-                 Tfield=None,Nfields=None,opdir=None,Exact=True, MC=False,verbose=False,bmethod=1):
+                 opdir=None,Exact=True, MC=False,verbose=False):
         """
         Initialises repeater class
         Args:
-            grid: zdm grid class object
-            Nfields: number of separate pointings by the survey
-            Tfield: time spent on each field
-            bmethod: int (1 or 2)
-                1: beam represents solid angle viewed at each value of b,
-                    for time Tfield
-                2: beam represents time (in days) spent on any given source
-                    at sensitivity level b. Tfield is solid angle. Nfields
-                    then becomes a multiplier of the time.
+            Same as 'grid.py'
         """
         
+        survey.init_repeaters()
         super().__init__(survey, state, zDMgrid, zvals, dmvals, smear_mask, wdist)
         
+        self.drift_scan = survey.drift_scan
+        self.Nfields = survey.Nfields
+        self.Tfield = survey.Tfield
+
         # these define the repeating population - repeaters with
         # rates between Rmin and Rmax with a power-law of Rgamma
         # dN(R)/dR ~ R**Rgamma
@@ -125,8 +122,6 @@ class repeat_Grid(grid.Grid):
         self.Rmults=None
         self.Rmult=None
         
-        self.bmethod=bmethod
-        
         # set these on init, to remember for update purposes
         self.Exact = Exact
         self.MC = MC
@@ -142,21 +137,6 @@ class repeat_Grid(grid.Grid):
         else:
             self.opdir=None
             doplots=False
-        
-        # checks we have the necessary data to construct Nfields and Tfield        
-        if Nfields is not None:
-            self.Nfields=Nfields
-        else:
-            self.Nfields = survey.Nfields
-
-        if Tfield is not None:
-            self.Tfield=Tfield
-        else:
-            self.Tfield = survey.Tfield
-        
-        if survey.TOBS != self.Nfields * self.Tfield:
-            survey.TOBS = self.Nfields * self.Tfield
-            print("TOBS set to Nfields x Tfield = " + str(survey.TOBS))
 
         # calculates constant Rc in front of dN/dR = Rc R^Rgamma
         # this needs to be updated if any of the repeat parameters change
@@ -343,7 +323,7 @@ class repeat_Grid(grid.Grid):
             
             # create empty arrays for saving for later
             self.Rmults = np.zeros([nb,nz,ndm])
-            if self.bmethod==2: # we have T(B), not Omega(B)
+            if self.drift_scan==2: # we have T(B), not Omega(B)
                 self.avals=[None]
                 self.bvals=[None]
                 self.snorms1=[None]
@@ -367,17 +347,17 @@ class repeat_Grid(grid.Grid):
                 self.TooLow=[None]*self.beam_b.size
             
             for ib,b in enumerate(self.beam_b):
-                if self.bmethod==1:
+                if self.drift_scan==1:
                     time=self.Tfield # here, time is total time on field
                 else:
                     time=self.beam_o[ib]*self.Nfields # here, o is time on field, not solid angle
                 Rmult=self.calcRmult(b,time)
                 # keeps a record of this Rmult, and sets the current value
                 self.Rmults[ib,:,:] = Rmult
-            if self.bmethod==2:
+            if self.drift_scan==2:
                 self.summed_Rmult = np.sum(self.Rmults,axis=0) # just sums the multipliers over the beam axis
         
-        if self.bmethod==2:
+        if self.drift_scan==2:
             self.Nth=0
             b=None # irrelevant value
             solid_unit = self.Tfield # this value is "per steradian" factor, since beam is time
