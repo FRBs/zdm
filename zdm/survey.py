@@ -554,7 +554,7 @@ class Survey:
                     if self.TOBS is None:
                         raise ValueError("At least 2 of NFIELDS, TFIELD and TOBS must be set in repeater surveys")
                     else:
-                        self.TOBS = self.Tfield * self.Nfields
+                        self.Tfield = self.TOBS / self.Nfields
                 elif self.TOBS is None:
                     self.TOBS = self.Nfields * self.Tfield
                 else:
@@ -588,6 +588,7 @@ class Survey:
                 # Case NORM_REPS not set
                 else:
                     self.NORM_REPS = self.NORM_FRB - self.NORM_SINGLES
+                    print("NORM_REPS set to NORM_FRB - NORM_SINGLES = " + str(self.NORM_REPS))
             elif self.NORM_SINGLES is None:
                 # Do not need to consider NORM_REPS == None as that is done in the previous elif
                 # Case invalid
@@ -596,6 +597,7 @@ class Survey:
                 # Case NORM_SINGLES not set
                 else:
                     self.NORM_SINGLES = self.NORM_FRB - self.NORM_REPS
+                    print("NORM_SINGLES set to NORM_FRB - NORM_REPS = " + str(self.NORM_SINGLES))
             # Case all 3 are set
             else:
                 # Common sense check
@@ -711,20 +713,20 @@ class Survey:
                 # Repeater dimensions
                 if len(self.nozreps) == 0:
                     self.nozreps = None
-                    self.nDr = 1
+                    self.nDr = 2
                 elif len(self.zreps) == 0:
                     self.zreps = None
-                    self.nDr = 2
+                    self.nDr = 1
                 else:
                     self.nDr = 3
         
                 # Singles dimensions
                 if len(self.nozsingles) == 0:
                     self.nozsingles = None
-                    self.nDs = 1
+                    self.nDs = 2
                 elif len(self.zsingles) == 0:
                     self.zsingles = None
-                    self.nDs = 2
+                    self.nDs = 1
                 else:
                     self.nDs = 3
             

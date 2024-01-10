@@ -395,7 +395,16 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=False,Pn=True,do
         # we have now effectively calculated the local probabilities in the source-counts histogram for a given DM
         # we have to weight this by the sfr_smear factors, and the volumetric probabilities
         # this are the grid smearing factors incorporating pcosmic and the host contributions
-        sg = grid.sfr_smear[:,idms1]*(1.-dkdms)+ grid.sfr_smear[:,idms2]*dkdms
+        if grid.state.MW.sigmaDMG == 0.0:
+            # Linear interpolation
+            sg = grid.sfr_smear[:,idms1]*(1.-dkdms)+ grid.sfr_smear[:,idms2]*dkdms
+        else:
+            sg = np.zeros([grid.sfr_smear.shape[0], len(idms1)])
+            # For each FRB
+            for i in range(len(idms1)):
+                # For each redshift
+                for j in range(sg.shape[0]):
+                    sg[j,i] = np.sum(grid.sfr_smear[j,iweights[i]] * dm_weights[i])
         sgV = (sg.T*grid.dV.T).T
         wzpsnr = zpsnr * sgV
         #THIS HAS NOT YET BEEN NORMALISED!!!!!!!!
@@ -798,12 +807,21 @@ def calc_likelihoods_2D(grid,survey,
         # at this stage, we have the amplitude from diff power law 
         # summed over beam and weight
         
-        # we only alculate the following sg and V factors to get units to be
+        # we only calculate the following sg and V factors to get units to be
         # comparable to the 1D case - otherwise it is superfluous
-        sg = grid.sfr_smear[izs1,idms1]*(1.-dkdms)*(1-dkzs)
-        sg += grid.sfr_smear[izs2,idms1]*(1.-dkdms)*dkzs
-        sg += grid.sfr_smear[izs1,idms2]*dkdms*(1-dkzs)
-        sg += grid.sfr_smear[izs2,idms2]*dkdms*dkzs
+        if grid.state.MW.sigmaDMG == 0.0:
+            # Linear interpolation
+            sg = grid.sfr_smear[izs1,idms1]*(1.-dkdms)*(1-dkzs)
+            sg += grid.sfr_smear[izs2,idms1]*(1.-dkdms)*dkzs
+            sg += grid.sfr_smear[izs1,idms2]*dkdms*(1-dkzs)
+            sg += grid.sfr_smear[izs2,idms2]*dkdms*dkzs
+        else:
+            sg = np.zeros(len(izs1))
+            # For each FRB
+            for i in range(len(izs1)):
+                sg[i] = np.sum(grid.sfr_smear[izs1[i],iweights[i]] * dm_weights[i] * (1.-dkzs[i]) 
+                                + grid.sfr_smear[izs2[i],iweights[i]] * dm_weights[i] * dkzs[i])
+
         dV = grid.dV[izs1]*(1-dkzs) +  grid.dV[izs2]*dkzs
         # at this stage, sg and dV account for the DM distribution and SFR;
         # dV is the volume elements
@@ -910,6 +928,9 @@ def calc_DMG_weights(DMEGs, DMGs, sigmaDMGs, dmvals, n_sig=3):
             max = DMEGs[i] + DMG
         else:
             max = DMEGs[i] + delta
+
+        if max < 0:
+            raise ValueError("All considered DMEGs are negative")
 
         # Determine indices of where the DM is between min and max
         mask = (dmvals > min) * (dmvals < max)
@@ -1070,7 +1091,7 @@ def cube_likelihoods(grids:list,surveys:list,
     # expected number for best-fit constant
     
     """
-    # 
+    #
     npoints = np.array([item['n'] for key, item in vparam_dict.items()])
     ntotal = np.prod(np.abs(npoints))
     print(f"The total grid has {ntotal} npoints")

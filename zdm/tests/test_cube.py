@@ -9,7 +9,7 @@ from pkg_resources import resource_filename
 import pandas
 
 from zdm import iteration as it
-from zdm import real_loading
+from zdm import loading
 from zdm import io
 from zdm.tests import tstutils
 
@@ -47,7 +47,7 @@ def test_cube_run():
         surveys.append(s)
         grids.append(g)
     '''
-    surveys, grids = real_loading.surveys_and_grids(
+    surveys, grids = loading.surveys_and_grids(
         nz=500, ndm=1400) # Small number to keep this cheap
     
     

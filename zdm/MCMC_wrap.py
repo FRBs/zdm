@@ -15,7 +15,7 @@ import os
 
 from zdm import survey
 from zdm import cosmology as cos
-from zdm import real_loading as loading
+from zdm import loading
 from zdm.MCMC import *
 
 import pickle
