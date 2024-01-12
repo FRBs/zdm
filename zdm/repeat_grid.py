@@ -640,11 +640,16 @@ class repeat_Grid:
             norms1 = -avals**effGamma / effGamma # this is the "too low" value
             analytic = (SET_REP_ZERO**effGamma - avals[NotTooLowb]**effGamma)/effGamma
             if NTLb:
-                norms1[NotTooLowb] = interpolate.splev([SET_REP_ZERO], energetics.igamma_splines[effGamma])
+                if energetics.SplineLog:
+                    norms1[NotTooLowb] = 10.**interpolate.splev(np.log10([SET_REP_ZERO]), energetics.igamma_splines[effGamma])
+                else:
+                    norms1[NotTooLowb] = interpolate.splev([SET_REP_ZERO], energetics.igamma_splines[effGamma])
                 norms1[NotTooLowb] += analytic
             if NTL:
-                norms1[NotTooLow] = interpolate.splev(avals[NotTooLow], energetics.igamma_splines[effGamma])
-            
+                if energetics.SplineLog:
+                    norms1[NotTooLow] = 10.**interpolate.splev(np.log10(avals[NotTooLow]), energetics.igamma_splines[effGamma])
+                else:
+                    norms1[NotTooLow] = interpolate.splev(avals[NotTooLow], energetics.igamma_splines[effGamma])
             self.snorms1[self.Nth] = norms1
         # now do calculations
         if self.newRmax == False and self.newRgamma == False:
@@ -652,7 +657,11 @@ class repeat_Grid:
         else:
             norms2 = -bvals**effGamma / effGamma
             if NTLb:
-                norms2[NotTooLowb] = interpolate.splev(bvals[NotTooLowb], energetics.igamma_splines[effGamma])
+                
+                if energetics.SplineLog:
+                    norms2[NotTooLowb] = 10.**interpolate.splev(np.log10(bvals[NotTooLowb]), energetics.igamma_splines[effGamma])
+                else:
+                    norms2[NotTooLowb] = interpolate.splev(bvals[NotTooLowb], energetics.igamma_splines[effGamma])
             self.snorms2[self.Nth] = norms2
         # subtract components
         norms = norms1 - norms2
@@ -738,11 +747,18 @@ class repeat_Grid:
             analytic = (SET_REP_ZERO**effGamma - avals[NotTooLowb]**effGamma)/effGamma
             
             if NTLb:
-                norms1[NotTooLowb] = interpolate.splev([SET_REP_ZERO], energetics.igamma_splines[effGamma])
+                
+                if energetics.SplineLog:
+                    norms1[NotTooLowb] = 10.**interpolate.splev(np.log10([SET_REP_ZERO]), energetics.igamma_splines[effGamma])
+                else:
+                    norms1[NotTooLowb] = interpolate.splev([SET_REP_ZERO], energetics.igamma_splines[effGamma])
                 norms1[NotTooLowb] += analytic
             # the below over-writes the above
             if NTL:
-                norms1[NotTooLow] = interpolate.splev(avals[NotTooLow], energetics.igamma_splines[effGamma])
+                if energetics.SplineLog:
+                    norms1[NotTooLow] = 10.**interpolate.splev(np.log10(avals[NotTooLow]), energetics.igamma_splines[effGamma])
+                else:
+                    norms1[NotTooLow] = interpolate.splev(avals[NotTooLow], energetics.igamma_splines[effGamma])
             self.znorms1[self.Nth] = norms1
             
         
@@ -752,7 +768,11 @@ class repeat_Grid:
         else:
             norms2 = -bvals**effGamma / effGamma
             if NTLb:
-                norms2[NotTooLowb] = interpolate.splev(bvals[NotTooLowb], energetics.igamma_splines[effGamma])
+                if energetics.SplineLog:
+                    norms2[NotTooLowb] = 10.**interpolate.splev(np.log10(bvals[NotTooLowb]), energetics.igamma_splines[effGamma])
+                else:
+                    norms2[NotTooLowb] = interpolate.splev(bvals[NotTooLowb], energetics.igamma_splines[effGamma])
+                
             self.znorms2[self.Nth] = norms2
         
         # integral is in units of R'=R*Rmult
