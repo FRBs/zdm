@@ -11,10 +11,16 @@ Purpose:
 import numpy as np
 
 import zdm.iteration as it
+from pkg_resources import resource_filename
 
 import emcee
 import scipy.stats as st
 import time
+
+from zdm import loading
+from zdm import parameters
+
+from astropy.cosmology import Planck18
 
 import multiprocessing as mp
 
@@ -22,7 +28,7 @@ from zdm.misc_functions import *
 
 #==============================================================================
 
-def calc_log_posterior(param_vals, params, surveys, grids):
+def calc_log_posterior(param_vals, params, surveys_sep, grid_params):
     """
     Calculates the log posterior for a given set of parameters. Assumes uniform
     priors between the minimum and maximum values provided in 'params'.
@@ -30,8 +36,7 @@ def calc_log_posterior(param_vals, params, surveys, grids):
     Inputs:
         param_vals  =   Array of the parameter values for this step
         params      =   Dictionary of the parameter names, min and max values
-        surveys     =   List of surveys being used
-        grids       =   List of grids corresponding to the surveys
+        files       =   Object containing survey_names, rep_survey_names, sdir, edir
     
     Outputs:
         llsum       =   Total log likelihood for param_vals which is equivalent
@@ -57,7 +62,34 @@ def calc_log_posterior(param_vals, params, surveys, grids):
 
         # minimise_const_only does the grid updating so we don't need to do it explicitly beforehand
         try:
-            newC, llC = it.minimise_const_only(param_dict, grids, surveys)
+            # Set state
+            state = parameters.State()
+            state.update_params(param_dict)
+            state.set_astropy_cosmo(Planck18)
+
+            # Initialise surveys and grids
+            grids = []
+            if len(surveys_sep[0]) != 0:
+                zDMgrid, zvals,dmvals = get_zdm_grid(
+                    state, new=True, plot=False, method='analytic', 
+                    nz=grid_params['nz'], ndm=grid_params['ndm'], dmmax=grid_params['dmmax'],
+                    datdir=resource_filename('zdm', 'GridData'))
+    
+                # generates zdm grid
+                grids += initialise_grids(surveys_sep[0], zDMgrid, zvals, dmvals, state, wdist=True, repeaters=False)
+            
+            if len(surveys_sep[0]) != 0:
+                zDMgrid, zvals,dmvals = get_zdm_grid(
+                    state, new=True, plot=False, method='analytic', 
+                    nz=grid_params['nz'], ndm=grid_params['ndm'], dmmax=grid_params['dmmax'],
+                    datdir=resource_filename('zdm', 'GridData'))
+    
+                # generates zdm grid
+                grids += initialise_grids(surveys_sep[1], zDMgrid, zvals, dmvals, state, wdist=True, repeaters=True)
+            surveys = surveys_sep[0] + surveys_sep[1]
+
+            # Minimse the constant accross all surveys
+            newC, llC = it.minimise_const_only(None, grids, surveys)
             for g in grids:
                 g.state.FRBdemo.lC = newC
 
@@ -80,7 +112,7 @@ def calc_log_posterior(param_vals, params, surveys, grids):
 
 #==============================================================================
 
-def mcmc_runner(logpf, outfile, params, surveys, grids, nwalkers=10, nsteps=100, nthreads=1):
+def mcmc_runner(logpf, outfile, params, surveys, grid_params, nwalkers=10, nsteps=100, nthreads=1):
     """
     Handles the MCMC running.
 
@@ -111,13 +143,13 @@ def mcmc_runner(logpf, outfile, params, surveys, grids, nwalkers=10, nsteps=100,
 
     backend = emcee.backends.HDFBackend(outfile+'.h5')
     backend.reset(nwalkers, ndim)
-
-    # start = time.time()
+    
+    start = time.time()
     with mp.Pool() as pool:
-        sampler = emcee.EnsembleSampler(nwalkers, ndim, logpf, args=[params, surveys, grids], backend=backend, pool=pool)
+        sampler = emcee.EnsembleSampler(nwalkers, ndim, logpf, args=[params, surveys, grid_params], backend=backend, pool=pool)
         sampler.run_mcmc(starting_guesses, nsteps, progress=True)
-    # end = time.time()
-    # print("Total time taken: " + str(end - start))
+    end = time.time()
+    print("Total time taken: " + str(end - start))
     
     posterior_sample = sampler.get_chain()
 

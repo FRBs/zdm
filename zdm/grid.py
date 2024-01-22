@@ -7,7 +7,7 @@ from zdm import misc_functions
 from zdm import energetics
 from zdm import pcosmic
 from zdm import io
-
+import time
 
 class Grid:
     """A class to hold a grid of z-dm plots
@@ -18,7 +18,7 @@ class Grid:
     It also assumes a linear uniform grid.
     """
 
-    def __init__(self, survey, state, zDMgrid, zvals, dmvals, smear_mask, wdist):
+    def __init__(self, survey, state, zDMgrid, zvals, dmvals, smear_mask, wdist, prev_grid=None):
         """
         Class constructor.
 
@@ -57,8 +57,15 @@ class Grid:
         # Init the grid
         #   THESE SHOULD BE THE SAME ORDER AS self.update()
         self.parse_grid(zDMgrid.copy(), zvals.copy(), dmvals.copy())
-        self.calc_dV()
-        self.smear_dm(smear_mask.copy())
+
+        if prev_grid == None:
+            self.calc_dV()
+            self.smear_dm(smear_mask.copy())
+        else:
+            self.dV = prev_grid.dV.copy()
+            self.smear = prev_grid.smear.copy()
+            self.smear_grid = prev_grid.smear_grid.copy()
+            
         if wdist:
             efficiencies = survey.efficiencies  # two dimensions
             weights = survey.wplist
@@ -749,6 +756,9 @@ class Grid:
             calc_pdv = True
             new_pdv_smear = True
 
+        if self.chk_upd_param("DMhalo", vparams, update=True):
+            self.survey.init_DMEG(vparams["DMhalo"])
+
         # ###########################
         # NOW DO THE REAL WORK!!
 
@@ -812,13 +822,11 @@ class Grid:
                 bandwidth=self.bandwidth,
                 weights=self.eff_weights,
             )
-
+            
         if calc_pdv or ALL:
             self.calc_pdv()
-
         if set_evol or ALL:
             self.set_evolution()  # sets star-formation rate scaling with z - here, no evoltion...
-
         if new_sfr_smear or ALL:
             self.calc_rates()  # includes sfr smearing factors and pdv mult
         elif new_pdv_smear:

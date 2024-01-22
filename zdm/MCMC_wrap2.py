@@ -13,9 +13,12 @@ Purpose:
 import argparse
 import os
 
+from zdm import survey
+from zdm import cosmology as cos
 from zdm import loading
-from zdm.MCMC import *
+from zdm.MCMC2 import *
 
+import pickle
 import json
 
 #==============================================================================
@@ -52,18 +55,28 @@ def main():
         print("-p and -o flags are required")
         exit()
 
-    # Initialise surveys and grids
+    # Initialise surveys
+    surveys = [[], []]
+    state = parameters.State()
+
+    grid_params = {}
+    grid_params['dmmax'] = 7000.0
+    grid_params['ndm'] = 1400
+    grid_params['nz'] = 500
+    ddm = grid_params['dmmax'] / grid_params['ndm']
+    dmvals = (np.arange(grid_params['ndm']) + 1) * ddm
+    
     if args.files is not None:
-        surveys, grids = loading.surveys_and_grids(survey_names = args.files, repeaters=False, sdir=args.sdir, edir=args.edir)
-    else:
-        surveys = []
-        grids = []
+        for survey_name in args.files:
+            s = survey.load_survey(survey_name, state, dmvals, 
+                                sdir=args.sdir, edir=args.edir)
+            surveys[0].append(s)
     
     if args.rep_surveys is not None:
-        rep_surveys, rep_grids = loading.surveys_and_grids(survey_names = args.rep_surveys, repeaters=True, sdir=args.sdir, edir=args.edir)
-        for s,g in zip(rep_surveys, rep_grids):
-            surveys.append(s)
-            grids.append(g)
+        for survey_name in args.rep_surveys:
+            s = survey.load_survey(survey_name, state, dmvals, 
+                                sdir=args.sdir, edir=args.edir)
+            surveys[1].append(s)
 
     # Make output directory
     if args.outdir != "" and not os.path.exists(args.outdir):
@@ -75,8 +88,8 @@ def main():
     # Select from dictionary the necessary parameters to be changed
     params = {k: mcmc_dict[k] for k in mcmc_dict['mcmc']['parameter_order']}
 
-    mcmc_runner(calc_log_posterior, os.path.join(args.outdir, args.opfile), params, surveys, grids, nwalkers=args.walkers, nsteps=args.steps, nthreads=args.nthreads)
+    mcmc_runner(calc_log_posterior, os.path.join(args.outdir, args.opfile), params, surveys, grid_params, nwalkers=args.walkers, nsteps=args.steps, nthreads=args.nthreads)
 
 #==============================================================================
-    
+
 main()

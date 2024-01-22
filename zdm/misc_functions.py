@@ -1942,18 +1942,20 @@ def initialise_grids(
     )
     grids = []
     for survey in surveys:
-        print(f"Working on {survey.name}")
+        prev_grid = None
+        # print(f"Working on {survey.name}")
 
         if repeaters:
             grid = zdm_repeat_grid.repeat_Grid(
-                survey, copy.deepcopy(state), zDMgrid, zvals, dmvals, mask, wdist
+                survey, copy.deepcopy(state), zDMgrid, zvals, dmvals, mask, wdist, prev_grid=prev_grid
             )
         else:
             grid = zdm_grid.Grid(
-                survey, copy.deepcopy(state), zDMgrid, zvals, dmvals, mask, wdist
+                survey, copy.deepcopy(state), zDMgrid, zvals, dmvals, mask, wdist, prev_grid=prev_grid
             )
 
         grids.append(grid)
+        prev_grid = grid
 
     return grids
 
