@@ -757,7 +757,14 @@ class Grid:
             new_pdv_smear = True
 
         if self.chk_upd_param("DMhalo", vparams, update=True):
+            # Update survey params
             self.survey.init_DMEG(vparams["DMhalo"])
+            self.survey.get_efficiency_from_wlist(self.survey.DMlist,self.survey.wlist,self.survey.wplist,model=self.survey.meta['WBIAS'])
+            self.eff_table = self.survey.efficiencies
+
+            calc_thresh = True
+            calc_pdv = True
+            new_pdv_smear = True
 
         # ###########################
         # NOW DO THE REAL WORK!!
@@ -832,8 +839,12 @@ class Grid:
         elif new_pdv_smear:
             self.rates = self.pdv * self.sfr_smear  # does pdv mult only, 'by hand'
 
-        # Catch all the changes just in case, e.g. lC
+        # Catch all the changes just in case, e.g. lCf
+        # Can no longer do this because of repeat_grid
         self.state.update_params(vparams)
+        # self.chk_upd_param("lC", vparams, update=True)
+
+        return new_sfr_smear, new_pdv_smear, (get_zdm or smear_dm or calc_dV) # If either is true, need to also recalc repeater grids
 
     def chk_upd_param(self, param: str, vparams: dict, update=False):
         """ Check to see whether a parameter is

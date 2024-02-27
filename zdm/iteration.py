@@ -168,7 +168,7 @@ def maximise_likelihood(grid,survey):
     return results
 
 
-def get_log_likelihood(grid, s, norm=True):
+def get_log_likelihood(grid, s, norm=True, sig=None, psnr=True, Pn=True):
     """
     Returns the likelihood for the grid given the survey.
 
@@ -183,14 +183,14 @@ def get_log_likelihood(grid, s, norm=True):
     if isinstance(grid, zdm_repeat_grid.repeat_Grid):
         # Repeaters
         if s.nDr==1:
-            llsum1, lllist, expected = calc_likelihoods_1D(grid, s, norm=norm, psnr=True, dolist=1, repeaters=True)
+            llsum1, lllist, expected = calc_likelihoods_1D(grid, s, norm=norm, psnr=psnr, dolist=1, repeaters=True, Pn=Pn, sig=sig)
             llsum = llsum1
         elif s.nDr==2:
-            llsum1, lllist, expected = calc_likelihoods_2D(grid, s, norm=norm, psnr=True, dolist=1, repeaters=True)
+            llsum1, lllist, expected = calc_likelihoods_2D(grid, s, norm=norm, psnr=psnr, dolist=1, repeaters=True, Pn=Pn, sig=sig)
             llsum = llsum1
         elif s.nDr==3:
-            llsum1, lllist1, expected1 = calc_likelihoods_1D(grid, s, norm=norm, psnr=True, dolist=1, repeaters=True)
-            llsum2, lllist2, expected2 = calc_likelihoods_2D(grid, s, norm=norm, psnr=True, dolist=1, repeaters=True, Pn=False)
+            llsum1, lllist1, expected1 = calc_likelihoods_1D(grid, s, norm=norm, psnr=psnr, dolist=1, repeaters=True, Pn=Pn, sig=sig)
+            llsum2, lllist2, expected2 = calc_likelihoods_2D(grid, s, norm=norm, psnr=psnr, dolist=1, repeaters=True, Pn=False, sig=sig)
             llsum = llsum1 + llsum2
         else:
             print("Implementation is only completed for nD 1-3.")
@@ -198,28 +198,28 @@ def get_log_likelihood(grid, s, norm=True):
         
         # Singles
         if s.nDs==1:
-            llsum1, lllist, expected = calc_likelihoods_1D(grid, s, norm=norm, psnr=True, dolist=1, singles=True)
+            llsum1, lllist, expected = calc_likelihoods_1D(grid, s, norm=norm, psnr=psnr, dolist=1, singles=True, Pn=Pn, sig=sig)
             llsum += llsum1
         elif s.nDs==2:
-            llsum1, lllist, expected = calc_likelihoods_2D(grid, s, norm=norm, psnr=True, dolist=1, singles=True)
+            llsum1, lllist, expected = calc_likelihoods_2D(grid, s, norm=norm, psnr=psnr, dolist=1, singles=True, Pn=Pn, sig=sig)
             llsum += llsum1
         elif s.nDs==3:
-            llsum1, lllist1, expected1 = calc_likelihoods_1D(grid, s, norm=norm, psnr=True, dolist=1, singles=True)
-            llsum2, lllist2, expected2 = calc_likelihoods_2D(grid, s, norm=norm, psnr=True, dolist=1, singles=True, Pn=False)
+            llsum1, lllist1, expected1 = calc_likelihoods_1D(grid, s, norm=norm, psnr=psnr, dolist=1, singles=True, Pn=Pn, sig=sig)
+            llsum2, lllist2, expected2 = calc_likelihoods_2D(grid, s, norm=norm, psnr=psnr, dolist=1, singles=True, Pn=False, sig=sig)
             llsum = llsum + llsum1 + llsum2
         else:
             print("Implementation is only completed for nD 1-3.")
             exit()
     else:
         if s.nD==1:
-            llsum1, lllist, expected = calc_likelihoods_1D(grid, s, norm=norm, psnr=True, dolist=1)
+            llsum1, lllist, expected = calc_likelihoods_1D(grid, s, norm=norm, psnr=psnr, dolist=1, Pn=Pn, sig=sig)
             llsum = llsum1
         elif s.nD==2:
-            llsum1, lllist, expected = calc_likelihoods_2D(grid, s, norm=norm, psnr=True, dolist=1)
+            llsum1, lllist, expected = calc_likelihoods_2D(grid, s, norm=norm, psnr=psnr, dolist=1, Pn=Pn, sig=sig)
             llsum = llsum1
         elif s.nD==3:
-            llsum1, lllist1, expected1 = calc_likelihoods_1D(grid, s, norm=norm, psnr=True, dolist=1)
-            llsum2, lllist2, expected2 = calc_likelihoods_2D(grid, s, norm=norm, psnr=True, dolist=1, Pn=False)
+            llsum1, lllist1, expected1 = calc_likelihoods_1D(grid, s, norm=norm, psnr=psnr, dolist=1, Pn=Pn, sig=sig)
+            llsum2, lllist2, expected2 = calc_likelihoods_2D(grid, s, norm=norm, psnr=psnr, dolist=1, Pn=False, sig=sig)
             llsum = llsum1 + llsum2
         else:
             print("Implementation is only completed for nD 1-3.")
@@ -227,7 +227,7 @@ def get_log_likelihood(grid, s, norm=True):
 
     return llsum
 
-def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=False,Pn=True,dolist=0,repeaters=False,singles=False):
+def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=False,Pn=True,dolist=0,repeaters=False,singles=False, sig=None):
     """ Calculates 1D likelihoods using only observedDM values
     Here, Zfrbs is a dummy variable allowing it to be treated like a 2D function
     for purposes of calling.
@@ -286,13 +286,11 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=False,Pn=True,do
         # Linear interpolation
         pvals=pdm[idms1]*(1.-dkdms) + pdm[idms2]*dkdms
     else:
-        dm_weights, iweights = calc_DMG_weights(DMobs, survey.DMGs[nozlist], grid.state.MW.sigmaDMG, dmvals)
+        dm_weights, iweights = calc_DMG_weights(DMobs, survey.DMGs[nozlist], grid.state.MW.sigmaDMG, dmvals, n_sig=sig)
         pvals = np.zeros(len(idms1))
         for i in range(len(idms1)):
             pvals[i]=np.sum(pdm[iweights[i]]*dm_weights[i])
-    
-    #print(idms1)
-    #print(dkdms)
+
     if norm:
         global_norm=np.sum(pdm)
         log_global_norm=np.log10(global_norm)
@@ -301,7 +299,8 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=False,Pn=True,do
         log_global_norm=0
     
     # holds individual FRB data
-    longlist=np.log10(pvals)-log_global_norm
+    if dolist == 2:
+        longlist=np.log10(pvals)-log_global_norm
     
     # sums over all FRBs for total likelihood
     llsum=np.sum(np.log10(pvals))-log_global_norm*DMobs.size
@@ -309,20 +308,21 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=False,Pn=True,do
     
     ### Assesses total number of FRBs ###
     if Pn and (survey.TOBS is not None):
-        expected=CalculateIntegral(grid,survey)
-        expected *= 10**grid.state.FRBdemo.lC
         if repeaters:
             observed=survey.NORM_REPS
+            C = grid.Rc
         elif singles:
             observed=survey.NORM_SINGLES
+            C = grid.Rc
         else:
             observed=survey.NORM_FRB
+            C = 10**grid.state.FRBdemo.lC
+        expected=CalculateIntegral(rates,survey)
+        expected *= C
+
         Pn=Poisson_p(observed,expected)
         if Pn==0:
-            # print("Pn returned 0. Loglikelihood set to -infinity.")
-            # print("Observed: " + str(observed) + ", Expected: " + str(expected))
-            # print("Normalisation:" + str(10**grid.state.FRBdemo.lC))
-            Nll=-np.inf
+            Nll=-1e10
             if dolist==0:
                 return Nll
         else:
@@ -419,12 +419,13 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=False,Pn=True,do
         psnr /= norms #normalises according to the per-DM probability
         
         # keeps individual FRB values
-        longlist += np.log10(psnr)
+        if dolist==2:
+            longlist += np.log10(psnr)
         
         # checks to ensure all frbs have a chance of being detected
         bad=np.array(np.where(psnr == 0.))
         if bad.size > 0:
-            snrll = float('NaN') # none of this is possible! [somehow...]
+            snrll = -1e10 # none of this is possible! [somehow...]
         else:
             snrll = np.sum(np.log10(psnr))
         lllist.append(snrll)
@@ -520,7 +521,7 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=False,Pn=True,do
         plt.tight_layout()
         plt.savefig('Plots/1d_dm_fit.pdf')
         plt.close()
-    
+
     if dolist==0:
         return llsum
     elif dolist==1:
@@ -535,7 +536,7 @@ def calc_likelihoods_2D(grid,survey,
                         doplot=False,norm=True,psnr=True,
                         printit=False,Pn=True,dolist=0,
                         verbose=False,
-                        repeaters=False,singles=False):
+                        repeaters=False,singles=False, sig=None):
     """ Calculates 2D likelihoods using observed DM,z values
     
     grid: the grid object calculated from survey
@@ -646,7 +647,7 @@ def calc_likelihoods_2D(grid,survey,
         pvals += rates[izs1,idms2]*dkdms*(1-dkzs)
         pvals += rates[izs2,idms2]*dkdms*dkzs
     else:
-        dm_weights, iweights = calc_DMG_weights(DMobs, survey.DMGs[zlist], grid.state.MW.sigmaDMG, dmvals)
+        dm_weights, iweights = calc_DMG_weights(DMobs, survey.DMGs[zlist], grid.state.MW.sigmaDMG, dmvals, n_sig=sig)
         pvals = np.zeros(len(izs1))
         for i in range(len(izs1)):
             pvals[i] = np.sum(rates[izs1[i],iweights[i]] * dm_weights[i] * (1.-dkzs[i]) 
@@ -660,11 +661,12 @@ def calc_likelihoods_2D(grid,survey,
         flg_bad = True
     
     # holds individual FRB data
-    longlist=np.log10(pvals)-np.log10(norm)
+    if dolist==2:
+        longlist=np.log10(pvals)-np.log10(norm)
     
     llsum=np.sum(np.log10(pvals))
     if flg_bad:
-        llsum = np.nan
+        llsum = -1e10
     # 
     llsum -= np.log10(norm)*Zobs.size # once per event
     lllist=[llsum]
@@ -700,22 +702,23 @@ def calc_likelihoods_2D(grid,survey,
         llpdm = np.sum(np.log10(pdmvals)) - np.log10(norm)*Zobs.size
         llpz = np.sum(np.log10(pzvals)) - np.log10(norm)*Zobs.size
         dolist5_return = [llpzgdm,llpdm,llpdmgz,llpz]
-        
+    
     if Pn and (survey.TOBS is not None):
-        expected=CalculateIntegral(grid,survey)
-        expected *= 10**grid.state.FRBdemo.lC
         if repeaters:
             observed=survey.NORM_REPS
+            C = grid.Rc
         elif singles:
             observed=survey.NORM_SINGLES
+            C = grid.Rc
         else:
             observed=survey.NORM_FRB
+            C = 10**grid.state.FRBdemo.lC
+        expected=CalculateIntegral(rates,survey)
+        expected *= C
+        
         Pn=Poisson_p(observed,expected)
         if Pn==0:
-            # print("Pn returned 0. Loglikelihood set to -infinity.")
-            # print("Observed: " + str(observed) + ", Expected: " + str(expected))
-            # print("Normalisation:" + str(10**grid.state.FRBdemo.lC))
-            Pll=-np.inf
+            Pll=-1e10
             if dolist==0:
                 return Pll
         else:
@@ -855,12 +858,13 @@ def calc_likelihoods_2D(grid,survey,
         wzpsnr /= pvals
         
         # keeps individual FRB values
-        longlist += np.log10(wzpsnr)
+        if dolist==2:
+            longlist += np.log10(wzpsnr)
         
         # checks to ensure all frbs have a chance of being detected
         bad=np.array(np.where(wzpsnr == 0.))
         if bad.size > 0:
-            snrll = float('NaN') # none of this is possible! [somehow...]
+            snrll = -1e10 # none of this is possible! [somehow...]
         else:
             snrll = np.sum(np.log10(wzpsnr))
         
@@ -878,7 +882,7 @@ def calc_likelihoods_2D(grid,survey,
             f"pvterm={np.sum(np.log10(pvals)):0.2f}," \
             f"wzterm={np.sum(np.log10(wzpsnr)):0.2f}," \
             f"comb={np.sum(np.log10(wzpsnr*pvals)):0.2f}")
-        
+    
     if dolist==0:
         return llsum
     elif dolist==1:
@@ -895,7 +899,7 @@ def calc_likelihoods_2D(grid,survey,
     elif dolist==5:
         return llsum,lllist,expected,dolist5_return
 
-def calc_DMG_weights(DMEGs, DMGs, sigmaDMGs, dmvals, n_sig=3):
+def calc_DMG_weights(DMEGs, DMGs, sigmaDMGs, dmvals, n_sig=None):
     """
     Given an uncertainty on the DMG value, calculate the weights of DM values to integrate over
 
@@ -918,28 +922,37 @@ def calc_DMG_weights(DMEGs, DMGs, sigmaDMGs, dmvals, n_sig=3):
         # Get absolute uncertainty in DMG
         sigmaDMG = DMG * sigmaDMGs
 
-        # Determine lower and upper DM values used
-        delta = n_sig*sigmaDMG
-        min = DMEGs[i] - delta
-        # actual DMG can't be less than 0, so if delta is larger than DMG:
-        # DMEG = DM_tot - DMG - DMhalo
-        # DMEG_max = DM_tot - DMhalo = DMEG + DMG
-        if delta > DMG:
+        # # Determine lower and upper DM values used
+        if n_sig == None:
+            # From 0 to DM_total
             max = DMEGs[i] + DMG
+            idxs = np.where(dmvals < max)
         else:
-            max = DMEGs[i] + delta
+            # n_sig SDs either side truncated at 0 and DM_total
+            delta = n_sig*sigmaDMG
+            min = DMEGs[i] - delta
+            # actual DMG can't be less than 0, so if delta is larger than DMG:
+            # DMEG = DM_tot - DMG - DMhalo
+            # DMEG_max = DM_tot - DMhalo = DMEG + DMG
+            if delta > DMG:
+                # DMEGs + DMG = DM_total
+                max = DMEGs[i] + DMG
+            else:
+                max = DMEGs[i] + delta
 
+            # Determine indices of where the DM is between min and max
+            mask = (dmvals > min) * (dmvals < max)
+            idxs = np.where(mask)
+        
         if max < 0:
             raise ValueError("All considered DMEGs are negative")
 
-        # Determine indices of where the DM is between min and max
-        mask = (dmvals > min) * (dmvals < max)
-        idxs = np.where(mask)
-
         # Get weights
         x = dmvals[idxs]
-        weight = st.norm.pdf(x, loc=DMEGs[i], scale=sigmaDMG)
-        weight = weight / np.sum(weight)    # Re-normalise
+        ddm = dmvals[1] - dmvals[0]
+        weight = st.norm.pdf(x, loc=DMEGs[i], scale=sigmaDMG) * ddm
+        # weight = weight / np.sum(weight)    # Re-normalise
+
         weights.append(weight)
         iweights.append(idxs)
 
@@ -1964,12 +1977,12 @@ def CalculateConstant(grid,survey):
     or otherwise made relevant.
     """
     
-    expected=CalculateIntegral(grid,survey)
+    expected=CalculateIntegral(grid.rates,survey)
     observed=survey.NORM_FRB
     constant=observed/expected
     return constant
 
-def CalculateIntegral(grid,survey):
+def CalculateIntegral(rates,survey):
     """ Calculates the total expected number of FRBs for that grid and survey """
     
     # check that the survey has a defined observation time
@@ -1978,7 +1991,7 @@ def CalculateIntegral(grid,survey):
     else:
         return 0
     
-    total=np.sum(grid.rates)
+    total=np.sum(rates)
     return total*TOBS
     
 def GetFirstConstantEstimate(grids,surveys,pset):
@@ -2004,14 +2017,14 @@ def minus_poisson_ps(log10C,data):
     for i,r in enumerate(rs):
         Pn=Poisson_p(os[i],r)
         if (Pn == 0):
-            lp = -np.inf
+            lp = -1e10
         else:
             lp += np.log10(Pn)
     return -lp
     
 
 def minimise_const_only(vparams:dict,grids:list,surveys:list,
-                        Verbose=False, use_prev_grid:bool=True):
+                        Verbose=False, use_prev_grid:bool=True, update=False):
     """
     Only minimises for the constant, but returns the full likelihood
     It treats the rest as constants
@@ -2055,6 +2068,7 @@ def minimise_const_only(vparams:dict,grids:list,surveys:list,
     rs=[] #expected
     os=[] #observed
     lls=np.zeros([ng])
+    dC=0
     for j,s in enumerate(surveys):
         # Update - but only if there is something to update!
         if vparams is not None:
@@ -2063,32 +2077,46 @@ def minimise_const_only(vparams:dict,grids:list,surveys:list,
                             j > 0 and use_prev_grid) else None)
         ### Assesses total number of FRBs ###
         if s.TOBS is not None:
-            r=np.sum(grids[j].rates)*s.TOBS
-            r*=10**grids[j].state.FRBdemo.lC #vparams['lC']
+            if isinstance(grids[j], zdm_repeat_grid.repeat_Grid):
+                r=np.sum(grids[j].exact_singles + grids[j].exact_reps)*s.TOBS
+                r*=grids[j].Rc
+            else:
+                r=np.sum(grids[j].rates)*s.TOBS
+                r*=10**grids[j].state.FRBdemo.lC #vparams['lC']
             o=s.NORM_FRB
             rs.append(r)
             os.append(o)
 
-    
-    data=np.array([rs,os])
-    ratios=np.log10(data[1,:]/data[0,:])
-    bounds=(np.min(ratios),np.max(ratios))
-    startlog10C=(bounds[0]+bounds[1])/2.
-    bounds=[bounds]
-    t0=time.process_time()
-    # If only 1 survey, the answer is trivial
-    if len(surveys) == 1:
-        dC = startlog10C
+    if len(rs) != 0:
+        data=np.array([rs,os])
+        ratios=np.log10(data[1,:]/data[0,:])
+        bounds=(np.min(ratios),np.max(ratios))
+        startlog10C=(bounds[0]+bounds[1])/2.
+        bounds=[bounds]
+        t0=time.process_time()
+        # If only 1 survey, the answer is trivial
+        if len(surveys) == 1:
+            dC = startlog10C
+        else:
+            result=minimize(minus_poisson_ps,startlog10C,
+                        args=data,bounds=bounds)
+            dC=result.x
+        t1=time.process_time()
+        
+        # constant needs to include the starting value of .lC
+        newC = grids[j].state.FRBdemo.lC + float(dC)
+        # likelihood is calculated  *relative* to the starting value
+        llC=-minus_poisson_ps(dC,data)
     else:
-        result=minimize(minus_poisson_ps,startlog10C,
-                    args=data,bounds=bounds)
-        dC=result.x
-    t1=time.process_time()
-    
-    # constant needs to include the starting value of .lC
-    newC = grids[j].state.FRBdemo.lC + float(dC)
-    # likelihood is calculated  *relative* to the starting value
-    llC=-minus_poisson_ps(dC,data)
+        newC = grids[j].state.FRBdemo.lC
+        llC = 0.0
+
+    if update:
+        for g in grids:
+            g.state.FRBdemo.lC = newC
+
+            if isinstance(g, zdm_repeat_grid.repeat_Grid):
+                g.Rc *= 10**float(dC)
 
     return newC,llC
     

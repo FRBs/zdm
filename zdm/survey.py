@@ -25,7 +25,6 @@ import matplotlib.pyplot as plt
 
 from IPython import embed
 
-
 class OldSurvey:
     """A class to hold an FRB survey
 
@@ -503,7 +502,7 @@ class Survey:
         # DM EG
         self.init_DMEG(state.MW.DMhalo)
         # Zs
-        self.init_zs()
+        self.init_zs() # This should be redone every time DMhalo is changed IF we use a flat cutoff on DMEG
         # Allows survey metadata to over-ride parameter defaults if present.
         # This is required when mixing CHIME and non-CHIME FRBs
         beam_method = self.meta['BMETHOD']
@@ -580,7 +579,7 @@ class Survey:
                 # Case of NORM_FRB not set
                 else:
                     self.NORM_FRB = self.NORM_REPS + self.NORM_SINGLES
-                    print("NORM_FRB set to NORM_REPS + NORM_SINGLES = " + str(self.NORM_FRB))
+                    # print("NORM_FRB set to NORM_REPS + NORM_SINGLES = " + str(self.NORM_FRB))
             elif self.NORM_REPS is None:
                 # Case invalid
                 if self.NORM_SINGLES is None or self.NORM_SINGLES > self.NORM_FRB:
@@ -588,7 +587,7 @@ class Survey:
                 # Case NORM_REPS not set
                 else:
                     self.NORM_REPS = self.NORM_FRB - self.NORM_SINGLES
-                    print("NORM_REPS set to NORM_FRB - NORM_SINGLES = " + str(self.NORM_REPS))
+                    # print("NORM_REPS set to NORM_FRB - NORM_SINGLES = " + str(self.NORM_REPS))
             elif self.NORM_SINGLES is None:
                 # Do not need to consider NORM_REPS == None as that is done in the previous elif
                 # Case invalid
@@ -597,7 +596,7 @@ class Survey:
                 # Case NORM_SINGLES not set
                 else:
                     self.NORM_SINGLES = self.NORM_FRB - self.NORM_REPS
-                    print("NORM_SINGLES set to NORM_FRB - NORM_REPS = " + str(self.NORM_SINGLES))
+                    # print("NORM_SINGLES set to NORM_FRB - NORM_REPS = " + str(self.NORM_SINGLES))
             # Case all 3 are set
             else:
                 # Common sense check

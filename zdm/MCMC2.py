@@ -64,34 +64,46 @@ def calc_log_posterior(param_vals, params, surveys_sep, grid_params):
         try:
             # Set state
             state = parameters.State()
+            state.set_astropy_cosmo(Planck18) 
             state.update_params(param_dict)
-            state.set_astropy_cosmo(Planck18)
+            # state.update_param('alpha_method', 0)
+            # state.update_param('luminosity_function', 2)
 
-            # Initialise surveys and grids
+            surveys = surveys_sep[0] + surveys_sep[1]
+
+            # Recreate grids every time, but not surveys, so must update survey params
+            for i,s in enumerate(surveys):
+                if 'DMhalo' in param_dict:
+                    s.init_DMEG(param_dict['DMhalo'])
+                    s.get_efficiency_from_wlist(s.DMlist,s.wlist,s.wplist,model=s.meta['WBIAS']) 
+
+            # Initialise grids
             grids = []
             if len(surveys_sep[0]) != 0:
                 zDMgrid, zvals,dmvals = get_zdm_grid(
                     state, new=True, plot=False, method='analytic', 
                     nz=grid_params['nz'], ndm=grid_params['ndm'], dmmax=grid_params['dmmax'],
                     datdir=resource_filename('zdm', 'GridData'))
-    
+
                 # generates zdm grid
                 grids += initialise_grids(surveys_sep[0], zDMgrid, zvals, dmvals, state, wdist=True, repeaters=False)
             
-            if len(surveys_sep[0]) != 0:
+            if len(surveys_sep[1]) != 0:
                 zDMgrid, zvals,dmvals = get_zdm_grid(
                     state, new=True, plot=False, method='analytic', 
                     nz=grid_params['nz'], ndm=grid_params['ndm'], dmmax=grid_params['dmmax'],
                     datdir=resource_filename('zdm', 'GridData'))
-    
+
                 # generates zdm grid
                 grids += initialise_grids(surveys_sep[1], zDMgrid, zvals, dmvals, state, wdist=True, repeaters=True)
-            surveys = surveys_sep[0] + surveys_sep[1]
 
             # Minimse the constant accross all surveys
-            newC, llC = it.minimise_const_only(None, grids, surveys)
-            for g in grids:
-                g.state.FRBdemo.lC = newC
+            newC, llC = it.minimise_const_only(None, grids, surveys, update=True)
+            # for g in grids:
+            #     g.state.FRBdemo.lC = newC
+
+            #     if isinstance(g, zdm_repeat_grid.repeat_Grid):
+            #         g.calc_constant()
 
             # calculate all the likelihoods
             llsum = 0

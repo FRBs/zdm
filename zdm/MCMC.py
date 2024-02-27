@@ -58,8 +58,11 @@ def calc_log_posterior(param_vals, params, surveys, grids):
         # minimise_const_only does the grid updating so we don't need to do it explicitly beforehand
         try:
             newC, llC = it.minimise_const_only(param_dict, grids, surveys)
-            for g in grids:
-                g.state.FRBdemo.lC = newC
+            # for g in grids:
+            #     g.state.FRBdemo.lC = newC
+
+            #     if isinstance(g, zdm_repeat_grid.repeat_Grid):
+            #         g.calc_constant()
 
             # calculate all the likelihoods
             llsum = 0
