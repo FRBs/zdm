@@ -90,7 +90,7 @@ class repeat_Grid(grid.Grid):
     
     
     def __init__(self, survey, state, zDMgrid, zvals, dmvals, smear_mask, wdist, 
-                 opdir=None,Exact=True, MC=False,verbose=False):
+                 prev_grid=None, opdir=None,Exact=True, MC=False,verbose=False):
         """
         Initialises repeater class
         Args:
@@ -98,7 +98,7 @@ class repeat_Grid(grid.Grid):
         """
         
         survey.init_repeaters()
-        super().__init__(survey, state, zDMgrid, zvals, dmvals, smear_mask, wdist)
+        super().__init__(survey, state, zDMgrid, zvals, dmvals, smear_mask, wdist, prev_grid=prev_grid)
         
         self.drift_scan = survey.drift_scan
         self.Nfields = survey.Nfields
@@ -185,7 +185,6 @@ class repeat_Grid(grid.Grid):
                 the current grid.  i.e. Speed up!
             ALL (bool, optional):  If True, update the full grid
         """
-        super().update(vparams, ALL, prev_grid)
 
         ### first check which have changed ###
         self.newRmin = False
@@ -204,6 +203,29 @@ class repeat_Grid(grid.Grid):
             self.newRgamma = True
             self.Rgamma = self.state.rep.Rgamma
         
+        new_sfr_smear, new_pdv_smear, tvolume = super().update(vparams, ALL, prev_grid)
+
+        self.Emin = 10**self.state.energy.lEmin
+        self.Emax = 10**self.state.energy.lEmax
+        self.gamma = self.state.energy.gamma
+
+        if new_sfr_smear or new_pdv_smear or ALL:
+            self.newRmin = True
+            self.newRmax = True
+            self.newRgamma = True
+
+            self.Rmults = None
+            self.Rmult = None
+
+        if tvolume:
+            self.tvolume_grid = (self.smear_grid.T * (self.dV * (1. + self.zvals))).T
+
+        if new_sfr_smear or ALL:
+            if self.state.FRBdemo.alpha_method==1:
+                self.use_sfr = self.source_function(self.zvals,self.state.FRBdemo.sfr_n)
+            else:
+                self.use_sfr = self.sfr
+
         if (self.newRmin or self.newRmax or self.newRgamma):
             ### do this if *any* parameters change ###
             # keep for later speed-ups
@@ -473,7 +495,7 @@ class repeat_Grid(grid.Grid):
         # = \int R^Rgamma dR - p(singles) - p(mults)
         
         effGamma=self.Rgamma+1.
-        total_repeaters = self.Rc * (1./effGamma) * (self.Rmax**effGamma-self.Rmin**effGamma)
+        total_repeaters = (1./effGamma) * (self.Rmax**effGamma-self.Rmin**effGamma)
         expected_repeaters = total_repeaters - expected_singles - expected_zeros
         # do we need to artificially set some regions to zero, based on
         # previous cuts?
@@ -503,7 +525,7 @@ class repeat_Grid(grid.Grid):
         a = self.Rmin*self.Rmult
         b = self.Rmax*self.Rmult
         effGamma=self.Rgamma+2
-        total_rate = self.Rc * (1./effGamma) * (self.Rmax**effGamma-self.Rmin**effGamma) * self.Rmult
+        total_rate = (1./effGamma) * (self.Rmax**effGamma-self.Rmin**effGamma) * self.Rmult
         mult_rate = total_rate - expected_singles
         return mult_rate
         
@@ -560,7 +582,7 @@ class repeat_Grid(grid.Grid):
             else:
                 bvals=self.Rmax*self.Rmult.flatten()
             self.bvals[self.Nth] = bvals
-        
+
         # We now correct avals for values which are too low
         # There are three cases - bvals too low, only avals too low,
         # and neither.
@@ -639,9 +661,6 @@ class repeat_Grid(grid.Grid):
             norms /= self.Rmult.flatten()[nonzero]**(self.Rgamma+1) 
         else:
             norms /= self.Rmult.flatten()**(self.Rgamma+1)
-            
-        # multiplies this by the number density of repeating FRBs
-        norms *= self.Rc
         
         # get rid of negative parts - might come from random floating point errors
         themin = np.min(norms)
@@ -744,7 +763,6 @@ class repeat_Grid(grid.Grid):
         # however population is specified in number density of R
         # hence R^gammadensity factor must be normalised
         norms = norms1 - norms2
-        norms *= self.Rc
         
         if NZ:
             norms /= self.Rmult.flatten()[nonzero]**(effGamma) # gamma due to integrate, one more due to dR
@@ -760,7 +778,7 @@ class repeat_Grid(grid.Grid):
         
         # the problem here is that when Rmult is zero, we need to ensure that all the FRBs
         # are detected as such
-        everything = self.Rc * (1./effGamma) * (self.Rmax**effGamma-self.Rmin**effGamma)
+        everything = (1./effGamma) * (self.Rmax**effGamma-self.Rmin**effGamma)
         
         if NZ:
             tempnorms = np.full([nz*ndm],everything) # by default, 100% are detected zero times
@@ -812,11 +830,11 @@ class repeat_Grid(grid.Grid):
                 nrep = nrep - single - zero
                 total = (1./effGamma) * (b**effGamma-a**effGamma)/(self.Rmult[i,j]**(self.Rgamma+1))
                 mult = total-single
-                t[i,j]=total*self.Rc
-                s[i,j]=single*self.Rc
-                z[i,j]=zero*self.Rc
-                n[i,j]=nrep*self.Rc
-                m[i,j]=mult*self.Rc
+                t[i,j]=total
+                s[i,j]=single
+                z[i,j]=zero
+                n[i,j]=nrep
+                m[i,j]=mult
                 print(i,j,self.zvals[i],n[i,j],exact_reps[i,j],n[i,j]-exact_reps[i,j])
                 #norms2[i,j] = float(mpmath.gammainc(effGamma, a=a, b=b))
                 if zonly:

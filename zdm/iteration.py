@@ -286,8 +286,9 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=False,Pn=True,do
         # Linear interpolation
         pvals=pdm[idms1]*(1.-dkdms) + pdm[idms2]*dkdms
     else:
-        dm_weights, iweights = calc_DMG_weights(DMobs, survey.DMGs[nozlist], grid.state.MW.sigmaDMG, dmvals, n_sig=sig)
+        dm_weights, iweights = calc_DMG_weights(DMobs, survey.DMhalo, survey.DMGs[nozlist], grid.state.MW.sigmaDMG, dmvals, n_sig=sig)
         pvals = np.zeros(len(idms1))
+        # For each FRB
         for i in range(len(idms1)):
             pvals[i]=np.sum(pdm[iweights[i]]*dm_weights[i])
 
@@ -647,7 +648,7 @@ def calc_likelihoods_2D(grid,survey,
         pvals += rates[izs1,idms2]*dkdms*(1-dkzs)
         pvals += rates[izs2,idms2]*dkdms*dkzs
     else:
-        dm_weights, iweights = calc_DMG_weights(DMobs, survey.DMGs[zlist], grid.state.MW.sigmaDMG, dmvals, n_sig=sig)
+        dm_weights, iweights = calc_DMG_weights(DMobs, survey.DMhalo, survey.DMGs[zlist], grid.state.MW.sigmaDMG, dmvals, n_sig=sig)
         pvals = np.zeros(len(izs1))
         for i in range(len(izs1)):
             pvals[i] = np.sum(rates[izs1[i],iweights[i]] * dm_weights[i] * (1.-dkzs[i]) 
@@ -899,7 +900,7 @@ def calc_likelihoods_2D(grid,survey,
     elif dolist==5:
         return llsum,lllist,expected,dolist5_return
 
-def calc_DMG_weights(DMEGs, DMGs, sigmaDMGs, dmvals, n_sig=None):
+def calc_DMG_weights(DMEGs, DMhalo, DM_ISMs, sigma_ISM, dmvals, sigma_halo=15, n_sig=None):
     """
     Given an uncertainty on the DMG value, calculate the weights of DM values to integrate over
 
@@ -918,14 +919,18 @@ def calc_DMG_weights(DMEGs, DMGs, sigmaDMGs, dmvals, n_sig=None):
     iweights = []
 
     # Loop through the DMG of each FRB in the survey and determine the weights
-    for i,DMG in enumerate(DMGs):
+    for i,DM_ISM in enumerate(DM_ISMs):
+        # Get absolute uncertainty in DM_ISM
+        sigma_ISM_abs = DM_ISM * sigma_ISM
         # Get absolute uncertainty in DMG
-        sigmaDMG = DMG * sigmaDMGs
+        # Can combine sigmas because N(mu1,sig1) convolve N(mu2,sig2) = N(mu1+mu2, sqrt(sig1^2 + sig2^2)) 
+        # where 'N' is a Gaussian
+        sigmaDMG = np.sqrt(sigma_ISM_abs**2 + sigma_halo**2)
 
-        # # Determine lower and upper DM values used
+        # Determine lower and upper DM values used
         if n_sig == None:
             # From 0 to DM_total
-            max = DMEGs[i] + DMG
+            max = DMEGs[i] + DM_ISM + DMhalo
             idxs = np.where(dmvals < max)
         else:
             # n_sig SDs either side truncated at 0 and DM_total
@@ -934,9 +939,9 @@ def calc_DMG_weights(DMEGs, DMGs, sigmaDMGs, dmvals, n_sig=None):
             # actual DMG can't be less than 0, so if delta is larger than DMG:
             # DMEG = DM_tot - DMG - DMhalo
             # DMEG_max = DM_tot - DMhalo = DMEG + DMG
-            if delta > DMG:
+            if delta > DM_ISM + DMhalo:
                 # DMEGs + DMG = DM_total
-                max = DMEGs[i] + DMG
+                max = DMEGs[i] + DM_ISM + DMhalo
             else:
                 max = DMEGs[i] + delta
 
