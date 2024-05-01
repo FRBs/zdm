@@ -27,6 +27,43 @@ from zdm import pcosmic
 from zdm import parameters
 
 
+def get_psnr(snrs, survey, grid):
+    Emax=10**grid.state.energy.lEmax
+    Emin=10**grid.state.energy.lEmin
+    gamma=grid.state.energy.gamma
+    
+    # get vector of thresholds as function of z and threshold/weight list
+    # note that the dimensions are, nthresh (weights), z, DM
+    Eths = grid.thresholds
+    
+    norms=np.sum(grid.rates, axis=0)
+    
+    zpsnr=np.zeros(np.concatenate(([snrs.size], Eths.shape[1:])))
+    
+    for i,b in enumerate(survey.beam_b):
+        #iterate over the grid of weights
+        bEths=Eths/b 
+        for j,w in enumerate(grid.eff_weights):
+            for k,snr in enumerate(snrs):
+                S = snr/survey.SNRTHRESHs[0]
+
+                temp=(grid.array_diff_lf(bEths[j,:,:]*S,Emin,Emax,gamma).T*grid.FtoE).T
+                zpsnr[k,:,:] += temp*survey.beam_o[i]*w #weights this be beam solid angle and efficiency
+            
+    # we have now effectively calculated the local probabilities in the source-counts histogram for a given DM
+    # we have to weight this by the sfr_smear factors, and the volumetric probabilities
+    # this are the grid smearing factors incorporating pcosmic and the host contributions
+    sg = grid.sfr_smear
+    sgV = (sg.T*grid.dV.T).T
+
+    wzpsnr = np.zeros(zpsnr.shape)
+    for k in range(len(snrs)):
+        wzpsnr[k,:,:] = zpsnr[k,:,:] * sgV
+
+    psnr=np.sum(np.sum(wzpsnr,axis=1), axis=1)
+    
+    return psnr
+
 def marginalise(
     pset,
     grids,

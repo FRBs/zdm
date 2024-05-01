@@ -630,8 +630,11 @@ class Survey:
         # Do not get rid of redshifts if MAX_LOC_DMEG==-1
         if self.min_noz >= 0:
             high_dm = np.where(self.DMEGs > self.min_noz)[0]
+            self.ignored_Zs = self.frbs["Z"].values[high_dm]
             self.frbs["Z"].values[high_dm] = -1.0
             print("Ignoring redshifts with DMEG > " + str(self.min_noz))
+        else:
+            self.ignored_Zs = []
 
         # Pandas resolves None to Nan
         if len(self.frbs["Z"])>0 and np.isfinite(self.frbs["Z"][0]):
@@ -1024,16 +1027,16 @@ def calc_relative_sensitivity(DM_frb,DM,w,fbar,t_res,nu_res,Nchan=336,max_idt=No
             sensitivity=0.75*(0.93*dm_smearing + uw + 0.35*t_res)**-0.5
         # calculates relative sensitivity to bursts as a function of DM
 
-        # Set sensitivity to 0 above the maximum searched DM
-        if max_dm != None:
-            sensitivity[DM > max_dm] = 1e-5 # Effectively 0 but not small enough to break it...
-        if max_idt != None:
-            f_low = fbar - (Nchan/2. - 1)*nu_res
-            f_high = fbar + (Nchan/2. - 1)*nu_res
-            max_dt = t_res * max_idt   # FREDDA searches up to 4096 time bins
-            max_dm2 = max_dt / (k_DM * ((f_low/1e3)**(-2) - (f_high/1e3)**(-2)))
+        # # Set sensitivity to 0 above the maximum searched DM
+        # if max_dm != None:
+        #     sensitivity[DM > max_dm] = 1e-5 # Effectively 0 but not small enough to break it...
+        # elif max_idt != None:
+        #     f_low = fbar - (Nchan/2. - 1)*nu_res
+        #     f_high = fbar + (Nchan/2. - 1)*nu_res
+        #     max_dt = t_res * max_idt   # FREDDA searches up to 4096 time bins
+        #     max_dm = max_dt / (k_DM * ((f_low/1e3)**(-2) - (f_high/1e3)**(-2)))
 
-            sensitivity[DM > max_dm2] = 1e-5 # Effectively 0 but not small enough to break it...
+        #     sensitivity[DM > max_dm] = 1e-5 # Effectively 0 but not small enough to break it...
     
     # If model not CHIME, Quadrature or Sammons assume it is a filename
     else:

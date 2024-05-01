@@ -84,7 +84,7 @@ class FRBDemoParams(data_class.myDataClass):
         },
     )
     alpha_method: int = field(
-        default=0,
+        default=1,
         metadata={
             "help": "Integer flag specifying the nature of scaling. "
             + "0: spectral index interpretation: includes k-correction. Slower to update "

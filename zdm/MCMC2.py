@@ -28,15 +28,19 @@ from zdm.misc_functions import *
 
 #==============================================================================
 
-def calc_log_posterior(param_vals, params, surveys_sep, grid_params):
+def calc_log_posterior(param_vals, state, params, surveys_sep, grid_params, Pn=True):
     """
     Calculates the log posterior for a given set of parameters. Assumes uniform
     priors between the minimum and maximum values provided in 'params'.
 
     Inputs:
         param_vals  =   Array of the parameter values for this step
+        state       =   State object to modify
         params      =   Dictionary of the parameter names, min and max values
-        files       =   Object containing survey_names, rep_survey_names, sdir, edir
+        surveys_sep =   surveys_sep[0] : list of non-repeater surveys
+                        surveys_sep[1] : list of repeater surveys
+        grid_params =   Dictionary containing nz, ndm, dmmax
+        Pn          =   Include Pn or not
     
     Outputs:
         llsum       =   Total log likelihood for param_vals which is equivalent
@@ -59,15 +63,10 @@ def calc_log_posterior(param_vals, params, surveys_sep, grid_params):
     if in_priors == False:
         llsum = -np.inf
     else:
-
         # minimise_const_only does the grid updating so we don't need to do it explicitly beforehand
         try:
             # Set state
-            state = parameters.State()
-            state.set_astropy_cosmo(Planck18) 
             state.update_params(param_dict)
-            # state.update_param('alpha_method', 0)
-            # state.update_param('luminosity_function', 2)
 
             surveys = surveys_sep[0] + surveys_sep[1]
 
@@ -99,8 +98,9 @@ def calc_log_posterior(param_vals, params, surveys_sep, grid_params):
 
             # Minimse the constant accross all surveys
             newC, llC = it.minimise_const_only(None, grids, surveys, update=True)
-            # for g in grids:
-            #     g.state.FRBdemo.lC = newC
+            if Pn:
+                for g in grids:
+                    g.state.FRBdemo.lC = newC
 
             #     if isinstance(g, zdm_repeat_grid.repeat_Grid):
             #         g.calc_constant()
@@ -108,7 +108,7 @@ def calc_log_posterior(param_vals, params, surveys_sep, grid_params):
             # calculate all the likelihoods
             llsum = 0
             for s, grid in zip(surveys, grids):
-                llsum += it.get_log_likelihood(grid,s)
+                llsum += it.get_log_likelihood(grid,s,Pn=Pn)
 
         except ValueError as e:
             print("ValueError, setting likelihood to -inf: " + str(e))
@@ -124,7 +124,7 @@ def calc_log_posterior(param_vals, params, surveys_sep, grid_params):
 
 #==============================================================================
 
-def mcmc_runner(logpf, outfile, params, surveys, grid_params, nwalkers=10, nsteps=100, nthreads=1):
+def mcmc_runner(logpf, outfile, state, params, surveys, grid_params, nwalkers=10, nsteps=100, nthreads=1, Pn=True):
     """
     Handles the MCMC running.
 
@@ -158,7 +158,7 @@ def mcmc_runner(logpf, outfile, params, surveys, grid_params, nwalkers=10, nstep
     
     start = time.time()
     with mp.Pool() as pool:
-        sampler = emcee.EnsembleSampler(nwalkers, ndim, logpf, args=[params, surveys, grid_params], backend=backend, pool=pool)
+        sampler = emcee.EnsembleSampler(nwalkers, ndim, logpf, args=[state, params, surveys, grid_params, Pn], backend=backend, pool=pool)
         sampler.run_mcmc(starting_guesses, nsteps, progress=True)
     end = time.time()
     print("Total time taken: " + str(end - start))

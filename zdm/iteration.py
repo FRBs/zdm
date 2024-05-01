@@ -168,13 +168,16 @@ def maximise_likelihood(grid,survey):
     return results
 
 
-def get_log_likelihood(grid, s, norm=True, sig=None, psnr=True, Pn=True):
+def get_log_likelihood(grid, s, norm=True, psnr=True, Pn=True):
     """
     Returns the likelihood for the grid given the survey.
 
     Inputs:
         grid    =   Grid used
         s       =   Survey to compare with the grid
+        norm    =   Normalise
+        psnr    =   Include psnr in likelihood
+        Pn      =   Include Pn in likelihood
     
     Outputs:
         llsum   =   Total loglikelihood for the grid
@@ -183,14 +186,14 @@ def get_log_likelihood(grid, s, norm=True, sig=None, psnr=True, Pn=True):
     if isinstance(grid, zdm_repeat_grid.repeat_Grid):
         # Repeaters
         if s.nDr==1:
-            llsum1, lllist, expected = calc_likelihoods_1D(grid, s, norm=norm, psnr=psnr, dolist=1, repeaters=True, Pn=Pn, sig=sig)
+            llsum1, lllist, expected = calc_likelihoods_1D(grid, s, norm=norm, psnr=psnr, dolist=1, repeaters=True, Pn=Pn)
             llsum = llsum1
         elif s.nDr==2:
-            llsum1, lllist, expected = calc_likelihoods_2D(grid, s, norm=norm, psnr=psnr, dolist=1, repeaters=True, Pn=Pn, sig=sig)
+            llsum1, lllist, expected = calc_likelihoods_2D(grid, s, norm=norm, psnr=psnr, dolist=1, repeaters=True, Pn=Pn)
             llsum = llsum1
         elif s.nDr==3:
-            llsum1, lllist1, expected1 = calc_likelihoods_1D(grid, s, norm=norm, psnr=psnr, dolist=1, repeaters=True, Pn=Pn, sig=sig)
-            llsum2, lllist2, expected2 = calc_likelihoods_2D(grid, s, norm=norm, psnr=psnr, dolist=1, repeaters=True, Pn=False, sig=sig)
+            llsum1, lllist1, expected1 = calc_likelihoods_1D(grid, s, norm=norm, psnr=psnr, dolist=1, repeaters=True, Pn=Pn)
+            llsum2, lllist2, expected2 = calc_likelihoods_2D(grid, s, norm=norm, psnr=psnr, dolist=1, repeaters=True, Pn=False)
             llsum = llsum1 + llsum2
         else:
             print("Implementation is only completed for nD 1-3.")
@@ -198,28 +201,28 @@ def get_log_likelihood(grid, s, norm=True, sig=None, psnr=True, Pn=True):
         
         # Singles
         if s.nDs==1:
-            llsum1, lllist, expected = calc_likelihoods_1D(grid, s, norm=norm, psnr=psnr, dolist=1, singles=True, Pn=Pn, sig=sig)
+            llsum1, lllist, expected = calc_likelihoods_1D(grid, s, norm=norm, psnr=psnr, dolist=1, singles=True, Pn=Pn)
             llsum += llsum1
         elif s.nDs==2:
-            llsum1, lllist, expected = calc_likelihoods_2D(grid, s, norm=norm, psnr=psnr, dolist=1, singles=True, Pn=Pn, sig=sig)
+            llsum1, lllist, expected = calc_likelihoods_2D(grid, s, norm=norm, psnr=psnr, dolist=1, singles=True, Pn=Pn)
             llsum += llsum1
         elif s.nDs==3:
-            llsum1, lllist1, expected1 = calc_likelihoods_1D(grid, s, norm=norm, psnr=psnr, dolist=1, singles=True, Pn=Pn, sig=sig)
-            llsum2, lllist2, expected2 = calc_likelihoods_2D(grid, s, norm=norm, psnr=psnr, dolist=1, singles=True, Pn=False, sig=sig)
+            llsum1, lllist1, expected1 = calc_likelihoods_1D(grid, s, norm=norm, psnr=psnr, dolist=1, singles=True, Pn=Pn)
+            llsum2, lllist2, expected2 = calc_likelihoods_2D(grid, s, norm=norm, psnr=psnr, dolist=1, singles=True, Pn=False)
             llsum = llsum + llsum1 + llsum2
         else:
             print("Implementation is only completed for nD 1-3.")
             exit()
     else:
         if s.nD==1:
-            llsum1, lllist, expected = calc_likelihoods_1D(grid, s, norm=norm, psnr=psnr, dolist=1, Pn=Pn, sig=sig)
+            llsum1, lllist, expected = calc_likelihoods_1D(grid, s, norm=norm, psnr=psnr, dolist=1, Pn=Pn)
             llsum = llsum1
         elif s.nD==2:
-            llsum1, lllist, expected = calc_likelihoods_2D(grid, s, norm=norm, psnr=psnr, dolist=1, Pn=Pn, sig=sig)
+            llsum1, lllist, expected = calc_likelihoods_2D(grid, s, norm=norm, psnr=psnr, dolist=1, Pn=Pn)
             llsum = llsum1
         elif s.nD==3:
-            llsum1, lllist1, expected1 = calc_likelihoods_1D(grid, s, norm=norm, psnr=psnr, dolist=1, Pn=Pn, sig=sig)
-            llsum2, lllist2, expected2 = calc_likelihoods_2D(grid, s, norm=norm, psnr=psnr, dolist=1, Pn=False, sig=sig)
+            llsum1, lllist1, expected1 = calc_likelihoods_1D(grid, s, norm=norm, psnr=psnr, dolist=1, Pn=Pn)
+            llsum2, lllist2, expected2 = calc_likelihoods_2D(grid, s, norm=norm, psnr=psnr, dolist=1, Pn=False)
             llsum = llsum1 + llsum2
         else:
             print("Implementation is only completed for nD 1-3.")
@@ -227,7 +230,7 @@ def get_log_likelihood(grid, s, norm=True, sig=None, psnr=True, Pn=True):
 
     return llsum
 
-def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=False,Pn=True,dolist=0,repeaters=False,singles=False, sig=None):
+def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=True,Pn=True,dolist=0,repeaters=False,singles=False):
     """ Calculates 1D likelihoods using only observedDM values
     Here, Zfrbs is a dummy variable allowing it to be treated like a 2D function
     for purposes of calling.
@@ -286,7 +289,7 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=False,Pn=True,do
         # Linear interpolation
         pvals=pdm[idms1]*(1.-dkdms) + pdm[idms2]*dkdms
     else:
-        dm_weights, iweights = calc_DMG_weights(DMobs, survey.DMhalo, survey.DMGs[nozlist], grid.state.MW.sigmaDMG, dmvals, n_sig=sig)
+        dm_weights, iweights = calc_DMG_weights(DMobs, survey.DMhalo, survey.DMGs[nozlist], grid.state.MW.sigmaDMG, dmvals)
         pvals = np.zeros(len(idms1))
         # For each FRB
         for i in range(len(idms1)):
@@ -365,7 +368,7 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=False,Pn=True,do
                 for j in range(Eths.shape[0]):
                     # For each redshift
                     for k in range(Eths.shape[1]):
-                        Eths[j,k,i] = np.sum(grid.thresholds[j,k,iweights[i]] * dm_weights[i])
+                        Eths[j,k,i] = np.sum(grid.thresholds[j,k,iweights[i]] * dm_weights[i]) / np.sum(dm_weights[i])
         
         ##### IGNORE THIS, PVALS NOW CONTAINS CORRECT NORMALISATION ######
         # we have previously calculated p(DM), normalised by the global sum over all DM (i.e. given 1 FRB detection)
@@ -389,8 +392,8 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=False,Pn=True,do
             #wbEths=bEths #this is the only bit that depends on j, but OK also!
             bEobs=bEths*survey.Ss[nozlist] #should correctly multiply the last dimensions
             for j,w in enumerate(grid.eff_weights):
-                temp=(grid.array_diff_lf(bEobs[j,:,:],Emin,Emax,gamma).T*grid.FtoE).T
-                zpsnr += temp*survey.beam_o[i]*w #weights this be beam solid angle and efficiency
+                temp=(grid.array_diff_lf(bEobs[j,:,:],Emin,Emax,gamma).T).T
+                zpsnr += temp*survey.beam_o[i]*w*bEths[j,:,:] #weights this be beam solid angle and efficiency
                 
         
         # we have now effectively calculated the local probabilities in the source-counts histogram for a given DM
@@ -405,7 +408,7 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=False,Pn=True,do
             for i in range(len(idms1)):
                 # For each redshift
                 for j in range(sg.shape[0]):
-                    sg[j,i] = np.sum(grid.sfr_smear[j,iweights[i]] * dm_weights[i])
+                    sg[j,i] = np.sum(grid.sfr_smear[j,iweights[i]] * dm_weights[i]) / np.sum(dm_weights[i])
         sgV = (sg.T*grid.dV.T).T
         wzpsnr = zpsnr * sgV
         #THIS HAS NOT YET BEEN NORMALISED!!!!!!!!
@@ -523,6 +526,7 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=False,Pn=True,do
         plt.savefig('Plots/1d_dm_fit.pdf')
         plt.close()
 
+    # print("1D list:", lllist)
     if dolist==0:
         return llsum
     elif dolist==1:
@@ -537,7 +541,7 @@ def calc_likelihoods_2D(grid,survey,
                         doplot=False,norm=True,psnr=True,
                         printit=False,Pn=True,dolist=0,
                         verbose=False,
-                        repeaters=False,singles=False, sig=None):
+                        repeaters=False,singles=False):
     """ Calculates 2D likelihoods using observed DM,z values
     
     grid: the grid object calculated from survey
@@ -648,7 +652,7 @@ def calc_likelihoods_2D(grid,survey,
         pvals += rates[izs1,idms2]*dkdms*(1-dkzs)
         pvals += rates[izs2,idms2]*dkdms*dkzs
     else:
-        dm_weights, iweights = calc_DMG_weights(DMobs, survey.DMhalo, survey.DMGs[zlist], grid.state.MW.sigmaDMG, dmvals, n_sig=sig)
+        dm_weights, iweights = calc_DMG_weights(DMobs, survey.DMhalo, survey.DMGs[zlist], grid.state.MW.sigmaDMG, dmvals)
         pvals = np.zeros(len(izs1))
         for i in range(len(izs1)):
             pvals[i] = np.sum(rates[izs1[i],iweights[i]] * dm_weights[i] * (1.-dkzs[i]) 
@@ -790,8 +794,8 @@ def calc_likelihoods_2D(grid,survey,
                 # For each width
                 for j in range(grid.thresholds.shape[0]):
                     Eths[j,i] = np.sum(grid.thresholds[j,izs1[i],iweights[i]] * dm_weights[i] * (1.-dkzs[i]) 
-                                    + grid.thresholds[j,izs2[i],iweights[i]] * dm_weights[i] * dkzs[i])
-        
+                                    + grid.thresholds[j,izs2[i],iweights[i]] * dm_weights[i] * dkzs[i]) / np.sum(dm_weights[i])
+
         FtoE = grid.FtoE[izs1]*(1.-dkzs)
         FtoE += grid.FtoE[izs2]*dkzs
         
@@ -805,8 +809,8 @@ def calc_likelihoods_2D(grid,survey,
             bEths=Eths/b # array of shape NFRB, 1/b
             bEobs=bEths*survey.Ss[zlist]
             for j,w in enumerate(grid.eff_weights):
-                temp=grid.array_diff_lf(bEobs[j,:],Emin,Emax,gamma) * FtoE #one dim in beamshape, one dim in FRB
-                psnr += temp.T*survey.beam_o[i]*w #multiplies by beam factors and weight
+                temp=grid.array_diff_lf(bEobs[j,:],Emin,Emax,gamma) # * FtoE #one dim in beamshape, one dim in FRB
+                psnr += temp.T*survey.beam_o[i]*w*bEths[j,:] #multiplies by beam factors and weight
                 
         # at this stage, we have the amplitude from diff power law 
         # summed over beam and weight
@@ -824,7 +828,7 @@ def calc_likelihoods_2D(grid,survey,
             # For each FRB
             for i in range(len(izs1)):
                 sg[i] = np.sum(grid.sfr_smear[izs1[i],iweights[i]] * dm_weights[i] * (1.-dkzs[i]) 
-                                + grid.sfr_smear[izs2[i],iweights[i]] * dm_weights[i] * dkzs[i])
+                                + grid.sfr_smear[izs2[i],iweights[i]] * dm_weights[i] * dkzs[i]) / np.sum(dm_weights[i])
 
         dV = grid.dV[izs1]*(1-dkzs) +  grid.dV[izs2]*dkzs
         # at this stage, sg and dV account for the DM distribution and SFR;
@@ -884,6 +888,7 @@ def calc_likelihoods_2D(grid,survey,
             f"wzterm={np.sum(np.log10(wzpsnr)):0.2f}," \
             f"comb={np.sum(np.log10(wzpsnr*pvals)):0.2f}")
     
+    # print("2D list:", lllist)
     if dolist==0:
         return llsum
     elif dolist==1:
@@ -900,7 +905,7 @@ def calc_likelihoods_2D(grid,survey,
     elif dolist==5:
         return llsum,lllist,expected,dolist5_return
 
-def calc_DMG_weights(DMEGs, DMhalo, DM_ISMs, sigma_ISM, dmvals, sigma_halo=15, n_sig=None):
+def calc_DMG_weights(DMEGs, DMhalo, DM_ISMs, sigma_ISM, dmvals, sigma_halo=15):
     """
     Given an uncertainty on the DMG value, calculate the weights of DM values to integrate over
 
@@ -909,7 +914,6 @@ def calc_DMG_weights(DMEGs, DMhalo, DM_ISMs, sigma_ISM, dmvals, sigma_halo=15, n
         DMGs = Array of each DM_ISM value
         sigmaDMGs = Fractional uncertainty in DMG values
         dmvals = Vector of DM values used
-        n_sig = number of standard deviations to integrate over
 
     Returns:
         weights = Relative weights for each of the DM grid points
@@ -922,43 +926,25 @@ def calc_DMG_weights(DMEGs, DMhalo, DM_ISMs, sigma_ISM, dmvals, sigma_halo=15, n
     for i,DM_ISM in enumerate(DM_ISMs):
         # Get absolute uncertainty in DM_ISM
         sigma_ISM_abs = DM_ISM * sigma_ISM
-        # Get absolute uncertainty in DMG
-        # Can combine sigmas because N(mu1,sig1) convolve N(mu2,sig2) = N(mu1+mu2, sqrt(sig1^2 + sig2^2)) 
-        # where 'N' is a Gaussian
-        sigmaDMG = np.sqrt(sigma_ISM_abs**2 + sigma_halo**2)
 
         # Determine lower and upper DM values used
-        if n_sig == None:
-            # From 0 to DM_total
-            max = DMEGs[i] + DM_ISM + DMhalo
-            idxs = np.where(dmvals < max)
-        else:
-            # n_sig SDs either side truncated at 0 and DM_total
-            delta = n_sig*sigmaDMG
-            min = DMEGs[i] - delta
-            # actual DMG can't be less than 0, so if delta is larger than DMG:
-            # DMEG = DM_tot - DMG - DMhalo
-            # DMEG_max = DM_tot - DMhalo = DMEG + DMG
-            if delta > DM_ISM + DMhalo:
-                # DMEGs + DMG = DM_total
-                max = DMEGs[i] + DM_ISM + DMhalo
-            else:
-                max = DMEGs[i] + delta
-
-            # Determine indices of where the DM is between min and max
-            mask = (dmvals > min) * (dmvals < max)
-            idxs = np.where(mask)
-        
-        if max < 0:
-            raise ValueError("All considered DMEGs are negative")
+        # From 0 to DM_total
+        DM_total = DMEGs[i] + DM_ISM + DMhalo
+        idxs = np.where(dmvals < DM_total)
 
         # Get weights
-        x = dmvals[idxs]
+        DMGvals = DM_total - dmvals[idxs] # Descending order because dmvals are ascending order
         ddm = dmvals[1] - dmvals[0]
-        weight = st.norm.pdf(x, loc=DMEGs[i], scale=sigmaDMG) * ddm
-        # weight = weight / np.sum(weight)    # Re-normalise
 
-        weights.append(weight)
+        pISM = st.norm.pdf(DMGvals, loc=DM_ISM, scale=sigma_ISM_abs) * ddm
+        pHalo = st.norm.pdf(DMGvals, loc=DMhalo, scale=sigma_halo) * ddm
+        
+        pDMG = np.convolve(pISM, pHalo, mode='full')
+        # Set upper limit of DMG = DM_total 
+        # Reversed because DMGvals are descending order which corresponds to DMEGvals (dmvals) in ascending order
+        pDMG = pDMG[-len(DMGvals):] 
+
+        weights.append(pDMG)
         iweights.append(idxs)
 
     return weights, iweights

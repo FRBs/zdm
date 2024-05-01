@@ -48,6 +48,7 @@ def main():
     parser.add_argument('--sdir', default=None, type=str, help="Directory containing surveys")
     parser.add_argument('--edir', default=None, type=str, help="Directory containing efficiency files")
     parser.add_argument('--outdir', default="", type=str, help="Output directory")
+    parser.add_argument('--Pn', default=False, action='store_true', help="Include Pn")
     args = parser.parse_args()
 
     # Check correct flags are specified
@@ -88,7 +89,16 @@ def main():
     # Select from dictionary the necessary parameters to be changed
     params = {k: mcmc_dict[k] for k in mcmc_dict['mcmc']['parameter_order']}
 
-    mcmc_runner(calc_log_posterior, os.path.join(args.outdir, args.opfile), params, surveys, grid_params, nwalkers=args.walkers, nsteps=args.steps, nthreads=args.nthreads)
+    state = parameters.State()
+    state.set_astropy_cosmo(Planck18)
+    state.update_params(mcmc_dict['config'])
+
+    print("Config: ", mcmc_dict['config'])
+
+    if args.Pn:
+        print("Using Pn")
+
+    mcmc_runner(calc_log_posterior, os.path.join(args.outdir, args.opfile), state, params, surveys, grid_params, nwalkers=args.walkers, nsteps=args.steps, nthreads=args.nthreads, Pn=args.Pn)
 
 #==============================================================================
 
