@@ -1982,7 +1982,9 @@ def CalculateIntegral(rates,survey):
     else:
         return 0
     
-    total=np.sum(rates)
+    idxs = np.where(survey.dmvals < survey.max_dm)
+
+    total=np.sum(rates[:,idxs])
     return total*TOBS
     
 def GetFirstConstantEstimate(grids,surveys,pset):
@@ -2069,10 +2071,10 @@ def minimise_const_only(vparams:dict,grids:list,surveys:list,
         ### Assesses total number of FRBs ###
         if s.TOBS is not None:
             if isinstance(grids[j], zdm_repeat_grid.repeat_Grid):
-                r=np.sum(grids[j].exact_singles + grids[j].exact_reps)*s.TOBS
+                r=CalculateIntegral(grids[j].exact_singles, s) + CalculateIntegral(grids[j].exact_reps, s) #np.sum(grids[j].exact_singles + grids[j].exact_reps)*s.TOBS
                 r*=grids[j].Rc
             else:
-                r=np.sum(grids[j].rates)*s.TOBS
+                r=CalculateIntegral(grids[j].rates, s)
                 r*=10**grids[j].state.FRBdemo.lC #vparams['lC']
             o=s.NORM_FRB
             rs.append(r)

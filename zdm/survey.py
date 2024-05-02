@@ -493,6 +493,7 @@ class Survey:
         """
         # Proceed
         self.name = survey_name
+        self.dmvals = dmvals
         # Load up
         self.process_survey_file(filename, NFRB, iFRB)
         # Check if repeaters or not and set relevant parameters
@@ -517,6 +518,7 @@ class Survey:
         pwidths,pprobs=make_widths(self, state)
         _ = self.get_efficiency_from_wlist(dmvals,
                                        pwidths,pprobs,model=width_bias, edir=edir) 
+        self.calc_max_dm()
 
     def init_repeaters(self):
         """
@@ -1026,17 +1028,6 @@ def calc_relative_sensitivity(DM_frb,DM,w,fbar,t_res,nu_res,Nchan=336,max_idt=No
         elif model=='Sammons':
             sensitivity=0.75*(0.93*dm_smearing + uw + 0.35*t_res)**-0.5
         # calculates relative sensitivity to bursts as a function of DM
-
-        # # Set sensitivity to 0 above the maximum searched DM
-        # if max_dm != None:
-        #     sensitivity[DM > max_dm] = 1e-5 # Effectively 0 but not small enough to break it...
-        # elif max_idt != None:
-        #     f_low = fbar - (Nchan/2. - 1)*nu_res
-        #     f_high = fbar + (Nchan/2. - 1)*nu_res
-        #     max_dt = t_res * max_idt   # FREDDA searches up to 4096 time bins
-        #     max_dm = max_dt / (k_DM * ((f_low/1e3)**(-2) - (f_high/1e3)**(-2)))
-
-        #     sensitivity[DM > max_dm] = 1e-5 # Effectively 0 but not small enough to break it...
     
     # If model not CHIME, Quadrature or Sammons assume it is a filename
     else:
@@ -1052,7 +1043,25 @@ def calc_relative_sensitivity(DM_frb,DM,w,fbar,t_res,nu_res,Nchan=336,max_idt=No
         sensitivity = np.interp(DM, sensitivity_array[0,:], sensitivity_array[1,:], right=1e-2)
 
     return sensitivity
-    
+
+def calc_max_dm(self,Nchan=336):
+    '''
+    Calculates the maximum searched DM
+    '''
+    fbar=self.meta['FBAR']
+    t_res=self.meta['TRES']
+    nu_res=self.meta['FRES']
+    max_idt=self.meta['MAX_IDT']
+    max_dm=self.meta['MAX_DM']
+
+    if max_dm is None and max_idt is not None:
+        k_DM=4.149 #ms GHz^2 pc^-1 cm^3
+        f_low = fbar - (Nchan/2. - 1)*nu_res
+        f_high = fbar + (Nchan/2. - 1)*nu_res
+        max_dt = t_res * max_idt   # FREDDA searches up to 4096 time bins
+        max_dm = max_dt / (k_DM * ((f_low/1e3)**(-2) - (f_high/1e3)**(-2)))
+
+    self.max_dm = max_dm
 
 def geometric_lognormals(lmu1,ls1,lmu2,ls2,bins=None,
                          Nrand=10000,plot=False,Nbins=101):

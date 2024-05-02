@@ -25,7 +25,7 @@ def test_update_MCMC():
     with open(os.path.join(resource_filename('zdm', 'data'), "MCMC/params.json")) as f:
         mcmc_dict = json.load(f)
 
-    params = {k: mcmc_dict[k] for k in mcmc_dict['mcmc_full']['parameter_order']}
+    params = {k: mcmc_dict[k] for k in mcmc_dict['mcmc']['parameter_order']}
 
     # Set all values to random point in prior
     param_dict = {}
@@ -177,3 +177,4 @@ def test_update():
     # print("g2", g2.state)
 
 test_update_MCMC()
+test_update()
