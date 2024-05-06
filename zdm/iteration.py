@@ -1982,7 +1982,10 @@ def CalculateIntegral(rates,survey):
     else:
         return 0
     
-    idxs = np.where(survey.dmvals < survey.max_dm)
+    if survey.max_dm is not None:
+        idxs = np.where(survey.dmvals < survey.max_dm)
+    else:
+        idxs = None
 
     total=np.sum(rates[:,idxs])
     return total*TOBS
