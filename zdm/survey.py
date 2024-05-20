@@ -633,10 +633,13 @@ class Survey:
         if self.min_noz >= 0:
             high_dm = np.where(self.DMEGs > self.min_noz)[0]
             self.ignored_Zs = self.frbs["Z"].values[high_dm]
+            self.ignored_Zlist = high_dm[self.ignored_Zs > 0]
+            self.ignored_Zs = self.ignored_Zs[self.ignored_Zs > 0]
             self.frbs["Z"].values[high_dm] = -1.0
             print("Ignoring redshifts with DMEG > " + str(self.min_noz))
         else:
             self.ignored_Zs = []
+            self.ignored_Zlist = []
 
         # Pandas resolves None to Nan
         if len(self.frbs["Z"])>0 and np.isfinite(self.frbs["Z"][0]):

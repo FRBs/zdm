@@ -2528,6 +2528,8 @@ def plot_grid_2(
     conts=False,
     FRBZ=None,
     FRBDM=None,
+    FRBZ2=None,
+    FRBDM2=None,
     Aconts=False,
     Macquart=None,
     title=None,
@@ -2872,11 +2874,17 @@ def plot_grid_2(
         plt.clim(clim[0], clim[1])
     
     ##### add FRB host galaxies at some DM/redshift #####
-    if FRBZ is not None:
+    if FRBZ is not None and len(FRBZ2) != 0:
         iDMs = FRBDM / ddm
         iZ = FRBZ / dz
         OK = np.where(FRBZ > 0)[0]
         plt.plot(iZ[OK], iDMs[OK], "o", color=data_clr, linestyle="")
+
+    if FRBZ2 is not None and len(FRBZ2) != 0:
+        iDMs = FRBDM2 / ddm
+        iZ = FRBZ2 / dz
+        OK = np.where(FRBZ2 > 0)[0]
+        plt.plot(iZ[OK], iDMs[OK], "o", linestyle="")
 
     if special is not None:
         iDM = special[0] / ddm

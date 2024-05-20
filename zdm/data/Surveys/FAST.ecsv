@@ -19,7 +19,7 @@
 # - {name: XRA, datatype: string, subtype: 'float64[null]'}
 # - {name: Z, datatype: string, subtype: 'float64[null]'}
 # meta: !!omap
-# - {survey_data: '{"observing": {"NORM_FRB": 9, "TOBS": 108.38}, "telescope": {"BEAM": "FAST_log", "DIAM": 300.0, "NBEAMS": 19,
+# - {survey_data: '{"observing": {"NORM_FRB": 9, "TOBS": 108.38, "MAX_DM": 4350}, "telescope": {"BEAM": "FAST_log", "DIAM": 300.0, "NBEAMS": 19,
 #     "NBINS": 10}}'}
 # schema: astropy-2.0
 TNS BW DM DMG FBAR FRES Gb Gl NREP SNR SNRTHRESH THRESH TRES WIDTH XDec XRA Z
