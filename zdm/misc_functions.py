@@ -2523,7 +2523,7 @@ def plot_grid_2(
     log=True,
     name="temp.pdf",
     label='$\\log_{10}p(DM_{\\rm EG},z)$',
-    ylabel="${\\rm DM}_{\\rm EG}$",
+    ylabel="${\\rm DM}_{\\rm EG}$ (pc cm$^{-3}$)",
     project=False,
     conts=False,
     FRBZ=None,
@@ -2540,6 +2540,7 @@ def plot_grid_2(
     markersize=10,
     clim=False,
     data_clr="red",
+    data_clr2="tab:blue",
     special=None,
     pdmgz=None,
     save=True
@@ -2884,7 +2885,7 @@ def plot_grid_2(
         iDMs = FRBDM2 / ddm
         iZ = FRBZ2 / dz
         OK = np.where(FRBZ2 > 0)[0]
-        plt.plot(iZ[OK], iDMs[OK], "o", linestyle="")
+        plt.plot(iZ[OK], iDMs[OK], "o", color=data_clr2, linestyle="")
 
     if special is not None:
         iDM = special[0] / ddm
@@ -2940,6 +2941,7 @@ def plot_grid_2(
         plt.title(title)
 
     if save:
+        plt.tight_layout()
         plt.savefig(name, dpi=300)
     if showplot:
         plt.show()
