@@ -147,9 +147,9 @@ def surveys_and_grids(init_state=None, alpha_method=1,
         s = survey.load_survey(survey_name, 
                                state, dmvals, 
                                sdir=sdir, edir=edir)
-        # # Check necessary parameters exist if considering repeaters
-        # if repeaters:
-        #     s.init_repeaters()
+        # Check necessary parameters exist if considering repeaters
+        if repeaters:
+            s.init_repeaters()
 
         surveys.append(s)
         

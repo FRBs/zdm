@@ -501,6 +501,7 @@ class Survey:
         # self.repeaters=False
         # self.init_repeaters()
         # DM EG
+        self.init_halo_coeffs()
         self.init_DMEG(state.MW.DMhalo)
         # Zs
         self.init_zs() # This should be redone every time DMhalo is changed IF we use a flat cutoff on DMEG
@@ -611,15 +612,44 @@ class Survey:
     def init_DMEG(self,DMhalo):
         """ Calculates extragalactic DMs assuming halo DM """
         self.DMhalo=DMhalo
-        self.DMEGs=self.DMs-self.DMGs-DMhalo
+        self.process_dmhalo()
+        self.DMEGs=self.DMs-self.DMGs-self.DMhalos
         # self.DMEGs_obs=self.DMs-self.DMGs-DMhalo
         # self.DMEGs = np.copy(self.DMEGs_obs)
         # self.DMEGs[self.DMEGs < 0] = 10. # Minimum value of 10. pc/cm^3
     
+    def process_dmhalo(self):
+        """
+        Calculates directionally dependent DMhalo from Yamasaki and Totani 2020 
+        and rescaling to an average of self.DMhalo
+        
+        self.c, self.Gls and self.Gbs should be loaded in process_survey_file
+        """
+        for i in range(8):
+            for j in range(8-i):
+                self.DMhalos += self.c[i][j] * self.Gls**i * self.Gbs**j
+        
+        self.DMhalos = self.DMhalos * self.DMhalo / 43
+
+    def init_halo_coeffs(self):
+        """
+        Initialise coefficients for Yamasaki and Totani 2020 implementation of
+        directionally dependent DMhalo
+        """
+        self.c = [
+            [250.12, -871.06, 1877.5, -2553.0, 2181.3, -1127.5, 321.72, -38.905],
+            [-154.82, 783.43, -1593.9, 1727.6, -1046.5, 332.09, -42.815],
+            [116.72, -76.815, 428.49, -419.00, 174.60, -27.610],
+            [216.67, -193.30, 12.234, 32.145, -8.3602],
+            [-129.95, 103.80, -22.800, 0.44171],
+            [39.652, -21.398, 2.7694],
+            [-6.1926, 1.6162,],
+            [0.39346]
+        ]
+
     def init_zs(self):
         """
-        Gets zlist and nozlist and determines which z values to use. If it is 
-        a repeater survey, then do the same for singles and repeaters.
+        Gets zlist and nozlist and determines which z values to use
         """
         # Ignore redshifts above MAX_LOC_DMEG
         self.min_noz = self.meta["MAX_LOC_DMEG"]
@@ -672,7 +702,7 @@ class Survey:
         
     def init_zs_reps(self):
         """
-        Gets zlist and nozlist for repeaters and singles
+        Gets zlist and nozlist for repeaters and singles. Basically the same as init_zs but for repeaters.
         """
         # Case of no repeaters detected
         if len(self.replist) == 0:
@@ -828,6 +858,8 @@ class Survey:
         self.BWs=self.frbs['BW'].values
         self.THRESHs=self.frbs['THRESH'].values
         self.SNRTHRESHs=self.frbs['SNRTHRESH'].values
+        self.Gls = self.frbs['Gl'].values
+        self.Gbs = self.frbs['Gb'].values
         
         self.Ss=self.SNRs/self.SNRTHRESHs
         self.TOBS=self.meta['TOBS']
@@ -861,6 +893,7 @@ class Survey:
             DMGs=np.array(DMGs)
             self.frbs["DMG"]=DMGs
             self.DMGs=DMGs
+        
 
     def init_beam(self,plot=False,
                   method=1,thresh=1e-3):

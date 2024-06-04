@@ -1,11 +1,11 @@
 """
-File: MCMC_wrap.py
+File: MCMC_wrap2.py
 Author: Jordan Hoffmann
 Date: 28/09/23
 Purpose: 
     Wrapper file to run MCMC analysis for zdm code. Handles command line
     parameters and loading of surveys, grids and parameters. Actual MCMC
-    analysis functions are in MCMC.py.
+    analysis functions are in MCMC2.py.
 
     scripts/run_mcmc.slurm contains an example sbatch script.
 """

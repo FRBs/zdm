@@ -30,6 +30,9 @@ class Grid:
                 it in one place affects them all.
             wdist (bool):
                 If True, allow for a distribution of widths
+            prev_grid (grid.Grid):
+                Another grid with the same parameters just 
+                corresponding to a different survey
         """
         self.grid = None
         self.survey = survey
@@ -58,7 +61,7 @@ class Grid:
         #   THESE SHOULD BE THE SAME ORDER AS self.update()
         self.parse_grid(zDMgrid.copy(), zvals.copy(), dmvals.copy())
 
-        if prev_grid == None:
+        if prev_grid is None:
             self.calc_dV()
             self.smear_dm(smear_mask.copy())
         else:
@@ -842,7 +845,6 @@ class Grid:
         # Catch all the changes just in case, e.g. lCf
         # Can no longer do this because of repeat_grid
         self.state.update_params(vparams)
-        # self.chk_upd_param("lC", vparams, update=True)
 
         return new_sfr_smear, new_pdv_smear, (get_zdm or smear_dm or calc_dV) # If either is true, need to also recalc repeater grids
 

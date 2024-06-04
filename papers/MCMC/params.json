@@ -3,14 +3,14 @@
         "parameter_order": ["lC", "sfr_n", "alpha", "lmean", "lsigma", "lEmax", "gamma", "H0"]
     },
     "mcmc": {
-        "parameter_order": ["sfr_n", "alpha", "lmean", "lsigma", "lEmax", "lEmin", "gamma", "H0"]
+        "parameter_order": ["sfr_n", "alpha", "lmean", "lsigma", "lEmax", "lEmin", "gamma", "DMhalo", "H0"]
     },
     "mcmc_full": {
         "parameter_order": ["logF", "sfr_n", "alpha", "lmean", "lsigma", "lEmax", "lEmin", "gamma", "H0", "DMhalo", "lRmin", "lRmax", "Rgamma", "sigmaDMG"]
     },
     "config": {
         "luminosity_function": 2,
-        "alpha_method": 0
+        "alpha_method": 1
     },
     "logF": {
         "DC": "cosmo",

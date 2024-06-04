@@ -19,6 +19,7 @@ import time
 import multiprocessing as mp
 
 from zdm import misc_functions as mf
+from zdm import zdm_repeat_grid
 
 #==============================================================================
 
@@ -28,14 +29,14 @@ def calc_log_posterior(param_vals, params, surveys, grids):
     priors between the minimum and maximum values provided in 'params'.
 
     Inputs:
-        param_vals  =   Array of the parameter values for this step
-        params      =   Dictionary of the parameter names, min and max values
-        surveys     =   List of surveys being used
-        grids       =   List of grids corresponding to the surveys
+        param_vals  (np.array)      =   Array of the parameter values for this step
+        params      (dictionary)    =   Parameter names, min and max values
+        surveys_sep (list)          =   List of surveys
+        grids       (list)          =   List of grids corresponding to surveys
     
     Outputs:
-        llsum       =   Total log likelihood for param_vals which is equivalent
-                        to log posterior (un-normalised) due to uniform priors
+        llsum       (double)        =   Total log likelihood for param_vals which is equivalent
+                                        to log posterior (un-normalised) due to uniform priors                    
     """
 
     # t0 = time.time()
@@ -56,13 +57,17 @@ def calc_log_posterior(param_vals, params, surveys, grids):
     else:
 
         # minimise_const_only does the grid updating so we don't need to do it explicitly beforehand
+        # In an MCMC analysis the parameter spaces are sampled throughout and hence with so many parameters
+        # it is easy to reach impossible regions of the parameter space. This results in math errors
+        # (log(0), log(negative), sqrt(negative), divide 0 etc.) and hence we assume that these math errors
+        # correspond to an impossible region of the parameter space and so set ll = -inf
         try:
             newC, llC = it.minimise_const_only(param_dict, grids, surveys)
-            # for g in grids:
-            #     g.state.FRBdemo.lC = newC
+            for g in grids:
+                g.state.FRBdemo.lC = newC
 
-            #     if isinstance(g, zdm_repeat_grid.repeat_Grid):
-            #         g.calc_constant()
+                if isinstance(g, zdm_repeat_grid.repeat_Grid):
+                    g.calc_constant()
 
             # calculate all the likelihoods
             llsum = 0
@@ -88,18 +93,18 @@ def mcmc_runner(logpf, outfile, params, surveys, grids, nwalkers=10, nsteps=100,
     Handles the MCMC running.
 
     Inputs:
-        logpf       =   Log posterior function handle
-        outfile     =   Name of the output file (excluding .h5 extension)
-        params      =   Dictionary of the parameter names, min and max values
-        surveys     =   List of surveys being used
-        grids       =   List of grids corresponding to the surveys
-        nwalkers    =   Number of walkers
-        nsteps      =   Number of steps per walker
-        nthreads    =   Number of threads to use for parallelised runs
+        logpf       (function)      =   Log posterior function handle
+        outfile     (string)        =   Name of the output file (excluding .h5 extension)
+        params      (dictionary)    =   Parameter names, min and max values
+        surveys_sep (list)          =   List of surveys
+        grids       (list)          =   List of grids corresponding to surveys
+        nwalkers    (int)           =   Number of walkers
+        nsteps      (int)           =   Number of steps
+        nthreads    (int)           =   Number of threads (currently not implemented - uses default)
     
     Outputs:
-        posterior_sample    =   Final sample
-        outfile.h5          =   HDF5 file containing the sampler
+        posterior_sample    (emcee.EnsembleSampler) =   Final sample
+        outfile.h5          (HDF5 file)             =   HDF5 file containing the sampler
     """
         
     ndim = len(params)

@@ -1,5 +1,5 @@
 """
-File to test that cubing produces the expected output
+File to test that MCMC2 and MCMC (that is instantiation and updating) produce the same output
 """
 
 from zdm import MCMC
@@ -8,7 +8,8 @@ from zdm import loading
 
 from zdm import iteration as it
 
-from zdm.misc_functions import *
+from zdm import misc_functions as mf
+from zdm import parameters
 from astropy.cosmology import Planck18
 from pkg_resources import resource_filename
 

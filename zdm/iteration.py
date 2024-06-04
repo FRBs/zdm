@@ -235,16 +235,32 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=True,Pn=True,dol
     Here, Zfrbs is a dummy variable allowing it to be treated like a 2D function
     for purposes of calling.
     
-    Norm simply means to normalise likelihoods so that the total comes to unity.
-        - Note that the *sum* comes to unity, since each bin in rates is already
-            normalised by the volume in the dz bin
+    grid: the grid object calculated from survey
+    
+    survey: survey object containing the observed z,DM values
+    
+    doplot: will generate a plot of z,DM values
+    
+    psnr:
+        True: calculate probability of observing each FRB at the observed SNR
+        False: do not calculate this
+
+    Pn:
+        True: calculate probability of observing N FRBs
+        False: do not calculate this
 
     dolist
         2: llsum,lllist [Pzdm,Pn,Ps],expected,longlist
             longlist holds the LL for each FRB
         5: llsum,lllist,expected,[0.,0.,0.,0.]
-    
-    Pn: Calculate the probability of observing N bursts (Poisson)
+
+    repeaters:
+        True: assumes the grid passed is a repeat_grid.zdm_repeat_grid object and calculates likelihood for repeaters
+        False: assumes no repeaters considered (or singles = True)
+    singles:
+        True: assumes the grid passed is a repeat_grid.zdm_repeat_grid object and calculates likelihood for single bursts
+        False: assumes no repeaters considered (or repeaters = True)
+    NOTE: repeaters and singles should probably be combined into a single variable...
     """
     
     # Determine which array to perform operations on and initialise
@@ -347,28 +363,10 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=True,Pn=True,dol
         # parameterisation
         
         # calculate vector of grid thresholds
-        #Emax=grid.Emax
-        #Emin=grid.Emin
-        #gamma=grid.gamma
         Emax=10**grid.state.energy.lEmax
         Emin=10**grid.state.energy.lEmin
         gamma=grid.state.energy.gamma
         psnr=np.zeros([DMobs.size]) # has already been cut to non-localised number
-        
-        # # get vector of thresholds as function of z and threshold/weight list
-        # # note that the dimensions are, nthresh (weights), z, DM
-        # if grid.state.MW.sigmaDMG == 0.0:
-        #     # Linear interpolation
-        #     Eths = grid.thresholds[:,:,idms1]*(1.-dkdms)+ grid.thresholds[:,:,idms2]*dkdms
-        # else:
-        #     Eths = np.zeros([grid.thresholds.shape[0], grid.thresholds.shape[1], len(idms1)])
-        #     # For each FRB
-        #     for i in range(len(idms1)):
-        #         # For each width
-        #         for j in range(Eths.shape[0]):
-        #             # For each redshift
-        #             for k in range(Eths.shape[1]):
-        #                 Eths[j,k,i] = np.sum(grid.thresholds[j,k,iweights[i]] * dm_weights[i]) / np.sum(dm_weights[i])
         
         # Evaluate thresholds at the exact DMobs
         kdmobs=(survey.DMs - survey.DMhalo - survey.meta['DMG'])/ddm
@@ -561,11 +559,13 @@ def calc_likelihoods_2D(grid,survey,
     
     doplot: will generate a plot of z,DM values
     
+    psnr:
+        True: calculate probability of observing each FRB at the observed SNR
+        False: do not calculate this
+
     Pn:
         True: calculate probability of observing N FRBs
         False: do not calculate this
-    
-    psnr: calculate the probability of the given snr values
     
     dolist:
         0: returns total log10 likelihood llsum only [float]
@@ -586,9 +586,13 @@ def calc_likelihoods_2D(grid,survey,
         False: calculates p(detecting an FRB with z,DM). Meaningless unless
             some sensible normalisation has already been applied to the grid.
     
-    zdm_components
-        False: nothing
-        True: Also returns p(z|DM), p(DM), p(DM|z), and p(z)
+    repeaters:
+        True: assumes the grid passed is a repeat_grid.zdm_repeat_grid object and calculates likelihood for repeaters
+        False: assumes no repeaters considered (or singles = True)
+    singles:
+        True: assumes the grid passed is a repeat_grid.zdm_repeat_grid object and calculates likelihood for single bursts
+        False: assumes no repeaters considered (or repeaters = True)
+    NOTE: repeaters and singles should probably be combined into a single variable...
     """
 
     ######## Calculates p(DM,z | FRB) ########
@@ -627,14 +631,8 @@ def calc_likelihoods_2D(grid,survey,
     zvals=grid.zvals
     dmvals=grid.dmvals
     
-    #if survey.meta["TOBS"] is not None:
-    #	TotalRate=np.sum(rates)*survey.meta["TOBS"]
-        # this is in units of number per MPc^3 at Emin
-    
     # normalise to total probability of 1
     if norm:
-        #norm = np.log10(np.sum(rates))
-        #norm *= Zobs.size # one for each and every measurement - same normalisation value
         norm=np.sum(rates) # gets multiplied by event size later
     else:
         norm=1.
@@ -789,22 +787,6 @@ def calc_likelihoods_2D(grid,survey,
         Emax=10**grid.state.energy.lEmax
         Emin=10**grid.state.energy.lEmin
         gamma=grid.state.energy.gamma
-        #Eths has dimensions of width likelihoods and nobs
-        # i.e. later, the loop over j,w uses the first index
-        # if grid.state.MW.sigmaDMG == 0.0:
-        #     # Linear interpolation
-        #     Eths = grid.thresholds[:,izs1,idms1]*(1.-dkdms)*(1-dkzs)
-        #     Eths += grid.thresholds[:,izs2,idms1]*(1.-dkdms)*dkzs
-        #     Eths += grid.thresholds[:,izs1,idms2]*dkdms*(1-dkzs)
-        #     Eths += grid.thresholds[:,izs2,idms2]*dkdms*dkzs
-        # else:
-        #     Eths = np.zeros([grid.thresholds.shape[0], len(izs1)])
-        #     # For each FRB
-        #     for i in range(len(izs1)):
-        #         # For each width
-        #         for j in range(grid.thresholds.shape[0]):
-        #             Eths[j,i] = np.sum(grid.thresholds[j,izs1[i],iweights[i]] * dm_weights[i] * (1.-dkzs[i]) 
-        #                             + grid.thresholds[j,izs2[i],iweights[i]] * dm_weights[i] * dkzs[i]) / np.sum(dm_weights[i])
 
         # Evaluate thresholds at the exact DMobs
         kdmobs=(survey.DMs - survey.DMhalo - survey.meta['DMG'])/ddm
@@ -934,14 +916,16 @@ def calc_DMG_weights(DMEGs, DMhalo, DM_ISMs, sigma_ISM, dmvals, sigma_halo=15):
     Given an uncertainty on the DMG value, calculate the weights of DM values to integrate over
 
     Inputs:
-        DMEGs = Extragalactic DMs
-        DMGs = Array of each DM_ISM value
-        sigmaDMGs = Fractional uncertainty in DMG values
-        dmvals = Vector of DM values used
+        DMEGs       =   Extragalactic DMs
+        DMhalo      =   Assumed constant (average) DMhalo
+        DM_ISMs     =   Array of each DM_ISM value
+        sigma_ISM   =   Fractional uncertainty in DMG values
+        dmvals      =   Vector of DM values used
+        sigma_halo  =   Uncertainty in DMhalo value (in pc/cm3)
 
     Returns:
-        weights = Relative weights for each of the DM grid points
-        iweights = Indices of the corresponding weights
+        weights     =   Relative weights for each of the DM grid points
+        iweights    =   Indices of the corresponding weights
     """
     weights = []
     iweights = []
@@ -1998,7 +1982,7 @@ def CalculateConstant(grid,survey):
     return constant
 
 def CalculateIntegral(rates,survey):
-    """ Calculates the total expected number of FRBs for that grid and survey """
+    """ Calculates the total expected number of FRBs for that rate array and survey """
     
     # check that the survey has a defined observation time
     if survey.TOBS is not None:
@@ -2097,9 +2081,11 @@ def minimise_const_only(vparams:dict,grids:list,surveys:list,
                             j > 0 and use_prev_grid) else None)
         ### Assesses total number of FRBs ###
         if s.TOBS is not None:
+            # If we include repeaters, then total number of FRB progenitors = number of repeater progenitors + number of single burst progenitors
             if isinstance(grids[j], zdm_repeat_grid.repeat_Grid):
-                r=CalculateIntegral(grids[j].exact_singles, s) + CalculateIntegral(grids[j].exact_reps, s) #np.sum(grids[j].exact_singles + grids[j].exact_reps)*s.TOBS
+                r=CalculateIntegral(grids[j].exact_singles, s) + CalculateIntegral(grids[j].exact_reps, s)
                 r*=grids[j].Rc
+            # If we do not include repeaters, then we just integrate rates
             else:
                 r=CalculateIntegral(grids[j].rates, s)
                 r*=10**grids[j].state.FRBdemo.lC #vparams['lC']
@@ -2107,6 +2093,8 @@ def minimise_const_only(vparams:dict,grids:list,surveys:list,
             rs.append(r)
             os.append(o)
 
+    # Check it is not an empty survey. We allow empty surveys as a 
+    # non-detection still gives information on the FRB event rate.
     if len(rs) != 0:
         data=np.array([rs,os])
         ratios=np.log10(data[1,:]/data[0,:])

@@ -1,11 +1,14 @@
 """
-File: MCMC.py
+File: MCMC2.py
 Author: Jordan Hoffmann
 Date: 06/12/23
 Purpose: 
-    Contains functions used for MCMC runs of the zdm code. MCMC_wrap.py is the 
+    Contains functions used for MCMC runs of the zdm code. MCMC_wrap2.py is the 
     main function which does the calling and this holds functions which do the 
     MCMC analysis.
+
+    This function re-initialises the grids on every run while MCMC.py updates the grid.
+    Typically this run is more efficient than MCMC.py.
 """
 
 import numpy as np
@@ -25,6 +28,7 @@ from astropy.cosmology import Planck18
 import multiprocessing as mp
 
 from zdm import misc_functions as mf
+from zdm import zdm_repeat_grid
 
 #==============================================================================
 
@@ -34,17 +38,18 @@ def calc_log_posterior(param_vals, state, params, surveys_sep, grid_params, Pn=T
     priors between the minimum and maximum values provided in 'params'.
 
     Inputs:
-        param_vals  =   Array of the parameter values for this step
-        state       =   State object to modify
-        params      =   Dictionary of the parameter names, min and max values
-        surveys_sep =   surveys_sep[0] : list of non-repeater surveys
-                        surveys_sep[1] : list of repeater surveys
-        grid_params =   Dictionary containing nz, ndm, dmmax
-        Pn          =   Include Pn or not
+        param_vals  (np.array)      =   Array of the parameter values for this step
+        state       (params.state)  =   State object to modify
+        params      (dictionary)    =   Parameter names, min and max values
+        surveys_sep (list)          =   surveys_sep[0] : list of non-repeater surveys
+                                        surveys_sep[1] : list of repeater surveys
+        grid_params (dictionary)    =   nz, ndm, dmmax
+        Pn          (bool)          =   Include Pn or not
+        log_halo    (bool)          =   Use a log uniform prior on DMhalo
     
     Outputs:
-        llsum       =   Total log likelihood for param_vals which is equivalent
-                        to log posterior (un-normalised) due to uniform priors
+        llsum       (double)        =   Total log likelihood for param_vals which is equivalent
+                                        to log posterior (un-normalised) due to uniform priors
     """
 
     # t0 = time.time()
@@ -60,10 +65,14 @@ def calc_log_posterior(param_vals, state, params, surveys_sep, grid_params, Pn=T
 
         param_dict[key] = param_vals[i]
 
-    if in_priors == False:
+    if in_priors is False:
         llsum = -np.inf
     else:
         # minimise_const_only does the grid updating so we don't need to do it explicitly beforehand
+        # In an MCMC analysis the parameter spaces are sampled throughout and hence with so many parameters
+        # it is easy to reach impossible regions of the parameter space. This results in math errors
+        # (log(0), log(negative), sqrt(negative), divide 0 etc.) and hence we assume that these math errors
+        # correspond to an impossible region of the parameter space and so set ll = -inf
         try:
             # Set state
             state.update_params(param_dict)
@@ -106,8 +115,8 @@ def calc_log_posterior(param_vals, state, params, surveys_sep, grid_params, Pn=T
                 for g in grids:
                     g.state.FRBdemo.lC = newC
 
-            #     if isinstance(g, zdm_repeat_grid.repeat_Grid):
-            #         g.calc_constant()
+                if isinstance(g, zdm_repeat_grid.repeat_Grid):
+                    g.calc_constant()
 
             # calculate all the likelihoods
             llsum = 0
@@ -133,20 +142,22 @@ def mcmc_runner(logpf, outfile, state, params, surveys, grid_params, nwalkers=10
     Handles the MCMC running.
 
     Inputs:
-        logpf       =   Log posterior function handle
-        outfile     =   Name of the output file (excluding .h5 extension)
-        params      =   Dictionary of the parameter names, min and max values
-        surveys     =   List of surveys being used
-        grids       =   List of grids corresponding to the surveys
-        nwalkers    =   Number of walkers
-        nsteps      =   Number of steps per walker
-        nthreads    =   Number of threads to use for parallelised runs
-        Pn          =   Include P(N) in analysis
-        log_halo    =   Treat halo prior as log prior
+        logpf       (function)      =   Log posterior function handle
+        outfile     (string)        =   Name of the output file (excluding .h5 extension)
+        state       (params.state)  =   State object to modify
+        params      (dictionary)    =   Parameter names, min and max values
+        surveys     (list)          =   surveys_sep[0] : list of non-repeater surveys
+                                        surveys_sep[1] : list of repeater surveys
+        grid_params (dictionary)    =   nz, ndm, dmmax
+        nwalkers    (int)           =   Number of walkers
+        nsteps      (int)           =   Number of steps
+        nthreads    (int)           =   Number of threads (currently not implemented - uses default)
+        Pn          (bool)          =   Include Pn or not
+        log_halo    (bool)          =   Use a log uniform prior on DMhalo
     
     Outputs:
-        posterior_sample    =   Final sample
-        outfile.h5          =   HDF5 file containing the sampler
+        posterior_sample    (emcee.EnsembleSampler) =   Final sample
+        outfile.h5          (HDF5 file)             =   HDF5 file containing the sampler
     """
         
     ndim = len(params)
