@@ -13,10 +13,15 @@ Purpose:
 import argparse
 import os
 
+import numpy as np
+
+from astropy.cosmology import Planck18
+
 from zdm import survey
 from zdm import cosmology as cos
 from zdm import loading
-from zdm.MCMC2 import *
+from zdm import MCMC2
+from zdm import parameters
 
 import pickle
 import json
@@ -49,6 +54,7 @@ def main():
     parser.add_argument('--edir', default=None, type=str, help="Directory containing efficiency files")
     parser.add_argument('--outdir', default="", type=str, help="Output directory")
     parser.add_argument('--Pn', default=False, action='store_true', help="Include Pn")
+    parser.add_argument('--log_halo', default=False, action='store_true', help="Give a log prior on the halo instead of linear")
     args = parser.parse_args()
 
     # Check correct flags are specified
@@ -97,8 +103,11 @@ def main():
 
     if args.Pn:
         print("Using Pn")
+    if args.log_halo:
+        print("Log prior on halo")
 
-    mcmc_runner(calc_log_posterior, os.path.join(args.outdir, args.opfile), state, params, surveys, grid_params, nwalkers=args.walkers, nsteps=args.steps, nthreads=args.nthreads, Pn=args.Pn)
+    MCMC2.mcmc_runner(MCMC2.calc_log_posterior, os.path.join(args.outdir, args.opfile), state, params, surveys, grid_params, 
+                nwalkers=args.walkers, nsteps=args.steps, nthreads=args.nthreads, Pn=args.Pn, log_halo=args.log_halo)
 
 #==============================================================================
 

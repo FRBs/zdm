@@ -24,11 +24,11 @@ from astropy.cosmology import Planck18
 
 import multiprocessing as mp
 
-from zdm.misc_functions import *
+from zdm import misc_functions as mf
 
 #==============================================================================
 
-def calc_log_posterior(param_vals, state, params, surveys_sep, grid_params, Pn=True):
+def calc_log_posterior(param_vals, state, params, surveys_sep, grid_params, Pn=True, log_halo=False):
     """
     Calculates the log posterior for a given set of parameters. Assumes uniform
     priors between the minimum and maximum values provided in 'params'.
@@ -73,28 +73,32 @@ def calc_log_posterior(param_vals, state, params, surveys_sep, grid_params, Pn=T
             # Recreate grids every time, but not surveys, so must update survey params
             for i,s in enumerate(surveys):
                 if 'DMhalo' in param_dict:
-                    s.init_DMEG(param_dict['DMhalo'])
+                    if log_halo:
+                        DMhalo = 10**param_dict['DMhalo']
+                    else:
+                        DMhalo = param_dict['DMhalo']
+                    s.init_DMEG(DMhalo)
                     s.get_efficiency_from_wlist(s.DMlist,s.wlist,s.wplist,model=s.meta['WBIAS']) 
 
             # Initialise grids
             grids = []
             if len(surveys_sep[0]) != 0:
-                zDMgrid, zvals,dmvals = get_zdm_grid(
+                zDMgrid, zvals,dmvals = mf.get_zdm_grid(
                     state, new=True, plot=False, method='analytic', 
                     nz=grid_params['nz'], ndm=grid_params['ndm'], dmmax=grid_params['dmmax'],
                     datdir=resource_filename('zdm', 'GridData'))
 
                 # generates zdm grid
-                grids += initialise_grids(surveys_sep[0], zDMgrid, zvals, dmvals, state, wdist=True, repeaters=False)
+                grids += mf.initialise_grids(surveys_sep[0], zDMgrid, zvals, dmvals, state, wdist=True, repeaters=False)
             
             if len(surveys_sep[1]) != 0:
-                zDMgrid, zvals,dmvals = get_zdm_grid(
+                zDMgrid, zvals,dmvals = mf.get_zdm_grid(
                     state, new=True, plot=False, method='analytic', 
                     nz=grid_params['nz'], ndm=grid_params['ndm'], dmmax=grid_params['dmmax'],
                     datdir=resource_filename('zdm', 'GridData'))
 
                 # generates zdm grid
-                grids += initialise_grids(surveys_sep[1], zDMgrid, zvals, dmvals, state, wdist=True, repeaters=True)
+                grids += mf.initialise_grids(surveys_sep[1], zDMgrid, zvals, dmvals, state, wdist=True, repeaters=True)
 
             # Minimse the constant accross all surveys
             newC, llC = it.minimise_const_only(None, grids, surveys, update=True)
@@ -124,7 +128,7 @@ def calc_log_posterior(param_vals, state, params, surveys_sep, grid_params, Pn=T
 
 #==============================================================================
 
-def mcmc_runner(logpf, outfile, state, params, surveys, grid_params, nwalkers=10, nsteps=100, nthreads=1, Pn=True):
+def mcmc_runner(logpf, outfile, state, params, surveys, grid_params, nwalkers=10, nsteps=100, nthreads=1, Pn=True, log_halo=False):
     """
     Handles the MCMC running.
 
@@ -137,6 +141,8 @@ def mcmc_runner(logpf, outfile, state, params, surveys, grid_params, nwalkers=10
         nwalkers    =   Number of walkers
         nsteps      =   Number of steps per walker
         nthreads    =   Number of threads to use for parallelised runs
+        Pn          =   Include P(N) in analysis
+        log_halo    =   Treat halo prior as log prior
     
     Outputs:
         posterior_sample    =   Final sample
@@ -158,7 +164,7 @@ def mcmc_runner(logpf, outfile, state, params, surveys, grid_params, nwalkers=10
     
     start = time.time()
     with mp.Pool() as pool:
-        sampler = emcee.EnsembleSampler(nwalkers, ndim, logpf, args=[state, params, surveys, grid_params, Pn], backend=backend, pool=pool)
+        sampler = emcee.EnsembleSampler(nwalkers, ndim, logpf, args=[state, params, surveys, grid_params, Pn, log_halo], backend=backend, pool=pool)
         sampler.run_mcmc(starting_guesses, nsteps, progress=True)
     end = time.time()
     print("Total time taken: " + str(end - start))

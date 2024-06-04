@@ -18,7 +18,7 @@ import time
 
 import multiprocessing as mp
 
-from zdm.misc_functions import *
+from zdm import misc_functions as mf
 
 #==============================================================================
 

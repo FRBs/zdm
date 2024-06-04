@@ -14,7 +14,7 @@ import argparse
 import os
 
 from zdm import loading
-from zdm.MCMC import *
+from zdm import MCMC
 
 import json
 
@@ -75,7 +75,7 @@ def main():
     # Select from dictionary the necessary parameters to be changed
     params = {k: mcmc_dict[k] for k in mcmc_dict['mcmc']['parameter_order']}
 
-    mcmc_runner(calc_log_posterior, os.path.join(args.outdir, args.opfile), params, surveys, grids, nwalkers=args.walkers, nsteps=args.steps, nthreads=args.nthreads)
+    MCMC.mcmc_runner(MCMC.calc_log_posterior, os.path.join(args.outdir, args.opfile), params, surveys, grids, nwalkers=args.walkers, nsteps=args.steps, nthreads=args.nthreads)
 
 #==============================================================================
     
