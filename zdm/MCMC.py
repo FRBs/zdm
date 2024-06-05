@@ -19,7 +19,7 @@ import time
 import multiprocessing as mp
 
 from zdm import misc_functions as mf
-from zdm import zdm_repeat_grid
+from zdm import repeat_grid
 
 #==============================================================================
 
@@ -66,7 +66,7 @@ def calc_log_posterior(param_vals, params, surveys, grids):
             for g in grids:
                 g.state.FRBdemo.lC = newC
 
-                if isinstance(g, zdm_repeat_grid.repeat_Grid):
+                if isinstance(g, repeat_grid.repeat_Grid):
                     g.calc_constant()
 
             # calculate all the likelihoods

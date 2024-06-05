@@ -625,11 +625,16 @@ class Survey:
         
         self.c, self.Gls and self.Gbs should be loaded in process_survey_file
         """
-        for i in range(8):
-            for j in range(8-i):
-                self.DMhalos += self.c[i][j] * self.Gls**i * self.Gbs**j
-        
-        self.DMhalos = self.DMhalos * self.DMhalo / 43
+
+        if self.Gls[0] == 1.0:
+            self.DMhalos = np.ones(self.DMs.shape) * self.DMhalo
+        else:
+            self.DMhalos = np.zeros(self.DMs.shape)
+            for i in range(8):
+                for j in range(8-i):
+                    self.DMhalos += self.c[i][j] * self.Gls**i * self.Gbs**j
+            
+            self.DMhalos = self.DMhalos * self.DMhalo / 43
 
     def init_halo_coeffs(self):
         """
