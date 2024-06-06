@@ -1,6 +1,6 @@
 #!/bin/bash
-#SBATCH --job-name=NO_Emin_F
-#SBATCH --output=../mcmc/NO_Emin_F.out
+#SBATCH --job-name=mcmc/HALO_dd
+#SBATCH --output=../mcmc/HALO_dd.out
 #SBATCH --ntasks=20
 #SBATCH --time=24:00:00
 #SBATCH --export=NONE
@@ -14,7 +14,7 @@ source $ZDM/.zdm_env/bin/activate
 
 cd $ZDM/zdm
 
-outfile="NO_Emin_F"
+outfile="mcmc/HALO_dd"
 walkers=40
 steps=2000
 
@@ -33,4 +33,6 @@ echo "Outfile: $outfile.h5"
 echo "Walkers: $walkers"
 echo "Steps: $steps"
 
-python MCMC_wrap.py $surveys -p tests/files/real_mini_mcmc2.json -o $outfile -w $walkers -s $steps -n 20
+# python scripts/MCMC_wrap.py -f $surveys -r $rep_surveys -p data/MCMC/params.json -o $outfile -w $walkers -s $steps -n 1
+python scripts/MCMC_wrap2.py -f $surveys -p data/MCMC/params.json -o $outfile -w $walkers -s $steps -n 20 --Pn
+# python scripts/MCMC_wrap2.py -r $rep_surveys -p data/MCMC/params.json -o $outfile -w $walkers -s $steps -n 1
