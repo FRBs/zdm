@@ -609,16 +609,16 @@ class Survey:
             # Initialise repeater zs
             self.init_zs_reps()
 
-    def init_DMEG(self,DMhalo):
+    def init_DMEG(self,DMhalo,halo_method):
         """ Calculates extragalactic DMs assuming halo DM """
         self.DMhalo=DMhalo
-        self.process_dmhalo()
+        self.process_dmhalo(halo_method)
         self.DMEGs=self.DMs-self.DMGs-self.DMhalos
         # self.DMEGs_obs=self.DMs-self.DMGs-DMhalo
         # self.DMEGs = np.copy(self.DMEGs_obs)
         # self.DMEGs[self.DMEGs < 0] = 10. # Minimum value of 10. pc/cm^3
     
-    def process_dmhalo(self):
+    def process_dmhalo(self, halo_method):
         """
         Calculates directionally dependent DMhalo from Yamasaki and Totani 2020 
         and rescaling to an average of self.DMhalo
@@ -626,9 +626,12 @@ class Survey:
         self.c, self.Gls and self.Gbs should be loaded in process_survey_file
         """
 
-        if self.Gls[0] == 1.0:
+        if halo_method == 0:
             self.DMhalos = np.ones(self.DMs.shape) * self.DMhalo
         else:
+            if np.any(self.Gls == 1.0) or np.any(self.Gbs == 1.0):
+                raise ValueError('Galactic coordinates must be set if using directional dependence')
+
             self.DMhalos = np.zeros(self.DMs.shape)
             for i in range(8):
                 for j in range(8-i):
