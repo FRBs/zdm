@@ -61,15 +61,14 @@ def test_update_MCMC():
 
     # Calc likelihoods
     lp = MCMC.calc_log_posterior(param_vals, params, ss, grids)
-    lp2 = MCMC2.calc_log_posterior(param_vals, params, ss2, grid_params) 
-
+    lp2 = MCMC2.calc_log_posterior(param_vals, state2, params, ss2, grid_params) 
     assert np.isclose(lp, lp2)
 
 #==============================================================================
 
 def test_update():
 
-    survey_names = ["private_CRAFT_ICS_892"]
+    survey_names = ["CRAFT_ICS_892"]
     rsurvey_names = ["CHIME/CHIME_decbin_0_of_6"]
 
     # Select from dictionary all variable parameters
