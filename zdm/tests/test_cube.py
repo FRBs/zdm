@@ -33,7 +33,7 @@ def test_cube_run():
     survey_names = ['CRAFT/FE', 
                     'CRAFT_ICS_1632',
                     'CRAFT_ICS_892', 
-                    'CRAFT_ICS_1272',
+                    'CRAFT_ICS_1300',
                     'PKS/Mb']
     #sdir = os.path.join(resource_filename('zdm', 'data'), 'Surveys')
     #surveys=[]
