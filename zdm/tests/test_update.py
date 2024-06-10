@@ -18,7 +18,7 @@ import os
 
 def test_update_MCMC():
 
-    survey_names = ["private_CRAFT_ICS_892"]
+    survey_names = ["CRAFT_ICS_892"]
     rsurvey_names = ["CHIME/CHIME_decbin_0_of_6"]
 
     # Select from dictionary all variable parameters
