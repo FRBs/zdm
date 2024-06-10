@@ -7,8 +7,8 @@
 # - {name: DMG, datatype: float64}
 # - {name: FBAR, datatype: float64}
 # - {name: FRES, datatype: float64}
-# - {name: Gb, datatype: string, subtype: 'float64[null]'}
-# - {name: Gl, datatype: string, subtype: 'float64[null]'}
+# - {name: Gb, unit: deg, datatype: float64}
+# - {name: Gl, unit: deg, datatype: float64}
 # - {name: SNR, datatype: float64}
 # - {name: SNRTHRESH, datatype: float64}
 # - {name: THRESH, datatype: float64}
