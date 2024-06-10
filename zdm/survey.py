@@ -1408,7 +1408,7 @@ def load_survey(survey_name:str, state:parameters.State,
                                 NFRB=NFRB, iFRB=iFRB)
         
         if not dummy:
-            srvy.init_DMEG(state.MW.DMhalo, state.MW.halo_method)
+            srvy.init_DMEG(state.MW.DMhalo)
             
             beam_method = srvy.meta['BMETHOD']
             beam_thresh = srvy.meta['BTHRESH']
