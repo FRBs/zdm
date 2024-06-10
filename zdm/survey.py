@@ -502,7 +502,7 @@ class Survey:
         # self.init_repeaters()
         # DM EG
         self.init_halo_coeffs()
-        self.init_DMEG(state.MW.DMhalo)
+        self.init_DMEG(state.MW.DMhalo, state.MW.halo_method)
         # Zs
         self.init_zs() # This should be redone every time DMhalo is changed IF we use a flat cutoff on DMEG
         # Allows survey metadata to over-ride parameter defaults if present.
@@ -609,7 +609,7 @@ class Survey:
             # Initialise repeater zs
             self.init_zs_reps()
 
-    def init_DMEG(self,DMhalo,halo_method):
+    def init_DMEG(self,DMhalo,halo_method=0):
         """ Calculates extragalactic DMs assuming halo DM """
         self.DMhalo=DMhalo
         self.process_dmhalo(halo_method)
@@ -1408,7 +1408,7 @@ def load_survey(survey_name:str, state:parameters.State,
                                 NFRB=NFRB, iFRB=iFRB)
         
         if not dummy:
-            srvy.init_DMEG(state.MW.DMhalo)
+            srvy.init_DMEG(state.MW.DMhalo, state.MW.halo_method)
             
             beam_method = srvy.meta['BMETHOD']
             beam_thresh = srvy.meta['BTHRESH']

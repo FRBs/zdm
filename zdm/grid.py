@@ -762,6 +762,7 @@ class Grid:
         if self.chk_upd_param("DMhalo", vparams, update=True):
             # Update survey params
             self.survey.init_DMEG(vparams["DMhalo"])
+            # NOTE: In future we can change this to not need to recalc every time
             self.survey.get_efficiency_from_wlist(self.survey.DMlist,self.survey.wlist,self.survey.wplist,model=self.survey.meta['WBIAS'])
             self.eff_table = self.survey.efficiencies
 
