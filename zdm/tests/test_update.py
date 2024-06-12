@@ -9,7 +9,8 @@ from zdm import parameters
 from zdm import MCMC
 from zdm import MCMC2
 from zdm import iteration as it
-from zdm.misc_functions import *
+from zdm import misc_functions as mf
+from zdm import repeat_grid as zdm_repeat_grid
 from astropy.cosmology import Planck18
 
 import pytest
@@ -124,22 +125,22 @@ def test_update():
     # Initialise grids
     grids2 = []
     if len(surveys2) != 0:
-        zDMgrid, zvals,dmvals = get_zdm_grid(
+        zDMgrid, zvals,dmvals = mf.get_zdm_grid(
             state2, new=True, plot=False, method='analytic', 
             nz=grid_params['nz'], ndm=grid_params['ndm'], dmmax=grid_params['dmmax'],
             datdir=resource_filename('zdm', 'GridData'))
 
         # generates zdm grid
-        grids2 += initialise_grids(surveys2, zDMgrid, zvals, dmvals, state2, wdist=True, repeaters=False)
+        grids2 += mf.initialise_grids(surveys2, zDMgrid, zvals, dmvals, state2, wdist=True, repeaters=False)
     
     if len(rsurveys2) != 0:
-        zDMgrid, zvals,dmvals = get_zdm_grid(
+        zDMgrid, zvals,dmvals = mf.get_zdm_grid(
             state2, new=True, plot=False, method='analytic', 
             nz=grid_params['nz'], ndm=grid_params['ndm'], dmmax=grid_params['dmmax'],
             datdir=resource_filename('zdm', 'GridData'))
 
         # generates zdm grid
-        grids2 += initialise_grids(rsurveys2, zDMgrid, zvals, dmvals, state2, wdist=True, repeaters=True)
+        grids2 += mf.initialise_grids(rsurveys2, zDMgrid, zvals, dmvals, state2, wdist=True, repeaters=True)
 
     surveys2 += rsurveys2
 
