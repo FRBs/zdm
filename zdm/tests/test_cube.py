@@ -118,4 +118,4 @@ def test_cube_run():
     assert check_accuracy(zdm_v1,zdm_v2)
     
 
-#test_cube_run()
+test_cube_run()

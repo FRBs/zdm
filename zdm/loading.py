@@ -136,7 +136,7 @@ def surveys_and_grids(init_state=None, alpha_method=1,
         survey_names = ['CRAFT/FE', 
                     'CRAFT_ICS_1632',
                     'CRAFT_ICS_892', 
-                    'CRAFT_ICS_1272',
+                    'CRAFT_ICS_1300',
                     'PKS/Mb']
     if add_20220610A:
         survey_names[3] = 'CRAFT_ICS_w_220610'

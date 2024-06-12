@@ -2499,6 +2499,7 @@ def plot_grid_2(
     H0=None,
     showplot=False,
     DMlines=None,
+    DMlims=None,
     markersize=10,
     clim=False,
     data_clr="red",
@@ -2767,7 +2768,12 @@ def plot_grid_2(
             zstop /= zvals[1] - zvals[0]
             DM /= dmvals[1] - dmvals[0]
             plt.plot([0, zstop], [DM, DM], color=data_clr, linestyle=":")
-    
+
+    if DMlims is not None:
+        for DMlim in DMlims:
+            DMlim /= dmvals[1] - dmvals[0]
+            ax.axhline(DMlim, 0, 1, color=data_clr, linestyle="-")
+
     # performs plots for the pdmgz variable
     if pdmgz is not None:
         styles = ['-','-','-']
