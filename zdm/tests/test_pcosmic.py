@@ -24,4 +24,5 @@ def test_mean_DM():
 
     # Test
     assert np.isclose(DMs[-1], 924.81566918)
-    
+
+test_mean_DM()

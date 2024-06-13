@@ -8,4 +8,5 @@ def test_init_state():
 
     # Fuss a bit
     assert state.analysis.NewGrids 
-    
+
+test_init_state()

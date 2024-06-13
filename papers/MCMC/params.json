@@ -1,0 +1,101 @@
+{
+    "cube": {
+        "parameter_order": ["lC", "sfr_n", "alpha", "lmean", "lsigma", "lEmax", "gamma", "H0"]
+    },
+    "mcmc": {
+        "parameter_order": ["sfr_n", "alpha", "lmean", "lsigma", "lEmax", "lEmin", "gamma", "DMhalo", "H0"]
+    },
+    "mcmc_full": {
+        "parameter_order": ["logF", "sfr_n", "alpha", "lmean", "lsigma", "lEmax", "lEmin", "gamma", "H0", "DMhalo", "lRmin", "lRmax", "Rgamma", "sigmaDMG"]
+    },
+    "config": {
+        "luminosity_function": 2,
+        "alpha_method": 1
+    },
+    "logF": {
+        "DC": "cosmo",
+        "min": -2.0,
+        "max": 0.0
+    },
+    "lEmax": {
+        "DC": "energy",
+        "min": 40.5,
+        "max": 45.0, 
+        "n": 10
+    },
+    "lEmin": {
+        "DC": "energy",
+        "min": 36.0, 
+        "max": 40.5
+    },
+    "DMhalo": {
+        "DC": "MW",
+        "min": 30.0, 
+        "max": 180.0
+    },
+    "sigmaDMG": {
+        "DC": "MW",
+        "min": 0.1, 
+        "max": 0.5
+    },
+    "H0": {
+        "DC": "cosmo",
+        "min": 35.0, 
+        "max": 110.0, 
+        "n": 10
+    },
+    "alpha": {
+        "DC": "energy",
+        "min": -2.0, 
+        "max": 5.0, 
+        "n": 3
+    },
+    "gamma": {
+        "DC": "energy",
+        "min": -4.0, 
+        "max": 1.0, 
+        "n": 4
+    },
+    "sfr_n": {
+        "DC": "FRBdemo",
+        "min": -2.0, 
+        "max": 6.0, 
+        "n": 10
+    },
+    "lmean": {
+        "DC": "host",
+        "min": 1.0, 
+        "max": 3.0, 
+        "n": 4
+    },
+    "lsigma": {
+        "DC": "host",
+        "min": 0.1, 
+        "max": 1.5, 
+        "n": 4
+    },
+    "lRmin": {
+        "DC": "rep",
+        "min": -2.0, 
+        "max": 1.0, 
+        "n": 4
+    },
+    "lRmax": {
+        "DC": "rep",
+        "min": 0.0, 
+        "max": 4.0, 
+        "n": 4
+    },
+    "Rgamma": {
+        "DC": "rep",
+        "min": -3.0, 
+        "max": -0.5, 
+        "n": 4
+    },
+    "lC": {
+        "DC": "FRBdemo",
+        "min": -1.0, 
+        "max": -0.9, 
+        "n": -1
+    }
+}

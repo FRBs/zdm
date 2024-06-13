@@ -25,7 +25,6 @@ import matplotlib.pyplot as plt
 
 from IPython import embed
 
-
 class OldSurvey:
     """A class to hold an FRB survey
 
@@ -41,7 +40,7 @@ class OldSurvey:
         #self.fbar= #mean frequency
         #self.sens_meth="None"
     
-    def get_efficiency(self,DMlist,model="Quadrature",dsmear=True,edir=''):
+    def get_efficiency(self,DMlist,model="Quadrature",dsmear=True,edir=None):
         """ Gets efficiency to FRBs
         Returns a list of relative efficiencies
         as a function of dispersion measure for each FRB.
@@ -61,7 +60,7 @@ class OldSurvey:
     def get_efficiency_from_wlist(self,DMlist,wlist,plist, 
                                   model="Quadrature", 
                                   addGalacticDM=True,
-                                  edir=''):
+                                  edir=None):
         """ Gets efficiency to FRBs
         Returns a list of relative efficiencies
         as a function of dispersion measure for each width given in wlist
@@ -480,7 +479,7 @@ class Survey:
                  dmvals:np.ndarray,
                  NFRB:int=None, 
                  iFRB:int=0,
-                 edir=''):
+                 edir=None):
         """ Init an FRB Survey class
 
         Args:
@@ -494,12 +493,18 @@ class Survey:
         """
         # Proceed
         self.name = survey_name
+        self.dmvals = dmvals
         # Load up
         self.process_survey_file(filename, NFRB, iFRB)
+        # Check if repeaters or not and set relevant parameters
+        # Now done in loading
+        # self.repeaters=False
+        # self.init_repeaters()
         # DM EG
-        self.init_DMEG(state.MW.DMhalo)
+        self.init_halo_coeffs()
+        self.init_DMEG(state.MW.DMhalo, state.MW.halo_method)
         # Zs
-        self.init_zs()
+        self.init_zs() # This should be redone every time DMhalo is changed IF we use a flat cutoff on DMEG
         # Allows survey metadata to over-ride parameter defaults if present.
         # This is required when mixing CHIME and non-CHIME FRBs
         beam_method = self.meta['BMETHOD']
@@ -514,18 +519,146 @@ class Survey:
         pwidths,pprobs=make_widths(self, state)
         _ = self.get_efficiency_from_wlist(dmvals,
                                        pwidths,pprobs,model=width_bias, edir=edir) 
+        self.calc_max_dm()
 
-    def init_DMEG(self,DMhalo):
+    def init_repeaters(self):
+        """
+        Checks to see if this is a repeater survey and if so ensures all the
+        relevant information is present.
+        """
+        # self.repeaters = self.meta["REPEATERS"]
+        self.repeaters = True
+
+        if self.repeaters:
+            # Set repeater/singles list
+            self.replist = np.where(self.frbs["NREP"] > 1)[0]
+            self.singleslist = np.where(self.frbs["NREP"] == 1)[0]
+
+            #------------------------------------------------------------------
+            self.drift_scan = self.meta['DRIFT_SCAN']
+
+            if self.drift_scan == 2:
+                self.Nfields = 1
+                self.Tfield = self.TOBS
+            elif self.drift_scan == 1:
+                # Check we have the necessary data to construct Nfields and Tfield        
+                self.Nfields = self.meta['NFIELDS']
+                self.Tfield = self.meta['TFIELD']
+
+                if self.Nfields is None:
+                    if self.Tfield is None or self.TOBS is None:
+                        raise ValueError("At least 2 of NFIELDS, TFIELD and TOBS must be set in repeater surveys")
+                    else:
+                        self.Nfields = int(round(self.TOBS / self.Tfield))
+                        # To account for rounding errors - TOBS is used anyways
+                        self.Tfield = self.TOBS / self.Nfields
+                elif self.Tfield is None:
+                    if self.TOBS is None:
+                        raise ValueError("At least 2 of NFIELDS, TFIELD and TOBS must be set in repeater surveys")
+                    else:
+                        self.Tfield = self.TOBS / self.Nfields
+                elif self.TOBS is None:
+                    self.TOBS = self.Nfields * self.Tfield
+                else:
+                    # All three are set
+                    print("TOBS, TFIELD and NFIELDS all specified")
+                    self.Tfield = self.TOBS / self.Nfields
+                
+                print("set TOBS = " + str(self.TOBS) + ", TFIELD = " + str(self.Tfield) + ", NFIELDS = " + str(self.Nfields))
+            
+            #------------------------------------------------------------------
+            # Check we have number of repeaters / singles
+            self.NORM_REPS = self.meta['NORM_REPS']
+            self.NORM_SINGLES = self.meta['NORM_SINGLES']
+
+            if self.NORM_FRB == 0:
+                # Case of no detections
+                if (self.NORM_REPS is None and self.NORM_SINGLES is None) or (self.NORM_REPS == 0 or self.NORM_SINGLES == 0):
+                    self.NORM_REPS = 0
+                    self.NORM_SINGLES = 0
+                # Case invalid
+                elif self.NORM_REPS is None or self.NORM_SINGLES is None:
+                    raise ValueError("At least 2 of NORM_FRB, NORM_REPS and NORM_SINGLES must be set in repeater surveys")
+                # Case of NORM_FRB not set
+                else:
+                    self.NORM_FRB = self.NORM_REPS + self.NORM_SINGLES
+                    # print("NORM_FRB set to NORM_REPS + NORM_SINGLES = " + str(self.NORM_FRB))
+            elif self.NORM_REPS is None:
+                # Case invalid
+                if self.NORM_SINGLES is None or self.NORM_SINGLES > self.NORM_FRB:
+                    raise ValueError("At least 2 of NORM_FRB, NORM_REPS and NORM_SINGLES must be set in repeater surveys and NORM_FRB = NORM_REPS + NORM_SINGLES")
+                # Case NORM_REPS not set
+                else:
+                    self.NORM_REPS = self.NORM_FRB - self.NORM_SINGLES
+                    # print("NORM_REPS set to NORM_FRB - NORM_SINGLES = " + str(self.NORM_REPS))
+            elif self.NORM_SINGLES is None:
+                # Do not need to consider NORM_REPS == None as that is done in the previous elif
+                # Case invalid
+                if self.NORM_REPS > self.NORM_FRB:
+                    raise ValueError("At least 2 of NORM_FRB, NORM_REPS and NORM_SINGLES must be set in repeater surveys and NORM_FRB = NORM_REPS + NORM_SINGLES")
+                # Case NORM_SINGLES not set
+                else:
+                    self.NORM_SINGLES = self.NORM_FRB - self.NORM_REPS
+                    # print("NORM_SINGLES set to NORM_FRB - NORM_REPS = " + str(self.NORM_SINGLES))
+            # Case all 3 are set
+            else:
+                # Common sense check
+                if self.NORM_FRB != self.NORM_REPS + self.NORM_SINGLES:
+                    raise ValueError("NORM_FRB != NORM_REPS + NORM_SINGLES")
+            
+            # Initialise repeater zs
+            self.init_zs_reps()
+
+    def init_DMEG(self,DMhalo,halo_method=0):
         """ Calculates extragalactic DMs assuming halo DM """
         self.DMhalo=DMhalo
-        self.DMEGs=self.DMs-self.DMGs-DMhalo
+        self.process_dmhalo(halo_method)
+        self.DMEGs=self.DMs-self.DMGs-self.DMhalos
         # self.DMEGs_obs=self.DMs-self.DMGs-DMhalo
         # self.DMEGs = np.copy(self.DMEGs_obs)
         # self.DMEGs[self.DMEGs < 0] = 10. # Minimum value of 10. pc/cm^3
     
-    def init_zs(self):
-        """Gets zlist and nozlist and determines which z values to use"""
+    def process_dmhalo(self, halo_method):
+        """
+        Calculates directionally dependent DMhalo from Yamasaki and Totani 2020 
+        and rescaling to an average of self.DMhalo
+        
+        self.c, self.Gls and self.Gbs should be loaded in process_survey_file
+        """
 
+        if halo_method == 0:
+            self.DMhalos = np.ones(self.DMs.shape) * self.DMhalo
+        else:
+            if np.any(self.Gls == 1.0) or np.any(self.Gbs == 1.0):
+                raise ValueError('Galactic coordinates must be set if using directional dependence')
+
+            self.DMhalos = np.zeros(self.DMs.shape)
+            for i in range(8):
+                for j in range(8-i):
+                    self.DMhalos += self.c[i][j] * self.Gls**i * self.Gbs**j
+            
+            self.DMhalos = self.DMhalos * self.DMhalo / 43
+
+    def init_halo_coeffs(self):
+        """
+        Initialise coefficients for Yamasaki and Totani 2020 implementation of
+        directionally dependent DMhalo
+        """
+        self.c = [
+            [250.12, -871.06, 1877.5, -2553.0, 2181.3, -1127.5, 321.72, -38.905],
+            [-154.82, 783.43, -1593.9, 1727.6, -1046.5, 332.09, -42.815],
+            [116.72, -76.815, 428.49, -419.00, 174.60, -27.610],
+            [216.67, -193.30, 12.234, 32.145, -8.3602],
+            [-129.95, 103.80, -22.800, 0.44171],
+            [39.652, -21.398, 2.7694],
+            [-6.1926, 1.6162,],
+            [0.39346]
+        ]
+
+    def init_zs(self):
+        """
+        Gets zlist and nozlist and determines which z values to use
+        """
         # Ignore redshifts above MAX_LOC_DMEG
         self.min_noz = self.meta["MAX_LOC_DMEG"]
         # Ignore redshifts above the minimum unlocalised DM if MAX_LOC_DMEG==0
@@ -537,8 +670,14 @@ class Survey:
         # Do not get rid of redshifts if MAX_LOC_DMEG==-1
         if self.min_noz >= 0:
             high_dm = np.where(self.DMEGs > self.min_noz)[0]
+            self.ignored_Zs = self.frbs["Z"].values[high_dm]
+            self.ignored_Zlist = high_dm[self.ignored_Zs > 0]
+            self.ignored_Zs = self.ignored_Zs[self.ignored_Zs > 0]
             self.frbs["Z"].values[high_dm] = -1.0
             print("Ignoring redshifts with DMEG > " + str(self.min_noz))
+        else:
+            self.ignored_Zs = []
+            self.ignored_Zlist = []
 
         # Pandas resolves None to Nan
         if len(self.frbs["Z"])>0 and np.isfinite(self.frbs["Z"][0]):
@@ -568,6 +707,74 @@ class Survey:
             self.Zs=None
             self.nozlist=np.arange(self.NFRB)
             self.zlist=None
+        
+    def init_zs_reps(self):
+        """
+        Gets zlist and nozlist for repeaters and singles. Basically the same as init_zs but for repeaters.
+        """
+        # Case of no repeaters detected
+        if len(self.replist) == 0:
+            self.nDr = 1
+            self.zreps = None
+            self.nozreps = np.arange(0)
+
+            # This also accounts for the case of no FRBs at all
+            self.nDs = self.nD
+            self.zsingles = self.zlist
+            self.nozsingles = self.nozlist
+
+        # Case of no singles (all repeaters)
+        elif len(self.singleslist) == 0:
+            self.nDs = 1
+            self.zsingles = None
+            self.nozsingles = np.arange(0)
+            
+            self.nDr = self.nD
+            self.zreps = self.zlist
+            self.nozreps = self.nozlist
+        
+        # Case of some singles and some repeaters
+        else:
+            if self.nD == 1:
+                self.zreps = None
+                self.zsingles = None
+                self.nozreps = np.array([i for i in self.replist if i in self.nozlist])
+                self.nozsingles = np.array([i for i in self.singleslist if i in self.nozlist])
+                self.nDr = 1
+                self.nDs = 1
+            elif self.nD == 2:
+                self.zreps = np.array([i for i in self.replist if i in self.zlist])
+                self.zsingles = np.array([i for i in self.singleslist if i in self.zlist])
+                self.nozreps = None
+                self.nozsingles = None
+                self.nDr = 2
+                self.nDs = 2
+            else:
+                self.nozreps = np.array([i for i in self.replist if i in self.nozlist])
+                self.zreps = np.array([i for i in self.replist if i in self.zlist])
+                self.nozsingles = np.array([i for i in self.singleslist if i in self.nozlist])
+                self.zsingles = np.array([i for i in self.singleslist if i in self.zlist])
+
+                # Repeater dimensions
+                if len(self.nozreps) == 0:
+                    self.nozreps = None
+                    self.nDr = 2
+                elif len(self.zreps) == 0:
+                    self.zreps = None
+                    self.nDr = 1
+                else:
+                    self.nDr = 3
+        
+                # Singles dimensions
+                if len(self.nozsingles) == 0:
+                    self.nozsingles = None
+                    self.nDs = 2
+                elif len(self.zsingles) == 0:
+                    self.zsingles = None
+                    self.nDs = 1
+                else:
+                    self.nDs = 3
+            
 
     def process_survey_file(self,filename:str, 
                             NFRB:int=None,
@@ -659,12 +866,14 @@ class Survey:
         self.BWs=self.frbs['BW'].values
         self.THRESHs=self.frbs['THRESH'].values
         self.SNRTHRESHs=self.frbs['SNRTHRESH'].values
+        self.Gls = self.frbs['Gl'].values
+        self.Gbs = self.frbs['Gb'].values
         
         self.Ss=self.SNRs/self.SNRTHRESHs
         self.TOBS=self.meta['TOBS']
         self.NORM_FRB=self.meta['NORM_FRB']
         self.Ss[np.where(self.Ss < 1.)[0]]=1
-        
+
         # sets the 'beam' values to unity by default
         self.beam_b=np.array([1])
         self.beam_o=np.array([1])
@@ -692,6 +901,7 @@ class Survey:
             DMGs=np.array(DMGs)
             self.frbs["DMG"]=DMGs
             self.DMGs=DMGs
+        
 
     def init_beam(self,plot=False,
                   method=1,thresh=1e-3):
@@ -726,10 +936,29 @@ class Survey:
         else:
             print("No beam found to initialise...")
 
+    def calc_max_dm(self,Nchan=336):
+        '''
+        Calculates the maximum searched DM
+        '''
+        fbar=self.meta['FBAR']
+        t_res=self.meta['TRES']
+        nu_res=self.meta['FRES']
+        max_idt=self.meta['MAX_IDT']
+        max_dm=self.meta['MAX_DM']
+
+        if max_dm is None and max_idt is not None:
+            k_DM=4.149 #ms GHz^2 pc^-1 cm^3
+            f_low = fbar - (Nchan/2. - 1)*nu_res
+            f_high = fbar + (Nchan/2. - 1)*nu_res
+            max_dt = t_res * max_idt   # FREDDA searches up to 4096 time bins
+            max_dm = max_dt / (k_DM * ((f_low/1e3)**(-2) - (f_high/1e3)**(-2)))
+
+        self.max_dm = max_dm
+
     def get_efficiency_from_wlist(self,DMlist,wlist,plist, 
                                   model="Quadrature", 
                                   addGalacticDM=True,
-                                  edir=''):
+                                  edir=None):
         """ Gets efficiency to FRBs
         Returns a list of relative efficiencies
         as a function of dispersion measure for each width given in wlist
@@ -796,7 +1025,7 @@ class Survey:
         
 # implements something like Mawson's formula for sensitivity
 # t_res in ms
-def calc_relative_sensitivity(DM_frb,DM,w,fbar,t_res,nu_res,Nchan=336,max_idt=None,max_dm=None,model='Quadrature',dsmear=True,edir=''):
+def calc_relative_sensitivity(DM_frb,DM,w,fbar,t_res,nu_res,Nchan=336,max_idt=None,max_dm=None,model='Quadrature',dsmear=True,edir=None):
     """ Calculates DM-dependent sensitivity
     
     This function adjusts sensitivity to a given burst as a function of DM.
@@ -862,20 +1091,11 @@ def calc_relative_sensitivity(DM_frb,DM,w,fbar,t_res,nu_res,Nchan=336,max_idt=No
         elif model=='Sammons':
             sensitivity=0.75*(0.93*dm_smearing + uw + 0.35*t_res)**-0.5
         # calculates relative sensitivity to bursts as a function of DM
-
-        # Set sensitivity to 0 above the maximum searched DM
-        if max_dm != None:
-            sensitivity[DM > max_dm] = 1e-5 # Effectively 0 but not small enough to break it...
-        if max_idt != None:
-            f_low = fbar - (Nchan/2. - 1)*nu_res
-            f_high = fbar + (Nchan/2. - 1)*nu_res
-            max_dt = t_res * max_idt   # FREDDA searches up to 4096 time bins
-            max_dm2 = max_dt / (k_DM * ((f_low/1e3)**(-2) - (f_high/1e3)**(-2)))
-
-            sensitivity[DM > max_dm2] = 1e-5 # Effectively 0 but not small enough to break it...
     
     # If model not CHIME, Quadrature or Sammons assume it is a filename
     else:
+        if edir is None:
+            edir = os.path.join(resource_filename('zdm', 'data'), 'Efficiencies')
         filename = os.path.expanduser(os.path.join(edir, model + ".npy"))
         
         if not os.path.exists(filename):
@@ -886,7 +1106,6 @@ def calc_relative_sensitivity(DM_frb,DM,w,fbar,t_res,nu_res,Nchan=336,max_idt=No
         sensitivity = np.interp(DM, sensitivity_array[0,:], sensitivity_array[1,:], right=1e-2)
 
     return sensitivity
-    
 
 def geometric_lognormals(lmu1,ls1,lmu2,ls2,bins=None,
                          Nrand=10000,plot=False,Nbins=101):
@@ -1120,7 +1339,7 @@ def load_survey(survey_name:str, state:parameters.State,
                 sdir:str=None, NFRB:int=None, 
                 nbins=None, iFRB:int=0, original:bool=False,
                 dummy=False,
-                edir=''):
+                edir=None):
     """Load a survey
 
     Args:
@@ -1171,8 +1390,6 @@ def load_survey(survey_name:str, state:parameters.State,
         dfile = 'parkes_mb_class_I_and_II'
     elif 'private' in survey_name: 
         dfile = survey_name
-        if nbins is None:
-            raise IOError("You must specify nbins with a private survey file")
     else:
         dfile = survey_name
     

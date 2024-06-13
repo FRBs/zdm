@@ -185,7 +185,7 @@ def vector_diff_power_law(Eth,*params):
     
     low=np.where(Eth < Emin)[0]
     if len(low) > 0:
-        result[low]=0.  
+        result[low]=0.
     high=np.where(Eth > Emax)[0]
     if len(high) > 0:
         result[high]=0.
@@ -346,6 +346,6 @@ def vector_diff_gamma(Eth,*params):
     result= (Eth/Emax)**(gamma-1) * np.exp(-Eth/Emax) / norm
     
     low= Eth < Emin
-    result[low]=0.
+    result[low]=0. 
     
     return result

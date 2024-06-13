@@ -9,7 +9,7 @@ from pkg_resources import resource_filename
 import pandas
 
 from zdm import iteration as it
-from zdm import real_loading
+from zdm import loading
 from zdm import io
 from zdm.tests import tstutils
 
@@ -33,7 +33,7 @@ def test_cube_run():
     survey_names = ['CRAFT/FE', 
                     'CRAFT_ICS_1632',
                     'CRAFT_ICS_892', 
-                    'CRAFT_ICS_1272',
+                    'CRAFT_ICS_1300',
                     'PKS/Mb']
     #sdir = os.path.join(resource_filename('zdm', 'data'), 'Surveys')
     #surveys=[]
@@ -47,7 +47,7 @@ def test_cube_run():
         surveys.append(s)
         grids.append(g)
     '''
-    surveys, grids = real_loading.surveys_and_grids(
+    surveys, grids = loading.surveys_and_grids(
         nz=500, ndm=1400) # Small number to keep this cheap
     
     
@@ -118,4 +118,4 @@ def test_cube_run():
     assert check_accuracy(zdm_v1,zdm_v2)
     
 
-#test_cube_run()
+test_cube_run()
