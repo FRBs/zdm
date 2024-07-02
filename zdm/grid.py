@@ -71,7 +71,7 @@ class Grid:
         # Warning -- THRESH could be different for each FRB, but we don't treat it that way
         thresh = survey.meta["THRESH"]
         # was np.median(survey.frbs['THRESH'])
-        self.calc_thresholds(thresh,
+        self.calc_thresholds(survey, thresh,
                              efficiencies,
                              weights=weights)
         # Calculate
@@ -303,7 +303,7 @@ class Grid:
                     else:
                         self.b_fractions[:, :, i] = (
                             self.beam_o[i]
-                            * selt.eff_weights[j,i,:]
+                            * self.eff_weights[j,i,:]
                             * self.array_cum_lf(
                                 thresh, Emin, Emax, self.state.energy.gamma, self.use_log10
                             ).T
@@ -371,7 +371,7 @@ class Grid:
             self.rates = self.pdv * self.sfr_smear
         
 
-    def calc_thresholds(self, F0:float, 
+    def calc_thresholds(self, survey, F0:float, 
                         eff_table, 
                         bandwidth=1e9, 
                         nuRef=1.3e9, weights=None):
@@ -403,7 +403,7 @@ class Grid:
         else:  # multiple FRB widths: dimensions nW x NDM
             self.nthresh = eff_table.shape[0]
             if weights is not None:
-                if weights.size != self.nthresh:
+                if weights.shape[0] != self.nthresh:
                     raise ValueError(
                         "Dimension of weights must equal first dimension of efficiency table"
                     )
@@ -417,7 +417,7 @@ class Grid:
 
         self.EF(self.state.energy.alpha, bandwidth)  # sets FtoE values - could have been done *WAY* earlier
 
-        self.thresholds = np.zeros([self.nthresh, sefl.b_beam.size, self.zvals.size, self.dmvals.size])
+        self.thresholds = np.zeros([self.nthresh, survey.beam_b.size, self.zvals.size, self.dmvals.size])
 
         # Performs an outer multiplication of conversion from fluence to energy.
         # The FtoE array has one value for each redshift.
@@ -425,7 +425,7 @@ class Grid:
         # FRB width (nthresh) and DM.
         # We loop over nthesh and generate a NDM x Nz array for each
         for i in np.arange(self.nthresh):
-            for j in range(len(self.b_beam)):
+            for j in range(len(survey.beam_b)):
                 #self.thresholds[i,j,:,:] = np.outer(self.FtoE, Eff_thresh[i,:])
                 self.thresholds[i,j,:,:] = (self.FtoE*(Eff_thresh[i,:,:,j])).T
             

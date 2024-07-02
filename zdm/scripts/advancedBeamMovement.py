@@ -52,20 +52,21 @@ def main():
 #    state.FRBdemo.lC = 1.443
     state = parameters.State()
     state.energy.lEmax = 41.38
-    state.energy.gamma = -1.3
-    state.energy.alpha = -1.39
-    state.FRBdemo.sfr_n = 1.0
+    state.energy.gamma = -0.948
+    state.energy.alpha = 1.03
+    state.FRBdemo.sfr_n = 1.15
     state.host.lsigma = 0.57
     state.host.lmean = 2.22
-    state.FRBdemo.lC = 4.86
-    state.energy.luminosity_function=0
+    state.FRBdemo.lC = 1.443
+    state.energy.luminosity_function=4
+    state.FRBdemo.alpha_method=1
 
     clusterDMFile = 'Thermo_MACSJ0717_N.fits'
     #clusterDMFile = 'allOnes.fits'
     clusterRedshift = 0.545
 
-    magni = fits.getdata('hlsp_frontier_model_macs0717_bradac_v1_z01-magnif.fits')
-    info = fits.getheader('hlsp_frontier_model_macs0717_bradac_v1_z01-magnif.fits')
+    magni = fits.getdata('hlsp_frontier_model_macs0717_bradac_v1_z01-magnifMAX100.fits')
+    info = fits.getheader('hlsp_frontier_model_macs0717_bradac_v1_z01-magnifMAX100.fits')
     proj = wcs.WCS(info)
     xMagni = np.meshgrid(np.arange(0,len(magni[:,0]),1), np.arange(0,len(magni[0,:]),1))
     tempCoords = proj.array_index_to_world_values(xMagni[0], xMagni[1])
@@ -73,8 +74,8 @@ def main():
     dms = fits.getdata(clusterDMFile)
     infoDM = fits.getheader(clusterDMFile)
     projDM = wcs.WCS(infoDM)
-    cluster=False
-    lensing =False
+    cluster=True
+    lensing =True
     
     #relBeamPositions = np.load('relBeamPos.npy') #relative to magni
     relBeamPositions = np.array([[0,0]])

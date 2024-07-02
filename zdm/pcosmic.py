@@ -282,7 +282,7 @@ def plot_mean(zvals, saveas, title="Mean DM"):
 def get_cluster_dm_mask(survey, dmvals, zvals, mask, clusterRedshift):
 
     DMThresh = np.load(survey.name+'DMThresh.npy')
-    pdms = np.load(survey.name+'DMThresh.npy')
+    pdms = np.load(survey.name+'pdms.npy')
 
     new_mask = np.zeros([mask.shape[0], mask.shape[1], survey.meta["NBINS"]])
     for i in range(survey.meta["NBINS"]):

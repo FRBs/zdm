@@ -16,8 +16,10 @@ import json
 
 
 from ne2001 import density
+import magnificationMapper
 from astropy.io import fits
 from astropy import wcs
+from astropy import units as u
 
 from zdm import beams, parameters
 from zdm import pcosmic
@@ -530,8 +532,8 @@ class Survey:
                 bPos = bPos,
                 proj = projNe, 
                 clusterRedshift = clusterRedshift, 
-                ne = ne,
                 zvals = zvals,
+                ne = ne,
                 name = self.name,
                 lensing = lensing,
                 rawWeights = rawWeights,
@@ -778,8 +780,9 @@ class Survey:
         
         """
         #pwidths = np.zeros([state.wbins, len(self.beam_b), len(zvals)]) 
-        efficiencies=np.zeros([wlist.size, DMlist.size, zvals.size, self.beam_b.size])
-        
+        print(wlist.size, DMlist.size, zvals.size, self.beam_b.size)
+        efficiencies=np.zeros([wlist.shape[0], DMlist.size, zvals.size, self.beam_b.size])
+        print(self.beam_b.shape) 
         if addGalacticDM:
             toAdd = self.DMhalo + self.meta['DMG']
         else:
@@ -788,7 +791,7 @@ class Survey:
         for j in range(len(zvals)):
             for k in range(len(self.beam_b)):
                 for i,w in enumerate(wlist[:,k,j]):
-                    efficiencies[i,:,k,j]=calc_relative_sensitivity(
+                    efficiencies[i,:,j,k]=calc_relative_sensitivity(
                     None,DMlist+toAdd,w,
                     self.meta['FBAR'],
                     self.meta['TRES'],
@@ -910,8 +913,9 @@ def geometric_lognormals(lmu1,ls1,lmu2,ls2, xProbScat, probScat, fractionUnscatt
     x1s=np.random.normal(lmu1,ls1,Nrand)
     x2s=np.random.normal(lmu2,ls2,Nrand)
     x3s=np.zeros(Nrand)
-    for i in range(Nrand - int(Nrand*fractionUnscattered)):
-        x3s[i] = np.random.choice(xProbScat, p=probScat)
+    if np.sum(probScat) > 0:
+        for i in range(Nrand - int(Nrand*fractionUnscattered)):
+            x3s[i] = np.random.choice(xProbScat, p=probScat)
     
     
     ys=(np.exp(x1s*2)+np.exp(x2s*2)+x3s)**0.5
@@ -1107,8 +1111,6 @@ def make_widths(s:Survey,state, xProbScat, probScat, fractionUnscattered):
     keep=np.where(weights>1e-4)[0]
     weights=weights[keep]
     widths=widths[keep]
-    np.save('tempWidths', widths)
-    np.save('tempWeights', weights)
     
     return widths,weights
 

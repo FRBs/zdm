@@ -127,7 +127,7 @@ def normalisedLensFuncsAcrossBeam(D, freq, thresh, nbins, bPos, proj, magni, nam
 
 
 
-def clusterDMFuncAcrossBeam(D, freq, thresh, nbins, bPos, proj, clusterRedshift, ne, name, lensing, rawWeights, weightsProj, xWeights, DMThresh = np.arange(0,15000,100), scatThresh = 10**np.arange(-3,3,0.01)):
+def clusterDMFuncAcrossBeam(D, freq, thresh, nbins, bPos, proj, clusterRedshift, zvals, ne, name, lensing, rawWeights, weightsProj, xWeights, DMThresh = np.arange(0,15000,100), scatThresh = 10**np.arange(-4,3,0.01)):
     # assumed that scatThresh is uniformly spaced in log10, if the base is otherwise need to revise integration step evaluations
     FWHM = 1.22*(const.c/(freq))/D
     beamSigma=(FWHM/2.)*(2*np.log(2))**-0.5
@@ -172,9 +172,9 @@ def clusterDMFuncAcrossBeam(D, freq, thresh, nbins, bPos, proj, clusterRedshift,
     for i in range(len(log10b)):
         print('beaming like crazy right now', i)
         if lensing:
-            pdms[:,i], probScat[:,:,i], fractionUnscattered = clusterDMFuncAtSubBeam(log10b[i], dlog10b, OmegaB, bGains, imageCoords, pixResWeights, clusterRedshift, zvals, scatThresh, ne, DMThresh, lensing, weightsFunc, weightCoords, rawWeights, bGainsWeights)
+            pdms[:,i], probScat[:,:,i], fractionUnscattered = clusterDMFuncAtSubBeam(log10b[i], dlog10b, OmegaB, freq, bGains, imageCoords, pixResWeights, clusterRedshift, zvals, scatThresh, ne, DMThresh, lensing, weightsFunc, weightCoords, rawWeights, bGainsWeights)
         else:
-            pdms[:,i], probScat, fractionUnscattered = clusterDMFuncAtSubBeam(log10b[i], dlog10b, OmegaB, bGains, imageCoords, pixRes, clusterRedshift, zvals, scatThresh, ne, DMThresh, lensing, weightsFunc, np.nan, np.nan, np.nan)
+            pdms[:,i], probScat[:,:,i], fractionUnscattered = clusterDMFuncAtSubBeam(log10b[i], dlog10b, OmegaB, freq, bGains, imageCoords, pixRes, clusterRedshift, zvals, scatThresh, ne, DMThresh, lensing, weightsFunc, np.nan, np.nan, np.nan)
 
     xProbScat = scatThresh[:-1]*10**(np.diff(np.log10(scatThresh))[0]/2)
 
@@ -195,28 +195,26 @@ def regridInterpolator(weights, weightCoords, downSampleFactor):
         smoothingKernel1D[1:-1] = 1
         smoothingKernel1D[0] = (downSampleFactor % int(downSampleFactor))/2
         smoothingKernel1D[-1] = (downSampleFactor % int(downSampleFactor))/2
-    print('temp')
     temp = np.repeat(np.expand_dims(smoothingKernel1D,axis=1),len(smoothingKernel1D),axis=1)
     smoothingKernel = temp*temp.T
     smoothedWeights = scipy.signal.fftconvolve(weights, smoothingKernel, mode='same')
-    print('fft')
     interpFunc = scipy.interpolate.RegularGridInterpolator((weightCoords[0][:,0], weightCoords[1][0,:]), smoothedWeights)
-    print('interp')
     return interpFunc 
     
 
-def clusterDMFuncAtSubBeam(log10b, dlog10b, OmegaB, bGains, imageCoords, pixRes, clusterRedshift, zvals, scatThresh, ne, DMThresh, lensing, weightsFunc, weightCoords, rawWeights, bGainsWeights):
+def clusterDMFuncAtSubBeam(log10b, dlog10b, OmegaB, freq, bGains, imageCoords, pixRes, clusterRedshift, zvals, scatThresh, ne, DMThresh, lensing, weightsFunc, weightCoords, rawWeights, bGainsWeights):
     #OmegaB in arcminutes^2, same as pixRes
     print(log10b, dlog10b)
     inBeam = np.abs(np.log10(bGains)-log10b)<np.abs(dlog10b/2)
     imageRA = imageCoords[0][:,0]
     imageDec = imageCoords[1][0,:]
     imageStep = np.diff(imageRA)[0]    
+    lam = (const.c/(freq)).decompose().value
 
     if lensing:
         inBeam_2 = np.abs(np.log10(bGainsWeights)-log10b)<np.abs(dlog10b/2)
         weights = weightsFunc((imageRA,imageDec))
-        DMLessWeights = np.sum(rawWeights*(inBeam_2)*(weightCoords[0]>np.amax(imageRA))*(weightCoords[1]>np.amax(imageDec))*(weightCoords[0]<np.amin(imageRA))*(weightCoords[1]<np.amin(imageDec)))
+        DMLessWeights = np.sum(rawWeights*(inBeam_2)*np.abs((weightCoords[0]<np.amax(imageRA))*(weightCoords[1]<np.amax(imageDec))*(weightCoords[0]>np.amin(imageRA))*(weightCoords[1]>np.amin(imageDec))-1).astype(bool))
     else:
         weights = 1.0
         DMLessWeights = 0
@@ -225,32 +223,42 @@ def clusterDMFuncAtSubBeam(log10b, dlog10b, OmegaB, bGains, imageCoords, pixRes,
 
     if np.sum(inBeam)>0:
         gtrDM = np.zeros(len(DMThresh))
-        gtrScat = np.zeros([len(ScatThresh),len(zvals)])
-        probScat = np.zeros([len(ScatThresh)-1, len(zvals)])
+        gtrScat = np.zeros([len(scatThresh),len(zvals)])
+        probScat = np.zeros([len(scatThresh)-1, len(zvals)])
         for i in range(len(DMThresh)):
             gtrDM[i] = np.sum(((ne*1e6/(1+clusterRedshift)*inBeam)>=DMThresh[i])*weights)
         for j in range(len(zvals)):
             for i in range(len(scatThresh)):
-                scat = (4.1e-5/(1+clusterRedshift)*(lam/1)**4*((cosmo.angular_diameter_distance(0.545)*cosmo.angular_diameter_distance_z1z2(0.545,zvals[j])/cosmo.angular_diameter_distance(zvals[j])).value/1e3)*(8.4e-13*(ne/1e-4)**2*3.08567758e+22/((1+clusterRedshift)**2)/1e12)*(2.06264806e+08)**(1/3)*1e3)
-                print('Max Scat = ', np.amax(scat), ', Min Scat = ', np.amin(scat))
-                if(np.amin(scat)<np.amin(scatThresh)):
-                    print('WARNING: Scattering outside threshold')
-                    break
-                gtrScat[i,j] = np.sum((scat>=scatThresh[i])*weights)
-
-            probScat[:,j] = (-1*np.diff(gtrScat[:,j])/(gtrScat[0,j])/np.diff(np.log10(scatThresh)))
+                if zvals[j]>clusterRedshift:
+                    scat = (4.1e-5/(1+clusterRedshift)*(lam/1)**4*((cosmo.angular_diameter_distance(0.545)*cosmo.angular_diameter_distance_z1z2(0.545,zvals[j])/cosmo.angular_diameter_distance(zvals[j])).value/1e3)*(8.4e-13*(ne/1e-4)**2*3.08567758e+22/((1+clusterRedshift)**2)/1e12)*(2.06264806e+08)**(1/3)*1e3)
+                    if(np.amin(scat)<np.amin(scatThresh)):
+                        print('WARNING: Scattering outside threshold')
+                        print('z = ', zvals[j], np.amin(scat), np.amin(scatThresh))
+                        break
+                    gtrScat[i,j] = np.sum((scat>=scatThresh[i])*weights)
+                    if i==0:
+                        gtrScat[0,j]=np.sum((scat>=0)*weights)
+                        
+                    probScat[:,j] = (-1*np.diff(gtrScat[:,j])/(gtrScat[0,j])/np.diff(np.log10(scatThresh)))
+                else:
+                    probScat[:,j] = 0
 
         if lensing:
-            modelledArea = np.sum(np.abs(np.log10(bGainsWeights)-log10b)<np.abs(dlog10b/2))*(pixRes[0]*pixRes[1])
+            modelledArea = np.sum(inBeam_2)*(pixRes[0]*pixRes[1])
+            print('num in beam', np.sum(inBeam_2))
+            print('fraction modelled', np.sum(inBeam_2)*pixRes[0]*pixRes[1]/OmegaB)
         else:
-            modelledArea = np.sum(np.abs(np.log10(bGains)-log10b)<np.abs(dlog10b/2))*(pixRes[0]*pixRes[1])
+            modelledArea = np.sum(inBeam)*(pixRes[0]*pixRes[1])
+            print('num in beam', np.sum(inBeam))
+            print('fraction modelled', np.sum(inBeam)*pixRes[0]*pixRes[1]/OmegaB)
                
- 
+        
         numUnmodelledCells = (OmegaB - modelledArea)/(pixRes[0]*pixRes[1])
+        if numUnmodelledCells < 0:
+            numUnmodelledCells = 0
                 
-        fractionUnscattered = (numUnmodelledCells+DMLessWeights)/(numUnmodelledCells+DMLessWeights+gtrScat[0,0])
-        print('num in beam', np.sum(inBeam))
-        print('fraction modelled', np.sum(inBeam)/numUnmodelledCells)
+        print(OmegaB, pixRes, modelledArea, numUnmodelledCells, DMLessWeights, np.amax(gtrScat))
+        fractionUnscattered = (numUnmodelledCells+DMLessWeights)/(np.sum(rawWeights*inBeam_2)+numUnmodelledCells)
         print('fraction unscattered', fractionUnscattered)
         gtrDM[0] = gtrDM[0]+numUnmodelledCells+DMLessWeights
         probUN = (-1*np.diff((gtrDM))/np.diff(DMThresh))
@@ -260,5 +268,7 @@ def clusterDMFuncAtSubBeam(log10b, dlog10b, OmegaB, bGains, imageCoords, pixRes,
         numUnmodelledCells = np.nan
         #interpFunc = None
         probUN = np.ones(len(DMThresh[:-1]))*np.nan
+        probScat = np.zeros([len(scatThresh[:-1]), len(zvals)])
+        fractionUnscattered = 1
     return probUN, probScat, fractionUnscattered
 
