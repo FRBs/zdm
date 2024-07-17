@@ -54,6 +54,7 @@ def main():
     parser.add_argument('--edir', default=None, type=str, help="Directory containing efficiency files")
     parser.add_argument('--outdir', default="", type=str, help="Output directory")
     parser.add_argument('--Pn', default=False, action='store_true', help="Include Pn")
+    parser.add_argument('--rand', default=False, action='store_true', help="Randomise DMG within uncertainty")
     parser.add_argument('--log_halo', default=False, action='store_true', help="Give a log prior on the halo instead of linear")
     args = parser.parse_args()
 
@@ -76,13 +77,13 @@ def main():
     if args.files is not None:
         for survey_name in args.files:
             s = survey.load_survey(survey_name, state, dmvals, 
-                                sdir=args.sdir, edir=args.edir)
+                                sdir=args.sdir, edir=args.edir, rand_DMG=args.rand)
             surveys[0].append(s)
     
     if args.rep_surveys is not None:
         for survey_name in args.rep_surveys:
             s = survey.load_survey(survey_name, state, dmvals, 
-                                sdir=args.sdir, edir=args.edir)
+                                sdir=args.sdir, edir=args.edir, rand_DMG=args.rand)
             surveys[1].append(s)
 
     # Make output directory

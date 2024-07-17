@@ -305,7 +305,7 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=True,Pn=True,dol
         # Linear interpolation
         pvals=pdm[idms1]*(1.-dkdms) + pdm[idms2]*dkdms
     else:
-        dm_weights, iweights = calc_DMG_weights(DMobs, survey.DMhalo, survey.DMGs[nozlist], grid.state.MW.sigmaDMG, dmvals)
+        dm_weights, iweights = calc_DMG_weights(DMobs, survey.DMhalo, survey.DMGs[nozlist], dmvals, grid.state.MW.sigmaDMG, grid.state.MW.sigmaHalo)
         pvals = np.zeros(len(idms1))
         # For each FRB
         for i in range(len(idms1)):
@@ -369,7 +369,7 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=True,Pn=True,dol
         psnr=np.zeros([DMobs.size]) # has already been cut to non-localised number
         
         # Evaluate thresholds at the exact DMobs
-        kdmobs=(survey.DMs - survey.DMhalo - survey.meta['DMG'])/ddm
+        kdmobs=(survey.DMs - survey.DMGal)/ddm
         kdmobs=kdmobs[nozlist]
         kdmobs[kdmobs<0] = 0
         idmobs1=kdmobs.astype('int')
@@ -660,7 +660,7 @@ def calc_likelihoods_2D(grid,survey,
         pvals += rates[izs1,idms2]*dkdms*(1-dkzs)
         pvals += rates[izs2,idms2]*dkdms*dkzs
     else:
-        dm_weights, iweights = calc_DMG_weights(DMobs, survey.DMhalo, survey.DMGs[zlist], grid.state.MW.sigmaDMG, dmvals)
+        dm_weights, iweights = calc_DMG_weights(DMobs, survey.DMhalo, survey.DMGs[zlist], dmvals, grid.state.MW.sigmaDMG, grid.state.MW.sigmaHalo)
         pvals = np.zeros(len(izs1))
         for i in range(len(izs1)):
             pvals[i] = np.sum(rates[izs1[i],iweights[i]] * dm_weights[i] * (1.-dkzs[i]) 
@@ -911,7 +911,7 @@ def calc_likelihoods_2D(grid,survey,
     elif dolist==5:
         return llsum,lllist,expected,dolist5_return
 
-def calc_DMG_weights(DMEGs, DMhalo, DM_ISMs, sigma_ISM, dmvals, sigma_halo=15):
+def calc_DMG_weights(DMEGs, DMhalo, DM_ISMs, dmvals, sigma_ISM=0.5, sigma_halo=15.0):
     """
     Given an uncertainty on the DMG value, calculate the weights of DM values to integrate over
 
@@ -919,8 +919,8 @@ def calc_DMG_weights(DMEGs, DMhalo, DM_ISMs, sigma_ISM, dmvals, sigma_halo=15):
         DMEGs       =   Extragalactic DMs
         DMhalo      =   Assumed constant (average) DMhalo
         DM_ISMs     =   Array of each DM_ISM value
-        sigma_ISM   =   Fractional uncertainty in DMG values
         dmvals      =   Vector of DM values used
+        sigma_ISM   =   Fractional uncertainty in DMG values
         sigma_halo  =   Uncertainty in DMhalo value (in pc/cm3)
 
     Returns:

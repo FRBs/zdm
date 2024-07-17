@@ -19,7 +19,8 @@
 # - {name: XRA, datatype: string}
 # - {name: Z, datatype: float64}
 # meta: !!omap
-# - {survey_data: '{"telescope": {"BEAM": "lat50_log", "DIAM": 12.0, "NBEAMS": 1, "NBINS": 5}}'}
+# - {survey_data: '{"observing": {"NORM_FRB": 3, "TOBS": 50.866971336, "MAX_IDT": 4096}, 
+#                   "telescope": {"BEAM": "ASKAP_1632", "DIAM": 12.0, "NBEAMS": 1, "NBINS": 5}}'}
 # schema: astropy-2.0
 TNS BW DM DMG FBAR FRES Gb Gl SNR SNRTHRESH THRESH TRES WIDTH XC XDec XRA Z
 20211212 336.0 206.0 27.1 1631.5 1.0 47.8 157.7 12.8 9.0 4.4 1.182 2.7 closepack36/45/0.9 01:40:36.8 10:30:40.7 0.0715

@@ -89,7 +89,8 @@ def surveys_and_grids(init_state=None, alpha_method=1,
                       add_20220610A=False,
                       nz:int=500, ndm:int=1400,
                       repeaters=False,
-                      sdir=None, edir=None): 
+                      sdir=None, edir=None,
+                      rand_DMG=False): 
     """ Load up a survey and grid for a real dataset
 
     Args:
@@ -146,7 +147,7 @@ def surveys_and_grids(init_state=None, alpha_method=1,
         # print(f"Initializing {survey_name}")
         s = survey.load_survey(survey_name, 
                                state, dmvals, 
-                               sdir=sdir, edir=edir)
+                               sdir=sdir, edir=edir, rand_DMG=rand_DMG)
         # Check necessary parameters exist if considering repeaters
         if repeaters:
             s.init_repeaters()

@@ -478,10 +478,14 @@ class Grid:
             NFRB = int(N)  # just to be sure...
         sample = []
         pwb = None  # feeds this back to save time. Lots of time.
+        frb = None
         for i in np.arange(NFRB):
             if (i % 100) == 0:
                 print(i)
-            frb, pwb = self.GenMCFRB(pwb, Emax_boost=Emax_boost)
+            
+            # Regen if the survey would not find this FRB
+            while frb is None or frb[1] > self.survey.max_dm:
+                frb, pwb = self.GenMCFRB(pwb, Emax_boost=Emax_boost)
             sample.append(frb)
         sample = np.array(sample)
         return sample

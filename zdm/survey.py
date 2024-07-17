@@ -14,16 +14,19 @@ import pandas
 from astropy.table import Table
 import json
 
-
 from ne2001 import density
 
 from zdm import beams, parameters
 from zdm import pcosmic
 from zdm import survey_data
+from zdm import dmg_sanskriti2020
 
 import matplotlib.pyplot as plt
 
 from IPython import embed
+
+from astropy import units as u
+from astropy.coordinates import SkyCoord
 
 class OldSurvey:
     """A class to hold an FRB survey
@@ -424,6 +427,7 @@ class OldSurvey:
             DMGs=np.array(DMGs)
             self.frbs["DMG"]=DMGs
             self.DMGs=DMGs
+            
     def find(self,lst, val):
             return [i for i, x in enumerate(lst) if x==val]
     
@@ -479,7 +483,8 @@ class Survey:
                  dmvals:np.ndarray,
                  NFRB:int=None, 
                  iFRB:int=0,
-                 edir=None):
+                 edir=None,
+                 rand_DMG=False):
         """ Init an FRB Survey class
 
         Args:
@@ -490,6 +495,8 @@ class Survey:
             dmvals (np.ndarray): _description_
             NFRB (int, optional): _description_. Defaults to None.
             iFRB (int, optional): _description_. Defaults to 0.
+            edir (str, optional): Location of efficiency files
+            rand_DMG (bool): If true randomise the DMG values within uncertainty
         """
         # Proceed
         self.name = survey_name
@@ -502,6 +509,9 @@ class Survey:
         # self.init_repeaters()
         # DM EG
         self.init_halo_coeffs()
+        if rand_DMG:
+            self.randomise_DMG(state.MW.sigmaDMG)
+
         self.init_DMEG(state.MW.DMhalo, state.MW.halo_method)
         # Zs
         self.init_zs() # This should be redone every time DMhalo is changed IF we use a flat cutoff on DMEG
@@ -609,11 +619,22 @@ class Survey:
             # Initialise repeater zs
             self.init_zs_reps()
 
+    def randomise_DMG(self, uDMG=0.5):
+        """ Change the DMG_ISM values to a random value within uDMG Gaussian uncertainty """
+        
+        new_DMGs = np.random.normal(self.DMGs, uDMG*self.DMGs)
+        neg = np.where(new_DMGs < 0)[0]
+        while len(neg) != 0:
+            new_DMGs[neg] = np.random.normal(self.DMGs[neg], uDMG*self.DMGs[neg])
+            neg = np.where(new_DMGs < 0)[0]
+        
+        self.DMGs = new_DMGs
+
     def init_DMEG(self,DMhalo,halo_method=0):
         """ Calculates extragalactic DMs assuming halo DM """
         self.DMhalo=DMhalo
         self.process_dmhalo(halo_method)
-        self.DMEGs=self.DMs-self.DMGs-self.DMhalos
+        self.DMEGs=self.DMs-self.DMGals
         # self.DMEGs_obs=self.DMs-self.DMGs-DMhalo
         # self.DMEGs = np.copy(self.DMEGs_obs)
         # self.DMEGs[self.DMEGs < 0] = 10. # Minimum value of 10. pc/cm^3
@@ -626,18 +647,68 @@ class Survey:
         self.c, self.Gls and self.Gbs should be loaded in process_survey_file
         """
 
+        # Constant halo
         if halo_method == 0:
             self.DMhalos = np.ones(self.DMs.shape) * self.DMhalo
-        else:
+            self.DMGals = self.DMhalos + self.DMGs
+    
+        # Yamasaki and Totani 2020
+        elif halo_method == 1:
+            no_coords = np.where(self.Gls == 1.0)[0]
+            # if np.any(np.isnan(self.XRA[no_coords])) or np.any(np.isnan(self.XDec[no_coords])):
+            #     raise ValueError('Galactic coordinates must be set if using directional dependence')
+            
+            if len(no_coords) != 0:
+                for i in no_coords:
+                    coords = SkyCoord(ra=self.XRA[i], dec=self.XDec[i], frame='icrs', unit="deg")
+
+                    self.Gls[i] = coords.galactic.l.value
+                    self.Gbs[i] = coords.galactic.b.value
+
             if np.any(self.Gls == 1.0) or np.any(self.Gbs == 1.0):
                 raise ValueError('Galactic coordinates must be set if using directional dependence')
 
-            self.DMhalos = np.zeros(self.DMs.shape)
+            for i in range(len(self.Gls)):
+                if self.Gls[i] > 180.0:
+                    self.Gls[i] = 360.0 - self.Gls[i]
+
+            # Convert to rads
+            self.Gls = self.Gls * np.pi / 180
+            self.Gbs = self.Gbs * np.pi / 180
+
+            # Evaluate each one
+            self.DMhalos = np.zeros(self.DMs.shape, dtype='float')
             for i in range(8):
                 for j in range(8-i):
-                    self.DMhalos += self.c[i][j] * self.Gls**i * self.Gbs**j
+                    self.DMhalos = self.DMhalos + self.c[i][j] * np.abs(self.Gls)**i * np.abs(self.Gbs)**j
             
             self.DMhalos = self.DMhalos * self.DMhalo / 43
+            self.DMGals = self.DMhalos + self.DMGs
+
+        # Sanskriti et al. 2020
+        elif halo_method == 2:
+            no_coords = np.where(self.Gls == 1.0)[0]
+            # if np.any(np.isnan(self.XRA[no_coords])) or np.any(np.isnan(self.XDec[no_coords])):
+            #     raise ValueError('Galactic coordinates must be set if using directional dependence')
+            
+            if len(no_coords) != 0:
+                for i in no_coords:
+                    coords = SkyCoord(ra=self.XRA[i], dec=self.XDec[i], frame='icrs', unit="deg")
+                    self.Gls[i] = coords.galactic.l.value
+                    self.Gbs[i] = coords.galactic.b.value
+
+            if np.any(self.Gls == 1.0) or np.any(self.Gbs == 1.0):
+                raise ValueError('Galactic coordinates must be set if using directional dependence')
+        
+            self.DMhalos = None
+            self.DMhalo = None
+            self.DMGals = np.zeros(len(self.frbs))
+            self.DMG_el = np.zeros(len(self.frbs))
+            self.DMG_eu = np.zeros(len(self.frbs))
+            for i, (Gl, Gb) in enumerate(zip(self.Gls, self.Gbs)):
+                self.DMGals[i], self.DMG_el[i], self.DMG_eu[i] = dmg_sanskriti2020.dmg_sanskriti2020(Gl, Gb)
+
+        self.DMGal = np.median(self.DMGals)
 
     def init_halo_coeffs(self):
         """
@@ -647,7 +718,7 @@ class Survey:
         self.c = [
             [250.12, -871.06, 1877.5, -2553.0, 2181.3, -1127.5, 321.72, -38.905],
             [-154.82, 783.43, -1593.9, 1727.6, -1046.5, 332.09, -42.815],
-            [116.72, -76.815, 428.49, -419.00, 174.60, -27.610],
+            [-116.72, -76.815, 428.49, -419.00, 174.60, -27.610],
             [216.67, -193.30, 12.234, 32.145, -8.3602],
             [-129.95, 103.80, -22.800, 0.44171],
             [39.652, -21.398, 2.7694],
@@ -844,6 +915,7 @@ class Survey:
             
             # replace default values with observed media values
             # it's unclear if median or mean is the best here
+            self.meta['SNRTHRESH'] = np.median(self.frbs['SNRTHRESH'])
             self.meta['THRESH'] = np.median(self.frbs['THRESH'])
             self.meta['BW'] = np.median(self.frbs['BW'])
             self.meta['FBAR'] = np.median(self.frbs['FBAR'])
@@ -868,6 +940,8 @@ class Survey:
         self.SNRTHRESHs=self.frbs['SNRTHRESH'].values
         self.Gls = self.frbs['Gl'].values
         self.Gbs = self.frbs['Gb'].values
+        self.XDec = self.frbs['XDec'].values
+        self.XRA = self.frbs['XRA'].values
         
         self.Ss=self.SNRs/self.SNRTHRESHs
         self.TOBS=self.meta['TOBS']
@@ -946,11 +1020,12 @@ class Survey:
         max_idt=self.meta['MAX_IDT']
         max_dm=self.meta['MAX_DM']
 
+        print(max_idt, max_dm)
         if max_dm is None and max_idt is not None:
             k_DM=4.149 #ms GHz^2 pc^-1 cm^3
             f_low = fbar - (Nchan/2. - 1)*nu_res
             f_high = fbar + (Nchan/2. - 1)*nu_res
-            max_dt = t_res * max_idt   # FREDDA searches up to 4096 time bins
+            max_dt = t_res * max_idt
             max_dm = max_dt / (k_DM * ((f_low/1e3)**(-2) - (f_high/1e3)**(-2)))
 
         self.max_dm = max_dm
@@ -989,7 +1064,8 @@ class Survey:
         efficiencies=np.zeros([wlist.size,DMlist.size])
         
         if addGalacticDM:
-            toAdd = self.DMhalo + self.meta['DMG']
+            # toAdd = self.DMhalo + self.meta['DMG']
+            toAdd = self.DMGal
         else:
             toAdd = 0.
         
@@ -1095,7 +1171,7 @@ def calc_relative_sensitivity(DM_frb,DM,w,fbar,t_res,nu_res,Nchan=336,max_idt=No
     # If model not CHIME, Quadrature or Sammons assume it is a filename
     else:
         if edir is None:
-            edir = os.path.join(resource_filename('zdm', 'data'), 'Efficiencies')
+            edir = resource_filename('zdm', 'data/Efficiencies')
         filename = os.path.expanduser(os.path.join(edir, model + ".npy"))
         
         if not os.path.exists(filename):
@@ -1339,7 +1415,8 @@ def load_survey(survey_name:str, state:parameters.State,
                 sdir:str=None, NFRB:int=None, 
                 nbins=None, iFRB:int=0, original:bool=False,
                 dummy=False,
-                edir=None):
+                edir=None,
+                rand_DMG=False,):
     """Load a survey
 
     Args:
@@ -1425,7 +1502,7 @@ def load_survey(survey_name:str, state:parameters.State,
                          os.path.join(sdir, dfile), 
                          dmvals,
                          NFRB=NFRB, iFRB=iFRB,
-                         edir=edir)
+                         edir=edir, rand_DMG=rand_DMG)
     return srvy
 
 def refactor_old_survey_file(survey_name:str, outfile:str, 

@@ -2715,10 +2715,10 @@ def plot_grid_2(
     )
 
     if Aconts:
-        styles = ["--", "-.", ":"]
+        styles = [":", "-.", "--"]
         ax = plt.gca()
         cs = ax.contour(
-            zDMgrid.T, levels=alevels, origin="lower", colors="white", linestyles=styles
+            zDMgrid.T, levels=alevels, origin="lower", colors="orange", linestyles=styles
         )
         # plt.clim(0,2e-5)
         # ax.clabel(cs, cs.levels, inline=True, fontsize=10,fmt=['0.5','0.1','0.01'])
@@ -2771,8 +2771,9 @@ def plot_grid_2(
 
     if DMlims is not None:
         for DMlim in DMlims:
-            DMlim /= dmvals[1] - dmvals[0]
-            ax.axhline(DMlim, 0, 1, color=data_clr, linestyle="-")
+            if DMlim < DMmax:
+                DMlim /= dmvals[1] - dmvals[0]
+                ax.axhline(DMlim, 0, 1, color='white', linestyle="-")
 
     # performs plots for the pdmgz variable
     if pdmgz is not None:
@@ -2843,7 +2844,7 @@ def plot_grid_2(
         plt.clim(clim[0], clim[1])
     
     ##### add FRB host galaxies at some DM/redshift #####
-    if FRBZ is not None and len(FRBZ2) != 0:
+    if FRBZ is not None and len(FRBZ) != 0:
         iDMs = FRBDM / ddm
         iZ = FRBZ / dz
         OK = np.where(FRBZ > 0)[0]

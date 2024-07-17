@@ -155,10 +155,15 @@ class MWParams(data_class.myDataClass):
         metadata={'help': 'Fractional uncertainty in DM from Galactic ISM',
                   'unit': '',
         })
+    sigmaHalo: float = field(
+        default=15.0,
+        metadata={'help': 'Uncertainty in DM from Galactic Halo',
+                  'unit': 'pc cm$^{-3}$',
+        })
     halo_method: int = field(
         default=0,
         metadata={'help': '0: Uniform halo' +
-                            '1: Directionally dependent halo (Yamasaki and Totani 2020)'
+                          '1: Directionally dependent halo (Yamasaki and Totani 2020)'
         })
     DMhalo: float = field(
         default=50.,
