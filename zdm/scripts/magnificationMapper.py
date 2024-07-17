@@ -41,7 +41,7 @@ def unnormalisedLensFuncAtSubBeam(log10b, dlog10b, OmegaB, bGains, pixRes, magni
         for i in range(len(muThresh)):
             gtrMu[i] = np.sum(magni[inBeam]>=muThresh[i])
     
-        modelledArea = np.sum(np.abs(np.log10(bGains)-log10b)<np.abs(dlog10b/2))*(pixRes[0]*pixRes[1])
+        modelledArea = np.sum(inBeam)*(pixRes[0]*pixRes[1])
         numUnmodelledCells = (OmegaB - modelledArea)/(pixRes[0]*pixRes[1])
         print('num in beam', np.sum(inBeam))
         extra1SWhere = muThresh<1
@@ -49,7 +49,7 @@ def unnormalisedLensFuncAtSubBeam(log10b, dlog10b, OmegaB, bGains, pixRes, magni
         probUN = (-1*np.diff((gtrMu))/np.diff(muThresh)/muThresh[:-1])
         # smoothingKernel = scipy.signal.windows.gaussian(len(muThresh[:-1]),0.05/(np.mean(np.diff(np.log10(muThresh)))))
         # probUNSmooth= np.convolve(probUN,smoothingKernel, mode='same')/np.sum(smoothingKernel)
-        interpFunc = scipy.interpolate.interp1d(np.log10(muThresh[:-1]), probUN, bounds_error=False, fill_value=0)
+        interpFunc = scipy.interpolate.interp1d(np.log10(muThresh[:-1])+np.diff(np.log10(muThresh))[0], probUN, bounds_error=False, fill_value=0)
     else: 
         interpFunc = None
     return interpFunc
@@ -62,7 +62,7 @@ def mapWidener(magni, wideningFrac):
     interpFunc = scipy.interpolate.RegularGridInterpolator((np.arange(int(croppedEachSide[0]), (magni.shape[0] - int(croppedEachSide[0])),1), np.arange(int(croppedEachSide[1]), (magni.shape[1] - int(croppedEachSide[1])),1)), (smoothMagni), bounds_error=False, fill_value=None)
     wA = int(magni.shape[0]*wideningFrac/2)
     x = np.meshgrid(np.arange(-wA,magni.shape[0]+wA,1), np.arange(-wA,magni.shape[1]+wA,1))
-    expandedMagni = interpFunc((x[0].flatten(), x[1].flatten()))
+    expandedMagni = interpFunc((x[1].flatten(), x[0].flatten()))
     finalMagni = (expandedMagni.reshape(np.asarray(magni.shape)+wA*2))
     finalMagni[finalMagni<0] = 0
     finalMagni[:wA,:wA] = np.mean(finalMagni[wA:-wA,:wA])
@@ -90,29 +90,29 @@ def normalisedLensFuncsAcrossBeam(D, freq, thresh, nbins, bPos, proj, magni, nam
     while (dataEdge -1) > 0.1:                                        # couldnt find anything so do this downsampling so just do it yourself
         # here we want to form a 2D interpolation of the magni map based on a downsampled version, then extrapolate using that model
         # to higher separations and infill the higher res map with extrapolated values. 
-        tempMagni,x = mapWidener(magni, 0.5+0.2*count)
+        tempMagni,x = mapWidener(magni, 0.5+0.1*count)
         dataEdge = np.mean(np.concatenate((tempMagni[:,0], tempMagni[:,-1], tempMagni[0,:], tempMagni[-1,:])))
         count = count+1
         print('trapped forever', count)
     magni = tempMagni
     imageCoords = proj.array_index_to_world_values(x[0], x[1])
     bGains = offSetBeamGains(bPos, imageCoords, beamSigma.decompose().value*180/np.pi)
-    fig = plt.figure()
-    ax = plt.subplot(111, projection=proj)
-    tower = np.zeros(bGains.shape)
-    for i in range(len(log10b)):
-        gainLevel = np.abs(np.log10(bGains)-log10b[i])<np.abs(dlog10b/2)
-        tower[gainLevel] = i
-    plt.imshow(tower, extent=[0,len(x[0][:,0]),0,len(x[0][0,:])], cmap='tab10', vmin=0, vmax=(len(log10b)-1))
-    ax.imshow(np.log10(magni).T, aspect='auto', extent=[0,len(x[0][:,0]),0,len(x[0][0,:])], alpha=0.7)
-    ax.imshow(bGains, alpha=0.5,extent=[0,len(x[0][:,0]),0,len(x[0][0,:])], cmap='Greys')
+#    fig = plt.figure()
+#    ax = plt.subplot(111, projection=proj)
+#    tower = np.zeros(bGains.shape)
+#    for i in range(len(log10b)):
+#        gainLevel = np.abs(np.log10(bGains)-log10b[i])<np.abs(dlog10b/2)
+#        tower[gainLevel] = i
+#    plt.imshow(tower, extent=[0,len(x[0][:,0]),0,len(x[0][0,:])], cmap='tab10', vmin=0, vmax=(len(log10b)-1))
+#    ax.imshow(np.log10(magni).T, aspect='auto', extent=[0,len(x[0][:,0]),0,len(x[0][0,:])], alpha=0.7)
+#    ax.imshow(bGains, alpha=0.5,extent=[0,len(x[0][:,0]),0,len(x[0][0,:])], cmap='Greys')
         
-    plt.xlabel(r'RA')
-    plt.ylabel(r'Dec')
-    overlay = ax.get_coords_overlay('icrs')
-    overlay.grid(color='white', ls='dotted')
-    fig.savefig(str(name))
-    plt.close()
+#    plt.xlabel(r'RA')
+#    plt.ylabel(r'Dec')
+#    overlay = ax.get_coords_overlay('icrs')
+#    overlay.grid(color='white', ls='dotted')
+#    fig.savefig(str(name))
+#    plt.close()
     pmus = np.zeros([len(muThresh),len(log10b)])
     probMags = np.log10(muThresh[:-1])
     for i in range(len(log10b)):
@@ -123,11 +123,11 @@ def normalisedLensFuncsAcrossBeam(D, freq, thresh, nbins, bPos, proj, magni, nam
             pmus[:,i] = ((1/(np.nansum(10**muTwo*interpFunc(muTwo))*np.diff(muTwo)[0]*np.log(10))*interpFunc(np.log10(muThresh))))
         else: 
             pmus[:,i] = np.nan
-    return muThresh, pmus, magni, x
+    return pmus, magni, x
 
 
 
-def clusterDMFuncAcrossBeam(D, freq, thresh, nbins, bPos, proj, clusterRedshift, zvals, ne, name, lensing, rawWeights, weightsProj, xWeights, DMThresh = np.arange(0,15000,100), scatThresh = 10**np.arange(-4,3,0.01)):
+def clusterDMFuncAcrossBeam(D, freq, thresh, nbins, bPos, proj, clusterRedshift, z, ne, name, lensing, rawWeights, weightsProj, xWeights, DMThresh = np.arange(0,15000,100), scatThresh = 10**np.arange(-4,3,0.01)):
     # assumed that scatThresh is uniformly spaced in log10, if the base is otherwise need to revise integration step evaluations
     FWHM = 1.22*(const.c/(freq))/D
     beamSigma=(FWHM/2.)*(2*np.log(2))**-0.5
@@ -150,38 +150,35 @@ def clusterDMFuncAcrossBeam(D, freq, thresh, nbins, bPos, proj, clusterRedshift,
     else:
         weightsFunc = lambda x: np.nan
 
-    fig = plt.figure()
-    ax = plt.subplot(111, projection=proj)
-    tower = np.zeros(bGains.shape)
-    for i in range(len(log10b)):
-        gainLevel = np.abs(np.log10(bGains)-log10b[i])<np.abs(dlog10b/2)
-        tower[gainLevel] = i
-    plt.imshow(tower, extent=[0,len(x[0][:,0]),0,len(x[0][0,:])], cmap='tab10', vmin=0, vmax=(len(log10b)-1))
-    ax.imshow((ne*1e6/(1+clusterRedshift)).T, aspect='auto', extent=[0,len(x[0][:,0]),0,len(x[0][0,:])], alpha=0.7)
-    ax.imshow(bGains, alpha=0.5,extent=[0,len(x[0][:,0]),0,len(x[0][0,:])], cmap='Greys')
+    #fig = plt.figure()
+    #ax = plt.subplot(111, projection=proj)
+    #tower = np.zeros(bGains.shape)
+    #for i in range(len(log10b)):
+    #    gainLevel = np.abs(np.log10(bGains)-log10b[i])<np.abs(dlog10b/2)
+    #    tower[gainLevel] = i
+    #plt.imshow(tower, extent=[0,len(x[0][:,0]),0,len(x[0][0,:])], cmap='tab10', vmin=0, vmax=(len(log10b)-1))
+    #ax.imshow((ne*1e6/(1+clusterRedshift)).T, aspect='auto', extent=[0,len(x[0][:,0]),0,len(x[0][0,:])], alpha=0.7)
+    #ax.imshow(bGains, alpha=0.5,extent=[0,len(x[0][:,0]),0,len(x[0][0,:])], cmap='Greys')
         
-    plt.xlabel(r'RA')
-    plt.ylabel(r'Dec')
-    overlay = ax.get_coords_overlay('icrs')
-    overlay.grid(color='white', ls='dotted')
-    fig.savefig(str(name))
-    plt.close()
+    #plt.xlabel(r'RA')
+    #plt.ylabel(r'Dec')
+    #overlay = ax.get_coords_overlay('icrs')
+    #overlay.grid(color='white', ls='dotted')
+    #fig.savefig(str(name)+'DMMap.pdf')
+    #plt.close()
     pdms = np.zeros([len(DMThresh[:-1]),len(log10b)])
-    probScat = np.zeros([len(scatThresh[:-1]), len(zvals), len(log10b)])
+    probScat = np.zeros([len(scatThresh[:-1]), len(log10b)])
     probMags = (DMThresh[:-1])
+    fractionUnscattered = np.zeros(len(log10b))
+
     for i in range(len(log10b)):
         print('beaming like crazy right now', i)
         if lensing:
-            pdms[:,i], probScat[:,:,i], fractionUnscattered = clusterDMFuncAtSubBeam(log10b[i], dlog10b, OmegaB, freq, bGains, imageCoords, pixResWeights, clusterRedshift, zvals, scatThresh, ne, DMThresh, lensing, weightsFunc, weightCoords, rawWeights, bGainsWeights)
+            pdms[:,i], probScat[:,i], fractionUnscattered[i] = clusterDMFuncAtSubBeam(log10b[i], dlog10b, OmegaB, freq, bGains, imageCoords, pixResWeights, clusterRedshift, z, scatThresh, ne, DMThresh, lensing, weightsFunc, weightCoords, rawWeights, bGainsWeights)
         else:
-            pdms[:,i], probScat[:,:,i], fractionUnscattered = clusterDMFuncAtSubBeam(log10b[i], dlog10b, OmegaB, freq, bGains, imageCoords, pixRes, clusterRedshift, zvals, scatThresh, ne, DMThresh, lensing, weightsFunc, np.nan, np.nan, np.nan)
+            pdms[:,i], probScat[:,i], fractionUnscattered[i] = clusterDMFuncAtSubBeam(log10b[i], dlog10b, OmegaB, freq, bGains, imageCoords, pixRes, clusterRedshift, z, scatThresh, ne, DMThresh, lensing, weightsFunc, np.nan, np.nan, np.nan)
 
-    xProbScat = scatThresh[:-1]*10**(np.diff(np.log10(scatThresh))[0]/2)
-
-    np.save(str(name)+'pdms',pdms)
-    np.save(str(name)+'DMThresh',DMThresh)
-   
-    return xProbScat, probScat, fractionUnscattered
+    return probScat, fractionUnscattered, pdms
 
 def regridInterpolator(weights, weightCoords, downSampleFactor):
     #assuming a regular grid for map
@@ -202,7 +199,7 @@ def regridInterpolator(weights, weightCoords, downSampleFactor):
     return interpFunc 
     
 
-def clusterDMFuncAtSubBeam(log10b, dlog10b, OmegaB, freq, bGains, imageCoords, pixRes, clusterRedshift, zvals, scatThresh, ne, DMThresh, lensing, weightsFunc, weightCoords, rawWeights, bGainsWeights):
+def clusterDMFuncAtSubBeam(log10b, dlog10b, OmegaB, freq, bGains, imageCoords, pixRes, clusterRedshift, z, scatThresh, ne, DMThresh, lensing, weightsFunc, weightCoords, rawWeights, bGainsWeights):
     #OmegaB in arcminutes^2, same as pixRes
     print(log10b, dlog10b)
     inBeam = np.abs(np.log10(bGains)-log10b)<np.abs(dlog10b/2)
@@ -223,25 +220,24 @@ def clusterDMFuncAtSubBeam(log10b, dlog10b, OmegaB, freq, bGains, imageCoords, p
 
     if np.sum(inBeam)>0:
         gtrDM = np.zeros(len(DMThresh))
-        gtrScat = np.zeros([len(scatThresh),len(zvals)])
-        probScat = np.zeros([len(scatThresh)-1, len(zvals)])
+        gtrScat = np.zeros([len(scatThresh)])
+        probScat = np.zeros([len(scatThresh)-1])
         for i in range(len(DMThresh)):
             gtrDM[i] = np.sum(((ne*1e6/(1+clusterRedshift)*inBeam)>=DMThresh[i])*weights)
-        for j in range(len(zvals)):
-            for i in range(len(scatThresh)):
-                if zvals[j]>clusterRedshift:
-                    scat = (4.1e-5/(1+clusterRedshift)*(lam/1)**4*((cosmo.angular_diameter_distance(0.545)*cosmo.angular_diameter_distance_z1z2(0.545,zvals[j])/cosmo.angular_diameter_distance(zvals[j])).value/1e3)*(8.4e-13*(ne/1e-4)**2*3.08567758e+22/((1+clusterRedshift)**2)/1e12)*(2.06264806e+08)**(1/3)*1e3)
-                    if(np.amin(scat)<np.amin(scatThresh)):
-                        print('WARNING: Scattering outside threshold')
-                        print('z = ', zvals[j], np.amin(scat), np.amin(scatThresh))
-                        break
-                    gtrScat[i,j] = np.sum((scat>=scatThresh[i])*weights)
-                    if i==0:
-                        gtrScat[0,j]=np.sum((scat>=0)*weights)
-                        
-                    probScat[:,j] = (-1*np.diff(gtrScat[:,j])/(gtrScat[0,j])/np.diff(np.log10(scatThresh)))
-                else:
-                    probScat[:,j] = 0
+        for i in range(len(scatThresh)):
+            if z>clusterRedshift:
+                scat = (4.1e-5/(1+clusterRedshift)*(lam/1)**4*((cosmo.angular_diameter_distance(0.545)*cosmo.angular_diameter_distance_z1z2(0.545,z)/cosmo.angular_diameter_distance(z)).value/1e3)*(8.4e-13*(ne/1e-4)**2*3.08567758e+22/((1+clusterRedshift)**2)/1e12)*(2.06264806e+08)**(1/3)*1e3)
+                if(np.amin(scat)<np.amin(scatThresh)):
+                    print('WARNING: Scattering outside threshold')
+                    print('z = ', z, np.amin(scat), np.amin(scatThresh))
+                    break
+                gtrScat[i] = np.sum((scat>=scatThresh[i])*weights)
+                if i==0:
+                    gtrScat[0]=np.sum((scat>=0)*weights)
+                    
+                probScat[:] = (-1*np.diff(gtrScat[:])/(gtrScat[0]))
+            else:
+                probScat[:] = 0
 
         if lensing:
             modelledArea = np.sum(inBeam_2)*(pixRes[0]*pixRes[1])
@@ -268,7 +264,7 @@ def clusterDMFuncAtSubBeam(log10b, dlog10b, OmegaB, freq, bGains, imageCoords, p
         numUnmodelledCells = np.nan
         #interpFunc = None
         probUN = np.ones(len(DMThresh[:-1]))*np.nan
-        probScat = np.zeros([len(scatThresh[:-1]), len(zvals)])
+        probScat = np.zeros([len(scatThresh[:-1])])
         fractionUnscattered = 1
     return probUN, probScat, fractionUnscattered
 

@@ -91,14 +91,15 @@ def set_state(alpha_method=1, cosmo=Planck18):
 
 
 def survey_and_grid(survey_name:str='CRAFT/CRACO_1_5000',
+            opdir='',
+            bPosNum=0,
             init_state=None,
             state_dict=None, iFRB:int=0,
                alpha_method=1, NFRB:int=100, 
                lum_func:int=2,sdir=None,nz=500,ndm=1400,
-               nbins=5, cluster=False, clusterNeFile='',
-               clusterRedshift=np.nan, bPos = np.array([[0,0]]), 
-               lensing=False, rawWeights = np.nan, weightsProj = np.nan,
-               xWeights = np.nan):
+               nbins=5, cluster=False,
+               clusterRedshift=np.nan, 
+               lensing=False):
     """ Load up a survey and grid for a CRACO mock dataset
 
     Args:
@@ -148,16 +149,13 @@ def survey_and_grid(survey_name:str='CRAFT/CRACO_1_5000',
     isurvey = survey.load_survey(
                 survey_name = survey_name,
                 state = state, 
+                opdir = opdir,
+                bPosNum = bPosNum,
                 dmvals = dmvals, 
-                bPos = bPos, 
                 cluster = cluster,
-                clusterNeFile = clusterNeFile, 
                 clusterRedshift = clusterRedshift, 
                 zvals = zvals, 
                 lensing = lensing, 
-                rawWeights = rawWeights, 
-                weightsProj = weightsProj, 
-                xWeights = xWeights,
                 NFRB=NFRB, 
                 sdir=sdir, 
                 nbins=nbins,
@@ -166,7 +164,7 @@ def survey_and_grid(survey_name:str='CRAFT/CRACO_1_5000',
     
     # generates zdm grid
     grids = misc_functions.initialise_grids(
-        [isurvey], zDMgrid, zvals, dmvals, state, wdist=True, cluster=cluster, clusterRedshift = clusterRedshift)
+        [isurvey], opdir, bPosNum, zDMgrid, zvals, dmvals, state, wdist=True, cluster=cluster, clusterRedshift = clusterRedshift)
     print("Initialised grid")
 
     # Return Survey and Grid

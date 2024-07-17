@@ -1908,6 +1908,8 @@ def test_beam_rates(
 
 def initialise_grids(
     surveys: list,
+    opdir: str,
+    bPosNum: str,
     zDMgrid: np.ndarray,
     zvals: np.ndarray,
     dmvals: np.ndarray,
@@ -1950,10 +1952,10 @@ def initialise_grids(
     for survey in surveys:
         print(f"Working on {survey.name}")
         if cluster:
-            mask = pcosmic.get_cluster_dm_mask(survey, dmvals, zvals, hostMask, clusterRedshift)
+            mask = pcosmic.get_cluster_dm_mask(survey, opdir, bPosNum, dmvals, zvals, hostMask, clusterRedshift)
 
         grid = zdm_grid.Grid(
-            survey, copy.deepcopy(state), zDMgrid, zvals, dmvals, mask, wdist, cluster
+            survey, opdir, bPosNum, copy.deepcopy(state), zDMgrid, zvals, dmvals, mask, wdist, cluster, clusterRedshift
         )
         grids.append(grid)
 

@@ -478,17 +478,14 @@ class OldSurvey:
 
 class Survey:
     def __init__(self, state, survey_name:str, 
+                 opdir,
+                 bPosNum,
                  filename:str, 
                  dmvals:np.ndarray,
                  zvals:np.ndarray,
-                 bPos,
                  cluster,
-                 clusterNeFile,
                  clusterRedshift, 
                  lensing,
-                 rawWeights,
-                 weightsProj,
-                 xWeights,
                  NFRB:int=None, 
                  iFRB:int=0):
         """ Init an FRB Survey class
@@ -521,29 +518,17 @@ class Survey:
                        plot=False, 
                        thresh=beam_thresh) # tells the survey to use the beam file
         if cluster:
-            infoNe = fits.getheader(clusterNeFile)
-            projNe = wcs.WCS(infoNe)
-            ne = fits.getdata(clusterNeFile)
-            xProbScat, probScat, fractionUnscattered = magnificationMapper.clusterDMFuncAcrossBeam(
-                D = self.meta["DIAM"]*u.m, 
-                freq = self.meta["FBAR"]*u.MHz,
-                thresh = self.meta["BTHRESH"],
-                nbins = self.meta["NBINS"],
-                bPos = bPos,
-                proj = projNe, 
-                clusterRedshift = clusterRedshift, 
-                zvals = zvals,
-                ne = ne,
-                name = self.name,
-                lensing = lensing,
-                rawWeights = rawWeights,
-                weightsProj = weightsProj,
-                xWeights = xWeights
-            )
+            xProbScat = np.load(opdir+'xProbScat.npy')
+            probScat = np.zeros([len(xProbScat),len(zvals),self.meta['NBINS']])
+            fractionUnscattered = np.zeros([len(zvals),self.meta['NBINS']])
+            for j in range(len(zvals)):
+                formatted_redshift = "{:03.2f}".format(zvals[j]) 
+                probScat[:,j,:] = np.load(opdir+'probScat_BP_'+str(bPosNum)+str(formatted_redshift)+'.npy')
+                fractionUnscattered[j,:] = np.load(opdir+'fractionUnscattered_BP_'+str(bPosNum)+str(formatted_redshift)+'.npy') 
         else:
             xProbScat=np.nan
             probScat = np.ones([1,len(zvals),len(self.beam_b)])*np.nan
-            fractionUnscattered = 1
+            fractionUnscattered = np.ones([len(zvals),self.meta['NBINS']])
         # Efficiency: width_method passed through "self" here
         pwidths = np.zeros([state.width.Wbins, len(self.beam_b), len(zvals)]) 
         pprobs = np.zeros([state.width.Wbins, len(self.beam_b), len(zvals)]) 
@@ -554,7 +539,7 @@ class Survey:
                                                     state, 
                                                     xProbScat,
                                                     probScat[:,j,i], 
-                                                    fractionUnscattered
+                                                    fractionUnscattered[j,i]
                                                 )
         _ = self.get_efficiency_from_wlist(
                     dmvals,
@@ -1116,16 +1101,13 @@ def make_widths(s:Survey,state, xProbScat, probScat, fractionUnscattered):
 
 
 def load_survey(survey_name:str, state:parameters.State, 
+                opdir,
+                bPosNum,
                 dmvals:np.ndarray,
-                bPos,
                 cluster,
-                clusterNeFile,
                 clusterRedshift, 
                 zvals,
                 lensing,
-                rawWeights,
-                weightsProj,
-                xWeights,
                 sdir:str=None, NFRB:int=None, 
                 nbins=None, iFRB:int=0, original:bool=False,
                 dummy=False):
@@ -1216,17 +1198,14 @@ def load_survey(survey_name:str, state:parameters.State,
         srvy = Survey(
                 state=state, 
                 survey_name = survey_name, 
+                opdir = opdir,
+                bPosNum = bPosNum,
                 filename = os.path.join(sdir, dfile), 
                 dmvals = dmvals,
-                bPos = bPos,
                 cluster = cluster,
-                clusterNeFile = clusterNeFile,
                 clusterRedshift = clusterRedshift, 
                 zvals = zvals,
                 lensing = lensing,
-                rawWeights = rawWeights,
-                weightsProj = weightsProj,
-                xWeights = xWeights,
                 NFRB=NFRB, 
                 iFRB=iFRB
         )

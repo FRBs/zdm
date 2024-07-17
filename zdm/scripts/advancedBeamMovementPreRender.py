@@ -1,0 +1,109 @@
+""" 
+This script creates zdm grids and plots localised FRBs
+
+It can also generate a summed histogram from all CRAFT data
+
+"""
+import os
+from magnificationMapper import normalisedLensFuncsAcrossBeam, clusterDMFuncAcrossBeam
+from astropy.io import fits
+from astropy import wcs
+import astropy
+from astropy import units as u
+from astropy import constants as const
+from astropy.cosmology import Planck18 as cosmo
+
+import numpy as np
+from matplotlib import pyplot as plt
+
+
+def main():
+
+    # in case you wish to switch to another output directory
+    #opdir = "Localised_FRBs/"
+    opdir = "CHORD/ClusterLensed/macs0717z0545/catsV4_1/"
+    
+    if not os.path.exists(opdir):
+        os.mkdir(opdir)
+
+
+    clusterNeFile = 'Thermo_MACSJ0717_N.fits'
+    clusterRedshift = 0.545
+    dishDiam = 48*u.m
+    fbar = 900*u.MHz
+    bThresh = 1e-3
+    bbins = 100
+    energyIndex = -0.948
+
+    kappa = fits.getdata('hlsp_frontier_model_macs0717_cats_v4.1_kappa.fits')
+    gamma = fits.getdata('hlsp_frontier_model_macs0717_cats_v4.1_gamma.fits')
+    info = fits.getheader('hlsp_frontier_model_macs0717_cats_v4.1_kappa.fits')
+    proj = wcs.WCS(info)
+    xMagni = np.meshgrid(np.arange(0,len(kappa[:,0]),1), np.arange(0,len(kappa[0,:]),1))
+    tempCoords = proj.array_index_to_world_values(xMagni[0], xMagni[1])
+
+    infoNe = fits.getheader(clusterNeFile)
+    projNe = wcs.WCS(infoNe)
+    ne = fits.getdata(clusterNeFile)
+
+    cluster=True
+    lensing =True
+    
+    #relBeamPositions = np.load('relBeamPos.npy') #relative to magni
+    relBeamPositions = np.array([[0,0]])
+    ratesArr=np.zeros(len(relBeamPositions[:,0]))
+    zvals = np.load('zvals.npy')
+    mux = 10**(np.arange(-3,6,0.02)+0.05)
+    np.save(opdir+'mux', np.log10(mux))
+    scatThresh = 10**np.arange(-4,3,0.01)
+    xProbScat = scatThresh[:-1]*10**(np.diff(np.log10(scatThresh))[0]/2)
+    np.save(opdir+'xProbScat', (xProbScat))
+    DMThresh = np.arange(0,15000,100)
+    np.save(opdir+'DMThresh', DMThresh)
+    
+    for i in range(len(relBeamPositions[:,0])):
+        bPos = np.array([np.mean(tempCoords[0])+relBeamPositions[i,0], np.mean(tempCoords[1])+relBeamPositions[i,1]])
+        for j in range(len(zvals)):
+            print('---Beam Pos:', i, '---Redshift:', j)
+            formatted_number = "{:02d}".format(i)
+            formatted_redshift = "{:03.2f}".format(zvals[j])
+            surveyName = 'CHORD_BeamPos_'+str(formatted_number)
+            
+            if zvals[j] > clusterRedshift:
+                rescaleFactor = (cosmo.angular_diameter_distance_z1z2(clusterRedshift, zvals[j])/cosmo.angular_diameter_distance(zvals[j])).value
+                magni = 1/np.abs((1-kappa*rescaleFactor)**2-(gamma*rescaleFactor)**2)
+                magni[magni>=100] = 100
+
+                pmux, wideMagni, wideX = normalisedLensFuncsAcrossBeam(dishDiam, fbar, bThresh, bbins, bPos, proj, magni, opdir+surveyName, muThresh = mux)
+                np.save(opdir+'pmux_BP_'+str(formatted_number)+str(formatted_redshift), pmux)
+                del(pmux)
+
+                rawWeights = 1/wideMagni*(1/wideMagni)**(energyIndex)
+
+                probScat, fractionUnscattered, pdms = clusterDMFuncAcrossBeam(
+                    D = dishDiam,
+                    freq = fbar,
+                    thresh = bThresh,
+                    nbins = bbins,
+                    bPos = bPos, 
+                    proj = projNe, 
+                    clusterRedshift = clusterRedshift,
+                    z = zvals[j],
+                    ne = ne,
+                    name = opdir+'DM_BP_'+str(formatted_number),
+                    lensing = lensing,
+                    rawWeights = rawWeights,
+                    weightsProj = proj,
+                    xWeights = wideX,
+                    scatThresh = scatThresh
+                )   
+                np.save(opdir+'probScat_BP_'+str(formatted_number)+str(formatted_redshift), probScat) 
+                np.save(opdir+'fractionUnscattered_BP_'+str(formatted_number)+str(formatted_redshift), fractionUnscattered) 
+                np.save(opdir+'pdms_BP_'+str(formatted_number)+str(formatted_redshift),pdms)
+            else:
+                # fill in based on other else conditions
+                np.save(opdir+'probScat_BP_'+str(formatted_number)+str(formatted_redshift), np.zeros([len(xProbScat),bbins]))
+                np.save(opdir+'fractionUnscattered_BP_'+str(formatted_number)+str(formatted_redshift), np.ones(bbins))
+                np.save(opdir+'pdms_BP_'+str(formatted_number)+str(formatted_redshift),np.zeros([len(DMThresh),bbins]))
+
+main()

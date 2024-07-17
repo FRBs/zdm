@@ -18,7 +18,7 @@ class Grid:
     It also assumes a linear uniform grid.
     """
 
-    def __init__(self, survey, state, zDMgrid, zvals, dmvals, smear_mask, wdist, cluster):
+    def __init__(self, survey, opdir, bPosNum, state, zDMgrid, zvals, dmvals, smear_mask, wdist, cluster, clusterRedshift):
         """
         Class constructor.
 
@@ -75,7 +75,7 @@ class Grid:
                              efficiencies,
                              weights=weights)
         # Calculate
-        self.calc_pdv()
+        self.calc_pdv(bPosNum=bPosNum, opdir=opdir, clusterRedshift=clusterRedshift)
         self.set_evolution()  # sets star-formation rate scaling with z - here, no evoltion...
         self.calc_rates(cluster)  # includes sfr smearing factors and pdv mult
 
@@ -236,7 +236,7 @@ class Grid:
                 self.nuObs / self.nuRef
                 ) ** -self.state.energy.alpha  # alpha positive, nuObs<nuref, expected rate increases
 
-    def calc_pdv(self, beam_b=None, beam_o=None):
+    def calc_pdv(self, bPosNum =0, opdir='', clusterRedshift=np.nan, beam_b=None, beam_o=None):
         """ Calculates the rate per cell.
         Assumed model: a power-law between Emin and Emax (erg)
                        with slope gamma.
@@ -297,7 +297,7 @@ class Grid:
                             * self.eff_weights[j,i,:]
                             * self.array_cum_lf(
                                 thresh, Emin, Emax, self.state.energy.gamma, self.use_log10,
-                                self.zvals, i, self.survey.name
+                                self.zvals, i, self.survey.name, clusterRedshift, opdir, bPosNum
                             ).T
                         ).T
                     else:
@@ -316,7 +316,7 @@ class Grid:
                             * self.eff_weights[j,i,:]
                             * self.array_cum_lf(
                                 thresh, Emin, Emax, self.state.energy.gamma, self.use_log10,
-                                self.zvals, i, self.survey.name
+                                self.zvals, i, self.survey.name, clusterRedshift, opdir, bPosNum
                             ).T
                         ).T
                     else:
@@ -395,7 +395,7 @@ class Grid:
         self.F0 = F0
         self.nuRef = nuRef
 
-        self.bandwidth = bandwidth
+        self.bandwidth = survey.meta["BW"]*1e6
         if eff_table.ndim == 1:  # only a single FRB width: dimensions of NDM
             self.nthresh = 1
             self.eff_weights = np.array([1])
