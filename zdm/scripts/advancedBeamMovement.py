@@ -30,7 +30,7 @@ def main():
 
     # in case you wish to switch to another output directory
     #opdir = "Localised_FRBs/"
-    opdir = "CHORD/ClusterLensed/"
+    opdir = "CHORD/ClusterLensed/hlsp_frontier_model_macs0717_cats_v4/z0.545/"
     
     if not os.path.exists(opdir):
         os.mkdir(opdir)

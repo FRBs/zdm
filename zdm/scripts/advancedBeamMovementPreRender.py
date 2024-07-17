@@ -5,7 +5,7 @@ It can also generate a summed histogram from all CRAFT data
 
 """
 import os
-from magnificationMapper import normalisedLensFuncsAcrossBeam, clusterDMFuncAcrossBeam
+from magnificationMapper import normalisedLensFuncsAcrossBeam, clusterDMFuncAcrossBeam, mapRescaler
 from astropy.io import fits
 from astropy import wcs
 import astropy
@@ -17,34 +17,36 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 
-def main():
+def runner(clusterRedshift, name, clusterNeFile):
 
     # in case you wish to switch to another output directory
     #opdir = "Localised_FRBs/"
-    opdir = "CHORD/ClusterLensed/macs0717z0545/catsV4_1/"
+    opdir = "CHORD/ClusterLensed/"+name+'/z'+str(clusterRedshift)+'/'
+    print(opdir)
     
     if not os.path.exists(opdir):
-        os.mkdir(opdir)
+        os.makedirs(opdir)
 
-
-    clusterNeFile = 'Thermo_MACSJ0717_N.fits'
-    clusterRedshift = 0.545
+    trueClusterRedshift = 0.545
     dishDiam = 48*u.m
     fbar = 900*u.MHz
     bThresh = 1e-3
     bbins = 100
     energyIndex = -0.948
 
-    kappa = fits.getdata('hlsp_frontier_model_macs0717_cats_v4.1_kappa.fits')
-    gamma = fits.getdata('hlsp_frontier_model_macs0717_cats_v4.1_gamma.fits')
-    info = fits.getheader('hlsp_frontier_model_macs0717_cats_v4.1_kappa.fits')
+    fileList = [name+'_kappa.fits', name+'_gamma.fits', clusterNeFile]
+    mapRescaler(opdir, fileList, trueClusterRedshift, clusterRedshift)
+
+    kappa = fits.getdata(opdir+fileList[0])
+    gamma = fits.getdata(opdir+fileList[1])
+    info = fits.getheader(opdir+fileList[0])
     proj = wcs.WCS(info)
     xMagni = np.meshgrid(np.arange(0,len(kappa[:,0]),1), np.arange(0,len(kappa[0,:]),1))
     tempCoords = proj.array_index_to_world_values(xMagni[0], xMagni[1])
 
-    infoNe = fits.getheader(clusterNeFile)
+    infoNe = fits.getheader(opdir+fileList[2])
     projNe = wcs.WCS(infoNe)
-    ne = fits.getdata(clusterNeFile)
+    ne = fits.getdata(opdir+fileList[2])
 
     cluster=True
     lensing =True
@@ -70,7 +72,7 @@ def main():
             surveyName = 'CHORD_BeamPos_'+str(formatted_number)
             
             if zvals[j] > clusterRedshift:
-                rescaleFactor = (cosmo.angular_diameter_distance_z1z2(clusterRedshift, zvals[j])/cosmo.angular_diameter_distance(zvals[j])).value
+                rescaleFactor = (cosmo.angular_diameter_distance_z1z2(clusterRedshift, zvals[j])*cosmo.angular_diameter_distance(trueClusterRedshift)/cosmo.angular_diameter_distance(zvals[j])/cosmo.angular_diameter_distance(clusterRedshift)).value
                 magni = 1/np.abs((1-kappa*rescaleFactor)**2-(gamma*rescaleFactor)**2)
                 magni[magni>=100] = 100
 
@@ -106,4 +108,4 @@ def main():
                 np.save(opdir+'fractionUnscattered_BP_'+str(formatted_number)+str(formatted_redshift), np.ones(bbins))
                 np.save(opdir+'pdms_BP_'+str(formatted_number)+str(formatted_redshift),np.zeros([len(DMThresh),bbins]))
 
-main()
+runner(0.545, 'hlsp_frontier_model_macs0717_cats_v4','Thermo_MACSJ0717_N.fits')

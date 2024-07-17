@@ -54,6 +54,16 @@ def unnormalisedLensFuncAtSubBeam(log10b, dlog10b, OmegaB, bGains, pixRes, magni
         interpFunc = None
     return interpFunc
 
+def mapRescaler(opdir, fileList, zTrue, zNew):
+    scale_factor = (cosmo.angular_diameter_distance(zNew)/cosmo.angular_diameter_distance(zTrue)).value
+    for i in range(len(fileList)):
+        hdulist = fits.open(fileList[i])
+        header = hdulist[0].header
+        header['CDELT1'] *= scale_factor
+        header['CDELT2'] *= scale_factor
+        fits.writeto(opdir+fileList[i],hdulist[0].data, header, overwrite=True)
+        hdulist.close()
+    
 
 def mapWidener(magni, wideningFrac):
     smoothKernel = Gaussian2DKernel(int(magni.shape[0]/100))
