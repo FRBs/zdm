@@ -14,12 +14,12 @@ import zdm.iteration as it
 
 import emcee
 import scipy.stats as st
-import pickle
 import time
 
 import multiprocessing as mp
 
-from zdm.misc_functions import *
+from zdm import misc_functions as mf
+from zdm import repeat_grid
 
 #==============================================================================
 
@@ -29,17 +29,17 @@ def calc_log_posterior(param_vals, params, surveys, grids):
     priors between the minimum and maximum values provided in 'params'.
 
     Inputs:
-        param_vals  =   Array of the parameter values for this step
-        params      =   Dictionary of the parameter names, min and max values
-        surveys     =   List of surveys being used
-        grids       =   List of grids corresponding to the surveys
+        param_vals  (np.array)      =   Array of the parameter values for this step
+        params      (dictionary)    =   Parameter names, min and max values
+        surveys_sep (list)          =   List of surveys
+        grids       (list)          =   List of grids corresponding to surveys
     
     Outputs:
-        llsum       =   Total log likelihood for param_vals which is equivalent
-                        to log posterior (un-normalised) due to uniform priors
+        llsum       (double)        =   Total log likelihood for param_vals which is equivalent
+                                        to log posterior (un-normalised) due to uniform priors                    
     """
 
-    t0 = time.time()
+    # t0 = time.time()
     # Can use likelihoods instead of posteriors because we only use uniform priors which just changes normalisation of posterior 
     # given every value is in the correct range. If any value is not in the correct range, log posterior is -inf
     in_priors = True
@@ -57,20 +57,22 @@ def calc_log_posterior(param_vals, params, surveys, grids):
     else:
 
         # minimise_const_only does the grid updating so we don't need to do it explicitly beforehand
+        # In an MCMC analysis the parameter spaces are sampled throughout and hence with so many parameters
+        # it is easy to reach impossible regions of the parameter space. This results in math errors
+        # (log(0), log(negative), sqrt(negative), divide 0 etc.) and hence we assume that these math errors
+        # correspond to an impossible region of the parameter space and so set ll = -inf
         try:
             newC, llC = it.minimise_const_only(param_dict, grids, surveys)
             for g in grids:
                 g.state.FRBdemo.lC = newC
 
+                if isinstance(g, repeat_grid.repeat_Grid):
+                    g.calc_constant()
+
             # calculate all the likelihoods
             llsum = 0
             for s, grid in zip(surveys, grids):
-                # if DMhalo != None:
-                #     s.init_DMEG(DMhalo)
-                if 'DMhalo' in param_dict:
-                    s.init_DMEG(param_dict['DMhalo'])
-
-                llsum += get_likelihood(grid,s)
+                llsum += it.get_log_likelihood(grid,s)
 
         except ValueError as e:
             print("ValueError, setting likelihood to -inf: " + str(e))
@@ -80,7 +82,7 @@ def calc_log_posterior(param_vals, params, surveys, grids):
         print("llsum was NaN. Setting to -infinity", param_dict)    
         llsum = -np.inf
     
-    print("Posterior calc time: " + str(time.time()-t0) + " seconds", flush=True)
+    # print("Posterior calc time: " + str(time.time()-t0) + " seconds", flush=True)
 
     return llsum
 
@@ -91,18 +93,18 @@ def mcmc_runner(logpf, outfile, params, surveys, grids, nwalkers=10, nsteps=100,
     Handles the MCMC running.
 
     Inputs:
-        logpf       =   Log posterior function handle
-        outfile     =   Name of the output file (excluding .h5 extension)
-        params      =   Dictionary of the parameter names, min and max values
-        surveys     =   List of surveys being used
-        grids       =   List of grids corresponding to the surveys
-        nwalkers    =   Number of walkers
-        nsteps      =   Number of steps per walker
-        nthreads    =   Number of threads to use for parallelised runs
+        logpf       (function)      =   Log posterior function handle
+        outfile     (string)        =   Name of the output file (excluding .h5 extension)
+        params      (dictionary)    =   Parameter names, min and max values
+        surveys_sep (list)          =   List of surveys
+        grids       (list)          =   List of grids corresponding to surveys
+        nwalkers    (int)           =   Number of walkers
+        nsteps      (int)           =   Number of steps
+        nthreads    (int)           =   Number of threads (currently not implemented - uses default)
     
     Outputs:
-        posterior_sample    =   Final sample
-        outfile.h5          =   HDF5 file containing the sampler
+        posterior_sample    (emcee.EnsembleSampler) =   Final sample
+        outfile.h5          (HDF5 file)             =   HDF5 file containing the sampler
     """
         
     ndim = len(params)
@@ -118,51 +120,15 @@ def mcmc_runner(logpf, outfile, params, surveys, grids, nwalkers=10, nsteps=100,
     backend = emcee.backends.HDFBackend(outfile+'.h5')
     backend.reset(nwalkers, ndim)
 
-    start = time.time()
-    with mp.Pool(nthreads) as pool:
+    # start = time.time()
+    with mp.Pool() as pool:
         sampler = emcee.EnsembleSampler(nwalkers, ndim, logpf, args=[params, surveys, grids], backend=backend, pool=pool)
         sampler.run_mcmc(starting_guesses, nsteps, progress=True)
-    end = time.time()
-    print("Total time taken: " + str(end - start))
+    # end = time.time()
+    # print("Total time taken: " + str(end - start))
     
     posterior_sample = sampler.get_chain()
 
     return posterior_sample
-
-#==============================================================================
-
-def get_likelihood(grid, s):
-    """
-    Returns the likelihood for the grid given the survey.
-
-    Inputs:
-        grid    =   Grid used
-        s       =   Survey to compare with the grid
-    
-    Outputs:
-        llsum   =   Total loglikelihood for the grid
-    """
-
-    if s.nD==1:
-        llsum1, lllist, expected = it.calc_likelihoods_1D(grid, s, psnr=True, dolist=1)
-        llsum = llsum1
-
-        # print(llsum, lllist)
-    elif s.nD==2:
-        llsum1, lllist, expected = it.calc_likelihoods_2D(grid, s, psnr=True, dolist=1)
-        llsum = llsum1
-
-        # print(llsum, lllist)
-    elif s.nD==3:
-        llsum1, lllist1, expected1 = it.calc_likelihoods_1D(grid, s, psnr=True, dolist=1)
-        llsum2, lllist2, expected2 = it.calc_likelihoods_2D(grid, s, psnr=True, dolist=1, Pn=False)
-        llsum = llsum1 + llsum2
-
-        # print(llsum, lllist1, lllist2)
-    else:
-        print("Implementation is only completed for nD 1-3.")
-        exit()
-
-    return llsum
 
 #==============================================================================

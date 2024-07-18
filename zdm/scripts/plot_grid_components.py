@@ -56,7 +56,7 @@ def main():
     
     # Initialise surveys and grids
     sdir='../data/Surveys/'
-    name='CRAFT_ICS'
+    name='parkes_mb_class_I_and_II'
     
     # approximate best-fit values from recent analysis
     vparams = {}
@@ -77,7 +77,7 @@ def main():
     orig_lmean = vparams['lmean']
     vparams['lmean'] = -5
     # set up new parameters
-    g.update(vparams)
+    # g.update(vparams)
     
     # set limits for plots - will be LARGE!   
     DMmax=4000

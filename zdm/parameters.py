@@ -84,7 +84,7 @@ class FRBDemoParams(data_class.myDataClass):
         },
     )
     alpha_method: int = field(
-        default=0,
+        default=1,
         metadata={
             "help": "Integer flag specifying the nature of scaling. "
             + "0: spectral index interpretation: includes k-correction. Slower to update "
@@ -110,14 +110,14 @@ class FRBDemoParams(data_class.myDataClass):
 # FRB Demographics -- repeaters
 @dataclass
 class RepeatParams(data_class.myDataClass):
-    Rmin: float = field(
-        default=1e-3,
+    lRmin: float = field(
+        default=-3.,
         metadata={'help': 'Minimum repeater rate',
                   'unit': 'day^-1',
                   'Notation': '$R_{\rm min}$',
                   })
-    Rmax: float = field(
-        default=10,
+    lRmax: float = field(
+        default=1.,
         metadata={'help': 'Maximum repeater rate',
                   'unit': 'day^-1',
                   'Notation': '$R_{\rm max}$',
@@ -154,6 +154,11 @@ class MWParams(data_class.myDataClass):
         default=0.5,
         metadata={'help': 'Fractional uncertainty in DM from Galactic ISM',
                   'unit': '',
+        })
+    halo_method: int = field(
+        default=0,
+        metadata={'help': '0: Uniform halo' +
+                            '1: Directionally dependent halo (Yamasaki and Totani 2020)'
         })
     DMhalo: float = field(
         default=50.,
