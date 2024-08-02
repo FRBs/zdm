@@ -9,14 +9,11 @@ It also fits Schechter and power-law luminosity functions
 
 """
 
-
 import numpy as np
 import os
 from matplotlib import pyplot as plt
 from scipy.optimize import curve_fit
 from RLFs import *
-
-
 
 import matplotlib
 #matplotlib.rcParams['image.interpolation'] = None
@@ -339,7 +336,7 @@ def read_data(infile):
     return FRBs,JHz,V,Vmax,VVmax 
 
 # does the bias-corrected localised plots (limiting zmax to 0.7)
-if False:
+if True:
     prefix="UnbiasedLocalised"
     postfix="localised_"
     NSFR=21
@@ -349,7 +346,7 @@ if False:
     #main(loc=False,v2=True)
 
 # calculates errors for the version of the zDM plot accounting for hosts with -ve redhsifts
-if False:
+if True:
     prefix="Minz"
     postfix="Minzmacquart_"
     SFRs = [0]
@@ -370,7 +367,7 @@ if True:
 # standard calculation for localised sample
 if True:
     prefix="zMacquart"
-    postfix="v2macquart_"
+    postfix="macquart_"
     NSFR=21
     SFRs = np.linspace(0,2,NSFR)
     alphas=[0,-1.5]

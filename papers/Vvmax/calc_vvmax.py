@@ -1,23 +1,23 @@
 """
-Script to calculate V and Vmax for CRAFT FRBs
+Script to calculate V and Vmax for CRAFT FRBs for the "VVmax" paper (Arcus et al)
 """
 
+# imports from zdm
+from zdm import pcosmic
+from zdm import loading as loading
+from zdm import vvmax
+
+# standard python imports
+from scipy import interpolate
 import numpy as np
 import os
-#from zdm import cosmology as cos
-# sets up cosmological grid
-#    cos.set_cosmology()
-#    cos.init_dist_measures()
-from zdm import pcosmic
-from scipy import interpolate
-from zdm import real_loading as loading
 from matplotlib import pyplot as plt
 from scipy.special import jv as BessJ
 from scipy import constants
 from pkg_resources import resource_filename
 from zdm import cosmology as cos
 from scipy.integrate import quad
-import time
+
 
 
 # initialises cosmology and distance measures 
@@ -27,6 +27,28 @@ def main(fname,outfile,Nsfr,alpha=0.,loc=False,minz=None,write=True,
     laststrings=None,LimZ=None,zfrac = 0.):
     """
     
+    Main program to calculate V and Vmax values for the FRBs in fname
+    
+    INPUTS:
+        fname [string]: data file containing the FRBs of interest
+        outfile [string]: output file base for writing output
+        Nsfr [float]: scaling with star-formation rate
+        alpha [float]: frequency scaling of FRBs: F~nu^alpha
+        loc [bool]: True if using localised sample
+        False if z should be estimated through Macquart relation
+        minz [None or float]: if float, minimum redshift for FRBs
+            with low DM
+        write [bool]: if True, write data to outfile
+        laststrings [None or list of strings]: list of strings
+            to append for writing output
+        LimZ [None or float]: maximum redshift for V/Vmax calculations
+        zfrac [float]: if using minz, fractional distance to assume
+            between minz and maximum redshift for FRBs with otherwise
+            negative Macquart redshifts
+        
+    RETURNS:
+        laststrings: returns strings which otherwise would have been written
+            if laststrings is None, or otherwise returns input value
     """
     global macquartz
     global macquartDM
@@ -37,101 +59,13 @@ def main(fname,outfile,Nsfr,alpha=0.,loc=False,minz=None,write=True,
     
     # loads unlocalised data, gets Macquart z
     
-    if loc:
-        names,DM,freqMHz,SNR,SNRth,DMG,tsamp,width,BeamThetaDeg,Fnu,zDM,Nants \
-             = load_loc_frb_data(fname)
-        # places a cut on S/N
-        # selects only those with SNR greater than the threshold
-        SNRth[:] = 14. # artificial threshold
-        OK = np.where(SNR >= 14.)
-        names = names[OK]
-        DM = DM[OK]
-        freqMHz = freqMHz[OK]
-        SNR = SNR[OK]
-        SNRth = SNRth[OK]
-        DMG = DMG[OK]
-        tsamp = tsamp[OK]
-        width = width[OK]
-        BeamThetaDeg = BeamThetaDeg[OK]
-        Fnu = Fnu[OK]
-        zDM = zDM[OK]
-        Nants= Nants[OK]
-    else:
-        names,DM,freqMHz,SNR,SNRth,DMG,tsamp,width,BeamThetaDeg,Fnu,zDM,Nants \
-             = load_unloc_frb_data(fname)
-    DMhalo = 50. # halo and host
-    DMeg = DM-DMG - DMhalo
-    DMhost=50
     
-    if not loc:
-        # estimates z based on Macquart relation
-        old_zDM = zDM
-        zDM = get_macquart_z(DMeg,state,DMhost)
-        plot_z_error(zDM,old_zDM)
+    names,DM,freqMHz,SNR,SNRth,DMG,tsamp,width,BeamThetaDeg,Fnu,\
+        zDM,Nants,Enu = curate_data(loc,fname,minz,LimZ)
     
-    Enu = F_to_E(Fnu,zDM,alpha)
-    Enu /= 1e16 # 1e9 for bandwidth, 1e7 for erg to J
-    
-    # removes or modifies zDM < 0 FRBs
-    if minz is not None:
-        # replaces negative z FRBs with a minimum value of z
-        low = np.where(zDM < 0.)
-        
-        # keeps only these FRBs - everything else should be identical
-        names = names[low]
-        DM = DM[low]
-        freqMHz = freqMHz[low]
-        SNR = SNR[low]
-        SNRth = SNRth[low]
-        DMG = DMG[low]
-        tsamp = tsamp[low]
-        width = width[low]
-        BeamThetaDeg = BeamThetaDeg[low]
-        Fnu = Fnu[low]
-        zDM = zDM[low]
-        Nants= Nants[low]
-        Enu = Enu[low]
-        
-        orig_zDM = zDM
-        max_zDM = get_macquart_z(DM,state,0.) #calculates max z assuming *all* DM is extragalactic
-        zDM[:] = minz + zfrac*(max_zDM-minz) # scales linearly from
-        print("zDMs calculated as ",zDM," from ",minz," to ",max_zDM)
-    else:
-        # cuts away anything with z too low
-        OK = np.where(zDM > 0.)
-        names = names[OK]
-        DM = DM[OK]
-        freqMHz = freqMHz[OK]
-        SNR = SNR[OK]
-        SNRth = SNRth[OK]
-        DMG = DMG[OK]
-        tsamp = tsamp[OK]
-        width = width[OK]
-        BeamThetaDeg = BeamThetaDeg[OK]
-        Fnu = Fnu[OK]
-        zDM = zDM[OK]
-        Nants= Nants[OK]
-        Enu = Enu[OK]
-    
-    if LimZ is not None:
-        # cuts away anything with z too high
-        OK = np.where(zDM < LimZ)
-        names = names[OK]
-        DM = DM[OK]
-        freqMHz = freqMHz[OK]
-        SNR = SNR[OK]
-        SNRth = SNRth[OK]
-        DMG = DMG[OK]
-        tsamp = tsamp[OK]
-        width = width[OK]
-        BeamThetaDeg = BeamThetaDeg[OK]
-        Fnu = Fnu[OK]
-        zDM = zDM[OK]
-        Nants= Nants[OK]
-        Enu = Enu[OK]
     
     # gets DM cosmic contributions for data
-    DMcosmic = get_DM_cosmic(zDM,state)
+    DMcosmic = vvmax.get_DM_cosmic(zDM,state)
     
     # loads beamshape data
     bvals,omegab = load_beamshape()
@@ -168,8 +102,11 @@ def main(fname,outfile,Nsfr,alpha=0.,loc=False,minz=None,write=True,
     if write:
         f = open(outfile,"a")
     print("FRB  Fnu  zmaxB  zmaxC  BLd  CLd")
-    dt1=0
-    dt2=0
+    
+    # initialises calculation times - for testing
+    #dt1=0
+    #dt2=0
+    
     # tries getting zmax for one FRB
     for i,FRB in enumerate(names):
         #if not (FRB == 20180110):
@@ -177,61 +114,31 @@ def main(fname,outfile,Nsfr,alpha=0.,loc=False,minz=None,write=True,
         print("Starting frb ",FRB)
         # calculates zmax at the B of detection
         s = SNR[i]/SNRth[i]
-        Bzmax = calc_zmax(s,zDM[i],DM[i],DMcosmic[i],width[i],freqMHz[i],
-            tsamp[i],state,macquartz,macquartDM,alpha)
+        Bzmax = vvmax.calc_zmax(s,zDM[i],DM[i],DMcosmic[i],width[i],freqMHz[i],
+            tsamp[i],macquartz,macquartDM,alpha)
         
         s = SNR[i]/SNRth[i] / Bvals[i]
-        Czmax = calc_zmax(s,zDM[i],DM[i],DMcosmic[i],width[i],freqMHz[i],
-            tsamp[i],state,macquartz,macquartDM,alpha)
+        Czmax = vvmax.calc_zmax(s,zDM[i],DM[i],DMcosmic[i],width[i],freqMHz[i],
+            tsamp[i],macquartz,macquartDM,alpha)
         
-        Volume = 0.
-        Vmax = 0.
-        
-        # note: last one is beam centre. This is a speedup
+        # note: last one is beam centre. This is a speedup, mostly for testing
         if write:
-            toloop = bvals
+            LoopB = bvals
+            LoopO = omegab
+            
         else:
-            toloop = bvals[-3:]
-        for j,logB in enumerate(toloop):
-         
-            B = 10.**logB
-            s = SNR[i]/SNRth[i] * B/Bvals[i]
-            t0=time.time()
-            zmax = calc_zmax(s,zDM[i],DM[i],DMcosmic[i],width[i],freqMHz[i],
-                tsamp[i],state,macquartz,macquartDM,alpha)
-            
-            # limits to maximum volume
-            if LimZ is not None and zmax > LimZ:
-                zmax = LimZ
-            
-            t1=time.time()
-            #dVdOmega = integrate_volume(zmax,Nsfr=Nsfr) #weighted cubic Mpc per steradian
-            
-            dVdOmega = Vsplines(zmax)
-            #print("Compare direct integration to spline solution: ",dVdOmega,dVdOmega2,"   ",(dVdOmega-dVdOmega2)/dVdOmega)
-            
-            t2=time.time()
-            dt1 += (t1-t0)
-            dt2 += (t2-t1)
-            dVmax = dVdOmega * omegab[j]
-            # dVmax is now the volume elements weighted over that solid angle
-            
-            Vmax += dVmax
-            # we keep this tempzmax to be printed later
-            tempzmax = zmax
-            # calculates the volume by limiting to zmax 
-            if zmax > zDM[i]:
-                zmax = zDM[i]
-            dVdOmega = Vsplines(zmax)
-            #dVdOmega = integrate_volume(zmax,Nsfr=Nsfr)
-            dV = dVdOmega * omegab[j]
-            Volume += dV
-            
+            LoopB = bvals[-3:]
+            LoopO = omegab[-3:]
+        
+        s=SNR[i]/SNRth[i]
+        Volume,Vmax=vvmax.get_vvmax(LoopB,LoopO,Bvals[i],s,zDM[i],DM[i],DMcosmic[i],
+            width[i],freqMHz[i],tsamp[i],macquartz,macquartDM,alpha,Vsplines,LimZ)
+        
         # in Gpc
         Bdl = cos.DL(Bzmax)/1e3
         Cdl = cos.DL(Czmax)/1e3
         
-        energyErg = F_to_E(Fnu[i],zDM[i],alpha,bandwidth=1.) # bandwidth of unity
+        energyErg = cos.F_to_E(Fnu[i],zDM[i],alpha,bandwidth=1.) # bandwidth of unity
         JHz = energyErg / 1e7
         
         
@@ -239,8 +146,6 @@ def main(fname,outfile,Nsfr,alpha=0.,loc=False,minz=None,write=True,
         string = '{0:8} {1:1.3e} {2:6.5f} {3:6.5f} {4:1.3e} {5:1.2e} {6:6.3f}\n'.format(
             int(FRB),JHz,Bzmax,Czmax,Volume,Vmax,Volume/Vmax)
         # printing out Czmax and Cdl would be super useful for the paper! Wait, why Dl? Who cares!
-        #string = '{0:8} {1:1.3e} {2:6.4f} {3:6.4f}'.format(
-        #    int(FRB),JHz,Bzmax,Bdl)
         
         if write:
             f.write(string),SNR[i],DM[i],DMG[i],freqMHz[i],tsamp[i],width[i],BeamThetaDeg[i]
@@ -261,7 +166,9 @@ def main(fname,outfile,Nsfr,alpha=0.,loc=False,minz=None,write=True,
             (Enu[i],tempzmax,Volume,Vmax,Volume/Vmax)
             combined = laststrings[i]+extra
             print(combined)
-    print("Calculation times are ",dt1,dt2)  
+    
+    # for estimating calculation time
+    #print("Calculation times are ",dt1,dt2)  
     
     if write:
         f.close()
@@ -269,7 +176,111 @@ def main(fname,outfile,Nsfr,alpha=0.,loc=False,minz=None,write=True,
         return tempstrings
     else:
         return laststrings   
-            
+
+
+def curate_data(loc,fname,minz,LimZ):
+    """
+    Edits the data used for the V/Vmax calculation according to various criteria
+    
+    Returns edited FRB properties
+    """
+    
+    if loc:
+        names,DM,freqMHz,SNR,SNRth,DMG,tsamp,width,BeamThetaDeg,Fnu,zDM,Nants \
+             = load_loc_frb_data(fname)
+        # places a cut on S/N
+        # selects only those with SNR greater than the threshold
+        SNRth[:] = 14. # artificial threshold
+        OK = np.where(SNR >= 14.)
+        names = names[OK]
+        DM = DM[OK]
+        freqMHz = freqMHz[OK]
+        SNR = SNR[OK]
+        SNRth = SNRth[OK]
+        DMG = DMG[OK]
+        tsamp = tsamp[OK]
+        width = width[OK]
+        BeamThetaDeg = BeamThetaDeg[OK]
+        Fnu = Fnu[OK]
+        zDM = zDM[OK]
+        Nants= Nants[OK]
+    else:
+        names,DM,freqMHz,SNR,SNRth,DMG,tsamp,width,BeamThetaDeg,Fnu,zDM,Nants \
+             = load_unloc_frb_data(fname)
+    DMhalo = 50. # halo and host
+    DMeg = DM-DMG - DMhalo
+    DMhost=50
+    
+    if not loc:
+        # estimates z based on Macquart relation
+        old_zDM = zDM
+        zDM = vvmax.get_macquart_z(DMeg,state,DMhost)
+        plot_z_error(zDM,old_zDM)
+    
+    Enu = cos.F_to_E(Fnu,zDM,alpha)
+    Enu /= 1e16 # 1e9 for bandwidth, 1e7 for erg to J
+    
+    # removes or modifies zDM < 0 FRBs
+    if minz is not None:
+        # replaces negative z FRBs with a minimum value of z
+        low = np.where(zDM < 0.)
+        
+        # keeps only these FRBs - everything else should be identical
+        names = names[low]
+        DM = DM[low]
+        freqMHz = freqMHz[low]
+        SNR = SNR[low]
+        SNRth = SNRth[low]
+        DMG = DMG[low]
+        tsamp = tsamp[low]
+        width = width[low]
+        BeamThetaDeg = BeamThetaDeg[low]
+        Fnu = Fnu[low]
+        zDM = zDM[low]
+        Nants= Nants[low]
+        Enu = Enu[low]
+        
+        orig_zDM = zDM
+        max_zDM = vvmax.get_macquart_z(DM,state,0.) #calculates max z assuming *all* DM is extragalactic
+        zDM[:] = minz + zfrac*(max_zDM-minz) # scales linearly from
+        print("zDMs calculated as ",zDM," from ",minz," to ",max_zDM)
+    else:
+        # cuts away anything with z too low
+        OK = np.where(zDM > 0.)
+        names = names[OK]
+        DM = DM[OK]
+        freqMHz = freqMHz[OK]
+        SNR = SNR[OK]
+        SNRth = SNRth[OK]
+        DMG = DMG[OK]
+        tsamp = tsamp[OK]
+        width = width[OK]
+        BeamThetaDeg = BeamThetaDeg[OK]
+        Fnu = Fnu[OK]
+        zDM = zDM[OK]
+        Nants= Nants[OK]
+        Enu = Enu[OK]
+    
+    if LimZ is not None:
+        # cuts away anything with z too high
+        OK = np.where(zDM < LimZ)
+        names = names[OK]
+        DM = DM[OK]
+        freqMHz = freqMHz[OK]
+        SNR = SNR[OK]
+        SNRth = SNRth[OK]
+        DMG = DMG[OK]
+        tsamp = tsamp[OK]
+        width = width[OK]
+        BeamThetaDeg = BeamThetaDeg[OK]
+        Fnu = Fnu[OK]
+        zDM = zDM[OK]
+        Nants= Nants[OK]
+        Enu = Enu[OK]
+    
+    return names,DM,freqMHz,SNR,SNRth,DMG,tsamp,width,BeamThetaDeg,Fnu,\
+        zDM,Nants,Enu
+         
 def integrate_volume(zmax,Nsfr=0.):
     """
     Integrates dV/dz from 0 to z
@@ -278,197 +289,12 @@ def integrate_volume(zmax,Nsfr=0.):
     result = quad(dVdtaudz,0,zmax,args=[Nsfr])
     return result[0]
     
-
 def dVdtaudz(z,Nsfr):
     """
     Volume element per dz per solid angle
     """
-    weighted_dVdtau = cos.dVdtau(z) * SFR(z)**Nsfr[0]
+    weighted_dVdtau = cos.dVdtau(z) * cos.sfr_evolution(z,Nsfr[0])
     return weighted_dVdtau
-    
-def SFR(z):
-    """
-    Madau & dickenson 2014
-    Arguments:
-        z (float): redshift
-    Leading constant: normalises to unity at z=0
-    """
-    return 1.0025738*(1+z)**2.7 / (1 + ((1+z)/2.9)**5.6)
-
-
-    
-def calc_effz(s0,DMcosmic0,z0,w0,DM0,freq,tsamp,alpha,ztrials,DMcosmicz):
-    """
-    calculates the relative SNR/SNRth that an FRB would have
-    as a function of redshift
-    
-    Includes luminosity distance and efficiency factors
-    """
-    # estimate DM at different z
-    DMz = DM0 + DMcosmicz - DMcosmic0
-    
-    # calculates the energy corresponding to 1 Jy ms at z0
-    E0 = F_to_E(1.,z0,alpha)
-    # calculates the fluence "per Jyms at z0" from an FRB at z
-    modFz = E_to_F(E0,ztrials,alpha)
-    
-    eff0 = zefficiency(z0,w0,DM0,freq,tsamp,z0,DM0)
-    effz = zefficiency(z0,w0,DM0,freq,tsamp,ztrials,DMz)
-    
-    # using Wayne's method
-    # this just scaled effective width as 1+z, hence
-    # efficiency went as (1+z)**-0.5
-    # i.e. it ignores the fact the intrinsic width behaves differently...
-    # eff0 = (1+z0)**-0.5
-    # effz = (1+ztrials)**-0.5
-    
-    sz = s0 * (effz/eff0) * modFz
-    
-    return sz,eff0,effz,modFz
-    
-
-def calc_zmax(s0,z0,DM0,DMcosmic0,w0,freq,tsamp,state,Mz,MDM,alpha):
-    """
-    Routine which calculates the maximum redshift at which
-    an FRB could have been detected
-    
-    We begin with the ratio s0, which is SNR(det)/SNR(thresh)
-    This tells us how much fluence we can lose as a function
-    of redshift
-    
-    We then account for luminosity distance, and changing efficiency
-    with distance
-    
-    '0' properties indicate those at detection
-    
-    Mz and MDM are pre-computed values of Macquart relation
-    
-    We must have values of z which span the range from the minimum z
-    at which the FRB lies, to the maximum z at which it could be detected
-    E.g. at S/N of 1000, that's a factor of ~10 for SNRthresh=10
-    """
-    
-    
-    # we begin by making a naive guess at zmax based upon
-    # Cartesian geometry, and then we interpolate exact
-    # values about this to get a precise answer
-    zguess = z0 * s0**0.5
-    OK=[]
-    frac=0.2
-    while len(OK)<2:
-        OK = np.where(np.abs(Mz - zguess)/zguess < frac)[0] # gets 20% error range
-        frac *= 5
-    ztrials = Mz[OK]
-    DMcosmicz = MDM[OK]
-    
-    sz,eff0,effz,modFz = calc_effz(s0,DMcosmic0,z0,w0,DM0,freq,tsamp,alpha,ztrials,DMcosmicz)
-    
-    # if this fails, try again with a bigger range
-    if np.min(sz) > s0 or np.max(sz) < s0:
-        OK = np.where(np.abs(Mz - zguess)/zguess < 0.5)[0] # gets 50% error range
-        ztrials = Mz[OK]
-        DMcosmicz = MDM[OK]
-        sz,eff0,effz,modFz = calc_effz(s0,DMcosmic0,z0,w0,DM0,freq,tsamp,alpha,ztrials,DMcosmicz)
-        
-        if np.min(sz) > s0 or np.max(sz) < s0:
-            # try with all of them
-            ztrials=Mz
-            DMcosmicz = MDM
-            sz,eff0,effz,modFz = calc_effz(s0,DMcosmic0,z0,w0,DM0,freq,tsamp,alpha,ztrials,DMcosmicz)
-            
-            
-    # gets zmax via spline interpolation
-    splines = interpolate.CubicSpline(sz[::-1],ztrials[::-1])
-    zmax = splines(1.)
-    
-    
-    if np.min(sz) > s0 or np.max(sz) < s0: # out of range...
-        print("We have found a problem with our z guesses!!!")
-        print(z0,s0)
-        print(sz/s0)
-        print("zmax found to be ",zmax)
-        sz = s0 * (effz/eff0) * modFz
-        
-        #if False:
-        plt.figure()
-        plt.plot(ztrials,effz,label="efficiency")
-        plt.plot(ztrials,effz/eff0,label="Rel efficiency")
-        plt.plot(ztrials,modFz,label="Relative lum dist")
-        plt.plot(ztrials,sz/s0,label="product")
-        plt.plot([zmax,zmax],[0.,1./s0],color="black",linestyle=":")
-        plt.plot([ztrials[0],zmax],[1./s0,1./s0],color="black",linestyle=":")
-        
-        plt.xlabel("z guesses")
-        plt.ylabel("Relative efficiency factors")
-        plt.yscale('log')
-        #plt.ylim(0.1,10)
-        plt.xlim(0.0001,0.1)
-        plt.xscale('log')
-        plt.legend()
-        plt.tight_layout()
-        plt.savefig("example_zguesses.pdf")
-        plt.close()
-        exit()
-    
-    return zmax
-    
-def zefficiency(z0,w0,DM0,freq,tsamp,newz,newDM):
-    """
-    Calculates width if the burst had been at a higher redshift
-    Returns efficiency: propto w**-0.5
-    This modifies detectable fluence
-    
-    The new DM and z must be input by the user
-    """
-    
-    # calculates width components at z0
-    dmsmear0 = DM0 * 4.15 * 1e6 * ((freq-0.5)**-2 - (freq+0.5)**-2)
-    
-    wintrinsic = (w0**2 - dmsmear0**2 - tsamp**2)
-    if wintrinsic < 0.:
-        wintrinsic = 0.
-    else:
-        wintrinsic = wintrinsic**0.5
-    
-    new_dmsmear = newDM * 4.15 * 1e6 * ((freq-0.5)**-2 - (freq+0.5)**-2)
-    
-    # reduces intrinsic width as 1+z
-    new_int = wintrinsic * (1.+z0)/(1.+newz)
-    new_w = ((new_int)**2 + new_dmsmear**2 + tsamp**2)**0.5
-    eff = new_w **-0.5
-    return eff
-
-
-def dvdtau(z):
-    """ Comoving volume element [Mpc^3 dz sr^-1].
-    normalsied by proper time (1+z)^-1 to convert
-    rates.
-    """ 
-    iz=np.array(np.floor(z/DZ)).astype('int')
-    kz=z/DZ-iz
-    return (dvdtaus[iz]*(1.-kz)+dvdtaus[iz+1]*kz) #removed the 1/(1+z) dependency
-
-
-def F_to_E(F,z,alpha,bandwidth=1e9):
-    """ Converts a fluence to an energy
-    Formula from Macquart & Ekers 2018
-    Fluence assumed to be in Jy ms
-    Energy is returned in ergs (here, erg/Hz)
-    """
-    E = F * (4*np.pi*(cos.dl(z))**2/(1.+z)**(2.+alpha))
-    E *= 9.523396e22*bandwidth 
-    return E
-
-def E_to_F(E,z,alpha, bandwidth=1e9):
-    """ Converts an energy to a fluence
-    Formula from Macquart & Ekers 2018
-    Energy is assumed to be in ergs
-    Fluence returned in Jy ms
-    """
-    F=E/(4*np.pi*(cos.dl(z))**2/(1.+z)**(2.+alpha))
-    F /= 9.523396e22*bandwidth # see below for constant calculation
-    return F
-  
 
 def plot_fluence(DM,Fluences,Fnu):
     """
@@ -584,37 +410,7 @@ def init_cos():
     cos.init_dist_measures()
     return state
     
-def get_macquart_z(DMeg,state,DMhost):
-    """
-    gets z(DM) from the Macquart relation
-    """
-    
-    # gets z from macquart relation
-    zvals=np.linspace(1e-3,2,2000)
-    
-    macquart_relation=pcosmic.get_mean_DM(zvals, state)
-    hosts = DMhost/(1+zvals)
-    macquart_relation += hosts #adding the host contribution as a function of z 
-    splines = interpolate.CubicSpline(macquart_relation,zvals)
-    zFRBs = splines(DMeg)
-    #print(zFRBs)
-    
-    return zFRBs
 
-
-def get_DM_cosmic(z,state):
-    """
-    gets z(DM) from the Macquart relation
-    """
-    
-    # gets z from macquart relation
-    zvals=np.linspace(1e-3,3,3000)
-    
-    macquart_relation=pcosmic.get_mean_DM(zvals, state)
-    splines = interpolate.CubicSpline(zvals,macquart_relation)
-    DMcosmic = splines(z)
-    
-    return DMcosmic
 
 
 def plot_z_error(myz,waynez):    
@@ -710,12 +506,10 @@ if True:
         outfile = "MinzOutput/Minzmacquart_vvmax_data_NSFR_"+str(Nsfr)+"_alpha_"+str(alpha)+"_"+str(zfrac)[0:3]+".dat"
         strings = main(infile,outfile,Nsfr,alpha=alpha,loc=loc,minz=minz,write=True,laststrings=strings,LimZ=LimZ,zfrac=zfrac)
         
-        exit()
-exit()
 ########## run setting zmax = 0.7 for localised FRBs ###########
 
 # limits maximum redshift to 0.7. This is the unbiased calculation for localised FRBs
-if False:
+if True:
     loc=True
     LimZ=0.7
     infile="Data/unbiased_loc_data.dat"
@@ -729,7 +523,7 @@ if False:
 
 # main data runs over first, unlocalised, than localised
 
-if False:
+if True:
     loc=False
     infile="Data/all_unloc_frb_data.dat"
     minz = None
