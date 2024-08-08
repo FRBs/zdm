@@ -39,8 +39,15 @@ def unnormalisedLensFuncAtSubBeam(log10b, dlog10b, OmegaB, bGains, pixRes, magni
     if np.sum(inBeam)>0:
         gtrMu = np.zeros(len(muThresh))
         for i in range(len(muThresh)):
-            gtrMu[i] = np.sum(magni[inBeam]>=muThresh[i])
-    
+            gtrMu[i] = np.sum(magni[inBeam]>=muThresh[i]) #inside the sum multiply by the
+                                                          #image number matrix, then handle
+                                                          #normalisation later, check image set
+                                                          # for regions of zero images
+                                                          # if it's only the outside edges
+                                                          # set them to one then that helps sort
+                                                          # sort out the issue of outside array 
+                                                          # deflections, beam is generally larger
+                                                          # than the image array so should be fine
         modelledArea = np.sum(inBeam)*(pixRes[0]*pixRes[1])
         numUnmodelledCells = (OmegaB - modelledArea)/(pixRes[0]*pixRes[1])
         print('num in beam', np.sum(inBeam))
