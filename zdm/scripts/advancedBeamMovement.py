@@ -30,7 +30,7 @@ def main():
 
     # in case you wish to switch to another output directory
     #opdir = "Localised_FRBs/"
-    opdir = "CHORD/ClusterLensed/hlsp_frontier_model_macs0717_cats_v4/z0.545/"
+    opdir = "CHORD/ClusterLensed/hlsp_frontier_model_macs0717_cats_v4/z1.0/"
     
     if not os.path.exists(opdir):
         os.mkdir(opdir)
@@ -58,13 +58,13 @@ def main():
     state.host.lsigma = 0.57
     state.host.lmean = 2.22
     state.FRBdemo.lC = 1.443
-    state.energy.luminosity_function=0
+    state.energy.luminosity_function=4
     state.FRBdemo.alpha_method=1
 
     clusterRedshift = 1.0
 
-    cluster=False
-    lensing =False
+    cluster=True
+    lensing =True
     
     #relBeamPositions = np.load('relBeamPos.npy') #relative to magni
     relBeamPositions = np.array([[0,0]])

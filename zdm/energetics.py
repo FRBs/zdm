@@ -371,7 +371,7 @@ def vector_cum_lensed_power_law(Eth,*params):
                 result[i,:]=vector_cum_power_law(Eth[i,:],*params)
             else:
                 phiGrid = vector_diff_power_law(np.e**logERange, *params)
-                phiL = np.convolve(probGrid, phiGrid)*logSpacing
+                phiL = np.convolve(probGrid*np.e**logMu, phiGrid)*logSpacing
                 logE_muRange = np.arange(logEn-2, np.amax(logERange)+np.amax(logMu),logSpacing)
                 #print(np.amin(np.e**logE_muRange), np.amax(np.e**logE_muRange))
                 phiLCumConv = np.cumsum(np.flip((np.e**logE_muRange)*phiL*logSpacing))
