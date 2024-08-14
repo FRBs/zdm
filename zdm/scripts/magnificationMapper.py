@@ -243,7 +243,7 @@ def clusterDMFuncAtSubBeam(log10b, dlog10b, OmegaB, freq, bGains, imageCoords, p
             gtrDM[i] = np.sum(((ne*1e6/(1+clusterRedshift)*inBeam)>=DMThresh[i])*weights)
         for i in range(len(scatThresh)):
             if z>clusterRedshift:
-                scat = (4.1e-5/(1+clusterRedshift)*(lam/1)**4*((cosmo.angular_diameter_distance(0.545)*cosmo.angular_diameter_distance_z1z2(0.545,z)/cosmo.angular_diameter_distance(z)).value/1e3)*(8.4e-13*(ne/1e-4)**2*3.08567758e+22/((1+clusterRedshift)**2)/1e12)*(2.06264806e+08)**(1/3)*1e3)
+                scat = (4.1e-5/(1+clusterRedshift)*(lam/1)**4*((cosmo.angular_diameter_distance(clusterRedshift)*cosmo.angular_diameter_distance_z1z2(clusterRedshift,z)/cosmo.angular_diameter_distance(z)).value/1e3)*(8.4e-13*(ne/1e-4)**2*3.08567758e+22/((1+clusterRedshift)**2)/1e12)*(2.06264806e+08)**(1/3)*1e3)
                 if(np.amin(scat)<np.amin(scatThresh)):
                     print('WARNING: Scattering outside threshold')
                     print('z = ', z, np.amin(scat), np.amin(scatThresh))
