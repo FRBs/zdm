@@ -58,13 +58,13 @@ def main():
     state.host.lsigma = 0.57
     state.host.lmean = 2.22
     state.FRBdemo.lC = 1.443
-    state.energy.luminosity_function=0
+    state.energy.luminosity_function=4
     state.FRBdemo.alpha_method=1
 
-    clusterRedshift = 1.0
+    clusterRedshift = 0.545
 
-    cluster=False
-    lensing =False
+    cluster=True
+    lensing =True
     
     #relBeamPositions = np.load('relBeamPos.npy') #relative to magni
     relBeamPositions = np.array([[0,0]])

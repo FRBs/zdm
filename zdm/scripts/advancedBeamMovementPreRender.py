@@ -17,7 +17,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 
-def runner(clusterRedshift, name, clusterNeFile):
+def runner(clusterRedshift, name, clusterNeFile, sourceMagniArr=False):
 
     # in case you wish to switch to another output directory
     #opdir = "Localised_FRBs/"
@@ -62,6 +62,7 @@ def runner(clusterRedshift, name, clusterNeFile):
     np.save(opdir+'xProbScat', (xProbScat))
     DMThresh = np.arange(0,15000,100)
     np.save(opdir+'DMThresh', DMThresh)
+
     
     for i in range(len(relBeamPositions[:,0])):
         bPos = np.array([np.mean(tempCoords[0])+relBeamPositions[i,0], np.mean(tempCoords[1])+relBeamPositions[i,1]])
@@ -72,15 +73,28 @@ def runner(clusterRedshift, name, clusterNeFile):
             surveyName = 'CHORD_BeamPos_'+str(formatted_number)
             
             if zvals[j] > clusterRedshift:
-                rescaleFactor = (cosmo.angular_diameter_distance_z1z2(clusterRedshift, zvals[j])*cosmo.angular_diameter_distance(trueClusterRedshift)/cosmo.angular_diameter_distance(zvals[j])/cosmo.angular_diameter_distance(clusterRedshift)).value
-                magni = 1/np.abs((1-kappa*rescaleFactor)**2-(gamma*rescaleFactor)**2)
-                magni[magni>=100] = 100
+                if sourceMagniArr:
+                    pixCoordsArr= np.load(opdir+("{:03.2f}".format(zvals[j]))+'_sourceCoordsArr.npy') 
+                    magni = np.load(opdir+("{:03.2f}".format(zvals[j]))+'_sourceCoordsArr.npy') 
 
-                pmux, wideMagni, wideX = normalisedLensFuncsAcrossBeam(dishDiam, fbar, bThresh, bbins, bPos, proj, magni, opdir+surveyName, muThresh = mux)
+                else:
+                    rescaleFactor = (cosmo.angular_diameter_distance_z1z2(clusterRedshift, zvals[j])*cosmo.angular_diameter_distance(trueClusterRedshift)/cosmo.angular_diameter_distance(zvals[j])/cosmo.angular_diameter_distance(clusterRedshift)).value
+                    pixCoordsArr = xMagni
+                    magni = 1/np.abs((1-kappa*rescaleFactor)**2-(gamma*rescaleFactor)**2)
+                    magni[magni>=100] = 100
+                
+
+                pmux, magni, xMagni = normalisedLensFuncsAcrossBeam(dishDiam, fbar, bThresh, bbins, bPos, proj, xMagni, magni, pixCoordsArr, opdir+surveyName, sourceMagniArr=sourceMagniArr, muThresh = mux)
+
                 np.save(opdir+'pmux_BP_'+str(formatted_number)+str(formatted_redshift), pmux)
                 del(pmux)
 
-                rawWeights = 1/wideMagni*(1/wideMagni)**(energyIndex)
+                if sourceMagniArr:
+                    rawWeights = (1/magni)**(energyIndex)
+                else:
+                    rawWeights = 1/magni*(1/magni)**(energyIndex)
+    
+                tempCoords = proj.array_index_to_world_values(xMagni[0], xMagni[1])
 
                 probScat, fractionUnscattered, pdms = clusterDMFuncAcrossBeam(
                     D = dishDiam,
@@ -93,10 +107,9 @@ def runner(clusterRedshift, name, clusterNeFile):
                     z = zvals[j],
                     ne = ne,
                     name = opdir+'DM_BP_'+str(formatted_number),
-                    lensing = lensing,
-                    rawWeights = rawWeights,
-                    weightsProj = proj,
-                    xWeights = wideX,
+                    weights = rawWeights,
+                    imageProj = proj,
+                    imageCoords = tempCoords,
                     scatThresh = scatThresh
                 )   
                 np.save(opdir+'probScat_BP_'+str(formatted_number)+str(formatted_redshift), probScat) 
@@ -108,4 +121,4 @@ def runner(clusterRedshift, name, clusterNeFile):
                 np.save(opdir+'fractionUnscattered_BP_'+str(formatted_number)+str(formatted_redshift), np.ones(bbins))
                 np.save(opdir+'pdms_BP_'+str(formatted_number)+str(formatted_redshift),np.zeros([len(DMThresh),bbins]))
 
-runner(1.0, 'hlsp_frontier_model_macs0717_cats_v4','Thermo_MACSJ0717_N.fits')
+runner(0.545, 'hlsp_frontier_model_macs0717_cats_v4','Thermo_MACSJ0717_N.fits')
