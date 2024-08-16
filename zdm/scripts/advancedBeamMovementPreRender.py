@@ -17,17 +17,17 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 
-def runner(clusterRedshift, name, clusterNeFile):
+def runner(clusterRedshift, name, clusterNeFile, trueClusterRedshift):
 
     # in case you wish to switch to another output directory
     #opdir = "Localised_FRBs/"
-    opdir = "CHORD/ClusterLensed/"+name+'/z'+str(clusterRedshift)+'/'
+    formatted_cluster_redshift = "{:03.2f}".format(clusterRedshift)
+    opdir = "CHORD/ClusterLensed/"+name+'/z'+formatted_cluster_redshift+'/'
     print(opdir)
     
     if not os.path.exists(opdir):
         os.makedirs(opdir)
 
-    trueClusterRedshift = 0.545
     dishDiam = 48*u.m
     fbar = 900*u.MHz
     bThresh = 1e-3
@@ -108,4 +108,3 @@ def runner(clusterRedshift, name, clusterNeFile):
                 np.save(opdir+'fractionUnscattered_BP_'+str(formatted_number)+str(formatted_redshift), np.ones(bbins))
                 np.save(opdir+'pdms_BP_'+str(formatted_number)+str(formatted_redshift),np.zeros([len(DMThresh[:-1]),bbins]))
 
-runner(0.545, 'hlsp_frontier_model_macs0717_cats_v4','Thermo_MACSJ0717_N.fits')
