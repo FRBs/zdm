@@ -119,6 +119,6 @@ def runner(clusterRedshift, name, clusterNeFile, sourceMagniArr=False):
                 # fill in based on other else conditions
                 np.save(opdir+'probScat_BP_'+str(formatted_number)+str(formatted_redshift), np.zeros([len(xProbScat),bbins]))
                 np.save(opdir+'fractionUnscattered_BP_'+str(formatted_number)+str(formatted_redshift), np.ones(bbins))
-                np.save(opdir+'pdms_BP_'+str(formatted_number)+str(formatted_redshift),np.zeros([len(DMThresh),bbins]))
+                np.save(opdir+'pdms_BP_'+str(formatted_number)+str(formatted_redshift),np.zeros([len(DMThresh[:-1]),bbins]))
 
 runner(0.545, 'hlsp_frontier_model_macs0717_cats_v4','Thermo_MACSJ0717_N.fits')
