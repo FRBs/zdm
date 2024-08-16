@@ -61,7 +61,7 @@ def main():
     state.energy.luminosity_function=4
     state.FRBdemo.alpha_method=1
 
-    clusterRedshift = 1.0
+    clusterRedshift = 0.545
 
     cluster=True
     lensing =True
