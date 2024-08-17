@@ -186,7 +186,7 @@ def clusterDMFuncAcrossBeam(D, freq, thresh, nbins, bPos, proj, clusterRedshift,
 
     for i in range(len(log10b)):
         print('beaming like crazy right now', i)
-        pdms[:,i], probScat[:,i], fractionUnscattered[i] = clusterDMFuncAtSubBeam(log10b[i], dlog10b, OmegaB, freq, neBGains, neWeightedHist, pixRes, clusterRedshift, z, scatThresh, ne, DMThresh, imageBGains, weights)
+        pdms[:,i], probScat[:,i], fractionUnscattered[i] = clusterDMFuncAtSubBeam(log10b[i], dlog10b, OmegaB, freq, neBGains, neWeightedHist, pixResWeights, clusterRedshift, z, scatThresh, ne, DMThresh, imageBGains, weights)
 
 
     return probScat, fractionUnscattered, pdms
