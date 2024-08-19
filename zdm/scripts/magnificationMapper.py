@@ -34,12 +34,11 @@ def logSpaceIntegrand(logmu, func, funcArgs, base):
 
 def unnormalisedLensFuncAtSubBeam(log10b, dlog10b, OmegaB, imagePlaneBGains, bGains, pixRes, magniArr, sourceMagniArr, muThresh):
     #OmegaB in arcminutes^2, same as pixRes
-    print(log10b, dlog10b)
     inBeam = np.abs(np.log10(bGains)-log10b)<np.abs(dlog10b/2)
     planeInBeam = np.abs(np.log10(imagePlaneBGains)-log10b)<np.abs(dlog10b/2)
     if not sourceMagniArr:
         if np.sum(planeInBeam*1 - inBeam*1)>0:
-            print('ALERT: somethings dead wrong !!!!!!!!!!!!!!!!!!')
+            print(log10b, dlog10b, 'ALERT: somethings dead wrong !!!!!!!!!!!!!!!!!!')
             return np.nan
     if np.sum(inBeam)>0:
         gtrMu = np.zeros(len(muThresh))
@@ -144,7 +143,6 @@ def normalisedLensFuncsAcrossBeam(D, freq, thresh, nbins, bPos, proj, x, magniAr
     pmus = np.zeros([len(muThresh),len(log10b)])
     probMags = np.log10(muThresh[:-1])
     for i in range(len(log10b)):
-        print('beaming like crazy right now', i)
         interpFunc = unnormalisedLensFuncAtSubBeam(log10b[i], dlog10b, OmegaB, imagePlaneBGains, bGains, pixRes, magniArr, sourceMagniArr, muThresh)
         if interpFunc != None:
             muTwo = np.arange(-2,10,0.01)
@@ -177,7 +175,8 @@ def clusterDMFuncAcrossBeam(D, freq, thresh, nbins, bPos, proj, clusterRedshift,
     probMags = (DMThresh[:-1])
     fractionUnscattered = np.zeros(len(log10b))
 
-    tempX = np.flip(neCoords[0][:,0])
+    #tempX = np.flip(neCoords[0][:,0])
+    tempX = (neCoords[0][:,0])
     
     binRangeX = np.append(tempX-np.mean(np.diff(tempX))/2, np.amax(tempX)+np.mean(np.diff(tempX))/2)
     binRangeY = np.append(neCoords[1][0,:]-np.mean(np.diff(neCoords[1][0,:]))/2, np.amax(neCoords[1][0,:])+np.mean(np.diff(neCoords[1][0,:]))/2)
@@ -185,7 +184,6 @@ def clusterDMFuncAcrossBeam(D, freq, thresh, nbins, bPos, proj, clusterRedshift,
     neWeightedHist = np.histogram2d(imageCoords[0].flatten(), imageCoords[1].flatten(), bins=[binRangeX,binRangeY])
 
     for i in range(len(log10b)):
-        print('beaming like crazy right now', i)
         pdms[:,i], probScat[:,i], fractionUnscattered[i] = clusterDMFuncAtSubBeam(log10b[i], dlog10b, OmegaB, freq, neBGains, neWeightedHist, pixResWeights, clusterRedshift, z, scatThresh, ne, DMThresh, imageBGains, weights)
 
 
@@ -193,7 +191,6 @@ def clusterDMFuncAcrossBeam(D, freq, thresh, nbins, bPos, proj, clusterRedshift,
 
 def clusterDMFuncAtSubBeam(log10b, dlog10b, OmegaB, freq, neBGains, neWeightedHist, pixRes, clusterRedshift, z, scatThresh, ne, DMThresh, imageBGains, weights):
     #OmegaB in arcminutes^2, same as pixRes
-    print(log10b, dlog10b)
     inBeam = np.abs(np.log10(neBGains)-log10b)<np.abs(dlog10b/2)
     lam = (const.c/(freq)).decompose().value
 
@@ -210,7 +207,7 @@ def clusterDMFuncAtSubBeam(log10b, dlog10b, OmegaB, freq, neBGains, neWeightedHi
         for i in range(len(scatThresh)):
             if z>clusterRedshift:
                 scat = (4.1e-5/(1+clusterRedshift)*(lam/1)**4*((cosmo.angular_diameter_distance(clusterRedshift)*cosmo.angular_diameter_distance_z1z2(clusterRedshift,z)/cosmo.angular_diameter_distance(z)).value/1e3)*(8.4e-13*(ne/1e-4)**2*3.08567758e+22/((1+clusterRedshift)**2)/1e12)*(2.06264806e+08)**(1/3)*1e3)
-                if(np.amin(scat)<np.amin(scatThresh)):
+                if(np.amin(scat)<np.amin(scatThresh) and np.amin(scat)>0):
                     print('WARNING: Scattering outside threshold')
                     print('z = ', z, np.amin(scat), np.amin(scatThresh))
                     break
@@ -223,17 +220,14 @@ def clusterDMFuncAtSubBeam(log10b, dlog10b, OmegaB, freq, neBGains, neWeightedHi
                 probScat[:] = 0
 
         modelledArea = np.sum(inBeam_2)*(pixRes[0]*pixRes[1])
-        print('num in beam', np.sum(inBeam_2))
-        print('fraction modelled', modelledArea/OmegaB)
                
         
         numUnmodelledCells = (OmegaB - modelledArea)/(pixRes[0]*pixRes[1])
         if numUnmodelledCells < 0:
             numUnmodelledCells = 0
                 
-        print(OmegaB, pixRes, modelledArea, numUnmodelledCells, DMLessWeights, np.amax(gtrScat))
         fractionUnscattered = (numUnmodelledCells+DMLessWeights)/(np.sum(weights*inBeam_2)+numUnmodelledCells)
-        print('fraction unscattered', fractionUnscattered)
+        print(log10b, dlog10b, 'fraction unscattered', fractionUnscattered, 'fraction modelled', modelledArea/OmegaB, OmegaB, pixRes, np.sum(inBeam_2), modelledArea, numUnmodelledCells, DMLessWeights, np.amax(gtrScat))
         gtrDM[0] = gtrDM[0]+numUnmodelledCells+DMLessWeights
         probUN = (-1*np.diff((gtrDM))/np.diff(DMThresh))
         #interpFunc = scipy.interpolate.interp1d((DMThresh[:-1]), probUN, bounds_error=False, fill_value=0)

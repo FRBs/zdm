@@ -22,7 +22,7 @@ def runner(clusterRedshift, name, clusterNeFile, trueClusterRedshift, sourceMagn
     # in case you wish to switch to another output directory
     #opdir = "Localised_FRBs/"
     formatted_cluster_redshift = "{:03.2f}".format(clusterRedshift)
-    opdir = "CHORD/ClusterLensed/"+name+'/z'+formatted_cluster_redshift+'/'
+    opdir = "/arc/projects/chime_frb/msammons/CHORD/ClusterLensed/"+name+'/z'+formatted_cluster_redshift+'/'
     print(opdir)
     
     if not os.path.exists(opdir):

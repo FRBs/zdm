@@ -1,3 +1,14 @@
+import numpy as np
+from astropy.io import fits
+from astropy import wcs
+import astropy
+import requests
+import pandas as pd
+from astropy import units as u
+import scipy.interpolate
+from astropy.cosmology import Planck18 as cosmo
+
+
 def createRadialNeFits(clusterName, mainTableName, clusterRedshift, numberCells, centreCell):
     header = fits.getheader('Thermo_MACSJ0717_N.fits')
     mt = makeTableFromURL("https://web.pa.msu.edu/astro/MC2/accept/accept_main.tab")
@@ -21,13 +32,13 @@ def createRadialNeFits(clusterName, mainTableName, clusterRedshift, numberCells,
     fits.writeto('Radial'+clusterName+'.fits', nePlane, header, overwrite=True)
 
 
- def makeTableFromURL(url):
-     response = requests.get(url)
-     data = response.text
-     lines = data.splitlines()
-     headers = lines[0].strip().split()
-     units = lines[1].strip().split()
-     rows = [line.strip().split() for line in lines[2:]]
-     df = pd.DataFrame(rows, columns=headers)
-     df = df.apply(pd.to_numeric, errors='ignore')
-     return df
+def makeTableFromURL(url):
+    response = requests.get(url)
+    data = response.text
+    lines = data.splitlines()
+    headers = lines[0].strip().split()
+    units = lines[1].strip().split()
+    rows = [line.strip().split() for line in lines[2:]]
+    df = pd.DataFrame(rows, columns=headers)
+    df = df.apply(pd.to_numeric, errors='ignore')
+    return df
