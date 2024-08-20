@@ -181,7 +181,7 @@ def clusterDMFuncAcrossBeam(D, freq, thresh, nbins, bPos, proj, clusterRedshift,
     binRangeX = np.append(tempX-np.mean(np.diff(tempX))/2, np.amax(tempX)+np.mean(np.diff(tempX))/2)
     binRangeY = np.append(neCoords[1][0,:]-np.mean(np.diff(neCoords[1][0,:]))/2, np.amax(neCoords[1][0,:])+np.mean(np.diff(neCoords[1][0,:]))/2)
 
-    neWeightedHist = np.histogram2d(imageCoords[0].flatten(), imageCoords[1].flatten(), bins=[binRangeX,binRangeY])
+    neWeightedHist = np.histogram2d(imageCoords[0].flatten(), imageCoords[1].flatten(), bins=[binRangeX,binRangeY], weights=weights)
 
     for i in range(len(log10b)):
         pdms[:,i], probScat[:,i], fractionUnscattered[i] = clusterDMFuncAtSubBeam(log10b[i], dlog10b, OmegaB, freq, neBGains, neWeightedHist, pixResWeights, clusterRedshift, z, scatThresh, ne, DMThresh, imageBGains, weights)
