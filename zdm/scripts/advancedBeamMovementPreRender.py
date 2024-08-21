@@ -55,12 +55,12 @@ def runner(clusterRedshift, name, clusterNeFile, trueClusterRedshift, sourceMagn
     relBeamPositions = np.array([[0,0]])
     ratesArr=np.zeros(len(relBeamPositions[:,0]))
     zvals = np.load('zvals.npy')
-    mux = 10**(np.arange(-3,6,0.02)+0.05)
+    mux = 10**(np.arange(-3,2,0.02)+0.05)
     np.save(opdir+'mux', np.log10(mux))
-    scatThresh = 10**np.arange(-4,3,0.01)
+    scatThresh = 10**np.arange(-4,3,0.02)
     xProbScat = scatThresh[:-1]*10**(np.diff(np.log10(scatThresh))[0]/2)
     np.save(opdir+'xProbScat', (xProbScat))
-    DMThresh = np.arange(0,15000,100)
+    DMThresh = np.arange(0,15000,200)
     np.save(opdir+'DMThresh', DMThresh)
 
     
@@ -110,6 +110,7 @@ def runner(clusterRedshift, name, clusterNeFile, trueClusterRedshift, sourceMagn
                     weights = rawWeights,
                     imageProj = proj,
                     imageCoords = tempCoords,
+                    DMThresh = DMThresh,
                     scatThresh = scatThresh
                 )   
                 np.save(opdir+'probScat_BP_'+str(formatted_number)+str(formatted_redshift), probScat) 

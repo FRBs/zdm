@@ -365,7 +365,7 @@ def vector_cum_lensed_power_law(Eth,*params):
     #print(len(logERange), len(logMu))
     result = np.zeros(Eth.shape)
     for i in range(len(zvals)):
-        if zD < zvals[i]:
+        if zD < np.round(zvals[i],2):
             probGrid = lensingPDF(np.e**logMu, zD, zvals[i], bPosNum, beami, opdir)
             if np.sum(np.isnan(probGrid))==len(probGrid):
                 result[i,:]=vector_cum_power_law(Eth[i,:],*params)

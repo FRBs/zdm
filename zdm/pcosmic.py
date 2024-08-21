@@ -288,7 +288,7 @@ def get_cluster_dm_mask(survey, opdir, bPosNum, dmvals, zvals, mask, clusterReds
         formatted_redshift = "{:03.2f}".format(zvals[j]) 
         pdms = np.load(opdir+'pdms_BP_'+str(bPosNum)+str(formatted_redshift)+'.npy')
         for i in range(survey.meta["NBINS"]):
-            if zvals[j] > clusterRedshift: 
+            if np.round(zvals[j],2) > clusterRedshift: 
                 if np.sum(np.isnan(pdms[:,i]))==len(pdms[:,i]):
                     new_mask[j,:,i] = mask[j,:]
                 else:

@@ -68,6 +68,11 @@ def mapRescaler(opdir, fileList, zTrue, zNew):
         header = hdulist[0].header
         header['CDELT1'] *= scale_factor
         header['CDELT2'] *= scale_factor
+        if 'CD1_1' in header:
+            header['CD1_1']= header['CDELT1']*np.cos(header['CROTA2'])
+            header['CD1_2']= -header['CDELT2']*np.sin(header['CROTA2'])
+            header['CD2_1']= header['CDELT1']*np.sin(header['CROTA2'])
+            header['CD2_2']= header['CDELT2']*np.cos(header['CROTA2'])
         fits.writeto(opdir+fileList[i],hdulist[0].data, header, overwrite=True)
         hdulist.close()
 
@@ -90,7 +95,7 @@ def mapWidener(magni, wideningFrac):
     completeMagni[wA:-wA,wA:-wA] = np.log10(magni)
     return 10**completeMagni, x
 
-def normalisedLensFuncsAcrossBeam(D, freq, thresh, nbins, bPos, proj, x, magniArr, pixCoordsArr, name, sourceMagniArr=False, muThresh = 10**(np.arange(-3,6,0.02)+0.05)):
+def normalisedLensFuncsAcrossBeam(D, freq, thresh, nbins, bPos, proj, x, magniArr, pixCoordsArr, name, sourceMagniArr=False, muThresh = 10**(np.arange(-3,2,0.02)+0.05)):
     FWHM = 1.22*(const.c/(freq))/D
     beamSigma=(FWHM/2.)*(2*np.log(2))**-0.5
     dlnb=-np.log(thresh)/nbins
@@ -153,7 +158,7 @@ def normalisedLensFuncsAcrossBeam(D, freq, thresh, nbins, bPos, proj, x, magniAr
 
 
 
-def clusterDMFuncAcrossBeam(D, freq, thresh, nbins, bPos, proj, clusterRedshift, z, ne, name, weights, imageProj, imageCoords, DMThresh = np.arange(0,15000,100), scatThresh = 10**np.arange(-4,3,0.01)):
+def clusterDMFuncAcrossBeam(D, freq, thresh, nbins, bPos, proj, clusterRedshift, z, ne, name, weights, imageProj, imageCoords, DMThresh = np.arange(0,15000,200), scatThresh = 10**np.arange(-4,3,0.02)):
     # assumed that scatThresh is uniformly spaced in log10, if the base is otherwise need to revise integration step evaluations
     FWHM = 1.22*(const.c/(freq))/D
     beamSigma=(FWHM/2.)*(2*np.log(2))**-0.5
@@ -181,7 +186,7 @@ def clusterDMFuncAcrossBeam(D, freq, thresh, nbins, bPos, proj, clusterRedshift,
     binRangeX = np.append(tempX-np.mean(np.diff(tempX))/2, np.amax(tempX)+np.mean(np.diff(tempX))/2)
     binRangeY = np.append(neCoords[1][0,:]-np.mean(np.diff(neCoords[1][0,:]))/2, np.amax(neCoords[1][0,:])+np.mean(np.diff(neCoords[1][0,:]))/2)
 
-    neWeightedHist = np.histogram2d(imageCoords[0].flatten(), imageCoords[1].flatten(), bins=[binRangeX,binRangeY], weights=weights)
+    neWeightedHist = np.histogram2d(imageCoords[0].flatten(), imageCoords[1].flatten(), bins=[binRangeX,binRangeY], weights=weights.flatten())
 
     for i in range(len(log10b)):
         pdms[:,i], probScat[:,i], fractionUnscattered[i] = clusterDMFuncAtSubBeam(log10b[i], dlog10b, OmegaB, freq, neBGains, neWeightedHist, pixResWeights, clusterRedshift, z, scatThresh, ne, DMThresh, imageBGains, weights)
