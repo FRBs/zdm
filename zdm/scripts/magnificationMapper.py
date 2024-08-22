@@ -69,10 +69,10 @@ def mapRescaler(opdir, fileList, zTrue, zNew):
         header['CDELT1'] *= scale_factor
         header['CDELT2'] *= scale_factor
         if 'CD1_1' in header:
-            header['CD1_1']= header['CDELT1']*np.cos(header['CROTA2'])
-            header['CD1_2']= -header['CDELT2']*np.sin(header['CROTA2'])
-            header['CD2_1']= header['CDELT1']*np.sin(header['CROTA2'])
-            header['CD2_2']= header['CDELT2']*np.cos(header['CROTA2'])
+            header['CD1_1'] *= scale_factor
+            header['CD1_2'] *= scale_factor
+            header['CD2_1'] *= scale_factor
+            header['CD2_2'] *= scale_factor
         fits.writeto(opdir+fileList[i],hdulist[0].data, header, overwrite=True)
         hdulist.close()
 
