@@ -113,11 +113,11 @@ def normalisedLensFuncsAcrossBeam(D, freq, thresh, nbins, bPos, proj, x, magniAr
         dataEdge = np.mean(np.concatenate((magniArr[:,0], magniArr[:,-1], magniArr[0,:], magniArr[-1,:])))
         count = 0
         tempMagni = magniArr.copy()
-        while (dataEdge -1) > 0.1: 
-            tempMagni,x = mapWidener(magniArr, 0.5+0.1*count)
-            dataEdge = np.mean(np.concatenate((tempMagni[:,0], tempMagni[:,-1], tempMagni[0,:], tempMagni[-1,:])))
-            count = count+1
-            print('trapped forever', count)
+        #while (dataEdge -1) > 0.1: 
+        #    tempMagni,x = mapWidener(magniArr, 0.5+0.1*count)
+        #    dataEdge = np.mean(np.concatenate((tempMagni[:,0], tempMagni[:,-1], tempMagni[0,:], tempMagni[-1,:])))
+        #    count = count+1
+        #    print('trapped forever', count)
         magniArr = tempMagni
         pixCoords = x
     
