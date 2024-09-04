@@ -415,7 +415,7 @@ class Grid:
             self.eff_table = eff_table
         Eff_thresh = F0 / self.eff_table
 
-        self.EF(self.state.energy.alpha, bandwidth)  # sets FtoE values - could have been done *WAY* earlier
+        self.EF(self.state.energy.alpha, self.bandwidth)  # sets FtoE values - could have been done *WAY* earlier
 
         self.thresholds = np.zeros([self.nthresh, survey.beam_b.size, self.zvals.size, self.dmvals.size])
 
