@@ -57,7 +57,7 @@ def generate(
 
     print("Generating ", Nsamples, " samples from ", base_survey)
     sample = grid.GenMCSample(Nsamples)
-    sample = np.array(sample)
+
     if savefile is not None:
         np.save(savefile, sample)
 
@@ -479,10 +479,10 @@ meta_data['survey_data']['telescope'] = {"BEAM": "ASKAP_1300", "DIAM": 12.0, "NB
 
 t0 = time.time()
 generate(
-    Nsamples=2,
+    Nsamples=10000,
     do_plots=False,
     base_survey="CRAFT_ICS_1300",
-    outfile="MC_CRAFT_ICS_1300_2",
+    outfile="MC_CRAFT_ICS_1300_3",
     savefile=None,
     param_dict=param_dict,
     meta_data=meta_data,

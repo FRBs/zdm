@@ -302,10 +302,14 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=True,Pn=True,dol
     dkdms=kdms-idms1
 
     if grid.state.MW.sigmaDMG == 0.0:
+        if np.any(DMobs < 0):
+            raise ValueError("Negative DMobs with no uncertainty")
+
         # Linear interpolation
         pvals=pdm[idms1]*(1.-dkdms) + pdm[idms2]*dkdms
     else:
-        dm_weights, iweights = calc_DMG_weights(DMobs, survey.DMhalo, survey.DMGs[nozlist], dmvals, grid.state.MW.sigmaDMG, grid.state.MW.sigmaHalo)
+        dm_weights, iweights = calc_DMG_weights(DMobs, survey.DMhalos[nozlist], survey.DMGs[nozlist], dmvals, grid.state.MW.sigmaDMG, 
+                                                 grid.state.MW.sigmaHalo, grid.state.MW.percentDMG, grid.state.MW.logu)
         pvals = np.zeros(len(idms1))
         # For each FRB
         for i in range(len(idms1)):
@@ -369,7 +373,7 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=True,Pn=True,dol
         psnr=np.zeros([DMobs.size]) # has already been cut to non-localised number
         
         # Evaluate thresholds at the exact DMobs
-        kdmobs=(survey.DMs - survey.DMGal)/ddm
+        kdmobs=(survey.DMs - np.median(survey.DMGs + survey.DMhalos))/ddm
         kdmobs=kdmobs[nozlist]
         kdmobs[kdmobs<0] = 0
         idmobs1=kdmobs.astype('int')
@@ -650,17 +654,22 @@ def calc_likelihoods_2D(grid,survey,
     izs1=kzs.astype('int')
     izs2=izs1+1
     dkzs=kzs-izs1 # applies to izs2
-    
+    # print("izs and idms:", izs1, idms1, izs2, idms2, flush=True)
+
     # Calculate probability
 
     if grid.state.MW.sigmaDMG == 0.0:
+        if np.any(DMobs < 0):
+            raise ValueError("Negative DMobs with no uncertainty")
+
         # Linear interpolation
         pvals = rates[izs1,idms1]*(1.-dkdms)*(1-dkzs)
         pvals += rates[izs2,idms1]*(1.-dkdms)*dkzs
         pvals += rates[izs1,idms2]*dkdms*(1-dkzs)
         pvals += rates[izs2,idms2]*dkdms*dkzs
     else:
-        dm_weights, iweights = calc_DMG_weights(DMobs, survey.DMhalo, survey.DMGs[zlist], dmvals, grid.state.MW.sigmaDMG, grid.state.MW.sigmaHalo)
+        dm_weights, iweights = calc_DMG_weights(DMobs, survey.DMhalos[zlist], survey.DMGs[zlist], dmvals, grid.state.MW.sigmaDMG, 
+                                                grid.state.MW.sigmaHalo, grid.state.MW.percentDMG, grid.state.MW.logu)
         pvals = np.zeros(len(izs1))
         for i in range(len(izs1)):
             pvals[i] = np.sum(rates[izs1[i],iweights[i]] * dm_weights[i] * (1.-dkzs[i]) 
@@ -789,7 +798,7 @@ def calc_likelihoods_2D(grid,survey,
         gamma=grid.state.energy.gamma
 
         # Evaluate thresholds at the exact DMobs
-        kdmobs=(survey.DMs - survey.DMhalo - survey.meta['DMG'])/ddm
+        kdmobs=(survey.DMs - np.median(survey.DMGs + survey.DMhalos))/ddm
         kdmobs=kdmobs[zlist]
         kdmobs[kdmobs<0] = 0
         idmobs1=kdmobs.astype('int')
@@ -911,7 +920,7 @@ def calc_likelihoods_2D(grid,survey,
     elif dolist==5:
         return llsum,lllist,expected,dolist5_return
 
-def calc_DMG_weights(DMEGs, DMhalo, DM_ISMs, dmvals, sigma_ISM=0.5, sigma_halo=15.0):
+def calc_DMG_weights(DMEGs, DMhalos, DM_ISMs, dmvals, sigma_ISM=0.5, sigma_halo_abs=15.0, percent_ISM=True, log=False):
     """
     Given an uncertainty on the DMG value, calculate the weights of DM values to integrate over
 
@@ -922,6 +931,7 @@ def calc_DMG_weights(DMEGs, DMhalo, DM_ISMs, dmvals, sigma_ISM=0.5, sigma_halo=1
         dmvals      =   Vector of DM values used
         sigma_ISM   =   Fractional uncertainty in DMG values
         sigma_halo  =   Uncertainty in DMhalo value (in pc/cm3)
+        percent_ISM =   Use sigma_ISM as a percentage uncertainty
 
     Returns:
         weights     =   Relative weights for each of the DM grid points
@@ -932,25 +942,45 @@ def calc_DMG_weights(DMEGs, DMhalo, DM_ISMs, dmvals, sigma_ISM=0.5, sigma_halo=1
 
     # Loop through the DMG of each FRB in the survey and determine the weights
     for i,DM_ISM in enumerate(DM_ISMs):
-        # Get absolute uncertainty in DM_ISM
-        sigma_ISM_abs = DM_ISM * sigma_ISM
-
         # Determine lower and upper DM values used
         # From 0 to DM_total
-        DM_total = DMEGs[i] + DM_ISM + DMhalo
+        if DMhalos[i] == 0.0:
+            sigma_halo_abs = 0.0
+            DM_total = DMEGs[i] + DM_ISM
+        else:
+            DM_total = DMEGs[i] + DM_ISM + DMhalos[i]
+
         idxs = np.where(dmvals < DM_total)
 
         # Get weights
         DMGvals = DM_total - dmvals[idxs] # Descending order because dmvals are ascending order
         ddm = dmvals[1] - dmvals[0]
 
-        pISM = st.norm.pdf(DMGvals, loc=DM_ISM, scale=sigma_ISM_abs) * ddm
-        pHalo = st.norm.pdf(DMGvals, loc=DMhalo, scale=sigma_halo) * ddm
-        
-        pDMG = np.convolve(pISM, pHalo, mode='full')
-        # Set upper limit of DMG = DM_total 
-        # Reversed because DMGvals are descending order which corresponds to DMEGvals (dmvals) in ascending order
-        pDMG = pDMG[-len(DMGvals):] 
+        # Get absolute uncertainty in DM_ISM
+        if percent_ISM:
+            sigma_ISM_abs = DM_ISM * sigma_ISM
+        else:
+            sigma_ISM_abs = sigma_ISM
+            sigma_ISM = sigma_ISM_abs / DM_ISM
+
+        if log:
+            pISM = st.lognorm.pdf(DMGvals, scale=DM_ISM, s=sigma_ISM) * ddm
+        else:
+            pISM = st.norm.pdf(DMGvals, loc=DM_ISM, scale=sigma_ISM_abs) * ddm
+    
+        if sigma_halo_abs == 0.0:
+            pDMG = pISM
+        else:
+            if log:
+                sigma_halo = sigma_halo_abs / DMhalos[i]
+                pHalo = st.lognorm.pdf(DMGvals, scale=DMhalos[i], s=sigma_halo) * ddm
+            else:
+                pHalo = st.norm.pdf(DMGvals, loc=DMhalos[i], scale=sigma_halo_abs) * ddm
+            
+            pDMG = np.convolve(pISM, pHalo, mode='full')
+            # Set upper limit of DMG = DM_total 
+            # Reversed because DMGvals are descending order which corresponds to DMEGvals (dmvals) in ascending order
+            pDMG = pDMG[-len(DMGvals):] 
 
         weights.append(pDMG)
         iweights.append(idxs)

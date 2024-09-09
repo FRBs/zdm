@@ -56,6 +56,7 @@ def main():
     parser.add_argument('--Pn', default=False, action='store_true', help="Include Pn")
     parser.add_argument('--rand', default=False, action='store_true', help="Randomise DMG within uncertainty")
     parser.add_argument('--log_halo', default=False, action='store_true', help="Give a log prior on the halo instead of linear")
+    parser.add_argument('--lin_host', default=False, action='store_true', help="Give a linear prior on host mean contribution")
     args = parser.parse_args()
 
     # Check correct flags are specified
@@ -106,9 +107,12 @@ def main():
         print("Using Pn")
     if args.log_halo:
         print("Log prior on halo")
+    if args.lin_host:
+        print("Linear prior on host")
 
-    MCMC2.mcmc_runner(MCMC2.calc_log_posterior, os.path.join(args.outdir, args.opfile), state, params, surveys, grid_params, 
-                nwalkers=args.walkers, nsteps=args.steps, nthreads=args.nthreads, Pn=args.Pn, log_halo=args.log_halo)
+    MCMC2.mcmc_runner(MCMC2.calc_log_posterior, os.path.join(args.outdir, args.opfile), state, params, surveys, 
+                        grid_params, nwalkers=args.walkers, nsteps=args.steps, nthreads=args.nthreads, Pn=args.Pn, 
+                        log_halo=args.log_halo, lin_host=args.lin_host)
 
 #==============================================================================
 

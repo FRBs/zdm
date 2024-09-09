@@ -502,7 +502,7 @@ class Survey:
         self.name = survey_name
         self.dmvals = dmvals
         # Load up
-        self.process_survey_file(filename, NFRB, iFRB)
+        self.process_survey_file(filename, NFRB, iFRB, min_lat=state.analysis.min_lat, dmg_cut=state.analysis.DMG_cut)
         # Check if repeaters or not and set relevant parameters
         # Now done in loading
         # self.repeaters=False
@@ -634,7 +634,8 @@ class Survey:
         """ Calculates extragalactic DMs assuming halo DM """
         self.DMhalo=DMhalo
         self.process_dmhalo(halo_method)
-        self.DMEGs=self.DMs-self.DMGals
+        self.DMEGs=self.DMs-self.DMGs - self.DMhalos
+        # self.DMEGs=self.DMs-self.DMGals
         # self.DMEGs_obs=self.DMs-self.DMGs-DMhalo
         # self.DMEGs = np.copy(self.DMEGs_obs)
         # self.DMEGs[self.DMEGs < 0] = 10. # Minimum value of 10. pc/cm^3
@@ -650,7 +651,7 @@ class Survey:
         # Constant halo
         if halo_method == 0:
             self.DMhalos = np.ones(self.DMs.shape) * self.DMhalo
-            self.DMGals = self.DMhalos + self.DMGs
+            # self.DMGals = self.DMhalos + self.DMGs
     
         # Yamasaki and Totani 2020
         elif halo_method == 1:
@@ -683,7 +684,7 @@ class Survey:
                     self.DMhalos = self.DMhalos + self.c[i][j] * np.abs(self.Gls)**i * np.abs(self.Gbs)**j
             
             self.DMhalos = self.DMhalos * self.DMhalo / 43
-            self.DMGals = self.DMhalos + self.DMGs
+            # self.DMGals = self.DMhalos + self.DMGs
 
         # Sanskriti et al. 2020
         elif halo_method == 2:
@@ -700,15 +701,15 @@ class Survey:
             if np.any(self.Gls == 1.0) or np.any(self.Gbs == 1.0):
                 raise ValueError('Galactic coordinates must be set if using directional dependence')
         
-            self.DMhalos = None
-            self.DMhalo = None
-            self.DMGals = np.zeros(len(self.frbs))
+            self.DMhalos = np.zeros(len(self.frbs))
+            self.DMhalo = 0
+            # self.DMGals = np.zeros(len(self.frbs))
             self.DMG_el = np.zeros(len(self.frbs))
             self.DMG_eu = np.zeros(len(self.frbs))
             for i, (Gl, Gb) in enumerate(zip(self.Gls, self.Gbs)):
-                self.DMGals[i], self.DMG_el[i], self.DMG_eu[i] = dmg_sanskriti2020.dmg_sanskriti2020(Gl, Gb)
+                self.DMGs[i], self.DMG_el[i], self.DMG_eu[i] = dmg_sanskriti2020.dmg_sanskriti2020(Gl, Gb)
 
-        self.DMGal = np.median(self.DMGals)
+        # self.DMGal = np.median(self.DMGals)
 
     def init_halo_coeffs(self):
         """
@@ -751,7 +752,7 @@ class Survey:
             self.ignored_Zlist = []
 
         # Pandas resolves None to Nan
-        if len(self.frbs["Z"])>0 and np.isfinite(self.frbs["Z"][0]):
+        if len(self.frbs["Z"])>0 and np.isfinite(self.frbs["Z"].values[0]):
             
             self.Zs=self.frbs["Z"].values
             # checks for any redhsifts identically equal to zero
@@ -849,7 +850,9 @@ class Survey:
 
     def process_survey_file(self,filename:str, 
                             NFRB:int=None,
-                            iFRB:int=0): 
+                            iFRB:int=0,
+                            min_lat=None,
+                            dmg_cut=None): 
         """ Loads a survey file, then creates 
         dictionaries of the loaded variables 
 
@@ -895,15 +898,23 @@ class Survey:
         self.frbs = frb_tbl.to_pandas()
         
         # Cut down?
-        if self.NFRB is None:
-            self.NFRB=len(self.frbs)
-        else:
+        # NFRB
+        if self.NFRB is not None:
             self.NFRB=min(len(self.frbs), NFRB)
             if self.NFRB < NFRB+iFRB:
                 raise ValueError("Cannot return sufficient FRBs, did you mean NFRB=None?")
             # Not sure the following linematters given the Error above
             themax = max(NFRB+iFRB,self.NFRB)
             self.frbs=self.frbs[iFRB:themax]
+        # Min latitude
+        if min_lat is not None:
+            self.frbs = self.frbs[np.abs(self.frbs['Gb'].values) > min_lat]
+        # Max DM
+        if dmg_cut is not None:
+            self.frbs = self.frbs[np.abs(self.frbs['DMG'].values) < dmg_cut]
+        # Get new number of FRBs
+        self.NFRB = len(self.frbs)
+        print(self.NFRB)
         
         # Vet
         vet_frb_table(self.frbs, mandatory=True)
@@ -1065,7 +1076,8 @@ class Survey:
         
         if addGalacticDM:
             # toAdd = self.DMhalo + self.meta['DMG']
-            toAdd = self.DMGal
+            toAdd = np.median(self.DMhalos + self.DMGs)
+            # toAdd = self.DMGal
         else:
             toAdd = 0.
         

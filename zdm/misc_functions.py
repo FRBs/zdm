@@ -2771,7 +2771,7 @@ def plot_grid_2(
 
     if DMlims is not None:
         for DMlim in DMlims:
-            if DMlim < DMmax:
+            if DMlim is not None and DMlim < DMmax:
                 DMlim /= dmvals[1] - dmvals[0]
                 ax.axhline(DMlim, 0, 1, color='white', linestyle="-")
 

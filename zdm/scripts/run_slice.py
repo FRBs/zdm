@@ -8,11 +8,7 @@ from zdm import iteration as it
 
 from zdm import parameters
 from astropy.cosmology import Planck18
-from zdm import MCMC2
 
-from zdm import repeat_grid as zdm_repeat_grid
-
-import argparse
 import matplotlib.pyplot as plt
 
 def main():
@@ -44,7 +40,13 @@ def main():
     # state.update_param('gamma', -0.995)
     # state.update_param('sigmaDMG', 0.0)
     # state.update_params({'sfr_n': 0.6858762799998724, 'alpha': 1.7665198706279686, 'lmean': 2.074825172832976, 'lsigma': 0.4003714831421404, 'lEmax': 41.13739600201252, 'lEmin': 39.551691554143936, 'gamma': -1.0348224611860115, 'H0': 61.22965004043496})
-    state.update_params({'sfr_n': 0.8806591144921403, 'alpha': 1.0451512509567609, 'lmean': 2.0411626762512824, 'lsigma': 0.4285714684532393, 'lEmax': 41.45631839060552, 'lEmin': 39.52262703306915, 'gamma': -1.1856556240866645, 'H0': 57.59867790323104})
+    # state.update_params({'sfr_n': 0.8806591144921403, 'alpha': 1.0451512509567609, 'lmean': 2.0411626762512824, 'lsigma': 0.4285714684532393, 'lEmax': 41.45631839060552, 'lEmin': 39.52262703306915, 'gamma': -1.1856556240866645, 'H0': 57.59867790323104})
+    # param_dict={'sfr_n': 0.8808527057055584, 'alpha': 0.7895161131856694, 'lmean': 2.1198711983468064, 'lsigma': 0.44944780033763343, 'lEmax': 41.18671139482926, 
+    #             'lEmin': 39.81049090314043, 'gamma': -1.1558450520609953, 'H0': 54.6887137195215, 'halo_method': 2}
+    param_dict={'sfr_n': 0.8808527057055584, 'alpha': 0.7895161131856694, 'lmean': 2.1198711983468064, 'lsigma': 0.44944780033763343, 'lEmax': 41.18671139482926, 
+                'lEmin': 39.81049090314043, 'gamma': -1.1558450520609953, 'H0': 54.6887137195215, 'halo_method': 0, 'sigmaDMG': 0.0, 'sigmaHalo': 0.0}
+    state.update_params(param_dict)
+    # state.update_param('halo_method', 1)
     state.update_param(args.param, vals[0])
 
     surveys, grids = loading.surveys_and_grids(survey_names = args.names, repeaters=args.repeaters, init_state=state)
@@ -71,7 +73,7 @@ def main():
             #     g.calc_constant()
             
             # try:
-            ll = it.get_log_likelihood(g, surveys[i], Pn=True)
+            ll = it.get_log_likelihood(g, surveys[i], Pn=True, psnr=True)
             # except ValueError:
             #     ll = -np.inf
 

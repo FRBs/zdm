@@ -19,6 +19,20 @@ class AnalysisParams(data_class.myDataClass):
             + "Std: faster - fine for max likelihood calculations, not as pretty"
         },
     )
+    min_lat: float = field(
+        default=None,
+        metadata={
+            "help": "Discard FRBs below this galactic latitude",
+            "unit": "Degrees"
+        }
+    )
+    DMG_cut: float = field(
+        default=None,
+        metadata={
+            "help": "Discard FRBs above this DMG",
+            "unit": "pc / cm3"
+        }
+    )
 
 # Cosmology parameters
 @dataclass
@@ -150,6 +164,14 @@ class MWParams(data_class.myDataClass):
         metadata={'help': 'Assumed DM for the Galactic ISM',
                   'unit': 'pc cm$^{-3}$',
         })
+    percentDMG: bool = field(
+        default=True,
+        metadata={'help': 'Use percentage uncertainty on DMG'}
+    )
+    logu: bool = field(
+        default=False,
+        metadata={'help': 'Use log normal distributions for DMG values'}
+    )
     sigmaDMG: float = field(
         default=0.5,
         metadata={'help': 'Fractional uncertainty in DM from Galactic ISM',

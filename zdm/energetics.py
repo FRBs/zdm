@@ -30,7 +30,7 @@ def init_igamma_splines(gammas, reinit=False,k=3):
     global SplineMin,SplineMax,NSpline,SplineLog
     for gamma in gammas:
         if gamma not in igamma_splines.keys() or reinit:
-            print(f"Initializing igamma_spline for gamma={gamma}")
+            # print(f"Initializing igamma_spline for gamma={gamma}")
             lavals = np.linspace(SplineMin, SplineMax, NSpline)
             avals = 10**lavals
             numer = np.array([float(mpmath.gammainc(

@@ -1,8 +1,8 @@
 #!/bin/bash
-#SBATCH --job-name=mcmc/HALO_log2
-#SBATCH --output=../mcmc/HALO_log2.out
-#SBATCH --ntasks=20
-#SBATCH --time=24:00:00
+#SBATCH --job-name=MC_no_psnr
+#SBATCH --output=../mcmc/MC_no_psnr.out
+#SBATCH --ntasks=10
+#SBATCH --time=8:00:00
 #SBATCH --export=NONE
 #SBATCH --mem=40GB
 # SBATCH --mem-per-cpu=5GB
@@ -23,11 +23,11 @@ source $ZDM/.zdm_env/bin/activate
 
 cd $ZDM/zdm
 
-outfile="mcmc/HALO_log2"
-walkers=40
+outfile="mcmc/MC_no_psnr"
+walkers=20
 steps=1000
 
-surveys="DSA FAST CRAFT_class_I_and_II private_CRAFT_ICS_892_14 private_CRAFT_ICS_1300_14 private_CRAFT_ICS_1632_14 parkes_mb_class_I_and_II"
+surveys="FAST CRAFT_class_I_and_II CRAFT_ICS_892 CRAFT_ICS_1300 CRAFT_ICS_1632 parkes_mb_class_I_and_II"
 # surveys="DSA CRAFT_class_I_and_II private_CRAFT_ICS_892_14 private_CRAFT_ICS_1300_14 private_CRAFT_ICS_1632_14 parkes_mb_class_I_and_II"
 rep_surveys="CHIME/CHIME_decbin_0_of_6 CHIME/CHIME_decbin_1_of_6 CHIME/CHIME_decbin_2_of_6 CHIME/CHIME_decbin_3_of_6 CHIME/CHIME_decbin_4_of_6 CHIME/CHIME_decbin_5_of_6"
 # cd data/Surveys/
@@ -40,5 +40,6 @@ echo "Walkers: $walkers"
 echo "Steps: $steps"
 
 # python scripts/MCMC_wrap.py -f $surveys -r $rep_surveys -p data/MCMC/params.json -o $outfile -w $walkers -s $steps -n 1
-python scripts/MCMC_wrap2.py -f $surveys -p data/MCMC/params3.json -o $outfile -w $walkers -s $steps -n 20 --Pn --log_halo
+python scripts/MCMC_wrap2.py -f MC_CRAFT_ICS_1300_2 -p data/MCMC/params2.json -o $outfile -w $walkers -s $steps -n 10 --lin_host
+# python scripts/MCMC_wrap2.py -f $surveys -p data/MCMC/params3.json -o $outfile -w $walkers -s $steps -n 20 --Pn
 # python scripts/MCMC_wrap2.py -r $rep_surveys -p data/MCMC/params.json -o $outfile -w $walkers -s $steps -n 1

@@ -32,7 +32,7 @@ from zdm import repeat_grid
 
 #==============================================================================
 
-def calc_log_posterior(param_vals, state, params, surveys_sep, grid_params, Pn=True, log_halo=False):
+def calc_log_posterior(param_vals, state, params, surveys_sep, grid_params, Pn=True, log_halo=False, lin_host=False):
     """
     Calculates the log posterior for a given set of parameters. Assumes uniform
     priors between the minimum and maximum values provided in 'params'.
@@ -46,6 +46,7 @@ def calc_log_posterior(param_vals, state, params, surveys_sep, grid_params, Pn=T
         grid_params (dictionary)    =   nz, ndm, dmmax
         Pn          (bool)          =   Include Pn or not
         log_halo    (bool)          =   Use a log uniform prior on DMhalo
+        lin_host    (bool)          =   Use a linear uniform prior on host mean
     
     Outputs:
         llsum       (double)        =   Total log likelihood for param_vals which is equivalent
@@ -59,11 +60,14 @@ def calc_log_posterior(param_vals, state, params, surveys_sep, grid_params, Pn=T
     param_dict = {}
 
     for i, (key,val) in enumerate(params.items()):
-        if param_vals[i] < val['min'] or param_vals[i] > val['max']:
-            in_priors = False
-            break
+        # if param_vals[i] < val['min'] or param_vals[i] > val['max']:
+        #     in_priors = False
+        #     break
 
-        param_dict[key] = param_vals[i]
+        if lin_host and key == 'lmean':
+            param_dict[key] = np.log10(param_vals[i])
+        else:
+            param_dict[key] = param_vals[i]
 
     if in_priors is False:
         llsum = -np.inf
@@ -121,7 +125,7 @@ def calc_log_posterior(param_vals, state, params, surveys_sep, grid_params, Pn=T
             # calculate all the likelihoods
             llsum = 0
             for s, grid in zip(surveys, grids):
-                llsum += it.get_log_likelihood(grid,s,Pn=Pn)
+                llsum += it.get_log_likelihood(grid,s,Pn=Pn, psnr=False)
 
         except ValueError as e:
             print("ValueError, setting likelihood to -inf: " + str(e))
@@ -137,7 +141,7 @@ def calc_log_posterior(param_vals, state, params, surveys_sep, grid_params, Pn=T
 
 #==============================================================================
 
-def mcmc_runner(logpf, outfile, state, params, surveys, grid_params, nwalkers=10, nsteps=100, nthreads=1, Pn=True, log_halo=False):
+def mcmc_runner(logpf, outfile, state, params, surveys, grid_params, nwalkers=10, nsteps=100, nthreads=1, Pn=True, log_halo=False, lin_host=False):
     """
     Handles the MCMC running.
 
@@ -175,7 +179,7 @@ def mcmc_runner(logpf, outfile, state, params, surveys, grid_params, nwalkers=10
     
     start = time.time()
     with mp.Pool() as pool:
-        sampler = emcee.EnsembleSampler(nwalkers, ndim, logpf, args=[state, params, surveys, grid_params, Pn, log_halo], backend=backend, pool=pool)
+        sampler = emcee.EnsembleSampler(nwalkers, ndim, logpf, args=[state, params, surveys, grid_params, Pn, log_halo, lin_host], backend=backend, pool=pool)
         sampler.run_mcmc(starting_guesses, nsteps, progress=True)
     end = time.time()
     print("Total time taken: " + str(end - start))
