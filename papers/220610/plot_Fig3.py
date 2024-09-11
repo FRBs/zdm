@@ -1,20 +1,9 @@
 """ 
-This script creates zdm grids and plots localised FRBs for FRB 20220610A,
-using the average ICS conditions over which all localised
-FRBs have been observed with ASKAP.
+This script plots Figure 3 of Ryder et al.
 
-It will produce the following sets of outputs in directory 220610/
-- Planck_[param]_[min/max].pdf where:
-    - param runs over the six parameters of the FRB population
-        (lEmax, gamma, alpha, sfr_n, lmean host, lsigma host)
-    - max/min represents cases wherre the above parameters has been
-        set to its 90% min/max confidence limit respectively, and
-        other parameters are at values corresponding to this, when
-        assuming the Planck value of H0 (~67.4 km/s/Mpc)
-
-It also does this for the new updated value of Emax ("newE.pdf"),
-the "old_standard.pdf") values of both parameters and H0=73km/s/Mpc
-and "Planck_standard.pdf" for best-fit values given H0=67.4 km/s/Mpc
+It produces output which is similar to
+plot_220610.py
+but only for the standard parameetr set.
 """
 import os
 
@@ -65,7 +54,7 @@ def main():
     
     opfile=opdir+"newE.pdf"
     zvals,std_pzgdm=plot_expectations(names,sdir,vparams,opfile)
-    exit()
+    
     
 def plot_expectations(names,sdir,vparams,opfile,intermediate=False,sumit=True):
     # Initialise surveys and grids
@@ -112,7 +101,8 @@ def plot_expectations(names,sdir,vparams,opfile,intermediate=False,sumit=True):
                 name=opdir + name + ".pdf",
                 norm=3,
                 log=True,
-                label="$\\log_{10} p({\\rm DM}_{\\rm EG},z)$  [a.u.]",
+                #label="$\\log_{10} p({\\rm DM}_{\\rm EG},z)$  [a.u.]",
+                label="$\\log_{10}$ (detection probability)",
                 project=False,
                 FRBDM=s.DMEGs,
                 FRBZ=s.frbs["Z"],
@@ -139,14 +129,15 @@ def plot_expectations(names,sdir,vparams,opfile,intermediate=False,sumit=True):
             name=opfile,
             norm=3,
             log=True,
-            label="$\\log_{10} p({\\rm DM}_{\\rm EG},z)$ [a.u.]",
+            #label="$\\log_{10} p({\\rm DM}_{\\rm EG},z)$ [a.u.]",
+            label="$\\log_{10}$ (detection probability)",
             project=False,
             FRBDM=frbdmvals,
             FRBZ=frbzvals,
             Aconts=[0.01, 0.1, 0.5],
             zmax=2,
             DMmax=3000,
-            DMlines=nozlist,
+            #DMlines=nozlist,
             special=[[DMEG220610,Z220610,'white','*'],[DMEG190520,Z190520,'black','+']]
         )
     # does plot of p(DM|z)
