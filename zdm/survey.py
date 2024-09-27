@@ -957,12 +957,17 @@ class Survey:
         self.Ss=self.SNRs/self.SNRTHRESHs
         self.TOBS=self.meta['TOBS']
         self.NORM_FRB=self.meta['NORM_FRB']
-        self.Ss[np.where(self.Ss < 1.)[0]]=1
 
         # sets the 'beam' values to unity by default
         self.beam_b=np.array([1])
         self.beam_o=np.array([1])
         self.NBEAMS=1
+        
+        # checks for incorrectSNR values
+        toolow = np.where(self.Ss < 1.)[0]
+        if len(toolow) > 0:
+            print("FRBs ",toolow," have SNR < SNRTHRESH!!! Please correct this. Exiting...")
+            exit()
         
         print("FRB survey sucessfully initialised with ",self.NFRB," FRBs starting from", self.iFRB)
     
