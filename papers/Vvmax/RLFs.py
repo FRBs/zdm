@@ -1,3 +1,21 @@
+"""
+Radio luminosity functions used to fit histograms of (1/Vmax)
+as a function of burst energy
+
+Throughout, we use the notation:
+    gamma: differential slope of the luminosity function
+    Emax: maximum FRB energy (power-law) or characteristic
+        turn-over energy (Schechter)
+    A: Amplitude, being the normalisation/leading constant of the RLF
+    
+    Method: Key to indicate fitting method.
+        0: a Schechter function, evaluated at bin centres
+        1: Schechter function, integrated over the bin
+        2: Schechter function fit in log-space, integrated over the bin
+        3: power-law, evaluated at bin centre
+                
+"""
+
 import numpy as np
 from scipy.integrate import quad
 
@@ -11,7 +29,14 @@ def make_first_guess(E,L, params,method):
     Makes a first guess by setting the amplitude
     to that of the first bin
     
-    Params are always gamma,Emax
+    Inputs:
+        E [array, float]: array of energies at bin centres
+        L [float]: histogram of luminosity function L(E) ~ p(E)dE
+        params [array,float]: vector of power-law slope gamma, and Emax
+    
+    Outputs:
+        guess for parameter fits: intercept, gamma, Emax
+    
     """
     if method==0:
         mag = Schechter(E[0],1.,params[0],params[1])
@@ -30,9 +55,6 @@ def make_first_guess(E,L, params,method):
     
     return guess
     
-    
-
-
 def logIntegrateSchechter(log10E,A,gamma,log10Emax):
     """
     Returns the logarithms of the IntegrateSchechter function
