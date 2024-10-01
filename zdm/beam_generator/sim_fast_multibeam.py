@@ -3,9 +3,12 @@ This program simulates N Gaussian beams on the sky,
 takes their envelope, then converts them into
 beamdata files for use with surveys in the zdm code
 
-It is best utilised for multibeam beam patterns
+It is best utilised for multibeam beam patterns.
 
-E.g. use 'FAST.dat' for input
+E.g. use 'FAST.dat' for input. In theory,
+this could be easily adapted to other
+multibeam systems
+
 """
 
 
@@ -56,9 +59,9 @@ def calculate_weights(xvals,yvals):
     # calculates distances from the origin
     dists = (xvals**2 + yvals**2)**0.5
     
-    sinefactor = np.sin(dists) #deformation factor due to curvature of sky
+    cosfactor = np.cos(dists) #deformation factor due to curvature of sky
     base = (xvals[0,1]-xvals[0,0])**2 # pixel size
-    weights = sinefactor * base
+    weights = cosfactor * base
     return weights
 
 def plot_histogram(h,b):

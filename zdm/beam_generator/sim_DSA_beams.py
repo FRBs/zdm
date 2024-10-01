@@ -1,13 +1,15 @@
 """
 This program simulates a single Gaussian beam, and
-assumes N formed beams from M identical antennas are formed
+assumes N formed beams from M identical antennas are formed.
+
+Values relevant to DSA are hard-coded.
 """
 
 import numpy as np
 
 def main():
     """
-    main program
+    main program. Apologies that inputs and outputs are hard-coded for now!
     """
     
     Freq,FWHM,Nants,axs,ays,Nbeams,bzs,bas,pz,pa = read_simple_beamfile('DSA110_beamfile.dat')
@@ -20,7 +22,7 @@ def main():
     
     envelope = sim_formed_beams(axs,ays,Freq,bzs,bas,gridz,grida)
     
-    primary = apply_primary_beamshape(envelope,pz,pa,FWHM,gridz,grida)
+    primary = apply_primary_beamshape(pz,pa,FWHM,gridz,grida)
     
     combined = primary * envelope
     
@@ -72,15 +74,28 @@ def main():
         plt.savefig('dsa_beam_pattern.pdf')
         plt.close()
 
-def apply_primary_beamshape(envelope,pz,pa,FWHM,gridz,grida):
+def apply_primary_beamshape(pz,pa,FWHM,gridz,grida):
     """
     Applies primary beamshape correction to formed beams
+    
+    pz [float]: zenith value of beam pointing direction [degrees]
+    
+    pa [float]: azimuth value of beam pointing direction [degrees]
+    
+    FWHM [float]: full width, half-max of the Gaussian beam in degrees
+    
+    gridz [array of floats]: zenith angle values of each grid point [degrees]
+    
+    grida [array of floats]: azimuth angle values of each grid point [degrees]
+    
+    Returns: primary beam values on the grid
     """
     
     # calculates distances from grid points to primary
     # beam centre
     px,py,pz = get_xyz(pz,pa)
     
+    # gets unit vectors in grid directions
     gx,gy,gz = get_xyz(gridz,grida)
     
     cosines = px*gx + py*gy + pz*gz
@@ -110,6 +125,12 @@ def Gauss(r,sigma):
 def get_xyz(z,a):
     """
     returns x,y,z coordinates of given zenith, azimuth position
+    
+    z [float]: zenith angle [degrees]
+    
+    a [flot]: azimuth angle [degrees]
+    
+    Returns: x,y,z unit vectors in direction of a,z
     """
     zr = z * np.pi/180.
     ar = a * np.pi/180.
