@@ -1,0 +1,45 @@
+# %ECSV 1.0
+# ---
+# datatype:
+# - {name: TNS, datatype: string}
+# - {name: BW, datatype: string, subtype: 'float64[null]'}
+# - {name: DM, datatype: float64}
+# - {name: DMG, datatype: float64}
+# - {name: FBAR, datatype: string, subtype: 'float64[null]'}
+# - {name: FRES, datatype: string, subtype: 'float64[null]'}
+# - {name: Gb, datatype: string, subtype: 'float64[null]'}
+# - {name: Gl, datatype: string, subtype: 'float64[null]'}
+# - {name: NREP, datatype: int64}
+# - {name: SNR, datatype: float64}
+# - {name: SNRTHRESH, datatype: float64}
+# - {name: THRESH, datatype: string, subtype: 'float64[null]'}
+# - {name: TRES, datatype: string, subtype: 'float64[null]'}
+# - {name: WIDTH, datatype: string, subtype: 'float64[null]'}
+# - {name: XDec, datatype: string, subtype: 'float64[null]'}
+# - {name: XRA, datatype: string, subtype: 'float64[null]'}
+# - {name: Z, datatype: string, subtype: 'float64[null]'}
+# meta: !!omap
+# - {survey_data: "{\n    \"observing\": {\n        \"NORM_FRB\": 17,\n        \"NORM_REPS\": 1,\n        \"TOBS\": 0.026132396205047315\n    },\n    \"telescope\"\
+#     : {\n        \"BEAM\": \"CHIME/Nbounds30/chime_bound_21_of_30\",\n        \"BMETHOD\": 3,\n        \"BTHRESH\": 0.0,\n        \"BW\": 400.0,\n \
+#     \       \"DIAM\": -1.0,\n        \"FBAR\": 600.0,\n        \"FRES\": 0.0244,\n        \"NBEAMS\": 1,\n        \"NBINS\": 1,\n  \
+#     \      \"THRESH\": 5.0,\n        \"TRES\": 0.983,\n        \"WBIAS\": \"CHIME\",\n        \"WIDTH\": 0.772235294117647,\n      \
+#     \  \"WMETHOD\": 0\n    }\n}"}
+# schema: astropy-2.0
+TNS BW DM DMG FBAR FRES Gb Gl NREP SNR SNRTHRESH THRESH TRES WIDTH XDec XRA Z
+FRB20180812A "" 802.5 80.4 "" "" "" "" 1 12.5 10.0 "" "" "" "" "" ""
+FRB20180904A "" 361.1 55.4 "" "" "" "" 1 40.8 10.0 "" "" "" "" "" ""
+FRB20181119C "" 285.0 44.7 "" "" "" "" 1 27.0 10.0 "" "" "" "" "" ""
+FRB20181126A "" 494.2 49.6 "" "" "" "" 1 51.6 10.0 "" "" "" "" "" ""
+FRB20181129B "" 405.9 62.1 "" "" "" "" 1 11.8 10.0 "" "" "" "" "" ""
+FRB20181221B "" 1395.0 61.9 "" "" "" "" 1 26.7 10.0 "" "" "" "" "" ""
+FRB20190115B "" 748.3 63.8 "" "" "" "" 1 18.2 10.0 "" "" "" "" "" ""
+FRB20190124D "" 340.1 45.6 "" "" "" "" 1 9.1 10.0 "" "" "" "" "" ""
+FRB20190131E "" 279.8 43.3 "" "" "" "" 1 20.9 10.0 "" "" "" "" "" ""
+FRB20190208B "" 714.2 60.6 "" "" "" "" 1 96.4 10.0 "" "" "" "" "" ""
+FRB20190228B "" 1115.2 71.3 "" "" "" "" 1 30.5 10.0 "" "" "" "" "" ""
+FRB20190328C "" 472.9 64.7 "" "" "" "" 1 18.2 10.0 "" "" "" "" "" ""
+FRB20190531A "" 324.7 44.0 "" "" "" "" 1 10.9 10.0 "" "" "" "" "" ""
+FRB20190619B "" 270.6 45.9 "" "" "" "" 1 19.7 10.0 "" "" "" "" "" ""
+FRB20190630C "" 1660.3 68.0 "" "" "" "" 1 10.8 10.0 "" "" "" "" "" ""
+FRB20190701C "" 974.2 58.4 "" "" "" "" 1 11.5 10.0 "" "" "" "" "" ""
+FRB20190212A "" 301.8 52.9 "" "" "" "" 2 9.9 10.0 "" "" "" "" "" ""

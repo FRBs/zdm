@@ -6,7 +6,7 @@
         "source_evolution": 0
     },
     "IGM": {
-        "F": 0.32
+        "logF": -0.49485
     },
     "MW": {
         "DMhalo": 50,
@@ -15,10 +15,6 @@
     "analysis": {
         "NewGrids": true,
         "sprefix": "Std"
-    },
-    "beam": {
-        "Bthresh": 0.0,
-        "Bmethod": 2
     },
     "cosmo": {
         "H0": 67.66,
@@ -44,7 +40,6 @@
         "Wlogmean": 0.0,
         "Wlogsigma": 0.97,
         "Wthresh": 0.5,
-        "Wmethod": 2,
         "Wbins": 10,
         "Wscale": 2
     },

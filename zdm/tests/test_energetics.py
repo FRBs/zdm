@@ -22,4 +22,4 @@ def test_init_gamma():
                       float(energetics.igamma_linear[-1](1.)),
                       rtol=1e-3)
                       
-
+test_init_gamma()

@@ -1,0 +1,15 @@
+BW 400 #MHz
+NFRB 5 #Number of FRBs
+BEAM chime_bound_27_of_30 #prefix of beam file
+TOBS 0.002870750662128681 # Actually the solid angle of observation!
+THRESH 5 #Jy ms to a 1 ms burst, very basic. 95% comleteness. Likely lower
+SNRTHRESH 10 # signal-to-noise threshold: scales jy ms to snr.
+TRES 0.983 #ms
+FRES 0.0244 #Mhz
+FBAR 600 # mean frequency (MHz)
+KEY  TNS         DM     DMG     SNR     WIDTH  NREP
+FRB  FRB20180910A  684.4   58.1   36.6    0.205  1 
+FRB  FRB20181225B  299.3   58.3   19.1    1.297  1 
+FRB  FRB20190609A  316.6   58.4   10.8    2.120  1 
+FRB  FRB20190609B  292.2   52.3   41.2    0.550  1 
+FRB  FRB20190614A 1064.0   52.3   12.4    0.000  1 

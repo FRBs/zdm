@@ -7,20 +7,46 @@ from IPython import embed
 igamma_splines = {}
 igamma_linear = {}
 igamma_linear_log10 = {}
+SplineMin = -6
+SplineMax = 6
+NSpline = 1000
+SplineLog = True
 
 ############## this section defines different luminosity functions ##########
 
-def init_igamma_splines(gammas, reinit=False):
+def init_igamma_splines(gammas, reinit=False,k=3):
+    """
+    gammas [list of floats]: list of values of gamma at which splines
+        must be created
+    reinit [bool]: if True, will re-initialise even if a spline for
+        that gamma has already been created
+    k [int]: degree of spline to use. 3 by default (cubic splines).
+        Formal range: integers 1 <= k <= 5. Do NOT use 2 or 4.
+    
+    If SplineLog is set, interpolations are performed in log-space,
+        i.e. the results is a spline interpolation of the log10 of the
+        answer in terms of the log10 of the input
+    """
+    global SplineMin,SplineMax,NSpline,SplineLog
     for gamma in gammas:
         if gamma not in igamma_splines.keys() or reinit:
             print(f"Initializing igamma_spline for gamma={gamma}")
-            # values
-            avals = 10**np.linspace(-6, 6., 1000)
+            lavals = np.linspace(SplineMin, SplineMax, NSpline)
+            avals = 10**lavals
             numer = np.array([float(mpmath.gammainc(
                 gamma, a=iEE)) for iEE in avals])
-            # iGamma
-            igamma_splines[gamma] = interpolate.splrep(avals, numer)
-
+            if SplineLog:
+                # check for literal zeros, set them to small values
+                zero = np.where(numer == 0.)[0]
+                ismall = zero[0]-1
+                smallest = numer[ismall]
+                numer[zero] = smallest
+                lnumer = np.log10(numer)
+                igamma_splines[gamma] = interpolate.splrep(lavals, lnumer,k=k)
+            else:
+                igamma_splines[gamma] = interpolate.splrep(avals, numer,k=k)
+            
+  
 def init_igamma_linear(gammas:list, reinit:bool=False, 
                        log:bool=False):
     """ Setup the linear interpolator for gamma
@@ -39,7 +65,7 @@ def init_igamma_linear(gammas:list, reinit:bool=False,
             print(f"Initializing igamma_linear for gamma={gamma} with log10")
 
             # values
-            avals = 10**np.linspace(-7.5, 6., 1000)
+            avals = 10**np.linspace(-8, 6., 1000)
 
             numer = np.array([float(mpmath.gammainc(
                 gamma, a=iEE)) for iEE in avals])
@@ -159,7 +185,7 @@ def vector_diff_power_law(Eth,*params):
     
     low=np.where(Eth < Emin)[0]
     if len(low) > 0:
-        result[low]=1.  # This was 0 and I think it was wrong -- JXP
+        result[low]=0.
     high=np.where(Eth > Emax)[0]
     if len(high) > 0:
         result[high]=0.
@@ -200,6 +226,8 @@ def vector_cum_gamma_spline(Eth:np.ndarray, *params):
     Returns:
         np.ndarray: [description]
     """
+    global SplineLog
+    
     params=np.array(params)
     Emin=params[0]
     Emax=params[1]
@@ -210,12 +238,20 @@ def vector_cum_gamma_spline(Eth:np.ndarray, *params):
     Eth_Emax = Eth/Emax
     if gamma not in igamma_splines.keys():
         init_igamma_splines([gamma])
-    numer = interpolate.splev(Eth_Emax, igamma_splines[gamma])
+    if SplineLog:
+        numer = 10**interpolate.splev(np.log10(Eth_Emax), igamma_splines[gamma])
+    else:
+        numer = interpolate.splev(Eth_Emax, igamma_splines[gamma])
     result=numer/norm
 
     # Low end
-    low= Eth < Emin
-    result[low]=1.
+    low = Eth < Emin
+    
+    if np.isscalar(result):
+        if low:
+            result = 1.
+    else:
+        result[low]=1.
     return result
 
 def vector_cum_gamma_linear(Eth:np.ndarray, *params):
@@ -310,6 +346,6 @@ def vector_diff_gamma(Eth,*params):
     result= (Eth/Emax)**(gamma-1) * np.exp(-Eth/Emax) / norm
     
     low= Eth < Emin
-    result[low]=1.  # This was 0 and I think it was wrong
+    result[low]=0. 
     
     return result

@@ -9,7 +9,7 @@ from pkg_resources import resource_filename
 import pandas
 
 from zdm import iteration as it
-from zdm.craco import loading
+from zdm import loading
 from zdm import io
 from zdm.tests import tstutils
 
@@ -29,16 +29,26 @@ def test_cube_run():
     # use default parameters
     # Initialise survey and grid 
     # For this purporse, we only need two different surveys
-    #names=['CRAFT/FE','CRAFT/ICS','CRAFT/ICS892','CRAFT/ICS1632','PKS/Mb']
-    names=['CRAFT/FE','CRAFT/ICS','CRAFT/ICS892','PKS/Mb']
-    sdir = os.path.join(resource_filename('zdm', 'data'), 'Surveys')
-    surveys=[]
-    grids=[]
+    # the defaults are below - passing these will do nothing
+    survey_names = ['CRAFT/FE', 
+                    'CRAFT_ICS_1632',
+                    'CRAFT_ICS_892', 
+                    'CRAFT_ICS_1300',
+                    'PKS/Mb']
+    #sdir = os.path.join(resource_filename('zdm', 'data'), 'Surveys')
+    #surveys=[]
+    #grids=[]
+
+    '''
+    # We should be using real_loading
     for name in names:
         s,g = loading.survey_and_grid(
             survey_name=name,NFRB=None,sdir=sdir) # should be equal to actual number of FRBs, but for this purpose it doesn't matter
         surveys.append(s)
         grids.append(g)
+    '''
+    surveys, grids = loading.surveys_and_grids(
+        nz=500, ndm=1400) # Small number to keep this cheap
     
     
     ### gets cube files
@@ -72,9 +82,8 @@ def test_cube_run():
     current = [item//2 for item in cube_shape]
     run = np.ravel_multi_index(current, cube_shape, order='F')
 
-    it.cube_likelihoods(
-        grids,surveys,vparam_dict,
-        cube_dict,run,howmany,outfile)
+    #pytest.set_trace()
+    it.cube_likelihoods(grids,surveys,vparam_dict, cube_dict,run,howmany,outfile)
     
     # now we check that the output file exists
     #assert os.path.exists(outfile)
@@ -87,7 +96,7 @@ def test_cube_run():
     #    pDM|z_tot, pz_tot,pz|DM_tot, pDM_tot
     # =18+Nsurveys*5
     
-    ns=len(names)
+    ns=len(surveys)
 
     # Load with pandas to assess
     df = pandas.read_csv(outfile)
@@ -108,33 +117,5 @@ def test_cube_run():
     zdm_v2= ds.p_DMgz + ds.p_z
     assert check_accuracy(zdm_v1,zdm_v2)
     
-    '''
-    # now check it has the right dimensions
-    with open(outfile, 'r') as infile:
-        lines=infile.readlines()
-        assert len(lines)==howmany+1
-        for i,line in enumerate(lines):
-            if i==0:
-                colmns = line.split(',')
-                continue
-            words=line.split(',')
-            
-            embed(header='106 of test_cube')
-            # three ways of calculating lltot
-            lltot_v0=float(words[-8])
-            lltot_v1=0
-            for j in np.arange(ns):
-                lltot_v1 += float(words[9+5*j])
-            lltot_v2=float(words[-5])+float(words[-6])+float(words[-7])
-            
-            # three ways of calculating p(z,DM)
-            zdm_v1=float(words[-3])+float(words[-4])
-            zdm_v2=float(words[-1])+float(words[-2])
-            
-            assert check_accuracy(zdm_v1,zdm_v2)
-            
-            assert check_accuracy(lltot_v0,lltot_v1)
-            assert check_accuracy(lltot_v0,lltot_v2)
-    '''
 
-#test_cube_run()            
+test_cube_run()

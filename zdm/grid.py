@@ -7,6 +7,7 @@ from zdm import misc_functions
 from zdm import energetics
 from zdm import pcosmic
 from zdm import io
+import time
 
 class Grid:
     """A class to hold a grid of z-dm plots
@@ -16,10 +17,8 @@ class Grid:
     
     It also assumes a linear uniform grid.
     """
-    
-    def __init__(self, survey, state,
-                 zDMgrid, zvals, dmvals, smear_mask,
-                 wdist):
+
+    def __init__(self, survey, state, zDMgrid, zvals, dmvals, smear_mask, wdist, prev_grid=None):
         """
         Class constructor.
 
@@ -31,20 +30,23 @@ class Grid:
                 it in one place affects them all.
             wdist (bool):
                 If True, allow for a distribution of widths
+            prev_grid (grid.Grid):
+                Another grid with the same parameters just 
+                corresponding to a different survey
         """
-        self.grid=None
+        self.grid = None
         self.survey = survey
-        self.verbose=False
+        self.verbose = False
         # Beam
-        self.beam_b=survey.beam_b
-        self.beam_o=survey.beam_o
-        self.b_fractions=None
+        self.beam_b = survey.beam_b
+        self.beam_o = survey.beam_o
+        self.b_fractions = None
         # State
         self.state = state
-        
 
-        self.source_function=cos.choose_source_evolution_function(
-            state.FRBdemo.source_evolution)
+        self.source_function = cos.choose_source_evolution_function(
+            state.FRBdemo.source_evolution
+        )
 
         # Energetics
         if self.state.energy.luminosity_function in [3]:
@@ -53,102 +55,113 @@ class Grid:
             self.use_log10 = False
         self.luminosity_function = self.state.energy.luminosity_function
         self.init_luminosity_functions()
+        self.nuObs= survey.meta['FBAR']*1e6 #from MHz to Hz
         
-        self.nuObs=survey.meta['FBAR']*1e6 #from MHz to Hz
         # Init the grid
         #   THESE SHOULD BE THE SAME ORDER AS self.update()
-        self.parse_grid(zDMgrid.copy(),zvals.copy(),dmvals.copy())  
-        self.calc_dV()
-        self.smear_dm(smear_mask.copy())
-        if wdist:
-            efficiencies=survey.efficiencies # two dimensions
-            weights=survey.wplist
+        self.parse_grid(zDMgrid.copy(), zvals.copy(), dmvals.copy())
+
+        if prev_grid is None:
+            self.calc_dV()
+            self.smear_dm(smear_mask.copy())
         else:
+            self.dV = prev_grid.dV.copy()
+            self.smear = prev_grid.smear.copy()
+            self.smear_grid = prev_grid.smear_grid.copy()
+            
+        if wdist:
+            efficiencies = survey.efficiencies  # two dimensions
+            weights = survey.wplist
+        else:
+            efficiencies = survey.mean_efficiencies
+            weights = None
+            self.calc_thresholds(survey.meta["THRESH"], efficiencies, weights=weights)
             efficiencies=survey.mean_efficiencies
             weights=None
-        self.efficiencies=efficiencies
-        self.weights=weights
-        self.calc_thresholds(survey.meta['THRESH'],
+        # Warning -- THRESH could be different for each FRB, but we don't treat it that way
+        thresh = survey.meta["THRESH"]
+        # was np.median(survey.frbs['THRESH'])
+        self.calc_thresholds(thresh,
                              efficiencies,
                              weights=weights)
         # Calculate
         self.calc_pdv()
-        self.set_evolution() # sets star-formation rate scaling with z - here, no evoltion...
-        self.calc_rates() #includes sfr smearing factors and pdv mult
-
-        
+        self.set_evolution()  # sets star-formation rate scaling with z - here, no evoltion...
+        self.calc_rates()  # includes sfr smearing factors and pdv mult
 
     def init_luminosity_functions(self):
         """ Set the luminsoity function for FRB energetics """
-        if self.luminosity_function==0:  # Power-law
-            self.array_cum_lf=energetics.array_cum_power_law
-            self.vector_cum_lf=energetics.vector_cum_power_law
-            self.array_diff_lf=energetics.array_diff_power_law
-            self.vector_diff_lf=energetics.vector_diff_power_law
-        elif self.luminosity_function==1:  # Gamma function
-            embed(header='79 of grid -- BEST NOT TO USE THIS!!!!')
-            self.array_cum_lf=energetics.array_cum_gamma
-            self.vector_cum_lf=energetics.vector_cum_gamma
-            self.array_diff_lf=energetics.array_diff_gamma
-            self.vector_diff_lf=energetics.vector_diff_gamma
-        elif self.luminosity_function==2:  # Spline gamma function
-            self.array_cum_lf=energetics.array_cum_gamma_spline
-            self.vector_cum_lf=energetics.vector_cum_gamma_spline
-            self.array_diff_lf=energetics.array_diff_gamma
-            self.vector_diff_lf=energetics.vector_diff_gamma
-        elif self.luminosity_function==3:  # Linear + log10
-            self.array_cum_lf=energetics.array_cum_gamma_linear
-            self.vector_cum_lf=energetics.vector_cum_gamma_linear
-            self.array_diff_lf=energetics.array_diff_gamma
-            self.vector_diff_lf=energetics.vector_diff_gamma
+        if self.luminosity_function == 0:  # Power-law
+            self.array_cum_lf = energetics.array_cum_power_law
+            self.vector_cum_lf = energetics.vector_cum_power_law
+            self.array_diff_lf = energetics.array_diff_power_law
+            self.vector_diff_lf = energetics.vector_diff_power_law
+        elif self.luminosity_function == 1:  # Gamma function
+            embed(header="79 of grid -- BEST NOT TO USE THIS!!!!")
+            self.array_cum_lf = energetics.array_cum_gamma
+            self.vector_cum_lf = energetics.vector_cum_gamma
+            self.array_diff_lf = energetics.array_diff_gamma
+            self.vector_diff_lf = energetics.vector_diff_gamma
+        elif self.luminosity_function == 2:  # Spline gamma function
+            self.array_cum_lf = energetics.array_cum_gamma_spline
+            self.vector_cum_lf = energetics.vector_cum_gamma_spline
+            self.array_diff_lf = energetics.array_diff_gamma
+            self.vector_diff_lf = energetics.vector_diff_gamma
+        elif self.luminosity_function == 3:  # Linear + log10
+            self.array_cum_lf = energetics.array_cum_gamma_linear
+            self.vector_cum_lf = energetics.vector_cum_gamma_linear
+            self.array_diff_lf = energetics.array_diff_gamma
+            self.vector_diff_lf = energetics.vector_diff_gamma
         else:
-            raise ValueError("Luminosity function must be 0, not ",self.luminosity_function)
-    
-    def parse_grid(self,zDMgrid,zvals,dmvals):
-        self.grid=zDMgrid
-        self.zvals=zvals
-        self.dmvals=dmvals
+            raise ValueError(
+                "Luminosity function must be 0, not ", self.luminosity_function
+            )
+
+    def parse_grid(self, zDMgrid, zvals, dmvals):
+        self.grid = zDMgrid
+        self.zvals = zvals
+        self.dmvals = dmvals
         #
         self.check_grid()
-        #self.calc_dV()
-        
+        # self.calc_dV()
+
         # this contains all the values used to generate grids
         # these parameters begin at None, and get filled when
         # ever something is regenerated. They are semi-hierarchical
         # in that if a low-level value is reset, high-level ones
         # get put to None.
-    
-    
-    
-    def load_grid(self,gridfile,zfile,dmfile):
-        self.grid=io.load_data(gridfile)
-        self.zvals=io.load_data(zfile)
-        self.dmvals=io.load_data(dmfile)
+
+    def load_grid(self, gridfile, zfile, dmfile):
+        self.grid = io.load_data(gridfile)
+        self.zvals = io.load_data(zfile)
+        self.dmvals = io.load_data(dmfile)
         self.check_grid()
         self.volume_grid()
-    
-    
+
     def check_grid(self):
-        
-        self.nz=self.zvals.size
-        self.ndm=self.dmvals.size
-        
+
+        self.nz = self.zvals.size
+        self.ndm = self.dmvals.size
+
         # check to see if these are log-spaced
-        if (self.zvals[-1]-self.zvals[-2])/(self.zvals[1]-self.zvals[0]) > 1.01:
-            if np.abs(self.zvals[-1]*self.zvals[0] - self.zvals[-2]*self.zvals[1]) > 0.01:
+        if (self.zvals[-1] - self.zvals[-2]) / (self.zvals[1] - self.zvals[0]) > 1.01:
+            if (
+                np.abs(self.zvals[-1] * self.zvals[0] - self.zvals[-2] * self.zvals[1])
+                > 0.01
+            ):
                 raise ValueError("Cannot determine scaling of zvals, exiting...")
-            self.zlog=True
-            self.dz=np.log(self.zvals[1]/self.zvals[0])
+            self.zlog = True
+            self.dz = np.log(self.zvals[1] / self.zvals[0])
         else:
-            self.zlog=False
-            self.dz=self.zvals[1]-self.zvals[0]
-        
-        self.ddm=self.dmvals[1]-self.dmvals[0]
-        shape=self.grid.shape
+            self.zlog = False
+            self.dz = self.zvals[1] - self.zvals[0]
+
+        self.ddm = self.dmvals[1] - self.dmvals[0]
+        shape = self.grid.shape
         if shape[0] != self.nz:
             if shape[0] == self.ndm and shape[1] == self.nz:
                 print("Transposing grid, looks like first index is DM")
-                self.grid=self.grid.transpose
+                self.grid = self.grid.transpose
             else:
                 raise ValueError("wrong shape of grid for zvals and dm vals")
         else:
@@ -157,66 +170,77 @@ class Grid:
                     print("Grid successfully initialised")
             else:
                 raise ValueError("wrong shape of grid for zvals and dm vals")
-        
-        
-        #checks that the grid is approximately linear to high precision
+
+        # checks that the grid is approximately linear to high precision
         if self.zlog:
-            expectation=np.exp(np.arange(0,self.nz)*self.dz)*self.zvals[0]
+            expectation = np.exp(np.arange(0, self.nz) * self.dz) * self.zvals[0]
         else:
-            expectation=self.dz*np.arange(0,self.nz)+self.zvals[0]
-        diff=self.zvals-expectation
-        maxoff=np.max(diff**2)
-        if maxoff > 1e-6*self.dz:
-            raise ValueError("Maximum non-linearity in z-grid of ",maxoff**0.5,"detected, aborting")
-        
-        expectation=self.ddm*np.arange(0,self.ndm)+self.dmvals[0]
-        diff=self.dmvals-expectation
-        maxoff=np.max(diff**2)
-        if maxoff > 1e-6*self.ddm:
-            raise ValueError("Maximum non-linearity in dm-grid of ",maxoff**0.5,"detected, aborting")
-        
-        
+            expectation = self.dz * np.arange(0, self.nz) + self.zvals[0]
+        diff = self.zvals - expectation
+        maxoff = np.max(diff ** 2)
+        if maxoff > 1e-6 * self.dz:
+            raise ValueError(
+                "Maximum non-linearity in z-grid of ",
+                maxoff ** 0.5,
+                "detected, aborting",
+            )
+
+        expectation = self.ddm * np.arange(0, self.ndm) + self.dmvals[0]
+        diff = self.dmvals - expectation
+        maxoff = np.max(diff ** 2)
+        if maxoff > 1e-6 * self.ddm:
+            raise ValueError(
+                "Maximum non-linearity in dm-grid of ",
+                maxoff ** 0.5,
+                "detected, aborting",
+            )
+
     def calc_dV(self, reINIT=False):
         """ Calculates volume per steradian probed by a survey.
         
         Does this only in the z-dimension (for obvious reasons!)
         """
-        
+
         if (cos.INIT is False) or reINIT:
-            #print('WARNING: cosmology not yet initiated, using default parameters.')
+            # print('WARNING: cosmology not yet initiated, using default parameters.')
             cos.init_dist_measures()
         if self.zlog:
             # if zlog, dz is actually .dlogz. And dlogz/dz=1/z, i.e. dz= z dlogz
-            self.dV=cos.dvdtau(self.zvals)*self.dz*self.zvals
+            self.dV = cos.dvdtau(self.zvals) * self.dz * self.zvals
         else:
-            self.dV=cos.dvdtau(self.zvals)*self.dz
-        
-    
-    def EF(self,alpha=0,bandwidth=1e9):
+            self.dV = cos.dvdtau(self.zvals) * self.dz
+
+    def EF(self, alpha=0, bandwidth=1e9):
         """Calculates the fluence--energy conversion factors as a function of redshift
         This does NOT account for the central frequency
         """
-        if self.state.FRBdemo.alpha_method==0:
-            self.FtoE=cos.F_to_E(1,self.zvals,alpha=alpha,bandwidth=bandwidth,Fobs=self.nuObs,Fref=self.nuRef)
-        elif self.state.FRBdemo.alpha_method==1:
-            self.FtoE=cos.F_to_E(1,self.zvals,alpha=0.,bandwidth=bandwidth)
+        if self.state.FRBdemo.alpha_method == 0:
+            self.FtoE = cos.F_to_E(
+                1,
+                self.zvals,
+                alpha=alpha,
+                bandwidth=bandwidth,
+                Fobs=self.nuObs,
+                Fref=self.nuRef,
+            )
+        elif self.state.FRBdemo.alpha_method == 1:
+            self.FtoE = cos.F_to_E(1, self.zvals, alpha=0.0, bandwidth=bandwidth)
         else:
-            raise ValueError("alpha method must be 0 or 1, not ",self.alpha_method)
-    
-    def set_evolution(self): #,n,alpha=None):
+            raise ValueError("alpha method must be 0 or 1, not ", self.alpha_method)
+
+    def set_evolution(self):  # ,n,alpha=None):
         """ Scales volumetric rate by SFR """
-        #self.sfr1n=n
-        #if alpha is not None:
-        #    self.alpha=alpha
-        #self.sfr=cos.sfr(self.zvals)**n #old hard-coded value
         self.sfr=self.source_function(self.zvals,
                                       self.state.FRBdemo.sfr_n)
         if self.state.FRBdemo.alpha_method==1:
-            self.sfr *= (1.+self.zvals)**(-self.state.energy.alpha) #reduces rate with alpha
+            self.sfr *= (1.0 + self.zvals)**(-self.state.energy.alpha) #reduces rate with alpha
+
             # changes absolute normalisation at z=0 according to central frequency
-            self.sfr *= (self.nuObs/self.nuRef)**-self.state.energy.alpha #alpha positive, nuObs<nuref, expected rate increases
-            
-    def calc_pdv(self,beam_b=None,beam_o=None):
+            self.sfr *= (
+                self.nuObs / self.nuRef
+                ) ** -self.state.energy.alpha  # alpha positive, nuObs<nuref, expected rate increases
+
+    def calc_pdv(self, beam_b=None, beam_o=None):
         """ Calculates the rate per cell.
         Assumed model: a power-law between Emin and Emax (erg)
                        with slope gamma.
@@ -228,82 +252,97 @@ class Grid:
         This will recalculate beam factors if they are passed, however
         during iteration this is not recalculated
         """
-        
+
         if beam_b is not None:
-            self.beam_b=beam_b
-            self.beam_o=beam_o
+            self.beam_b = beam_b
+            self.beam_o = beam_o
             try:
-                x=beam_o.shape
-                x=beam_b.shape
+                x = beam_o.shape
+                x = beam_b.shape
             except:
-                raise ValueError("Beam values must be numby arrays! Currently ",beam_o,beam_b)
+                raise ValueError(
+                    "Beam values must be numby arrays! Currently ", beam_o, beam_b
+                )
         # linear weighted sum of probabilities: pdVdOmega now. Could also be used to include time factor
 
         # For convenience and speed up
-        Emin = 10**self.state.energy.lEmin
-        Emax = 10**self.state.energy.lEmax
-        
+        Emin = 10 ** self.state.energy.lEmin
+        Emax = 10 ** self.state.energy.lEmax
+
         # this implementation allows us to access the b-fractions later on
         if (not (self.b_fractions is not None)) or (beam_b is not None):
-            self.b_fractions=np.zeros([self.zvals.size,self.dmvals.size,self.beam_b.size])
-        
+            self.b_fractions = np.zeros(
+                [self.zvals.size, self.dmvals.size, self.beam_b.size]
+            )
+
         # for some arbitrary reason, we treat the beamshape slightly differently... no need to keep an intermediate product!
         main_beam_b = self.beam_b
-
+        
         # call log10 beam
         if self.use_log10:
-            new_thresh = np.log10(self.thresholds) # use when calling in log10 space conversion
+            new_thresh = np.log10(
+                self.thresholds
+            )  # use when calling in log10 space conversion
             main_beam_b = np.log10(main_beam_b)
 
-        for i,b in enumerate(main_beam_b):
-            for j,w in enumerate(self.eff_weights):
+        for i, b in enumerate(main_beam_b):
+            for j, w in enumerate(self.eff_weights):
                 # using log10 space conversion
                 if self.use_log10:
-                    thresh = new_thresh[j,:,:] - b
-                else: # original
-                    thresh = self.thresholds[j,:,:]/b
-                
-                if j==0:
-                    self.b_fractions[:,:,i] = self.beam_o[i]*w*self.array_cum_lf(
-                        thresh,Emin,Emax,
-                        self.state.energy.gamma, self.use_log10)
+                    thresh = new_thresh[j, :, :] - b
+                else:  # original
+                    thresh = self.thresholds[j, :, :] / b
+
+                if j == 0:
+                    self.b_fractions[:, :, i] = (
+                        self.beam_o[i]
+                        * w
+                        * self.array_cum_lf(
+                            thresh, Emin, Emax, self.state.energy.gamma, self.use_log10
+                        )
+                    )
                 else:
-                    self.b_fractions[:,:,i] += self.beam_o[i]*w*self.array_cum_lf(
-                        thresh,Emin,Emax,
-                        self.state.energy.gamma, self.use_log10)
-        
+                    self.b_fractions[:, :, i] += (
+                        self.beam_o[i]
+                        * w
+                        * self.array_cum_lf(
+                            thresh, Emin, Emax, self.state.energy.gamma, self.use_log10
+                        )
+                    )
+
         # here, b-fractions are unweighted according to the value of b.
-        self.fractions=np.sum(self.b_fractions,axis=2) # sums over b-axis [ we could ignore this step?]
-        self.pdv=np.multiply(self.fractions.T,self.dV).T
+        self.fractions = np.sum(
+            self.b_fractions, axis=2
+        )  # sums over b-axis [ we could ignore this step?]
+        self.pdv = np.multiply(self.fractions.T, self.dV).T
 
     def calc_rates(self):
         """ multiplies the rate per cell with the appropriate pdm plot """
-        
-        
+
         try:
             self.sfr
         except:
             print("WARNING: no evolutionary weight yet applied")
             exit()
-        
+
         try:
             self.smear_grid
         except:
             print("WARNING: no DMx smearing yet applied")
             exit()
-        
+
         try:
             self.pdv
         except:
             print("WARNING: no volumetric probability pdv yet calculated")
             exit()
-        
-        self.sfr_smear=np.multiply(self.smear_grid.T,self.sfr).T
-        
-        self.rates=self.pdv*self.sfr_smear
-        
-        
-    def calc_thresholds(self, F0:float, eff_table, 
+
+        self.sfr_smear = np.multiply(self.smear_grid.T, self.sfr).T
+
+        self.rates = self.pdv * self.sfr_smear
+
+    def calc_thresholds(self, F0:float, 
+                        eff_table, 
                         bandwidth=1e9, 
                         nuRef=1.3e9, weights=None):
         """ Sets the effective survey threshold on the zdm grid
@@ -323,38 +362,42 @@ class Grid:
             ValueError: [description]
         """
         # keep the inputs for later use
-        self.F0=F0
-        self.nuRef=nuRef
-        
-        self.bandwidth=bandwidth
-        if eff_table.ndim==1: # only a single FRB width: dimensions of NDM
-            self.nthresh=1
-            self.eff_weights=np.array([1])
-            self.eff_table=np.array([eff_table]) # make it an extra dimension
-        else: # multiple FRB widths: dimensions nW x NDM
-            self.nthresh=eff_table.shape[0]
+        self.F0 = F0
+        self.nuRef = nuRef
+
+        self.bandwidth = bandwidth
+        if eff_table.ndim == 1:  # only a single FRB width: dimensions of NDM
+            self.nthresh = 1
+            self.eff_weights = np.array([1])
+            self.eff_table = np.array([eff_table])  # make it an extra dimension
+        else:  # multiple FRB widths: dimensions nW x NDM
+            self.nthresh = eff_table.shape[0]
             if weights is not None:
                 if weights.size != self.nthresh:
-                    raise ValueError("Dimension of weights must equal first dimension of efficiency table")
+                    raise ValueError(
+                        "Dimension of weights must equal first dimension of efficiency table"
+                    )
             else:
-                raise ValueError("For a multidimensional efficiency table, please set relative weights")
-            self.eff_weights=weights/np.sum(weights) #normalises this!
-            self.eff_table=eff_table
-        Eff_thresh=F0/self.eff_table
-        
-        self.EF(self.state.energy.alpha, bandwidth) #sets FtoE values - could have been done *WAY* earlier
-        
-        self.thresholds=np.zeros([self.nthresh,self.zvals.size,self.dmvals.size])
+                raise ValueError(
+                    "For a multidimensional efficiency table, please set relative weights"
+                )
+            self.eff_weights = weights / np.sum(weights)  # normalises this!
+            self.eff_table = eff_table
+        Eff_thresh = F0 / self.eff_table
+
+        self.EF(self.state.energy.alpha, bandwidth)  # sets FtoE values - could have been done *WAY* earlier
+
+        self.thresholds = np.zeros([self.nthresh, self.zvals.size, self.dmvals.size])
+
         # Performs an outer multiplication of conversion from fluence to energy.
         # The FtoE array has one value for each redshift.
         # The effective threshold array has one value for each combination of
         # FRB width (nthresh) and DM.
         # We loop over nthesh and generate a NDM x Nz array for each
         for i in np.arange(self.nthresh):
-            self.thresholds[i,:,:]=np.outer(self.FtoE,Eff_thresh[i,:])
-        
-        
-    def smear_dm(self,smear:np.ndarray):#,mean:float,sigma:float):
+            self.thresholds[i,:,:] = np.outer(self.FtoE, Eff_thresh[i,:])
+            
+    def smear_dm(self, smear:np.ndarray):  # ,mean:float,sigma:float):
         """ Smears DM using the supplied array.
         Example use: DMX contribution
 
@@ -364,26 +407,32 @@ class Grid:
             smear (np.ndarray): Smearing array
         """
         # just easier to have short variables for this
-        
-        ls=smear.size
-        lz,ldm=self.grid.shape
-        
-        if not hasattr(self, 'smear_grid'):
-            self.smear_grid=np.zeros([lz,ldm])
-        self.smear=smear
-        
+
+        ls = smear.size
+        lz, ldm = self.grid.shape
+
+        if not hasattr(self, "smear_grid"):
+            self.smear_grid = np.zeros([lz, ldm])
+        self.smear = smear
+
         # this method is O~7 times faster than the 'brute force' above for large arrays
         for i in np.arange(lz):
             # we need to get the length of mode='same', BUT
             # we do not want it 'centred', hence must make cut on full
-            if smear.ndim==1:
-                self.smear_grid[i,:] = np.convolve(self.grid[i,:],smear,mode='full')[0:ldm]
-            elif smear.ndim==2:
-                self.smear_grid[i,:] = np.convolve(self.grid[i,:],smear[i,:],mode='full')[0:ldm]
+            if smear.ndim == 1:
+                self.smear_grid[i, :] = np.convolve(
+                    self.grid[i, :], smear, mode="full"
+                )[0:ldm]
+            elif smear.ndim == 2:
+                self.smear_grid[i, :] = np.convolve(
+                    self.grid[i, :], smear[i, :], mode="full"
+                )[0:ldm]
             else:
-                raise ValueError("Wrong number of dimensions for DM smearing ",smear.shape)
-            
-    def get_p_zgdm(self, DMs:np.ndarray):
+                raise ValueError(
+                    "Wrong number of dimensions for DM smearing ", smear.shape
+                )
+
+    def get_p_zgdm(self, DMs: np.ndarray):
         """ Calcuates the probability of redshift given a DM
         We already have our grid of observed DM values.
         Just take slices!
@@ -395,16 +444,16 @@ class Grid:
             np.ndarray: array of priors for the DMs
         """
         # first gets ids of matching DMs
-        priors=np.zeros([DMs.size,self.zvals.size])
-        for i,dm in enumerate(DMs):
-            DM2=np.where(self.dmvals > dm)[0][0]
-            DM1=DM2-1
-            kDM=(dm-self.dmvals[DM1])/(self.dmvals[DM2]-self.dmvals[DM1])
-            priors[i,:]=kDM*self.rates[:,DM2]+(1.-kDM)*self.rates[:,DM1]
-            priors[i,:] /= np.sum(priors[i,:])
+        priors = np.zeros([DMs.size, self.zvals.size])
+        for i, dm in enumerate(DMs):
+            DM2 = np.where(self.dmvals > dm)[0][0]
+            DM1 = DM2 - 1
+            kDM = (dm - self.dmvals[DM1]) / (self.dmvals[DM2] - self.dmvals[DM1])
+            priors[i, :] = kDM * self.rates[:, DM2] + (1.0 - kDM) * self.rates[:, DM1]
+            priors[i, :] /= np.sum(priors[i, :])
         return priors
-    
-    def GenMCSample(self,N,Poisson=False):
+
+    def GenMCSample(self, N, Poisson=False):
         """
         Generate a MC sample of FRB events
         
@@ -417,27 +466,27 @@ class Grid:
         
         """
         # Boost?
-        if self.state.energy.luminosity_function in [1,2]:
-            Emax_boost = 2.
+        if self.state.energy.luminosity_function in [1, 2]:
+            Emax_boost = 2.0
         else:
-            Emax_boost = 0.
-        
+            Emax_boost = 0.0
+
         if Poisson:
-            #from np.random import poisson
-            NFRB=np.random.poisson(N)
+            # from np.random import poisson
+            NFRB = np.random.poisson(N)
         else:
-            NFRB=int(N) #just to be sure...
-        sample=[]
-        pwb=None #feeds this back to save time. Lots of time.
+            NFRB = int(N)  # just to be sure...
+        sample = []
+        pwb = None  # feeds this back to save time. Lots of time.
         for i in np.arange(NFRB):
             if (i % 100) == 0:
                 print(i)
-            frb,pwb=self.GenMCFRB(pwb, Emax_boost=Emax_boost)
+            frb, pwb = self.GenMCFRB(pwb, Emax_boost=Emax_boost)
             sample.append(frb)
-        sample=np.array(sample)
+        sample = np.array(sample)
         return sample
-    
-    def GenMCFRB(self,pwb=None, Emax_boost=0.):
+
+    def GenMCFRB(self, pwb=None, Emax_boost=0.0):
         """
         Generates a single FRB according to the grid distributions
         
@@ -460,130 +509,142 @@ class Grid:
         Returns:
             tuple: FRBparams=[MCz,MCDM,MCb,j,MCs], pwb values
         """
-        
-    	# shorthand
-        lEmin=self.state.energy.lEmin
-        lEmax=self.state.energy.lEmax
-        gamma=self.state.energy.gamma
-        Emin=10**lEmin
-        Emax=10**lEmax
-        
-    	# grid of beam values, weights
-        nw=self.eff_weights.size
-        nb=self.beam_b.size
-        
+
+        # shorthand
+        lEmin = self.state.energy.lEmin
+        lEmax = self.state.energy.lEmax
+        gamma = self.state.energy.gamma
+        Emin = 10 ** lEmin
+        Emax = 10 ** lEmax
+
+        # grid of beam values, weights
+        nw = self.eff_weights.size
+        nb = self.beam_b.size
+
         # we do this to allow efficient recalculation of this when generating many FRBs
         if pwb is not None:
-            pwbc=np.cumsum(pwb)
-            pwbc/=pwbc[-1]
+            pwbc = np.cumsum(pwb)
+            pwbc /= pwbc[-1]
         else:
-            pwb=np.zeros([nw*nb])
-            
+            pwb = np.zeros([nw * nb])
+
             # Generates a joint distribution in B,w
-            for i,b in enumerate(self.beam_b):
-                for j,w in enumerate(self.eff_weights):
+            for i, b in enumerate(self.beam_b):
+                for j, w in enumerate(self.eff_weights):
                     # each of the following is a 2D array over DM, z which we sum to generate B,w values
-                    wb_fraction=self.beam_o[i]*w*self.array_cum_lf(self.thresholds[j,:,:]/b,Emin,Emax,gamma)
-                    pdv=np.multiply(wb_fraction.T,self.dV).T
-                    rate=pdv*self.sfr_smear
-                    pwb[i*nw+j]=np.sum(rate)
-            pwbc=np.cumsum(pwb)
-            pwbc/=pwbc[-1]
-        
+                    wb_fraction = (
+                        self.beam_o[i]
+                        * w
+                        * self.array_cum_lf(
+                            self.thresholds[j, :, :] / b, Emin, Emax, gamma
+                        )
+                    )
+                    pdv = np.multiply(wb_fraction.T, self.dV).T
+                    rate = pdv * self.sfr_smear
+                    pwb[i * nw + j] = np.sum(rate)
+            pwbc = np.cumsum(pwb)
+            pwbc /= pwbc[-1]
+
         # sample distribution in w,b
         # we do NOT interpolate here - we treat these as qualitative values
         # i.e. as if there was an irregular grid of them
-        r=np.random.rand(1)[0]
-        which=np.where(pwbc>r)[0][0]
-        i=int(which/nw)
-        j=which-i*nw
-        MCb=self.beam_b[i]
-        MCw=self.eff_weights[j]
-        
+        r = np.random.rand(1)[0]
+        which = np.where(pwbc > r)[0][0]
+        i = int(which / nw)
+        j = which - i * nw
+        MCb = self.beam_b[i]
+        MCw = self.eff_weights[j]
+
         # calculate zdm distribution for sampled w,b only
-        pzDM=self.array_cum_lf(self.thresholds[j,:,:]/MCb,Emin,Emax,gamma)
-        wb_fraction=self.array_cum_lf(self.thresholds[j,:,:]/MCb,Emin,Emax,gamma)
-        pdv=np.multiply(wb_fraction.T,self.dV).T
-        pzDM=pdv*self.sfr_smear
-        
-        
+        pzDM = self.array_cum_lf(self.thresholds[j, :, :] / MCb, Emin, Emax, gamma)
+        wb_fraction = self.array_cum_lf(
+            self.thresholds[j, :, :] / MCb, Emin, Emax, gamma
+        )
+        pdv = np.multiply(wb_fraction.T, self.dV).T
+        pzDM = pdv * self.sfr_smear
+
         # sample distribution in z,DM
-        pz=np.sum(pzDM,axis=1)
-        pzc=np.cumsum(pz)
+        pz = np.sum(pzDM, axis=1)
+        pzc = np.cumsum(pz)
         pzc /= pzc[-1]
-        r=np.random.rand(1)[0]
-        iz2=np.where(pzc>r)[0][0]
+        r = np.random.rand(1)[0]
+        iz2 = np.where(pzc > r)[0][0]
         if iz2 > 0:
-            iz1=iz2-1
-            dr=r-pzc[iz1]
-            kz2=dr/(pzc[iz2]-pzc[iz1]) # fraction of way to second value
-            kz1=1.-kz2
-            MCz=self.zvals[iz1]*kz1+self.zvals[iz2]*kz2
-            pDM=pzDM[iz1,:]*kz1 + pzDM[iz2,:]*kz2
+            iz1 = iz2 - 1
+            dr = r - pzc[iz1]
+            kz2 = dr / (pzc[iz2] - pzc[iz1])  # fraction of way to second value
+            kz1 = 1.0 - kz2
+            MCz = self.zvals[iz1] * kz1 + self.zvals[iz2] * kz2
+            pDM = pzDM[iz1, :] * kz1 + pzDM[iz2, :] * kz2
         else:
             # we perform a simple linear interpolation in z from 0 to minimum bin
-            kz2=r/pzc[iz2]
-            kz1=1.-kz2
-            MCz=self.zvals[iz2]*kz2
-            pDM=pzDM[iz2,:] # just use the value of lowest bin
-        
-        
+            kz2 = r / pzc[iz2]
+            kz1 = 1.0 - kz2
+            MCz = self.zvals[iz2] * kz2
+            pDM = pzDM[iz2, :]  # just use the value of lowest bin
+
         # NOW DO dm
-        #pDM=pzDM[k,:]
-        pDMc=np.cumsum(pDM)
+        # pDM=pzDM[k,:]
+        pDMc = np.cumsum(pDM)
         pDMc /= pDMc[-1]
-        r=np.random.rand(1)[0]
-        iDM2=np.where(pDMc>r)[0][0]
+        r = np.random.rand(1)[0]
+        iDM2 = np.where(pDMc > r)[0][0]
         if iDM2 > 0:
-            iDM1=iDM2-1
-            dDM=r-pDMc[iDM1]
-            kDM2=dDM/(pDMc[iDM2] - pDMc[iDM1])
-            kDM1=1.-kDM2
-            MCDM=self.dmvals[iDM1]*kDM1 + self.dmvals[iDM2]*kDM2
-            if iz2>0:
-                Eth=self.thresholds[j,iz1,iDM1]*kz1*kDM1 \
-                    + self.thresholds[j,iz1,iDM2]*kz1*kDM2 \
-                    + self.thresholds[j,iz2,iDM1]*kz2*kDM1 \
-                    + self.thresholds[j,iz2,iDM2]*kz2*kDM2
-            else: 
-                Eth=self.thresholds[j,iz2,iDM1]*kDM1 \
-                    + self.thresholds[j,iz2,iDM2]*kDM2
-                Eth *= kz2**2 #assume threshold goes as Eth~z^2 in the near Universe
+            iDM1 = iDM2 - 1
+            dDM = r - pDMc[iDM1]
+            kDM2 = dDM / (pDMc[iDM2] - pDMc[iDM1])
+            kDM1 = 1.0 - kDM2
+            MCDM = self.dmvals[iDM1] * kDM1 + self.dmvals[iDM2] * kDM2
+            if iz2 > 0:
+                Eth = (
+                    self.thresholds[j, iz1, iDM1] * kz1 * kDM1
+                    + self.thresholds[j, iz1, iDM2] * kz1 * kDM2
+                    + self.thresholds[j, iz2, iDM1] * kz2 * kDM1
+                    + self.thresholds[j, iz2, iDM2] * kz2 * kDM2
+                )
+            else:
+                Eth = (
+                    self.thresholds[j, iz2, iDM1] * kDM1
+                    + self.thresholds[j, iz2, iDM2] * kDM2
+                )
+                Eth *= kz2 ** 2  # assume threshold goes as Eth~z^2 in the near Universe
         else:
             # interpolate linearly from 0 to the minimum value
-            kDM2=r/pDMc[iDM2]
-            MCDM=self.dmvals[iDM2]*kDM2
-            if iz2>0: # ignore effect of lowest DM bin on threshold
-                Eth=self.thresholds[j,iz1,iDM2]*kz1 \
-                    + self.thresholds[j,iz2,iDM2]*kz2
-            else: 
-                Eth=self.thresholds[j,iz2,iDM2]*kDM2
-                Eth *= kz2**2 #assume threshold goes as Eth~z^2 in the near Universe
-        
+            kDM2 = r / pDMc[iDM2]
+            MCDM = self.dmvals[iDM2] * kDM2
+            if iz2 > 0:  # ignore effect of lowest DM bin on threshold
+                Eth = (
+                    self.thresholds[j, iz1, iDM2] * kz1
+                    + self.thresholds[j, iz2, iDM2] * kz2
+                )
+            else:
+                Eth = self.thresholds[j, iz2, iDM2] * kDM2
+                Eth *= kz2 ** 2  # assume threshold goes as Eth~z^2 in the near Universe
+
         # now account for beamshape
         Eth /= MCb
-        
+
         # NOW GET snr
-        #Eth=self.thresholds[j,k,l]/MCb
-        Es=np.logspace(np.log10(Eth),np.log10(Emax) + Emax_boost, 1000)
-        PEs=self.vector_cum_lf(Es,Emin,Emax,gamma)
-        PEs /= PEs[0] # normalises: this is now cumulative distribution from 1 to 0
-        r=np.random.rand(1)[0]
-        iE1=np.where(PEs>r)[0][-1] #returns list starting at 0 and going upwards
-        iE2 = iE1+1
+        # Eth=self.thresholds[j,k,l]/MCb
+        Es = np.logspace(np.log10(Eth), np.log10(Emax) + Emax_boost, 1000)
+        PEs = self.vector_cum_lf(Es, Emin, Emax, gamma)
+        PEs /= PEs[0]  # normalises: this is now cumulative distribution from 1 to 0
+        r = np.random.rand(1)[0]
+        iE1 = np.where(PEs > r)[0][-1]  # returns list starting at 0 and going upwards
+        iE2 = iE1 + 1
         # iE1 should never be the highest energy, since it will always have a probability of 0 (or near 0 for Gamma)
-        kE1=(r-PEs[iE2])/(PEs[iE1]-PEs[iE2])
-        kE2=1.-kE1
-        MCE=10**(np.log10(Es[iE1])*kE1 + np.log10(Es[iE2])*kE2)
-        MCs=MCE/Eth
-        
-        FRBparams=[MCz,MCDM,MCb,j,MCs]
-        return FRBparams,pwb
-        
+        kE1 = (r - PEs[iE2]) / (PEs[iE1] - PEs[iE2])
+        kE2 = 1.0 - kE1
+        MCE = 10 ** (np.log10(Es[iE1]) * kE1 + np.log10(Es[iE2]) * kE2)
+        MCs = MCE / Eth
+
+        FRBparams = [MCz, MCDM, MCb, j, MCs]
+        return FRBparams, pwb
+
     def build_sz(self):
         pass
 
-    def update(self, vparams:dict, ALL=False, prev_grid=None):
+    def update(self, vparams: dict, ALL=False, prev_grid=None):
         """Update the grid based on a set of input
         parameters
         
@@ -613,12 +674,14 @@ class Grid:
                 Emin
                 Emax
                 gamma
+                H0
                 calc_thresholds
                     F0
                     alpha
                     bandwidth
             set_evolution
                 sfr_n
+                H0
             
             smear_grid
                 grid
@@ -639,7 +702,7 @@ class Grid:
         new_sfr_smear, new_pdv_smear, calc_thresh = False, False, False
 
         # Cosmology -- Only H0 so far
-        if self.chk_upd_param('H0', vparams, update=True):
+        if self.chk_upd_param("H0", vparams, update=True):
             reset_cos = True
             get_zdm = True
             calc_dV = True
@@ -650,43 +713,62 @@ class Grid:
             new_sfr_smear = True
 
         # IGM
-        if self.chk_upd_param('F', vparams, update=True):
+        if self.chk_upd_param("logF", vparams, update=True):
             get_zdm = True
             smear_dm = True
-            calc_thresh = True
-            calc_pdv = True
-            set_evol = True
+            # calc_thresh = False  # JMB
+            # calc_pdv = False  # JMB
+            # set_evol = False  # JMB
             new_sfr_smear = True
 
-        # Mask?
+        # DM_host
         # IT IS IMPORTANT TO USE np.any so that each item is executed!!
-        if np.any([self.chk_upd_param('lmean', vparams, update=True), 
-            self.chk_upd_param('lsigma', vparams, update=True)]):
+        if np.any(
+            [
+                self.chk_upd_param("lmean", vparams, update=True),
+                self.chk_upd_param("lsigma", vparams, update=True),
+            ]
+        ):
             smear_mask = True
             smear_dm = True
-            new_sfr_smear=True
+            new_sfr_smear = True
 
         # SFR?
-        if self.chk_upd_param('sfr_n', vparams, update=True):
+        if self.chk_upd_param("sfr_n", vparams, update=True):
             set_evol = True
-            new_sfr_smear=True  # True for either alpha_method
-        if self.chk_upd_param('alpha', vparams, update=True):
+            new_sfr_smear = True  # True for either alpha_method
+        if self.chk_upd_param("alpha", vparams, update=True):
             set_evol = True
             if self.state.FRBdemo.alpha_method == 0:
                 calc_thresh = True
                 calc_pdv = True
-                new_pdv_smear=True
+                new_pdv_smear = True
             elif self.state.FRBdemo.alpha_method == 1:
-                new_sfr_smear=True
+                new_sfr_smear = True
 
         ##### examines the 'pdv tree' affecting sensitivity #####
         # begin with alpha
         # alpha does not change thresholds under rate scaling, only spec index
-        if np.any([self.chk_upd_param('lEmin', vparams, update=True),
-            self.chk_upd_param('lEmax', vparams, update=True),
-            self.chk_upd_param('gamma', vparams, update=True)]):
+        if np.any(
+            [
+                self.chk_upd_param("lEmin", vparams, update=True),
+                self.chk_upd_param("lEmax", vparams, update=True),
+                self.chk_upd_param("gamma", vparams, update=True),
+            ]
+        ):
             calc_pdv = True
-            new_pdv_smear=True
+            new_pdv_smear = True
+
+        if self.chk_upd_param("DMhalo", vparams, update=True):
+            # Update survey params
+            self.survey.init_DMEG(vparams["DMhalo"])
+            # NOTE: In future we can change this to not need to recalc every time
+            self.survey.get_efficiency_from_wlist(self.survey.DMlist,self.survey.wlist,self.survey.wplist,model=self.survey.meta['WBIAS'])
+            self.eff_table = self.survey.efficiencies
+
+            calc_thresh = True
+            calc_pdv = True
+            new_pdv_smear = True
 
         # ###########################
         # NOW DO THE REAL WORK!!
@@ -700,16 +782,26 @@ class Grid:
 
         if get_zdm or ALL:
             if prev_grid is None:
-                zDMgrid, zvals,dmvals=misc_functions.get_zdm_grid(
-                    self.state, new=True,plot=False,method='analytic',
-                    save=False,nz=self.zvals.size,zmax=self.zvals[-1],
-                    ndm=self.dmvals.size,dmmax=self.dmvals[-1],zlog=self.zlog)
-                self.parse_grid(zDMgrid,zvals,dmvals)
+                zDMgrid, zvals, dmvals = misc_functions.get_zdm_grid(
+                    self.state,
+                    new=True,
+                    plot=False,
+                    method="analytic",
+                    save=False,
+                    nz=self.zvals.size,
+                    zmax=self.zvals[-1],
+                    ndm=self.dmvals.size,
+                    dmmax=self.dmvals[-1],
+                    zlog=self.zlog,
+                )
+                self.parse_grid(zDMgrid, zvals, dmvals)
             else:
                 # Pass a copy (just to be safe)
-                self.parse_grid(prev_grid.grid.copy(),
-                               prev_grid.zvals.copy(),
-                               prev_grid.dmvals.copy())
+                self.parse_grid(
+                    prev_grid.grid.copy(),
+                    prev_grid.zvals.copy(),
+                    prev_grid.dmvals.copy(),
+                )
 
         if calc_dV or ALL:
             if prev_grid is None:
@@ -720,9 +812,11 @@ class Grid:
         # Smear?
         if smear_mask or ALL:
             if prev_grid is None:
-                self.smear=pcosmic.get_dm_mask(
-                    self.dmvals,(self.state.host.lmean,
-                             self.state.host.lsigma), self.zvals)
+                self.smear = pcosmic.get_dm_mask(
+                    self.dmvals,
+                    (self.state.host.lmean, self.state.host.lsigma),
+                    self.zvals,
+                )
             else:
                 self.smear = prev_grid.smear.copy()
         if smear_dm or ALL:
@@ -731,28 +825,31 @@ class Grid:
             else:
                 self.smear = prev_grid.smear.copy()
                 self.smear_grid = prev_grid.smear_grid.copy()
-            
+
         if calc_thresh or ALL:
             self.calc_thresholds(
-                self.F0,self.eff_table, bandwidth=self.bandwidth,
-                weights=self.eff_weights)
+                self.F0,
+                self.eff_table,
+                bandwidth=self.bandwidth,
+                weights=self.eff_weights,
+            )
             
-        
         if calc_pdv or ALL:
             self.calc_pdv()
-
         if set_evol or ALL:
-            self.set_evolution() # sets star-formation rate scaling with z - here, no evoltion...
-
+            self.set_evolution()  # sets star-formation rate scaling with z - here, no evoltion...
         if new_sfr_smear or ALL:
-            self.calc_rates() #includes sfr smearing factors and pdv mult
+            self.calc_rates()  # includes sfr smearing factors and pdv mult
         elif new_pdv_smear:
-            self.rates=self.pdv*self.sfr_smear #does pdv mult only, 'by hand'
+            self.rates = self.pdv * self.sfr_smear  # does pdv mult only, 'by hand'
 
-        # Catch all the changes just in case, e.g. lC
+        # Catch all the changes just in case, e.g. lCf
+        # Can no longer do this because of repeat_grid
         self.state.update_params(vparams)
 
-    def chk_upd_param(self, param:str, vparams:dict, update=False):
+        return new_sfr_smear, new_pdv_smear, (get_zdm or smear_dm or calc_dV) # If either is true, need to also recalc repeater grids
+
+    def chk_upd_param(self, param: str, vparams: dict, update=False):
         """ Check to see whether a parameter is
         differs from that in self.state
 

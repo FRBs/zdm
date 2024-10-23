@@ -1,0 +1,33 @@
+# %ECSV 1.0
+# ---
+# datatype:
+# - {name: TNS, datatype: string}
+# - {name: BW, datatype: string, subtype: 'float64[null]'}
+# - {name: DM, datatype: float64}
+# - {name: DMG, datatype: float64}
+# - {name: FBAR, datatype: string, subtype: 'float64[null]'}
+# - {name: FRES, datatype: string, subtype: 'float64[null]'}
+# - {name: Gb, datatype: string, subtype: 'float64[null]'}
+# - {name: Gl, datatype: string, subtype: 'float64[null]'}
+# - {name: NREP, datatype: int64}
+# - {name: SNR, datatype: float64}
+# - {name: SNRTHRESH, datatype: float64}
+# - {name: THRESH, datatype: string, subtype: 'float64[null]'}
+# - {name: TRES, datatype: string, subtype: 'float64[null]'}
+# - {name: WIDTH, datatype: string, subtype: 'float64[null]'}
+# - {name: XDec, datatype: string, subtype: 'float64[null]'}
+# - {name: XRA, datatype: string, subtype: 'float64[null]'}
+# - {name: Z, datatype: string, subtype: 'float64[null]'}
+# meta: !!omap
+# - {survey_data: "{\n    \"observing\": {\n        \"NORM_FRB\": 5,\n        \"NORM_REPS\": 0,\n        \"TOBS\": 0.006281518232857837\n    },\n    \"telescope\"\
+#     : {\n        \"BEAM\": \"CHIME/Nbounds30/chime_bound_25_of_30\",\n        \"BMETHOD\": 3,\n        \"BTHRESH\": 0.0,\n        \"BW\": 400.0,\n \
+#     \       \"DIAM\": -1.0,\n        \"FBAR\": 600.0,\n        \"FRES\": 0.0244,\n        \"NBEAMS\": 1,\n        \"NBINS\": 1,\n  \
+#     \      \"THRESH\": 5.0,\n        \"TRES\": 0.983,\n        \"WBIAS\": \"CHIME\",\n        \"WIDTH\": 1.0632,\n        \"WMETHOD\"\
+#     : 0\n    }\n}"}
+# schema: astropy-2.0
+TNS BW DM DMG FBAR FRES Gb Gl NREP SNR SNRTHRESH THRESH TRES WIDTH XDec XRA Z
+FRB20190210E "" 580.6 57.9 "" "" "" "" 1 9.5 10.0 "" "" "" "" "" ""
+FRB20190403A "" 518.8 54.2 "" "" "" "" 1 10.8 10.0 "" "" "" "" "" ""
+FRB20190403E "" 226.2 49.9 "" "" "" "" 1 23.7 10.0 "" "" "" "" "" ""
+FRB20190419B "" 165.1 52.3 "" "" "" "" 1 24.6 10.0 "" "" "" "" "" ""
+FRB20190623C "" 1049.8 48.8 "" "" "" "" 1 12.5 10.0 "" "" "" "" "" ""

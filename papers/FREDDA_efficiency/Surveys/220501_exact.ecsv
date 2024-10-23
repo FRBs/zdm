@@ -1,0 +1,26 @@
+# %ECSV 1.0
+# ---
+# datatype:
+# - {name: TNS, datatype: string}
+# - {name: BW, datatype: float64}
+# - {name: DM, datatype: float64}
+# - {name: DMG, datatype: float64}
+# - {name: FBAR, datatype: float64}
+# - {name: FRES, datatype: float64}
+# - {name: Gb, datatype: float64}
+# - {name: Gl, datatype: float64}
+# - {name: SNR, datatype: float64}
+# - {name: SNRTHRESH, datatype: float64}
+# - {name: THRESH, datatype: float64}
+# - {name: TRES, datatype: float64}
+# - {name: WIDTH, datatype: float64}
+# - {name: XC, datatype: string}
+# - {name: XDec, datatype: string}
+# - {name: XRA, datatype: string}
+# - {name: Z, datatype: float64}
+# meta: !!omap
+# - {survey_data: "{\n    \"telescope\": {\n        \"\
+#     BEAM\": \"ASKAP_892\",\n        \"DIAM\": 12.0,\n        \"NBEAMS\": 1,\n        \"NBINS\": 5,\n        \"WBIAS\": \"220501\"\n    }\n}"}
+# schema: astropy-2.0
+TNS BW DM DMG FBAR FRES Gb Gl SNR SNRTHRESH THRESH TRES WIDTH XC XDec XRA Z
+20220501 336.0 449.26 62.0 863.5 1.0 -32.5 352.4 16.1 9.0 4.4 1.182 3.7 square_6x6/45/1.05 -32:25:28.92 23:29:30.98 0.381

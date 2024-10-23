@@ -3,6 +3,7 @@ BW    336 #MHz
 FRES  1 #MHz
 TRES  1.265 #ms
 DIAM 12
+NBINS 5
 NBEAMS 36
 BEAM lat50_log #prefix of beam file
 NFRB 4 #Number of FRBs

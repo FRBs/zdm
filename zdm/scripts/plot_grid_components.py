@@ -48,20 +48,20 @@ def main():
     
     H0=70
     F=0.32
-    
+    logF = np.log10(logF)
     # in case you wish to switch to another output directory
-    opdir='GridComponents_H'+str(H0)+'_F'+str(F)+'/'
+    opdir='GridComponents_H'+str(H0)+'_logF'+str(logF)+'/'
     if not os.path.exists(opdir):
         os.mkdir(opdir)
     
     # Initialise surveys and grids
     sdir='../data/Surveys/'
-    name='CRAFT_ICS'
+    name='parkes_mb_class_I_and_II'
     
     # approximate best-fit values from recent analysis
     vparams = {}
     vparams['H0'] = H0 #real one is 73
-    vparams['F'] = F
+    vparams['logF'] = logF
     vparams['lEmax'] = 41.3
     vparams['gamma'] = -0.9
     vparams['alpha'] = 1
@@ -77,7 +77,7 @@ def main():
     orig_lmean = vparams['lmean']
     vparams['lmean'] = -5
     # set up new parameters
-    g.update(vparams)
+    # g.update(vparams)
     
     # set limits for plots - will be LARGE!   
     DMmax=4000

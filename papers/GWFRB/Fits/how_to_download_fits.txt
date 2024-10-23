@@ -1,0 +1,33 @@
+Please download GW fits files from the https://www.gw-openscience.org/
+These should be available through
+https://dcc.ligo.org/LIGO-P2000223/public/
+and "all_skymaps.tar"
+(this will download more events however)
+
+The ones used corresponded to GWTC 2 skymaps.
+
+The final list analysed were:
+
+GW190408_181802_PublicationSamples.fits
+GW190412_PublicationSamples.fits
+GW190413_052954_PublicationSamples.fits
+GW190413_134308_PublicationSamples.fits
+GW190421_213856_PublicationSamples.fits
+GW190424_180648_PublicationSamples.fits
+GW190425_PublicationSamples.fits
+GW190426_152155_PublicationSamples.fits
+GW190503_185404_PublicationSamples.fits
+GW190512_180714_PublicationSamples.fits
+GW190513_205428_PublicationSamples.fits
+GW190514_065416_PublicationSamples.fits
+GW190517_055101_PublicationSamples.fits
+GW190519_153544_PublicationSamples.fits
+GW190521_074359_PublicationSamples.fits
+GW190521_PublicationSamples.fits
+GW190527_092055_PublicationSamples.fits
+GW190602_175927_PublicationSamples.fits
+GW190620_030421_PublicationSamples.fits
+GW190630_185205_PublicationSamples.fits
+GW190701_203306_PublicationSamples.fits
+
+

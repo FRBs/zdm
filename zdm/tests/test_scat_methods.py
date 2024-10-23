@@ -147,3 +147,5 @@ def test_scat_methods():
     plt.tight_layout()
     plt.savefig(opdir+'/model_comparison.pdf')
     plt.close()
+
+test_scat_methods()

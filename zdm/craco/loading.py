@@ -34,9 +34,9 @@ def set_state(alpha_method=1, cosmo=Planck18):
     vparams['FRBdemo']['alpha_method'] = alpha_method
     vparams['FRBdemo']['source_evolution'] = 0
     
-    vparams['beam'] = {}
-    vparams['beam']['Bthresh'] = 0
-    vparams['beam']['Bmethod'] = 2
+    #vparams['beam'] = {}
+    #vparams['beam']['Bthresh'] = 0
+    #vparams['beam']['Bmethod'] = 2
     
     vparams['width'] = {}
     vparams['width']['Wlogmean'] = 1.70267
@@ -44,7 +44,7 @@ def set_state(alpha_method=1, cosmo=Planck18):
     vparams['width']['Wbins'] = 10
     vparams['width']['Wscale'] = 2
     vparams['width']['Wthresh'] = 0.5
-    vparams['width']['Wmethod'] = 2
+    #vparams['width']['Wmethod'] = 2
     
     vparams['scat'] = {}
     vparams['scat']['Slogmean'] = 0.7
@@ -94,7 +94,8 @@ def survey_and_grid(survey_name:str='CRAFT/CRACO_1_5000',
             init_state=None,
             state_dict=None, iFRB:int=0,
                alpha_method=1, NFRB:int=100, 
-               lum_func:int=2,sdir=None,nz=500,ndm=1400,Nbeams=5):
+               lum_func:int=2,sdir=None,nz=500,ndm=1400,
+               nbins=5,edir=''):
     """ Load up a survey and grid for a CRACO mock dataset
 
     Args:
@@ -107,7 +108,10 @@ def survey_and_grid(survey_name:str='CRAFT/CRACO_1_5000',
             0=power-law, 1=gamma, 2=gamma+spline.  Defaults to 0.
         state_dict (dict, optional):
             Used to init state instead of alpha_method, lum_func parameters
-
+        sdir (string, optional): Directory containing surveys
+        edir (string, optional): 
+            Directory containing efficiency files if using FRB-specific responses
+            
     Raises:
         IOError: [description]
 
@@ -141,8 +145,8 @@ def survey_and_grid(survey_name:str='CRAFT/CRACO_1_5000',
     else:
         sdir = os.path.join(resource_filename('zdm', 'craco'), 'MC_Surveys')
     isurvey = survey.load_survey(survey_name, state, dmvals,
-                                 NFRB=NFRB, sdir=sdir, Nbeams=Nbeams,
-                                 iFRB=iFRB)
+                                 NFRB=NFRB, sdir=sdir, nbins=nbins,
+                                 iFRB=iFRB, edir=edir)
     
     # generates zdm grid
     grids = misc_functions.initialise_grids(
