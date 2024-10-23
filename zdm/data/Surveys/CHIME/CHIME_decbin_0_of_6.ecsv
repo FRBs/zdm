@@ -10,7 +10,7 @@
 # - {name: FRES, datatype: float64}
 # - {name: Gb, datatype: string, subtype: 'float64[null]'}
 # - {name: Gl, datatype: string, subtype: 'float64[null]'}
-# - {name: NREP, datatype: float64}
+# - {name: NREP, datatype: int64}
 # - {name: SNR, datatype: float64}
 # - {name: SNRTHRESH, datatype: float64}
 # - {name: THRESH, datatype: float64}
@@ -20,12 +20,12 @@
 # - {name: XRA, datatype: string, subtype: 'float64[null]'}
 # - {name: Z, datatype: string, subtype: 'float64[null]'}
 # meta: !!omap
-# - {survey_data: "{\n    \"observing\": {\n        \"NORM_FRB\": 4,\n        \"TOBS\": 0.6783198770426007\n    },\n    \"telescope\"\
-#     : {\n        \"BEAM\": \"chime_bound_0_of_6\",\n        \"BMETHOD\": 3,\n        \"DIAM\": -1.0,\n        \"NBEAMS\": 1,\n     \
+# - {survey_data: "{\n    \"observing\": {\n        \"NORM_FRB\": 4,\n        \"NORM_REPS\": 0,\n        \"TOBS\": 0.6783198770426007\n    },\n    \"telescope\"\
+#     : {\n        \"BEAM\": \"CHIME/Nbounds6/chime_bound_0_of_6\",\n        \"BMETHOD\": 3,\n        \"DIAM\": -1.0,\n        \"NBEAMS\": 1,\n     \
 #     \   \"NBINS\": 1,\n        \"WBIAS\": \"CHIME\",\n        \"WMETHOD\": 0\n    }\n}"}
 # schema: astropy-2.0
 TNS BTHRESH BW DM DMG FBAR FRES Gb Gl NREP SNR SNRTHRESH THRESH TRES WIDTH XDec XRA Z
-20181118A 0 400.0 557.4 31.5 600.0 0.0244 "" "" 1.0 10.8 10.0 5.0 0.983 1.27 "" "" ""
-20190104B 0 400.0 530.1 49.8 600.0 0.0244 "" "" 1.0 9.8 10.0 5.0 0.983 1.88 "" "" ""
-20190515D 0 400.0 426.1 47.8 600.0 0.0244 "" "" 1.0 13.0 10.0 5.0 0.983 0.42 "" "" ""
-20190605C 0 400.0 187.6 37.8 600.0 0.0244 "" "" 1.0 25.4 10.0 5.0 0.983 0.495 "" "" ""
+20181118A 0 400.0 557.4 31.5 600.0 0.0244 "" "" 1 10.8 10.0 5.0 0.983 1.27 "" "" ""
+20190104B 0 400.0 530.1 49.8 600.0 0.0244 "" "" 1 9.8 10.0 5.0 0.983 1.88 "" "" ""
+20190515D 0 400.0 426.1 47.8 600.0 0.0244 "" "" 1 13.0 10.0 5.0 0.983 0.42 "" "" ""
+20190605C 0 400.0 187.6 37.8 600.0 0.0244 "" "" 1 25.4 10.0 5.0 0.983 0.495 "" "" ""

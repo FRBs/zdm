@@ -1,0 +1,25 @@
+# %ECSV 1.0
+# ---
+# datatype:
+# - {name: TNS, datatype: string}
+# - {name: BW, datatype: float64}
+# - {name: DM, datatype: float64}
+# - {name: DMG, datatype: float64}
+# - {name: FBAR, datatype: float64}
+# - {name: FRES, datatype: float64}
+# - {name: Gb, datatype: float64}
+# - {name: Gl, datatype: float64}
+# - {name: SNR, datatype: float64}
+# - {name: SNRTHRESH, datatype: float64}
+# - {name: THRESH, datatype: float64}
+# - {name: TRES, datatype: float64}
+# - {name: WIDTH, datatype: float64}
+# - {name: XDec, datatype: string}
+# - {name: XRA, datatype: string}
+# - {name: Z, datatype: float64}
+# meta: !!omap
+# - {survey_data: "{\n    \"telescope\": {\n        \"\
+#     BEAM\": \"lat50_log\",\n        \"DIAM\": 12.0,\n        \"NBEAMS\": 36,\n        \"NBINS\": 5,\n        \"WBIAS\": \"230526\"\n    }\n}"}
+# schema: astropy-2.0
+TNS BW DM DMG FBAR FRES Gb Gl SNR SNRTHRESH THRESH TRES WIDTH XDec XRA Z
+20230526 336.0 316.4 50.0 1271.5 1.0 -60.4 290.0 22.1 9.0 4.4 1.182 2.0 -52:46:07.7 01:29:27.5 0.157

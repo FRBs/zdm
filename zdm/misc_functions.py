@@ -22,9 +22,9 @@ from zdm import beams
 from zdm import cosmology as cos
 from zdm import survey
 from zdm import grid as zdm_grid
+from zdm import repeat_grid as zdm_repeat_grid
 from zdm import pcosmic
 from zdm import parameters
-
 
 def marginalise(
     pset,
@@ -1912,6 +1912,7 @@ def initialise_grids(
     dmvals: np.ndarray,
     state: parameters.State,
     wdist=True,
+    repeaters=False,
 ):
     """ For a list of surveys, construct a zDMgrid object
     wdist indicates a distribution of widths in the survey,
@@ -1940,12 +1941,20 @@ def initialise_grids(
     )
     grids = []
     for survey in surveys:
-        print(f"Working on {survey.name}")
+        prev_grid = None
+        # print(f"Working on {survey.name}")
 
-        grid = zdm_grid.Grid(
-            survey, copy.deepcopy(state), zDMgrid, zvals, dmvals, mask, wdist
-        )
+        if repeaters:
+            grid = zdm_repeat_grid.repeat_Grid(
+                survey, copy.deepcopy(state), zDMgrid, zvals, dmvals, mask, wdist, prev_grid=prev_grid
+            )
+        else:
+            grid = zdm_grid.Grid(
+                survey, copy.deepcopy(state), zDMgrid, zvals, dmvals, mask, wdist, prev_grid=prev_grid
+            )
+
         grids.append(grid)
+        prev_grid = grid
 
     return grids
 
@@ -2476,11 +2485,13 @@ def plot_grid_2(
     log=True,
     name="temp.pdf",
     label='$\\log_{10}p(DM_{\\rm EG},z)$',
-    ylabel="${\\rm DM}_{\\rm EG}$",
+    ylabel="${\\rm DM}_{\\rm EG}$ (pc cm$^{-3}$)",
     project=False,
     conts=False,
     FRBZ=None,
     FRBDM=None,
+    FRBZ2=None,
+    FRBDM2=None,
     Aconts=False,
     Macquart=None,
     title=None,
@@ -2488,9 +2499,11 @@ def plot_grid_2(
     H0=None,
     showplot=False,
     DMlines=None,
+    DMlims=None,
     markersize=10,
     clim=False,
     data_clr="red",
+    data_clr2="tab:blue",
     special=None,
     pdmgz=None,
     save=True
@@ -2755,7 +2768,12 @@ def plot_grid_2(
             zstop /= zvals[1] - zvals[0]
             DM /= dmvals[1] - dmvals[0]
             plt.plot([0, zstop], [DM, DM], color=data_clr, linestyle=":")
-    
+
+    if DMlims is not None:
+        for DMlim in DMlims:
+            DMlim /= dmvals[1] - dmvals[0]
+            ax.axhline(DMlim, 0, 1, color=data_clr, linestyle="-")
+
     # performs plots for the pdmgz variable
     if pdmgz is not None:
         styles = ['-','-','-']
@@ -2825,11 +2843,17 @@ def plot_grid_2(
         plt.clim(clim[0], clim[1])
     
     ##### add FRB host galaxies at some DM/redshift #####
-    if FRBZ is not None:
+    if FRBZ is not None and len(FRBZ2) != 0:
         iDMs = FRBDM / ddm
         iZ = FRBZ / dz
         OK = np.where(FRBZ > 0)[0]
         plt.plot(iZ[OK], iDMs[OK], "o", color=data_clr, linestyle="")
+
+    if FRBZ2 is not None and len(FRBZ2) != 0:
+        iDMs = FRBDM2 / ddm
+        iZ = FRBZ2 / dz
+        OK = np.where(FRBZ2 > 0)[0]
+        plt.plot(iZ[OK], iDMs[OK], "o", color=data_clr2, linestyle="")
 
     if special is not None:
         iDM = special[0] / ddm
@@ -2885,6 +2909,7 @@ def plot_grid_2(
         plt.title(title)
 
     if save:
+        plt.tight_layout()
         plt.savefig(name, dpi=300)
     if showplot:
         plt.show()
