@@ -56,7 +56,7 @@ def main():
     
     opfile=opdir+"newE.pdf"
     zvals,std_pzgdm=plot_expectations(names,sdir,vparams,opfile)
-    
+    exit()
     vparams={}
     vparams['H0'] = 73
     vparams['lEmax'] = 41.33
@@ -158,6 +158,9 @@ def plot_expectations(names,sdir,vparams,opfile,intermediate=False,sumit=True):
     DMEG220610=1458-31-50
     Z220610=1.0153
     
+    DMEG190520=1204.7-60-50
+    Z190520=0.241
+    
     if sumit:
         # does the final plot of all data
         frbzvals = np.array(zvals)
@@ -179,7 +182,7 @@ def plot_expectations(names,sdir,vparams,opfile,intermediate=False,sumit=True):
             zmax=2,
             DMmax=3000,
             DMlines=nozlist,
-            special=[DMEG220610,Z220610]
+            special=[[DMEG220610,Z220610,'white','*'],[DMEG190520,Z190520,'blue','s']]
         )
     # does plot of p(DM|z)
     ddm=g.dmvals[1]-g.dmvals[0]

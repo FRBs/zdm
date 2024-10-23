@@ -81,7 +81,7 @@ def main():
     if not os.path.exists(opdir):
         os.mkdir(opdir)
     
-    load=False
+    load=True
     
     # The below is for private, unpublished FRBs. You will NOT see this in the repository!
     names = '220610_only'
@@ -173,7 +173,7 @@ def main():
     
     plt.figure()
     plt.xlabel('$z$')
-    plt.ylabel('cdf$(z|20220610A)$')
+    plt.ylabel('cdf$(z|{\\rm FRB}\\,20220610{\\rm A})$')
     iz=np.where(zvals>1.0153)[0][0]
     for i,pzgdm in enumerate(pzgdms):
         pzgdm = np.cumsum(pzgdm)
@@ -196,14 +196,63 @@ def main():
     l3,=plt.plot(zvals,new_pzgdm,linewidth=3,color='orange',label='New Emax',linestyle="--")
     
     plt.plot([1.01,1.01],[0,1],linestyle='-', color='black')
-    plt.text(1.02,0.3,'$z_{\\rm 20220610A}$',rotation=90)
+    plt.text(1.02,0.3,'FRB 20220610A',rotation=90)
     
     plt.xlim(0,1.5)
     plt.ylim(0,1)
     plt.legend(loc=(0.12,0.05),handles=[l2,l3,l1])
     plt.tight_layout()
+    plt.savefig(opdir+'old_cumulative_pzgdm_FRB220610.pdf')
+    plt.close()
+    
+    
+    ####### now does "v2" of figure #######
+    plt.figure()
+    plt.xlabel('$z$')
+    plt.ylabel('cdf$(z|{\\rm FRB}\\,20220610{\\rm A})$')
+    iz=np.where(zvals>1.0153)[0][0]
+    
+    nlim = len(pzgdms)
+    
+    allpzgdm = np.zeros([nlim,pzgdms[0].size])
+    for i,pzgdm in enumerate(pzgdms):
+        pzgdm = np.cumsum(pzgdm)
+        pzgdm /= pzgdm[-1]
+        
+        allpzgdm[i,:]=pzgdm
+        #print("cum prob for ",i," is ",pzgdm[iz])
+        #if i==0:
+        #    l1,=plt.plot(zvals,pzgdm,linewidth=1,color='gray',label='90% parameter limits',linestyle=":")
+        #else:
+        #    plt.plot(zvals,pzgdm,linewidth=1,color='gray',linestyle=":")
+    mins = np.min(allpzgdm,axis=0)
+    maxs = np.max(allpzgdm,axis=0)
+    
+    plt.fill_between(zvals,mins,maxs,color='gray',alpha=0.4)
+    
+    #std_pzgdm = np.cumsum(std_pzgdm)
+    #std_pzgdm /= std_pzgdm[-1]
+    print("cum prob for Std is ",std_pzgdm[iz])
+    l2,=plt.plot(zvals,std_pzgdm,linewidth=3,color='blue',label='Previous best fit')
+    
+    #new_pzgdm = np.cumsum(new_pzgdm)
+    #new_pzgdm /= new_pzgdm[-1]
+    print("cum prob for New Emax is ",new_pzgdm[iz])
+    l3,=plt.plot(zvals,new_pzgdm,linewidth=3,color='orange',label='New Emax',linestyle="--")
+    
+    plt.plot([1.01,1.01],[0,1],linestyle='-', color='black')
+    plt.text(1.02,0.3,'FRB 20220610A',rotation=90)
+    
+    plt.xlim(0,1.5)
+    plt.ylim(0,1)
+    plt.legend(loc=(0.07,0.03),handles=[l2,l3],
+        labels=['Previous model (4)','Revised $E_{\\rm max}$ (this work)'])
+    plt.tight_layout()
     plt.savefig(opdir+'cumulative_pzgdm_FRB220610.pdf')
     plt.close()
+    
+    
+    
     
 def plot_expectations(name,sdir,vparams,opfile,dmhost=False):
     '''
@@ -409,7 +458,7 @@ def plot_expectations(name,sdir,vparams,opfile,dmhost=False):
         plt.savefig('220610/rest_frame_210117_FAST_p_dmhost.pdf')
         plt.close()
         
-        # publication version
+        ############## publication version #############
         plt.figure()
         plt.ylim(0,0.009)
         plt.xlim(0,1750)
@@ -428,6 +477,44 @@ def plot_expectations(name,sdir,vparams,opfile,dmhost=False):
         plt.tight_layout()
         plt.savefig('220610/210117_dmhost.pdf')
         plt.close()
+        
+        
+        ############## testing 220610 #############
+        
+        
+        
+        plt.figure()
+        plt.ylim(0,0.009)
+        plt.xlim(0,1750)
+        plt.xlabel('Rest frame ${\\rm DM}_{\\rm host} [{\\rm pc\\,cm}^{-3}]$')
+        plt.ylabel('$p({\\rm DM}_{\\rm host})$')
+        plt.plot(dmhost*(1.+Z220610),dmdist/(1.+Z220610),label="FRB 20220610A")
+        plt.plot(dmhostFAST*(1.+zFAST),dmdistFAST/(1.+zFAST),label="FRB 20190520B",linestyle='--')
+        plt.plot(dmhost*(1.+Z220610),priors/(1.+Z220610),label="Expectation",linestyle=":")
+        
+        
+        Z121102 = 0.19273
+        DM121102=559.-50.-188
+        iz121102 = int(z121102/dz)
+        
+        # probability distribution
+        dmdist121102 = g.grid[iz121102,:]
+        #dm vals
+        dmhost121102 = (DM121102-g.dmvals)
+        iOK=np.where(dmhost121102 > 0.)[0]
+        dmhost121102 = dmhost121102[iOK]
+        dmdist121102 = dmdist121102[iOK]
+        dmdist121102 /= np.sum(dmdist121102) * ddm #normalisation to a probability distribution
+        
+        v1,v2,k1,k2=ac.extract_limits(dmhost121102,dmdist121102,0.16) # 0.16 = (1-68%)/2
+        print("121102: 1 sigma bounds are ",v1*(1+z210117),v2*(1+z210117))
+        
+        plt.plot(dmhost121102*(1.+z121102),dmdist121102/(1.+z121102),label="FRB 20121102",linestyle='-.')
+        leg=plt.legend()
+        plt.tight_layout()
+        plt.savefig('220610/121102_dmhost.pdf')
+        plt.close()
+        
         
     return g.zvals,pzgdm
 

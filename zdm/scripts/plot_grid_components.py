@@ -46,9 +46,9 @@ from matplotlib import pyplot as plt
 
 def main():
     
-    H0=80
-    logF=np.log10(0.32)
-    
+    H0=70
+    F=0.32
+    logF = np.log10(logF)
     # in case you wish to switch to another output directory
     opdir='GridComponents_H'+str(H0)+'_logF'+str(logF)+'/'
     if not os.path.exists(opdir):
@@ -83,12 +83,16 @@ def main():
     DMmax=4000
     zmax=3
     
+    FRB_DMs=np.array([300,400])
+    FRB_zs=np.array([0.3,0.4])
+    
     ####### plots the p(DMcosmic|z) grid - intrinsic distribution
     misc_functions.plot_grid_2(g.grid,g.zvals,g.dmvals,
         name=opdir+'pcosmic.pdf',norm=3,log=True,
         label='$\\log_{10} p({\\rm DM}_{\\rm IGM}|z)$ [a.u.]',
         project=False, ylabel='${\\rm DM}_{\\rm IGM}$',
-        zmax=zmax,DMmax=DMmax,DMlines=nozlist,Macquart=g.state)
+        zmax=zmax,DMmax=DMmax,DMlines=nozlist,Macquart=g.state,
+        FRBDM=FRB_DMs,FRBZ=FRB_zs)
     exit()
     # restore host galaxy contribution   
     vparams['lmean'] = orig_lmean
