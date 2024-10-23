@@ -1,10 +1,15 @@
+"""
+This script reads in all the data,
+and prints out a table for the paper
+"""
+
 import numpy as np
 from scipy import interpolate
 
 
 def main():
     
-    file1 = open('modR-MAG_CANDIDATES.csv', 'r')
+    file1 = open('Data/modR-MAG_CANDIDATES.csv', 'r')
     Lines = file1.readlines()
     rmags=[]
     ras=[]
@@ -36,7 +41,7 @@ def main():
     priors = priors/norm
     
     ##### reads in positional likelihoods #######
-    file2 = open('mod_cand_pos_likelihood.csv', 'r')
+    file2 = open('Data/mod_cand_pos_likelihood.csv', 'r')
     Lines2 = file2.readlines()
     poss=[]
     for line in Lines2:
@@ -46,7 +51,7 @@ def main():
     
     
     #### reads in redshifts ####
-    file1 = open('galaxy_redshifts.dat', 'r')
+    file1 = open('Data/galaxy_redshifts.dat', 'r')
     Lines = file1.readlines()
     zgals=[]
     zs=[]
@@ -77,7 +82,7 @@ def main():
     pprod = pprod/norm
     
     # re-reads data
-    file2 = open('mod_cand_pos_likelihood.csv', 'r')
+    file2 = open('Data/mod_cand_pos_likelihood.csv', 'r')
     Lines2 = file2.readlines()
     
     ###### prints out combined value for latex table #####
