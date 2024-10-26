@@ -28,6 +28,14 @@ class Grid:
                 Defines the parameters of the analysis
                 Note, each grid holds the *same* copy so modifying
                 it in one place affects them all.
+            zvals (np.1darray, float):
+                redshift values of the grid. These are "bin centres",
+                representing ranges from +- dz/2.
+            dmvals (np.1darray, float:
+                DM values of the grid. These are These are "bin centres",
+                representing ranges from +- dDM/2.
+            smear_mask (np.1darray, float):
+                1D array
             wdist (bool):
                 If True, allow for a distribution of widths
             prev_grid (grid.Grid):
@@ -138,11 +146,16 @@ class Grid:
         self.check_grid()
         self.volume_grid()
 
-    def check_grid(self):
-
+    def check_grid(self,TOLERANCE = 1e-6):
+        """
+        Check that the grid values are behaving as expected
+        
+        TOLERANCE: defines the max relative difference in expected
+                    and found values that will be tolerated
+        """
         self.nz = self.zvals.size
         self.ndm = self.dmvals.size
-
+        
         # check to see if these are log-spaced
         if (self.zvals[-1] - self.zvals[-2]) / (self.zvals[1] - self.zvals[0]) > 1.01:
             if (
@@ -155,7 +168,7 @@ class Grid:
         else:
             self.zlog = False
             self.dz = self.zvals[1] - self.zvals[0]
-
+        
         self.ddm = self.dmvals[1] - self.dmvals[0]
         shape = self.grid.shape
         if shape[0] != self.nz:
@@ -178,17 +191,26 @@ class Grid:
             expectation = self.dz * np.arange(0, self.nz) + self.zvals[0]
         diff = self.zvals - expectation
         maxoff = np.max(diff ** 2)
-        if maxoff > 1e-6 * self.dz:
+        if maxoff > TOLERANCE * self.dz:
             raise ValueError(
                 "Maximum non-linearity in z-grid of ",
                 maxoff ** 0.5,
                 "detected, aborting",
             )
-
+        
+        # Ensures that log-spaced bins are truly bin centres
+        if not self.zlog and np.abs(self.zvals[0] - dz/2.) > TOLERANCE*dz:
+            raise ValueError(
+                "Linear z-grids *must* begin at dz/2. e.g. 0.05,0.15,0.25 etc, ",
+                " first value ",self.zvals[0]," expected to be half of spacing ",
+                self.dz,", aborting..."
+            )
+                
+        
         expectation = self.ddm * np.arange(0, self.ndm) + self.dmvals[0]
         diff = self.dmvals - expectation
         maxoff = np.max(diff ** 2)
-        if maxoff > 1e-6 * self.ddm:
+        if maxoff > TOLERANCE * self.ddm:
             raise ValueError(
                 "Maximum non-linearity in dm-grid of ",
                 maxoff ** 0.5,
@@ -491,7 +513,8 @@ class Grid:
             
         sample = np.array(sample)
         return sample
-
+    
+    
     def GenMCFRB(self, pwb=None, Emax_boost=0.0):
         """
         Generates a single FRB according to the grid distributions
@@ -514,6 +537,14 @@ class Grid:
 
         Returns:
             tuple: FRBparams=[MCz,MCDM,MCb,j,MCs], pwb values
+            These are:
+                MCz: redshift
+                MCDM: dispersion measure (extragalactic)
+                MCb: beam value 
+                j: 
+                MCs: SNR/SNRth value of FRB
+                MCw: width value of FRB
+            [MCz, MCDM, MCb, j, MCs, MCw]
         """
 
         # shorthand
@@ -644,7 +675,7 @@ class Grid:
         MCE = 10 ** (np.log10(Es[iE1]) * kE1 + np.log10(Es[iE2]) * kE2)
         MCs = MCE / Eth
 
-        FRBparams = [MCz, MCDM, MCb, j, MCs, MCw]
+        FRBparams = [MCz, MCDM, MCb, MCs, MCw]
         return FRBparams, pwb
 
     def build_sz(self):
