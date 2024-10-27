@@ -506,6 +506,7 @@ class Grid:
             
             # Regen if the survey would not find this FRB
             frb = self.GenMCFRB(Emax_boost)
+            # This is a pretty naive method of generation.
             while frb[1] > self.survey.max_dm:
                 print("Regenerating MC FRB with too high DM ",frb[1],self.survey.max_dm)
                 frb = self.GenMCFRB(Emax_boost)
@@ -537,6 +538,12 @@ class Grid:
         pwb = np.zeros([nw * nb])
         rates = []
         pzcs = []
+        
+        # gets list of DM probabilities to set to zero due to
+        # the survey missing these FRBs
+        if self.survey.max_dm is not None:
+            setDMzero = np.where(self.dmvals +self.ddm/2. > self.survey.max_dm)[0]
+                  
         # Generates a joint distribution in B,w
         for i, b in enumerate(self.beam_b):
             for j, w in enumerate(self.eff_weights):
@@ -544,6 +551,10 @@ class Grid:
                 pzDM = self.array_cum_lf(
                             self.thresholds[j, :, :] / b,
                             Emin, Emax, gamma)
+                
+                # sets to zero if we have a max survey DM
+                if self.survey.max_dm is not None:
+                    pzDM [:,setDMzero] = 0.
                 
                 # weighted pzDM
                 wb_fraction = (self.beam_o[i] * w * pzDM)
@@ -556,6 +567,8 @@ class Grid:
                 pzc = np.cumsum(pz)
                 pzc /= pzc[-1]
                 
+                imaxed = np.where(pzc == 1.)[0][0]
+                print("For i, b ",i,b," j,w ",j,w," max z is ",self.zvals[imaxed])
                 pzcs.append(pzc)
         
         # generates cumulative distribution for sampling w,b
