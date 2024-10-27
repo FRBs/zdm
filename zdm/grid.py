@@ -507,7 +507,7 @@ class Grid:
             # Regen if the survey would not find this FRB
             frb = self.GenMCFRB(Emax_boost)
             while frb[1] > self.survey.max_dm:
-                print("Regenerating MC FRB with too high DM ",frb[1])
+                print("Regenerating MC FRB with too high DM ",frb[1],self.survey.max_dm)
                 frb = self.GenMCFRB(Emax_boost)
 
             sample.append(frb)
