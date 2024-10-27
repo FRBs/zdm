@@ -158,7 +158,7 @@ def get_mean_DM(zeds: np.ndarray, state: parameters.State,Plot=False):
                 igm.average_DM," has been fixed?",DMbar[0]/DMbar[1] - 1./3.)
         exit()
     
-    if TEST:
+    if Plot:
         plt.figure()
         plt.xlabel('z')
         plt.ylabel('DM')
