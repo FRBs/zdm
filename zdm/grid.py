@@ -145,7 +145,54 @@ class Grid:
         self.dmvals = io.load_data(dmfile)
         self.check_grid()
         self.volume_grid()
-
+    
+    def get_dm_coeffs(self, DMlist):
+        """
+        Returns indices and coefficients for interpolating between DM values
+        
+        dmlist: np.ndarray of dispersion measures (extragalactic!)
+        """
+        # get indices in dm space
+        kdms=DMlist/self.ddm - 0.5 # idea: if DMobs = ddm, we are half-way between bin 0 and bin 1
+        Bin0 = np.where(kdms < 0.)[0] # if DMs are in the lower half of the lowest bin, use lowest bin only
+        kdms[Bin0] = 0. 
+        idms1=kdms.astype('int') # rounds down
+        idms2=idms1+1
+        dkdms2=kdms-idms1 # applies to idms2, i.e. the upper bin. If DM = ddm, then this should be 0.5
+        dkdms1 = 1.-dkdms2 # applies to idms1
+        return idms1,idms2,dkdms1,dkdms2
+    
+    def get_z_coeffs(self,zlist):
+        """
+        Returns indices and coefficients for interpolating between z values
+        
+        zlist: np.ndarray of dispersion measures (extragalactic!)
+        """
+        
+        kzs=zlist/self.dz - 0.5
+        Bin0 = np.where(kzs < 0.)[0]
+        kzs[Bin0] = 0. 
+        izs1=kzs.astype('int')
+        izs2=izs1+1
+        dkzs2=kzs-izs1 # applies to izs2
+        dkzs1 = 1. - dkzs2
+        
+        # checks for values which are too large
+        toobigz = np.where(zlist > self.zvals[-1] + self.dz/2.)[0]
+        if len(toobigz) > 0:
+            raise ValueError("Redshift values ",zlist[toobigz],
+                " too large for grid max of ",self.zvals[-1] + self.dz/2.)
+        
+        # checks for zs in top half of top bin - only works because of above bin
+        topbin = np.where(zlist > self.zvals[-1])[0]
+        if len(topbin) > 0:
+            izs2[topbin] = self.zvals.size-1
+            izs1[topbin] = self.zvals.size-2
+            dkzs2[topbin] = 1.
+            dkzs1[topbin] = 0.
+        
+        return izs1, izs2, dkzs1, dkzs2
+    
     def check_grid(self,TOLERANCE = 1e-6):
         """
         Check that the grid values are behaving as expected
@@ -482,7 +529,7 @@ class Grid:
         If Poisson=True, then interpret N as a Poisson expectation value
         Otherwise, generate precisely N FRBs
         
-        Generated values are DM, z, B, w, and SNR
+        Generated values are [MCz, MCDM, MCb, MCs, MCw]
         NOTE: the routine GenMCFRB does not know 'w', merely
             which w bin it generates.
         
@@ -567,8 +614,6 @@ class Grid:
                 pzc = np.cumsum(pz)
                 pzc /= pzc[-1]
                 
-                imaxed = np.where(pzc == 1.)[0][0]
-                print("For i, b ",i,b," j,w ",j,w," max z is ",self.zvals[imaxed])
                 pzcs.append(pzc)
         
         # generates cumulative distribution for sampling w,b
@@ -759,7 +804,7 @@ class Grid:
         else:
             # interpolate linearly from 0 to the minimum value
             fDM = r / pDMc[iDM2]
-            MCDM = (self.dmvals[iDM2] + self.dDM/2.) * fDM
+            MCDM = (self.dmvals[iDM2] + self.ddm/2.) * fDM
             kDM1 = 0.
             kDM2 = 1.
             kDM3 = 0.
