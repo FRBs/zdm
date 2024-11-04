@@ -88,6 +88,9 @@ def load(Nbin:int=6, make_plots:bool=False):
             all_rates = all_rates + rg.rates
             all_singles = all_singles + rg.exact_singles
             all_reps = all_reps + rg.exact_reps
+
+        if ibin == 0:
+            state = rg.state
         
     if make_plots:
         misc_functions.plot_grid_2(all_rates,rg.zvals,rg.dmvals,
@@ -108,7 +111,7 @@ def load(Nbin:int=6, make_plots:bool=False):
                 project=False,Aconts=[0.01,0.1,0.5],
                 zmax=3.0,DMmax=3000)
 
-    return rg.dmvals, rg.zvals, all_rates, all_singles, all_reps
+    return rg.dmvals, rg.zvals, all_rates, all_singles, all_reps, state
 
 # For testing
 #load()
