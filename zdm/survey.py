@@ -1026,21 +1026,25 @@ class Survey:
         else:
             print("No beam found to initialise...")
 
-    def calc_max_dm(self,Nchan=336):
+    def calc_max_dm(self):
         '''
-        Calculates the maximum searched DM
+        Calculates the maximum searched DM.
+        
+        Calculates bandwidth using 
         '''
         fbar=self.meta['FBAR']
         t_res=self.meta['TRES']
         nu_res=self.meta['FRES']
         max_idt=self.meta['MAX_IDT']
         max_dm=self.meta['MAX_DM']
-
+        
         print(max_idt, max_dm)
         if max_dm is None and max_idt is not None:
             k_DM=4.149 #ms GHz^2 pc^-1 cm^3
-            f_low = fbar - (Nchan/2. - 1)*nu_res
-            f_high = fbar + (Nchan/2. - 1)*nu_res
+            #f_low = fbar - (Nchan/2. - 1)*nu_res
+            #f_high = fbar + (Nchan/2. - 1)*nu_res
+            f_low = fbar - self.meta['BW']/2. # bottom of lowest band
+            f_high = fbar + self.meta['BW']/2. # top of highest band
             max_dt = t_res * max_idt
             max_dm = max_dt / (k_DM * ((f_low/1e3)**(-2) - (f_high/1e3)**(-2)))
 
