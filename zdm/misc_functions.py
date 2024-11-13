@@ -2154,9 +2154,11 @@ def get_zdm_grid(
             MC: generate via Monte Carlo using dlas.monte_dm
         nz (int, optional): Size of grid in redshift. Defaults to 500.
         zmin (float,optional): Minimum z. Used only for log-spaced grids.
-        zmax (float, optional): Maximum z. Defaults to 5.
+        zmax (float, optional): Maximum z. Defaults to 5. Represents the
+                upper edge of the maximum zbin.
         ndm (int, optional): Size of grid in DM.  Defaults to 1400.
-        dmmax ([type], optional): Maximum DM of grid. Defaults to 7000..
+        dmmax ([type], optional): Maximum DM of grid. Defaults to 7000.
+                Represents the upper edge of the max bin in the DM grid.
         datdir (str, optional): Directory to load/save grid data. Defaults to 'GridData'.
         tag (str, optional): Label for grids (unique identifier). Defaults to "".
         orig (bool, optional): Use original calculations for 
@@ -2230,9 +2232,13 @@ def get_zdm_grid(
         )
     # labelled pickled files with H0
     if new:
-
+        
         ddm = dmmax / ndm
-
+        # the DMvals and the zvals generated below
+        # represent bin centres. i.e. characteristic values.
+        # Probabilities then derived will correspond
+        # to p(zbin-0.5*dz < z < zbin+0.5*dz) etc.
+        
         if zlog:
             # generates a pseudo-log spacing
             # grid values increase with \sqrt(log)
@@ -2241,14 +2247,19 @@ def get_zdm_grid(
             zvals = np.logspace(lzmin, lzmax, nz)
         else:
             dz = zmax / nz
-            zvals = (np.arange(nz) + 1) * dz
-        dmvals = (np.arange(ndm) + 1) * ddm
-
-        dmmeans = dmvals[1:] - (dmvals[1] - dmvals[0]) / 2.0
+            zvals = (np.arange(nz) + 0.5) * dz
+        dmvals = (np.arange(ndm) + 0.5) * ddm
+        
+        # Deprecated. dmvals now mean bin centre values
+        # dmmeans used to be those bin centres
+        #dmmeans = dmvals[1:] - (dmvals[1] - dmvals[0]) / 2.0
+        
+        # initialises zDM grid
         zdmgrid = np.zeros([nz, ndm])
 
         if method == "MC":
             # generate DM grid from the models
+            # NOT CHECKED
             if verbose:
                 print("Generating the zdm Monte Carlo grid")
             nfrb = 10000
@@ -2270,6 +2281,7 @@ def get_zdm_grid(
             if orig:
                 C0s = pcosmic.make_C0_grid(zvals, state.IGM.logF)
             else:
+                # interpolate C0 as a function of log10F
                 f_C0_3 = cosmic.grab_C0_spline()
                 actual_F = 10 ** (state.IGM.logF)
                 sigma = actual_F / np.sqrt(zvals)
