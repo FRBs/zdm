@@ -309,7 +309,7 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=True,Pn=True,dol
         pvals=pdm[idms1]*(1.-dkdms) + pdm[idms2]*dkdms
     else:
         dm_weights, iweights = calc_DMG_weights(DMobs, survey.DMhalos[nozlist], survey.DMGs[nozlist], dmvals, grid.state.MW.sigmaDMG, 
-                                                 grid.state.MW.sigmaHalo, grid.state.MW.percentDMG, grid.state.MW.logu)
+                                                 grid.state.MW.sigmaHalo, grid.state.MW.logu)
         pvals = np.zeros(len(idms1))
         # For each FRB
         for i in range(len(idms1)):
@@ -669,7 +669,7 @@ def calc_likelihoods_2D(grid,survey,
         pvals += rates[izs2,idms2]*dkdms*dkzs
     else:
         dm_weights, iweights = calc_DMG_weights(DMobs, survey.DMhalos[zlist], survey.DMGs[zlist], dmvals, grid.state.MW.sigmaDMG, 
-                                                grid.state.MW.sigmaHalo, grid.state.MW.percentDMG, grid.state.MW.logu)
+                                                grid.state.MW.sigmaHalo, grid.state.MW.logu)
         pvals = np.zeros(len(izs1))
         for i in range(len(izs1)):
             pvals[i] = np.sum(rates[izs1[i],iweights[i]] * dm_weights[i] * (1.-dkzs[i]) 
@@ -920,7 +920,7 @@ def calc_likelihoods_2D(grid,survey,
     elif dolist==5:
         return llsum,lllist,expected,dolist5_return
 
-def calc_DMG_weights(DMEGs, DMhalos, DM_ISMs, dmvals, sigma_ISM=0.5, sigma_halo_abs=15.0, percent_ISM=True, log=False):
+def calc_DMG_weights(DMEGs, DMhalos, DM_ISMs, dmvals, sigma_ISM=0.5, sigma_halo_abs=15.0, log=False):
     """
     Given an uncertainty on the DMG value, calculate the weights of DM values to integrate over
 
@@ -931,7 +931,6 @@ def calc_DMG_weights(DMEGs, DMhalos, DM_ISMs, dmvals, sigma_ISM=0.5, sigma_halo_
         dmvals      =   Vector of DM values used
         sigma_ISM   =   Fractional uncertainty in DMG values
         sigma_halo  =   Uncertainty in DMhalo value (in pc/cm3)
-        percent_ISM =   Use sigma_ISM as a percentage uncertainty
 
     Returns:
         weights     =   Relative weights for each of the DM grid points
@@ -957,11 +956,7 @@ def calc_DMG_weights(DMEGs, DMhalos, DM_ISMs, dmvals, sigma_ISM=0.5, sigma_halo_
         ddm = dmvals[1] - dmvals[0]
 
         # Get absolute uncertainty in DM_ISM
-        if percent_ISM:
-            sigma_ISM_abs = DM_ISM * sigma_ISM
-        else:
-            sigma_ISM_abs = sigma_ISM
-            sigma_ISM = sigma_ISM_abs / DM_ISM
+        sigma_ISM_abs = DM_ISM * sigma_ISM
 
         if log:
             pISM = st.lognorm.pdf(DMGvals, scale=DM_ISM, s=sigma_ISM) * ddm
@@ -2048,7 +2043,7 @@ def minus_poisson_ps(log10C,data):
     os=data[1,:]
     rsp = rs*10**log10C
     lp=0
-    for i,r in enumerate(rs):
+    for i,r in enumerate(rsp):
         Pn=Poisson_p(os[i],r)
         if (Pn == 0):
             lp = -1e10
@@ -2119,9 +2114,11 @@ def minimise_const_only(vparams:dict,grids:list,surveys:list,
             else:
                 r=CalculateIntegral(grids[j].rates, s)
                 r*=10**grids[j].state.FRBdemo.lC #vparams['lC']
+
             o=s.NORM_FRB
             rs.append(r)
             os.append(o)
+            print('Expected, observed:', r, o)
 
     # Check it is not an empty survey. We allow empty surveys as a 
     # non-detection still gives information on the FRB event rate.
@@ -2154,7 +2151,12 @@ def minimise_const_only(vparams:dict,grids:list,surveys:list,
             g.state.FRBdemo.lC = newC
 
             if isinstance(g, zdm_repeat_grid.repeat_Grid):
-                g.Rc *= 10**float(dC)
+                g.state.rep.RC *= float(dC)
+                g.Rc = g.state.rep.RC
+
+                # g.state.FRBdemo.lC += np.log10(float(dC))
+            # else:
+                # g.state.FRBdemo.lC += float(dC)
 
     return newC,llC
     

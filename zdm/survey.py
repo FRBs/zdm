@@ -740,7 +740,7 @@ class Survey:
                 self.min_noz = np.min(self.DMEGs[nozlist])
 
         # Do not get rid of redshifts if MAX_LOC_DMEG==-1
-        if self.min_noz >= 0:
+        if self.min_noz > 0:
             high_dm = np.where(self.DMEGs > self.min_noz)[0]
             self.ignored_Zs = self.frbs["Z"].values[high_dm]
             self.ignored_Zlist = high_dm[self.ignored_Zs > 0]
@@ -908,7 +908,9 @@ class Survey:
             self.frbs=self.frbs[iFRB:themax]
         # Min latitude
         if min_lat is not None:
+            excluded = len(self.frbs[np.abs(self.frbs['Gb'].values) <= min_lat])
             self.frbs = self.frbs[np.abs(self.frbs['Gb'].values) > min_lat]
+            print("Using minimum galactic latitude of " + str(min_lat) + ". Excluding " + str(excluded) + " FRBs")
         # Max DM
         if dmg_cut is not None:
             self.frbs = self.frbs[np.abs(self.frbs['DMG'].values) < dmg_cut]
@@ -1036,7 +1038,6 @@ class Survey:
         max_idt=self.meta['MAX_IDT']
         max_dm=self.meta['MAX_DM']
 
-        print(max_idt, max_dm)
         if max_dm is None and max_idt is not None:
             k_DM=4.149 #ms GHz^2 pc^-1 cm^3
             f_low = fbar - (Nchan/2. - 1)*nu_res
