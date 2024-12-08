@@ -160,7 +160,7 @@ class Telescope(data_class.myDataClass):
                   'Notation': ''
                   })
     BTHRESH: float = field(
-        default=0.0,
+        default=1.e-3,
         metadata={'help': 'Minimum value of beam sensitivity to consider',
                   'unit': '',
                   'Notation': 'B_{\rm min}'})
