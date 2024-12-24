@@ -395,7 +395,7 @@ class Grid:
         self.F0 = F0
         self.nuRef = nuRef
 
-        self.bandwidth = survey.meta["BW"]*1e6
+        self.bandwidth = bandwidth
         if eff_table.ndim == 1:  # only a single FRB width: dimensions of NDM
             self.nthresh = 1
             self.eff_weights = np.array([1])

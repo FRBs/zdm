@@ -899,6 +899,9 @@ def geometric_lognormals(lmu1,ls1,lmu2,ls2, xProbScat, probScat, fractionUnscatt
     x2s=np.random.normal(lmu2,ls2,Nrand)
     x3s=np.zeros(Nrand)
     if np.sum(probScat) > 0:
+        if np.abs(np.sum(probScat)-1)>0:
+            if np.abs(np.sum(probScat)-1)<1e-3:
+                probScat = probScat/np.sum(probScat)
         for i in range(Nrand - int(Nrand*fractionUnscattered)):
             x3s[i] = np.random.choice(xProbScat, p=probScat)
     
@@ -1092,10 +1095,11 @@ def make_widths(s:Survey,state, xProbScat, probScat, fractionUnscattered):
     weights[-1] += 1.-wsum #adds defecit here
     weights=np.array(weights)
     widths=np.array(widths)
+
     # removes unneccesary bins
-    keep=np.where(weights>1e-4)[0]
-    weights=weights[keep]
-    widths=widths[keep]
+    #keep=np.where(weights>1e-4)[0]
+    #weights=weights[keep]
+    #widths=widths[keep]
     
     return widths,weights
 
