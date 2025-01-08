@@ -136,7 +136,7 @@ def best_fits(JHz = True):
     """
     JamesFit = [-1.95,41.26]
     RyderFit = [-1.95,41.7]
-    ShinFit = [-2.3,41.38]
+    ShinFit = [-1.3,41.38]
     LuoFit = [-1.79,41.46]
     for item in [JamesFit,RyderFit,ShinFit,LuoFit]:
         #item[1] = 10.**item[1]

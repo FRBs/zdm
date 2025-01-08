@@ -44,7 +44,7 @@ def main(SFRs,alphas,prefix="",postfix="",zfrac=None,NREPS=1000):
             else:
                 zstring=""
             
-            histfile=plotdir+prefix+"_"+str(Nsfr)[0:3]+"_alpha_"+str(alpha)+zstring+"_Histogram.pdf"
+            histfile=plotdir+prefix+"_"+str(Nsfr)[0:3]+"_alpha_"+str(alpha)[0:3]+zstring+"_Histogram.pdf"
             
             infile = indir+postfix+"vvmax_data_NSFR_"+str(Nsfr)[0:3]+"_alpha_"+str(alpha)+zstring+".dat"
             bcs,h,rms,count,analytic,MCbounds = get_lum_function(
@@ -334,6 +334,16 @@ def read_data(infile):
         VVmax = VVmax[OK]
     
     return FRBs,JHz,V,Vmax,VVmax 
+
+# does the "what if beam is central?" question
+if True:
+    prefix="BeamCentreUnbiasedLocalised"
+    postfix="localised_"
+    NSFR=21
+    SFRs = np.array([0.0])
+    alphas=[0.0]   
+    main(SFRs,alphas,prefix,postfix)
+
 
 # does the bias-corrected localised plots (limiting zmax to 0.7)
 if True:

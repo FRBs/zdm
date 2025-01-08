@@ -12,7 +12,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 from scipy.optimize import curve_fit
 from scipy.integrate import quad
-import RLFs as rlf
+from scipy import stats
 
 global E0
 # normalisation energy - no physical meaning, just makes units more sensible
@@ -30,19 +30,17 @@ matplotlib.rc('font', **font)
 
 def main(loc=True,plot=True):
     
-    opdir = "LumData/"
+    opdir = "UnbiasedLocalisedLumData/"
     
     ### infiles
     savefiles = [
         opdir+"localised_vvmax_data_NSFR_0.0_alpha_0.npz",
-        opdir+"macquart_vvmax_data_NSFR_0.0_alpha_0.npz",
         opdir+"localised_vvmax_data_NSFR_2.0_alpha_0.npz",
         opdir+"localised_vvmax_data_NSFR_0.0_alpha_-1.5.npz",
         opdir+"localised_vvmax_data_NSFR_2.0_alpha_-1.5.npz"
         ]
     labels = [
         "$z_{\\rm DM}, n_{\\rm SFR}=0, \\alpha=0$",
-        "$z_{\\rm loc}, n_{\\rm SFR}=0, \\alpha=0$",
         "$z_{\\rm loc}, n_{\\rm SFR}=2, \\alpha=0$",
         "$z_{\\rm loc}, n_{\\rm SFR}=0, \\alpha=-1.5$",
         "$z_{\\rm loc}, n_{\\rm SFR}=2, \\alpha=-1.5$"
@@ -75,8 +73,17 @@ def main(loc=True,plot=True):
         MCbounds = data['MCerror']
         fit = data['Schechter']
         fiterr = data['Serr']
+        chi2 = data['Schi2']
         Nfrb = data['Nfrb']
+        PLfit = data['PowerLaw']
+        PLerr = data['PLerr']
+        PLchi2 = data['plchi2']
+        ndata = data['ndata']
         Ntot = np.sum(Nfrb)
+        
+        
+        PLfit = data['PowerLaw']
+        PLerr = data['PLerr']
         
         # select bin to normalise to
         ibin = np.where(bcs > 1e23)[0][0]
@@ -86,26 +93,47 @@ def main(loc=True,plot=True):
         #fit[0] /= Ntot
         #MCbounds /= Ntot
         
-        string = "& {0:1.2f} $\pm$ {1:1.2f} & {2:1.2e} $\pm$ {3:1.2e}".format(fit[1],fiterr[1]**0.5,fit[2],fiterr[2]**0.5)
-        #print(fit[1],fiterr[1]**0.5,fit[2],fiterr[2]**0.5)
+        Sndf = ndata-3
+        PLndf = ndata-2
+        Dndf = 1
+        pvalue = 1.-stats.chi2.cdf(chi2, Sndf)
+        PLpvalue = 1.-stats.chi2.cdf(PLchi2, PLndf)
+        
+        # formula as (SS1-SS2)/(ndf2-ndf1) / (SS2/ndf2)
+        Fstat = ((PLchi2-chi2)/Dndf)/(chi2/Sndf)
+        Fpvalue = 1.-stats.f.cdf(Fstat,1.,Sndf)
+            
+        
+        print("\n\n\nPower-law best fits:")
+        string = "& {0:1.2f} $\pm$ {1:1.2f} & N/A & {2:1.2f} & {3:1.2f}"\
+                .format(PLfit[0],PLerr[0],PLchi2/(PLndf),PLpvalue)
         print(string)
+        
+        print("Schechter function best fits:")
+        string = "& {0:1.2f} $\pm$ {1:1.2f} & {2:1.2e} $\pm$ {3:1.2e} & {4:1.2e} & {5:1.2e}"\
+                .format(fit[1],fiterr[1],fit[2],fiterr[2],chi2/Sndf,Fpvalue)
+        print(string)
+        
+        #string = "& {0:1.2f} $\pm$ {1:1.2f} & {2:1.2e} $\pm$ {3:1.2e}".format(fit[1],fiterr[1]**0.5,fit[2],fiterr[2]**0.5)
+        #print(fit[1],fiterr[1]**0.5,fit[2],fiterr[2]**0.5)
+        #print(string)
         if plot:
             plt.errorbar(bcs,h/norm,yerr = MCbounds/norm,linestyle="",marker=markers[i],label=labels[i])
-            line,=plt.plot(bcs,rlf.integrateSchechter(bcs,*fit)/norm,
+            line,=plt.plot(bcs,integrateSchechter(bcs,*fit)/norm,
                 color=plt.gca().lines[-1].get_color(),linestyle=linestyles[i])
             lines.append(line)
     
-    handles=[lines[1],lines[0],lines[2],lines[3],lines[4]]
-    JamesFit,RyderFit,ShinFit,LuoFit = rlf.best_fits(JHz = True)
-    RyderGuess = rlf.make_first_guess(bcs,h,RyderFit,2)
-    JamesGuess = rlf.make_first_guess(bcs,h,JamesFit,2)
-    ShinGuess = rlf.make_first_guess(bcs,h,ShinFit,2)
-    LuoGuess = rlf.make_first_guess(bcs,h,LuoFit,2)
+    handles=[lines[1],lines[0],lines[2],lines[3]]
+    JamesFit,RyderFit,ShinFit,LuoFit = best_fits(JHz = True)
+    RyderGuess = make_first_guess(bcs,h,RyderFit,2)
+    JamesGuess = make_first_guess(bcs,h,JamesFit,2)
+    ShinGuess = make_first_guess(bcs,h,ShinFit,2)
+    LuoGuess = make_first_guess(bcs,h,LuoFit,2)
     
     glabels = ["Ryder et al.", "Shin et al.", "Luo et al."]
     for i,guess in enumerate([RyderGuess,ShinGuess,LuoGuess]):
         ibin = np.where(bcs > 1e23)[0][0]
-        toplot = rlf.integrateSchechter(bcs,*guess)
+        toplot = integrateSchechter(bcs,*guess)
         norm = toplot[ibin]
         #if plot:
         #    plt.plot(bcs,toplot/norm,linestyle=linestyles[i],label=glabels[i])
@@ -150,8 +178,8 @@ def plot_lum_func(bcs,h,MCbounds,count,outfile):
     ShinGuess = make_first_guess(bcs,h,ShinFit,2)
     LuoGuess = make_first_guess(bcs,h,LuoFit,2)
     
-    results = curve_fit(rlf.logIntegrateSchechter,np.log10(bcs),np.log10(h),p0=RyderGuess,sigma=error)
-    plt.plot(bcs,rlf.integrateSchechter(bcs,*results[0]),
+    results = curve_fit(logIntegrateSchechter,np.log10(bcs),np.log10(h),p0=RyderGuess,sigma=error)
+    plt.plot(bcs,integrateSchechter(bcs,*results[0]),
         color=plt.gca().lines[-1].get_color(),linestyle="-")
     
     
@@ -320,6 +348,91 @@ def get_lum_function(fname, Nreps = 1000, DoFactor = False):
     #print(inverse,"\n\n")
     
     return bcs,h,rms,count,analytic,inverse
+
+def make_first_guess(E,L, params,method):
+    """
+    Makes a first guess by setting the amplitude
+    to that of the first bin
+    
+    Params are always gamma,Emax
+    """
+    if method==0:
+        mag = Schechter(E[0],1.,params[0],params[1])
+        guess = [L[0]/mag,params[0],params[1]]
+    elif method==1:
+        mag = integrateSchechter(E[0],1.,params[0],params[1])
+        guess = [L[0]/mag,params[0],params[1]]
+    elif method==2:
+        # returns the log10 magnitude expected with an amplitude of unity
+        mag = logIntegrateSchechter(np.log10(E[0]),1.,params[0],params[1])
+        guess = [L[0]/10.**mag,params[0],params[1]]   
+    else:
+        mag = power_law(E[0],1.,params[0],params[1])
+        guess = [L[0]/mag,params[0],params[1]]
+    
+    
+    return guess
+    
+    
+def best_fits(JHz = True):
+    """
+    Returns best-fit parameters of the Schechter function according to
+    different papers.
+    
+    Only gives gamma and Emax
+    
+    JHz means divide by 1e7 (erg) and 1e9 (GHz bandwidth)
+    """
+    JamesFit = [-1.95,41.26]
+    RyderFit = [-1.95,41.7]
+    ShinFit = [-1.3,41.38]
+    LuoFit = [-1.79,41.46]
+    for item in [JamesFit,RyderFit,ShinFit,LuoFit]:
+        item[1] = 10.**item[1]
+        if JHz:
+        # convert from erg to J Hz
+            item[1] = item[1] / 1e16
+    return JamesFit,RyderFit,ShinFit,LuoFit
+    
+def logIntegrateSchechter(log10E,A,gamma,Emax):
+    """
+    Returns the logarithms of the IntegrateSchechter function
+    Requires log10 E to be sent
+    """
+    res = integrateSchechter(10.**log10E,A,gamma,Emax)
+    res = np.log10(res)
+    return res
+    
+def integrateSchechter(E,A,gamma,Emax):
+    """
+    Schechter function
+    Gamma is differential
+    Relative to E0, which is arbitrary
+    
+    An extra E/E0 due to log binning of histogram
+    """
+    bw = 10**0.5
+    if isinstance(E,np.ndarray):
+        y=np.zeros(E.size)
+        for i,bc in enumerate(E):
+            res = quad(Schechter,bc/bw,bc*bw,args=(A,gamma,Emax))
+            y[i]=res[0]
+    else:
+        res = quad(Schechter,E/bw,E*bw,args=(A,gamma,Emax))
+        y = res[0]
+    return y
+
+def Schechter(E,A,gamma,Emax):
+    """
+    Schechter function
+    Gamma is differential
+    Relative to E0, which is arbitrary
+    
+    An extra E/E0 due to log binning of histogram
+    """
+    global E0
+    return A*(E/E0)**gamma * np.exp(-E/Emax)
+
 
 def read_data(infile):
     """
