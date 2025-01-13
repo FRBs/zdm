@@ -188,6 +188,7 @@ def get_log_likelihood(grid, s, norm=True, psnr=True, Pn=True):
         if s.nDr==1:
             llsum1, lllist, expected = calc_likelihoods_1D(grid, s, norm=norm, psnr=psnr, dolist=1, repeaters=True, Pn=Pn)
             llsum = llsum1
+            print(s.name, "repeaters:", lllist)
         elif s.nDr==2:
             llsum1, lllist, expected = calc_likelihoods_2D(grid, s, norm=norm, psnr=psnr, dolist=1, repeaters=True, Pn=Pn)
             llsum = llsum1
@@ -198,11 +199,12 @@ def get_log_likelihood(grid, s, norm=True, psnr=True, Pn=True):
         else:
             print("Implementation is only completed for nD 1-3.")
             exit()
-        
+
         # Singles
         if s.nDs==1:
             llsum1, lllist, expected = calc_likelihoods_1D(grid, s, norm=norm, psnr=psnr, dolist=1, singles=True, Pn=Pn)
             llsum += llsum1
+            print(s.name, "singles:", lllist)
         elif s.nDs==2:
             llsum1, lllist, expected = calc_likelihoods_2D(grid, s, norm=norm, psnr=psnr, dolist=1, singles=True, Pn=Pn)
             llsum += llsum1
@@ -303,7 +305,7 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=True,Pn=True,dol
     
     idms1,idms2,dkdms1,dkdms2 = grid.get_dm_coeffs(DMobs)
 
-    if grid.state.MW.sigmaDMG == 0.0:
+    if grid.state.MW.sigmaDMG == 0.0 and grid.state.MW.sigmaHalo == 0.0:
         if np.any(DMobs < 0):
             raise ValueError("Negative DMobs with no uncertainty")
 
@@ -543,7 +545,7 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=True,Pn=True,dol
         plt.savefig('Plots/1d_dm_fit.pdf')
         plt.close()
 
-    # print("1D list:", lllist)
+    # print(survey.name, "1D list:", lllist)
     if dolist==0:
         return llsum
     elif dolist==1:
@@ -673,7 +675,7 @@ def calc_likelihoods_2D(grid,survey,
     izs1,izs2,dkzs1,dkzs2 = grid.get_z_coeffs(Zobs)
     
     # Calculate probability
-    if grid.state.MW.sigmaDMG == 0.0:
+    if grid.state.MW.sigmaDMG == 0.0 and grid.state.MW.sigmaHalo == 0.0:
         if np.any(DMobs < 0):
             raise ValueError("Negative DMobs with no uncertainty")
 
@@ -924,7 +926,7 @@ def calc_likelihoods_2D(grid,survey,
             f"wzterm={np.sum(np.log10(wzpsnr)):0.2f}," \
             f"comb={np.sum(np.log10(wzpsnr*pvals)):0.2f}")
     
-    # print("2D list:", lllist)
+    # print(survey.name, "2D list:", lllist)
     if dolist==0:
         return llsum
     elif dolist==1:
@@ -964,11 +966,7 @@ def calc_DMG_weights(DMEGs, DMhalos, DM_ISMs, dmvals, sigma_ISM=0.5, sigma_halo_
     for i,DM_ISM in enumerate(DM_ISMs):
         # Determine lower and upper DM values used
         # From 0 to DM_total
-        if DMhalos[i] == 0.0:
-            sigma_halo_abs = 0.0
-            DM_total = DMEGs[i] + DM_ISM
-        else:
-            DM_total = DMEGs[i] + DM_ISM + DMhalos[i]
+        DM_total = DMEGs[i] + DM_ISM + DMhalos[i]
 
         idxs = np.where(dmvals < DM_total)
 
@@ -979,24 +977,33 @@ def calc_DMG_weights(DMEGs, DMhalos, DM_ISMs, dmvals, sigma_ISM=0.5, sigma_halo_
         # Get absolute uncertainty in DM_ISM
         sigma_ISM_abs = DM_ISM * sigma_ISM
 
-        if log:
+        # pISM
+        if sigma_ISM_abs == 0.0:
+            pISM = None
+        elif log:
             pISM = st.lognorm.pdf(DMGvals, scale=DM_ISM, s=sigma_ISM) * ddm
         else:
             pISM = st.norm.pdf(DMGvals, loc=DM_ISM, scale=sigma_ISM_abs) * ddm
     
+        # pHalo
         if sigma_halo_abs == 0.0:
+            pDMG = None
+        elif log:
+            sigma_halo = sigma_halo_abs / DMhalos[i]
+            pHalo = st.lognorm.pdf(DMGvals, scale=DMhalos[i], s=sigma_halo) * ddm
+        else:
+            pHalo = st.norm.pdf(DMGvals, loc=DMhalos[i], scale=sigma_halo_abs) * ddm
+        
+        if pISM == None:
+            pDMG = pHalo 
+        elif pHalo == None:
             pDMG = pISM
         else:
-            if log:
-                sigma_halo = sigma_halo_abs / DMhalos[i]
-                pHalo = st.lognorm.pdf(DMGvals, scale=DMhalos[i], s=sigma_halo) * ddm
-            else:
-                pHalo = st.norm.pdf(DMGvals, loc=DMhalos[i], scale=sigma_halo_abs) * ddm
-            
             pDMG = np.convolve(pISM, pHalo, mode='full')
-            # Set upper limit of DMG = DM_total 
-            # Reversed because DMGvals are descending order which corresponds to DMEGvals (dmvals) in ascending order
-            pDMG = pDMG[-len(DMGvals):] 
+
+        # Set upper limit of DMG = DM_total 
+        # Reversed because DMGvals are descending order which corresponds to DMEGvals (dmvals) in ascending order
+        pDMG = pDMG[-len(DMGvals):] 
 
         weights.append(pDMG)
         iweights.append(idxs)
@@ -2143,7 +2150,6 @@ def minimise_const_only(vparams:dict,grids:list,surveys:list,
             o=s.NORM_FRB
             rs.append(r)
             os.append(o)
-            print('Expected, observed:', r, o)
 
     # Check it is not an empty survey. We allow empty surveys as a 
     # non-detection still gives information on the FRB event rate.
