@@ -250,14 +250,14 @@ class repeat_Grid(grid.Grid):
         
         
     def calc_constant(self,verbose=False):
-        """
+        '''
         Calculates the constant of the repeating FRB function:
-            d\Phi(R)/dR = Cr * (R/R0)^power
+            d\\Phi(R)/dR = Cr * (R/R0)^power
             between Rmin and Rmax.
             Here R0 is the unit of R, taken to be 1/day
         
         The constant C is the constant burst rate at energy E0 per unit volume
-        By definition, \int_{R=Rmin}^{R=Rmax} R d\Phi(R)/dR dR = C
+        By definition, \\int_{R=Rmin}^{R=Rmax} R d\\Phi(R)/dR dR = C
         Hence, C=Cr * (power+2)^-1 (R_max^(power+2)-R_min^(power+2))
         and thus Cr = C * (power+2)/(R_max^(power+2)-R_min^(power+2))
         
@@ -269,7 +269,7 @@ class repeat_Grid(grid.Grid):
         
         NOTE: if updating, in theory all steps before Rc = ... could be held in memory
         
-        """
+        '''
         
         # sets repeater constant as per global FRB rate constant
         # C is in bursts per Gpc^3 per year
@@ -484,7 +484,9 @@ class repeat_Grid(grid.Grid):
     def calc_expected_repeaters(self,expected_singles,expected_zeros):
         """
         Calculates the expected number of FRBs observed as repeaters.
-        The total expected number of bursts from
+        The total expected number of observed repeaters is the total
+        number of actual repeaters, minus those that are observed once,
+        minus those observed not at all
         """
         
         # The probability of any repeater giving more than one burst is
@@ -528,13 +530,14 @@ class repeat_Grid(grid.Grid):
         total_rate = (1./effGamma) * (self.Rmax**effGamma-self.Rmin**effGamma) * self.Rmult
         mult_rate = total_rate - expected_singles
         return mult_rate
-        
+    
+    
     
     def calc_singles_exactly(self):
         """
         Calculates exact expected number of single bursts from a repeater population
         
-        Probability is: \int constant * R exp(-R) * R^(Rgamma)
+        Probability is: \\int constant * R exp(-R) * R^(Rgamma)
         definition of gamma function is R^x-1 exp(-R) for gamma(x)
         # hence here x is gamma+2
         limits set by Rmin and Rmax (determind after multiplying intrinsic by Rmult)
@@ -788,18 +791,80 @@ class repeat_Grid(grid.Grid):
             norms = norms.reshape([nz,ndm])
         
         return norms
+    
+    
+    
+    def calc_exact_repeater_probability(self,Nreps,z,DM,verbose=False):
+        '''
+        Calculates exact expected number of Nreps bursts from a repeater population
+        We have this repeater at z-value z, DM value DM
         
+        MATH:
+            The singles probability is: \\int constant * R exp(-R) * R^(Rgamma)
+                where the factor "R exp(-R)" is Poisson(1)
+                We now replace this with Poisson(N) = R^N exp(-R)/R!
+        
+            The definition of gamma function is R^x-1 exp(-R) for gamma(x)
+                hence here x is gamma+N+1
+        
+            This simply means we calculate a new gamma function at the relevant point
+                limits set by Rmin and Rmax (determind after multiplying intrinsic by Rmult)
+                This is Gamma(Rgamma+N+1,Rmin) - Gamma(Rgamma+N+1,Rmax)
+        '''
+        # We wish to integrate R R^gammaR exp(-R) from Rmin to Rmax
+        # this can be done by mpmath.gammainc(self.Rgamma+2, a=self.Rmin*Rmult[i,j])
+        # which integrates \int_Rmin*Rmult ^ infinity R(Rgamma+2-1) exp(-R)
+        # and subtracting the Rmax from it
+        
+        effGamma=self.Rgamma+Nreps+1
+        factorial = sp.special.factorial(Nreps)
+        
+        # gets dm and z values about this point
+        idm1,idm2,dkdm1,dkdm2 = self.get_dm_coeffs([DM])
+        iz1,iz2,dkz1,dkz2 = self.get_z_coeffs([z])
+        
+        all_rel_prob = 0.
+        
+        for dmpair in [[idm1,dkdm1],[idm2,dkdm2]]:
+            for zpair in [[iz1,dkz1],[iz2,dkz2]]:
+                idm = dmpair[0][0]
+                kdm = dmpair[1][0]
+                iz = zpair[0][0]
+                kz = zpair[1][0]
+                Rmult = self.Rmult[iz,idm]
+                
+                prob = mpmath.gammainc(effGamma, a=self.Rmin*Rmult,b=self.Rmax*Rmult)
+                
+                # accounts for Poissonian factorial factor
+                prob /= factorial
+        
+                # integral is in units of R'=R*Rmult
+                # however population is specified in number density of R
+                # hence R^gammadensity factor must be normalised
+                # the following array could also be saved, we shall see
+                prob /= Rmult**(self.Rgamma+1)
+                prob *= self.volume_grid[iz,idm]*self.use_sfr[iz]
+                
+                # compares the reltive probability of getting a repeater repeating
+                # this many times at this z,DM point compared to the probability
+                # of getting any repeater at all here
+                rel_prob = prob / self.exact_reps[iz,idm]
+                
+                all_rel_prob += rel_prob * kdm * kz
+        
+        return all_rel_prob
+    
     def slow_exact_calculation(self,exact_singles,exact_zeroes,exact_rep_bursts,exact_reps,plot=True,zonly=True):
-        """
+        '''
         Calculates exact expected number of single bursts from a repeater population
         
-        Probability is: \int constant * R exp(-R) * R^(Rgamma)
+        Probability is: \\int constant * R exp(-R) * R^(Rgamma)
         definition of gamma function is R^x-1 exp(-R) for gamma(x)
         # hence here x is gamma+2
         limits set by Rmin and Rmax (determind after multiplying intrinsic by Rmult)
         
         This is Gamma(Rgamma+2,Rmin) - Gamma(Rgamma+2,Rmax)
-        """
+        '''
         # We wish to integrate R R^gammaR exp(-R) from Rmin to Rmax
         # this can be done by mpmath.gammainc(self.Rgamma+2, a=self.Rmin*Rmult[i,j])
         # which integrates \int_Rmin*Rmult ^ infinity R(Rgamma+2-1) exp(-R)
@@ -1218,15 +1283,15 @@ class repeat_Grid(grid.Grid):
         return zcrit
 
     def calc_p_no_bursts(self,Tobs,N1thresh=0.1,N3thresh=10.):
-        """
+        '''
         calculates the chance that no *bursts* are observed in a given volume
         This is an integral over the repeater *and* luminosity distributions
         
         The chance of having no bursts is:
-            Outer integral over distribution of repeaters: \int_Rmin ^ Rmax C_r R^gamma dV [] dR
+            Outer integral over distribution of repeaters: \\int_Rmin ^ Rmax C_r R^gamma dV [] dR
             Inner integral             
             
-            p(no bursts) = \int (rate) p(no repeaters) + p(no bursts | repeaters) dR
+            p(no bursts) = \\int (rate) p(no repeaters) + p(no bursts | repeaters) dR
             
         
         
@@ -1240,7 +1305,7 @@ class repeat_Grid(grid.Grid):
         
         # calculates the fraction of the luminosity function visible at any given distance
         calc_effective_rate()
-        """
+        '''
         
         ###### all this is ignoring redshift and DM dependence so far
         # later will investigate what it looks like when looping over both
