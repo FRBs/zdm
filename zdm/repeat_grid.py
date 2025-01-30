@@ -794,10 +794,20 @@ class repeat_Grid(grid.Grid):
     
     
     
-    def calc_exact_repeater_probability(self,Nreps,z,DM,verbose=False):
+    def calc_exact_repeater_probability(self,Nreps,DM,z=None,verbose=False):
         '''
         Calculates exact expected number of Nreps bursts from a repeater population
         We have this repeater at z-value z, DM value DM
+        
+        INPUTS:
+            Nreps (int): Number of observed repetitions (>=2)
+            DM (float): Extragalactic dispersion measure of the FRB
+            z (float): Redshift of the FRB
+            verbose (bool): if verbose output is required
+        
+        RETURNS:
+            rel_prob (float): relative probability of observing an FRB with
+                Nreps *given* a repeater has been observed
         
         MATH:
             The singles probability is: \\int constant * R exp(-R) * R^(Rgamma)
@@ -821,38 +831,68 @@ class repeat_Grid(grid.Grid):
         
         # gets dm and z values about this point
         idm1,idm2,dkdm1,dkdm2 = self.get_dm_coeffs([DM])
-        iz1,iz2,dkz1,dkz2 = self.get_z_coeffs([z])
+        if z is not None:
+            iz1,iz2,dkz1,dkz2 = self.get_z_coeffs([z])
         
         all_rel_prob = 0.
         
         for dmpair in [[idm1,dkdm1],[idm2,dkdm2]]:
-            for zpair in [[iz1,dkz1],[iz2,dkz2]]:
-                idm = dmpair[0][0]
-                kdm = dmpair[1][0]
-                iz = zpair[0][0]
-                kz = zpair[1][0]
-                Rmult = self.Rmult[iz,idm]
+            idm = dmpair[0][0]
+            kdm = dmpair[1][0]
+            
+            if z is not None:
+                # We imnterpolate between z and dm points. Hence, we interpolate
+                # the relative probability
+                for zpair in [[iz1,dkz1],[iz2,dkz2]]:
+                    
+                    iz = zpair[0][0]
+                    kz = zpair[1][0]
+                    prob = self.get_rep_prob_at_point(iz,idm,effGamma,factorial)
+                    # compares the reltive probability of getting a repeater repeating
+                    # this many times at this z,DM point compared to the probability
+                    # of getting any repeater at all here
+                    if self.exact_reps[iz,idm] > 0.:
+                        rel_prob = prob / self.exact_reps[iz,idm]
+                        all_rel_prob += rel_prob * kdm * kz
+            else:
+                # here, we sum the probabilities first, because we don't know where
+                # in z-space we are. Then we normalise
                 
-                prob = mpmath.gammainc(effGamma, a=self.Rmin*Rmult,b=self.Rmax*Rmult)
+                prob = 0
+                for iz in np.arange(self.zvals.size):
+                    prob += self.get_rep_prob_at_point(iz,idm,effGamma,factorial)
+                rel_prob = prob / np.sum(self.exact_reps[:,idm])
+                all_rel_prob += rel_prob * kdm
                 
-                # accounts for Poissonian factorial factor
-                prob /= factorial
-        
-                # integral is in units of R'=R*Rmult
-                # however population is specified in number density of R
-                # hence R^gammadensity factor must be normalised
-                # the following array could also be saved, we shall see
-                prob /= Rmult**(self.Rgamma+1)
-                prob *= self.volume_grid[iz,idm]*self.use_sfr[iz]
+            #else:
+            #    Rmults = self.Rmult[:,idm]
+            #    for iz,z in enumerate(self.zvals):
+                    
                 
-                # compares the reltive probability of getting a repeater repeating
-                # this many times at this z,DM point compared to the probability
-                # of getting any repeater at all here
-                rel_prob = prob / self.exact_reps[iz,idm]
-                
-                all_rel_prob += rel_prob * kdm * kz
-        
+            
         return all_rel_prob
+
+    def get_rep_prob_at_point(self,iz,idm,effGamma,factorial):
+        """
+        Calculates the probability of getting a repeater at grid point
+            iz,idm with given number of repeates.
+        
+        Key normalisation factors are missing and are added later
+        
+        iz (int): index of redshift
+        idm (int): index of dispersion measure
+        eff_gamma (float): effective value of gamma for the integral
+        factorial (floart): pre-computer factorial factor
+        """
+        Rmult = self.Rmult[iz,idm]
+        prob = mpmath.gammainc(effGamma, a=self.Rmin*Rmult,b=self.Rmax*Rmult)
+        prob /= factorial
+        prob /= Rmult**(self.Rgamma+1) 
+        prob *= self.volume_grid[iz,idm]*self.use_sfr[iz]
+        
+        return prob
+                
+        
     
     def slow_exact_calculation(self,exact_singles,exact_zeroes,exact_rep_bursts,exact_reps,plot=True,zonly=True):
         '''
