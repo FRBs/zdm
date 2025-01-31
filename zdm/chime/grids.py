@@ -110,4 +110,5 @@ def load(Nbin:int=6, make_plots:bool=False):
 
     return rg.dmvals, rg.zvals, all_rates, all_singles, all_reps
 
-load()
+# For testing
+#load()

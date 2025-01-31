@@ -1,0 +1,9 @@
+1.405e9        #MHz obs frequency
+3.4         # FWHM [deg]
+34.37 0     # pointing angle (zenith, azimuth) of primary beam. Centre is 71.6 deg - 37:14:02 = 34.37
+48          # number of antennas
+-200 0      # ant 1
+200 0       # ant 48
+256         # number of beams
+-3.764     # azimuth angle of beam0 [deg]. 2.125 / sin(34.37)
+3.764      # azimuth angle of final beam [deg] Adding 255 / 60. to above
