@@ -186,6 +186,8 @@ class repeat_Grid(grid.Grid):
             ALL (bool, optional):  If True, update the full grid
         """
 
+        raise NotImplementedError("Update has not been properly updated")
+
         ### first check which have changed ###
         self.newRmin = False
         self.newRmax = False
@@ -235,18 +237,19 @@ class repeat_Grid(grid.Grid):
             # simple linear scaling of the number of repeaters per field
             self.Nexp *= self.Rc / oldRc
             self.Nexp_field *= self.Rc / oldRc
-            
-            ### everything up to here updates the main 'init' function
-            # now proceed to "calc_Rthresh"
-            # Rmult does *not* need to be re-calculated
-            # In calc_Rthresh, it already checks if this
-            # has already been done. Also with summed Rmult.
-            # Thus calling calc_Rthresh should jump straight to
-            # calling "sim repeaters". Everything in
-            # calc_Rthresh after that is necessary if anything changes
-            # hence: just calling calc_Rthresh is good!
-            # if we are updating, never do plots, waste of time!
-            self.calc_Rthresh(Exact=self.Exact,MC=self.MC,doplots=False)
+
+        ### everything up to here updates the main 'init' function
+        # now proceed to "calc_Rthresh"
+        # Rmult does *not* need to be re-calculated
+        # In calc_Rthresh, it already checks if this
+        # has already been done. Also with summed Rmult.
+        # Thus calling calc_Rthresh should jump straight to
+        # calling "sim repeaters". Everything in
+        # calc_Rthresh after that is necessary if anything changes
+        # hence: just calling calc_Rthresh is good!
+        # if we are updating, never do plots, waste of time!
+        self.Rmults = None
+        self.calc_Rthresh(Exact=self.Exact,MC=self.MC,doplots=False)
         
         
     def calc_constant(self,verbose=False):
@@ -300,6 +303,7 @@ class repeat_Grid(grid.Grid):
         self.Rc = Rc
         self.NRtot = Ntot
         self.state.rep.RC = Rc
+        
         return Rc,Ntot
     
     

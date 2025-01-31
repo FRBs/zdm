@@ -14,7 +14,7 @@ from zdm import misc_functions
 from zdm import iteration as it
 from zdm import loading
 
-from ne2001 import density
+# from ne2001 import density
 
 from astropy.cosmology import Planck18
 from zdm import parameters
@@ -51,7 +51,7 @@ def generate(
     state.set_astropy_cosmo(Planck18)
     state.update_params(param_dict)
 
-    surveys, grids = loading.surveys_and_grids(survey_names=[base_survey], init_state=state)
+    surveys, grids = loading.surveys_and_grids(survey_names=[base_survey], init_state=state, discard_empty=False)
     survey = surveys[0]
     grid = grids[0]
 
@@ -89,13 +89,8 @@ def generate(
     # 3: w
     # 4: s
     # plot some sample plots
-        do_basic_sample_plots(sample, opdir="MC_Plots")
+        # do_basic_sample_plots(sample, opdir="MC_Plots")
 
-    # Do meta data for survey
-    t = Table()
-    t.meta = meta_data
-    t.meta['survey_data'] = json.dumps(t.meta['survey_data'])
-    
     # Generate DMG
     # Gb: -90 to 90
     # Gl: 0 to 360
@@ -103,12 +98,22 @@ def generate(
     Gb = np.random.uniform(0, 1, Nsamples)
     Gb = np.arcsin(2*Gb - 1) / np.pi * 180
     
-    ne = density.ElectronDensity()
+    # ne = density.ElectronDensity()
     DMGs = np.zeros(Nsamples)
-    for i,l in enumerate(Gl):
-        b=Gb[i]
-        ismDM = ne.DM(l, b, 100.)
-        DMGs[i] = ismDM.value
+    # for i,l in enumerate(Gl):
+    #     b=Gb[i]
+    #     ismDM = ne.DM(l, b, 100.)
+    #     DMGs[i] = ismDM.value
+
+    write_samples(sample, survey, outfile, DMGs, Gb, Gl)
+
+def write_samples(sample, survey, outfile, DMGs, Gb, Gl):
+    Nsamples = sample.shape[0]
+    
+    # Do meta data for survey
+    t = Table()
+    t.meta = meta_data
+    t.meta['survey_data'] = json.dumps(t.meta['survey_data'])
 
     # Format Table
     t['TNS'] = np.array(range(Nsamples)).astype(str)
@@ -119,11 +124,11 @@ def generate(
     t['FRES'] = survey.meta['FRES'] * np.ones(Nsamples)
     t['Gb'] = Gb
     t['Gl'] = Gl
-    t['SNR'] = sample[:,4]
+    t['SNR'] = sample[:,3] * survey.meta['SNRTHRESH']
     t['SNRTHRESH'] = survey.meta['SNRTHRESH'] * np.ones(Nsamples)
     t['THRESH'] = survey.meta['THRESH'] * np.ones(Nsamples)
     t['TRES'] = survey.meta['TRES'] * np.ones(Nsamples)
-    t['WIDTH'] = sample[:,3]
+    t['WIDTH'] = sample[:,4]
     t['XDec'] = np.array(["" for i in range(Nsamples)])
     t['XRA'] = np.array(["" for i in range(Nsamples)])
     t['Z'] = sample[:,0]
@@ -132,54 +137,6 @@ def generate(
 
     # Write to file
     t.write(outfile + '.ecsv', format='ascii.ecsv')
-
-    # Read base
-    # sdir = os.path.join(resource_filename("zdm", "craco"), "MC_Surveys")
-    # basefile = os.path.join(sdir, base_survey + ".dat")
-    # with open(basefile, "r") as f:
-    #     base_lines = f.readlines()
-
-    # # Write FRBs to disk
-    # add_header = True
-    # with open(outfile, "w") as f:
-    #     # Header
-    #     for base_line in base_lines:
-    #         if add_header:
-    #             if "NFRB" in base_line:
-    #                 f.write(f"NFRB {Nsamples}\n")
-    #             elif "NORM_FRB" in base_line:
-    #                 f.write(f"NORM_FRB {Nsamples}\n")
-    #             else:
-    #                 f.write(base_line)
-    #             if "fake data" in base_line:
-    #                 add_header = False
-    #     #
-    #     for i in np.arange(Nsamples):
-    #         DMG = 35
-    #         DMEG = sample[i, 1]
-    #         DMtot = DMEG + DMG + grid.state.MW.DMhalo
-    #         SNRTHRESH = 9.5
-    #         SNR = SNRTHRESH * sample[i, 4]
-    #         z = sample[i, 0]
-    #         w = sample[i, 3]
-
-    #         string = (
-    #             "FRB "
-    #             + str(i)
-    #             + "  {:6.1f}  35   {:6.1f}  {:5.3f}   {:5.1f}  {:5.1f} \n".format(
-    #                 DMtot, DMEG, z, SNR, w
-    #             )
-    #         )
-    #         # print("FRB ",i,DMtot,SNR,DMEG,w)
-    #         f.write(string)
-    # print(f"Wrote: {outfile}")
-
-    # # Write state
-    # state_file = outfile.replace(".dat", "_state.json")
-    # grid.state.write(state_file)
-    # print(f"Wrote: {state_file}")
-    # # evaluate_mc_sample_v1(g,s,pset,sample)
-    # # evaluate_mc_sample_v2(g,s,pset,sample)
 
 
 def evaluate_mc_sample_v1(grid, survey, pset, sample, opdir="Plots"):
@@ -371,118 +328,24 @@ generate(alpha_method=1, lum_func=2, Nsamples=5000, do_plots=True,
     savefile=None)
 """
 
-# Made in May 2022
-# generate(
-#     alpha_method=1,
-#     lum_func=2,
-#     Nsamples=5000,
-#     do_plots=True,
-#     outfile="MC_Surveys/CRACO_std_May2022.dat",
-#     savefile=None,
-# )
-
-# JB
-
-# generate(
-#     alpha_method=1,
-#     lum_func=2,
-#     Nsamples=1000,
-#     do_plots=True,
-#     outfile="MC_F/Surveys/F_vanilla_survey.dat",
-#     plotfile="MC_F/Plots/F_vanilla.pdf",
-#     savefile=None,
-#     # update_params={"F": 0.01},
-# )
-
-# generate(
-#     alpha_method=1,
-#     lum_func=2,
-#     Nsamples=1000,
-#     do_plots=True,
-#     outfile="MC_F/Surveys/F_0.01_survey.dat",
-#     plotfile="MC_F/Plots/F_0.01.pdf",
-#     savefile=None,
-#     update_params={"F": 0.01},
-# )
-
-# generate(
-#     alpha_method=1,
-#     lum_func=2,
-#     Nsamples=1000,
-#     do_plots=True,
-#     outfile="MC_Surveys/CRACO_F_0.32_survey.dat",
-#     plotfile="MC_Plots/CRACO_F_0.32.pdf",
-#     savefile=None,
-#     update_params={"F": 0.32},
-# )
-
-# generate(
-#     alpha_method=1,
-#     lum_func=2,
-#     Nsamples=1000,
-#     do_plots=True,
-#     outfile="MC_F/Surveys/F_0.7_survey.dat",
-#     plotfile="MC_F/Plots/F_0.7.pdf",
-#     savefile=None,
-#     update_params={"F": 0.7},
-# )
-
-# generate(
-#     alpha_method=1,
-#     lum_func=2,
-#     Nsamples=1000,
-#     do_plots=True,
-#     outfile="MC_F/Surveys/F_0.01_dmhost_suppressed_survey.dat",
-#     plotfile="MC_F/Plots/F_0.01_dmhost_suppressed.pdf",
-#     savefile=None,
-#     update_params={"F": 0.01, "lmean": 1e-3, "lsigma": 0.1},
-# )
-
-# generate(
-#     alpha_method=1,
-#     lum_func=2,
-#     Nsamples=1000,
-#     do_plots=True,
-#     outfile="MC_F/Surveys/F_0.9_dmhost_suppressed_survey.dat",
-#     plotfile="MC_F/Plots/F_0.9_dmhost_suppressed.pdf",
-#     savefile=None,
-#     update_params={"F": 0.9, "lmean": 1e-3, "lsigma": 0.1},
-# )
-
-# generate(
-#     alpha_method=1,
-#     lum_func=2,
-#     Nsamples=1000,
-#     do_plots=True,
-#     outfile="MC_F/Surveys/F_0.7_dmhost_suppressed_survey.dat",
-#     plotfile="MC_F/Plots/F_0.7_dmhost_suppressed.pdf",
-#     savefile=None,
-#     update_params={"F": 0.7, "lmean": 1e-3, "lsigma": 0.1},
-# )
-
-# generate(
-#     alpha_method=1,
-#     lum_func=2,
-#     Nsamples=1000,
-#     do_plots=True,
-#     outfile="MC_F/Surveys/F_vanilla_dmhost_suppressed_survey.dat",
-#     plotfile="MC_F/Plots/F_vanilla_dmhost_suppressed.pdf",
-#     savefile=None,
-#     update_params={"lmean": 1e-3, "lsigma": 0.1},
-# )
-
-param_dict={'sfr_n': 0.8808527057055584, 'alpha': 0.7895161131856694, 'lmean': 2.1198711983468064, 'lsigma': 0.44944780033763343, 'lEmax': 41.18671139482926, 'lEmin': 39.81049090314043, 'gamma': -1.1558450520609953, 'H0': 54.6887137195215}
+param_dict={'sfr_n': 1.13, 'alpha': 1.5, 'lmean': 2.27, 'lsigma': 0.55, 'lEmax': 41.26, 'lEmin': 39.5, 'gamma': -0.95, 'H0': 73}
 meta_data = {}
 meta_data['survey_data'] = {}
+
+# # DSA
+# meta_data['survey_data']['observing'] = {"MAX_DM": 1500}
+# meta_data['survey_data']['telescope'] = {"BMETHOD": 0, "BTHRESH": 0.001, "DIAM": 4.65, "NBEAMS": 1, "NBINS": 10}
+
+# CRAFT_ICS_1300
 meta_data['survey_data']['observing'] = {"MAX_IDT": 4096}
 meta_data['survey_data']['telescope'] = {"BEAM": "ASKAP_1300", "DIAM": 12.0, "NBEAMS": 36, "NBINS": 5}
 
 t0 = time.time()
 generate(
-    Nsamples=10000,
+    Nsamples=100000,
     do_plots=False,
     base_survey="CRAFT_ICS_1300",
-    outfile="MC_CRAFT_ICS_1300_3",
+    outfile="MC_CRAFT_ICS_1300_e5",
     savefile=None,
     param_dict=param_dict,
     meta_data=meta_data,

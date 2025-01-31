@@ -64,7 +64,7 @@ def read_extremes(infile='planck_extremes.dat',H0=Planck_H0):
         
         pdict={}
         # gets parameter values
-        for i in np.arange(7):
+        for i in np.arange(6):
             line=f.readline()
             words=line.split()
             param=words[0]
@@ -76,7 +76,7 @@ def read_extremes(infile='planck_extremes.dat',H0=Planck_H0):
         
         pdict={}
         # gets parameter values
-        for i in np.arange(7):
+        for i in np.arange(6):
             line=f.readline()
             words=line.split()
             param=words[0]
@@ -120,7 +120,7 @@ def set_state(pset,chime_response=True,ischime=True):
     state.FRBdemo.sfr_n = pset['sfr_n']
     state.host.lsigma = pset['lsigma']
     state.host.lmean = pset['lmean']
-    state.FRBdemo.lC = pset['lC']
+    # state.FRBdemo.lC = pset['lC']
     
     return state
 

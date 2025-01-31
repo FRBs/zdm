@@ -32,7 +32,7 @@ from zdm import repeat_grid
 
 #==============================================================================
 
-def calc_log_posterior(param_vals, state, params, surveys_sep, grid_params, Pn=True, log_halo=False, lin_host=False):
+def calc_log_posterior(param_vals, state, params, surveys_sep, grid_params, Pn=False, log_halo=False, lin_host=False, ind_surveys=False):
     """
     Calculates the log posterior for a given set of parameters. Assumes uniform
     priors between the minimum and maximum values provided in 'params'.
@@ -47,6 +47,7 @@ def calc_log_posterior(param_vals, state, params, surveys_sep, grid_params, Pn=T
         Pn          (bool)          =   Include Pn or not
         log_halo    (bool)          =   Use a log uniform prior on DMhalo
         lin_host    (bool)          =   Use a linear uniform prior on host mean
+        ind_surveys (bool)          =   Return likelihoods for each survey
     
     Outputs:
         llsum       (double)        =   Total log likelihood for param_vals which is equivalent
@@ -69,6 +70,11 @@ def calc_log_posterior(param_vals, state, params, surveys_sep, grid_params, Pn=T
         else:
             param_dict[key] = param_vals[i]
 
+    # Initialise list if requesting individual survey likelihoods
+    if ind_surveys:
+        ll_list = []
+    
+    # Check if it is in the priors and do the calculations
     if in_priors is False:
         llsum = -np.inf
     else:
@@ -77,67 +83,74 @@ def calc_log_posterior(param_vals, state, params, surveys_sep, grid_params, Pn=T
         # it is easy to reach impossible regions of the parameter space. This results in math errors
         # (log(0), log(negative), sqrt(negative), divide 0 etc.) and hence we assume that these math errors
         # correspond to an impossible region of the parameter space and so set ll = -inf
-        # try:
-        # Set state
-        state.update_params(param_dict)
+        try:
+            # Set state
+            state.update_params(param_dict)
 
-        surveys = surveys_sep[0] + surveys_sep[1]
+            surveys = surveys_sep[0] + surveys_sep[1]
 
-        # Recreate grids every time, but not surveys, so must update survey params
-        for i,s in enumerate(surveys):
-            if 'DMhalo' in param_dict:
-                if log_halo:
-                    DMhalo = 10**param_dict['DMhalo']
-                else:
-                    DMhalo = param_dict['DMhalo']
-                s.init_DMEG(DMhalo)
-                s.get_efficiency_from_wlist(s.DMlist,s.wlist,s.wplist,model=s.meta['WBIAS']) 
+            # Recreate grids every time, but not surveys, so must update survey params
+            for i,s in enumerate(surveys):
+                if 'DMhalo' in param_dict:
+                    if log_halo:
+                        DMhalo = 10**param_dict['DMhalo']
+                    else:
+                        DMhalo = param_dict['DMhalo']
+                    s.init_DMEG(DMhalo)
+                    s.get_efficiency_from_wlist(s.DMlist,s.wlist,s.wplist,model=s.meta['WBIAS']) 
 
-        # Initialise grids
-        grids = []
-        if len(surveys_sep[0]) != 0:
-            zDMgrid, zvals,dmvals = mf.get_zdm_grid(
-                state, new=True, plot=False, method='analytic', 
-                nz=grid_params['nz'], ndm=grid_params['ndm'], dmmax=grid_params['dmmax'],
-                datdir=resource_filename('zdm', 'GridData'))
+            # Initialise grids
+            grids = []
+            if len(surveys_sep[0]) != 0:
+                zDMgrid, zvals,dmvals = mf.get_zdm_grid(
+                    state, new=True, plot=False, method='analytic', 
+                    nz=grid_params['nz'], ndm=grid_params['ndm'], dmmax=grid_params['dmmax'],
+                    datdir=resource_filename('zdm', 'GridData'))
 
-            # generates zdm grid
-            grids += mf.initialise_grids(surveys_sep[0], zDMgrid, zvals, dmvals, state, wdist=True, repeaters=False)
-        
-        if len(surveys_sep[1]) != 0:
-            zDMgrid, zvals,dmvals = mf.get_zdm_grid(
-                state, new=True, plot=False, method='analytic', 
-                nz=grid_params['nz'], ndm=grid_params['ndm'], dmmax=grid_params['dmmax'],
-                datdir=resource_filename('zdm', 'GridData'))
+                # generates zdm grid
+                grids += mf.initialise_grids(surveys_sep[0], zDMgrid, zvals, dmvals, state, wdist=True, repeaters=False)
+            
+            if len(surveys_sep[1]) != 0:
+                zDMgrid, zvals,dmvals = mf.get_zdm_grid(
+                    state, new=True, plot=False, method='analytic', 
+                    nz=grid_params['nz'], ndm=grid_params['ndm'], dmmax=grid_params['dmmax'],
+                    datdir=resource_filename('zdm', 'GridData'))
 
-            # generates zdm grid
-            grids += mf.initialise_grids(surveys_sep[1], zDMgrid, zvals, dmvals, state, wdist=True, repeaters=True)
+                # generates zdm grid
+                grids += mf.initialise_grids(surveys_sep[1], zDMgrid, zvals, dmvals, state, wdist=True, repeaters=True)
 
-        # Minimse the constant accross all surveys
-        newC, llC = it.minimise_const_only(None, grids, surveys, update=True)
-        if Pn:
-            for g in grids:
-                g.state.FRBdemo.lC = newC
+            # Minimse the constant accross all surveys
+            if Pn:
+                newC, llC = it.minimise_const_only(None, grids, surveys, update=True)
+                # for g in grids:
+                #     g.state.FRBdemo.lC = newC
 
-            if isinstance(g, repeat_grid.repeat_Grid):
-                g.calc_constant()
+                # if isinstance(g, repeat_grid.repeat_Grid):
+                #     g.state.rep.RC = g.state.rep.RC / 10**oldC * 10**newC
 
-        # calculate all the likelihoods
-        llsum = 0
-        for s, grid in zip(surveys, grids):
-            llsum += it.get_log_likelihood(grid,s,Pn=Pn, psnr=False)
+            # calculate all the likelihoods
+            llsum = 0
+            for s, grid in zip(surveys, grids):
+                ll = it.get_log_likelihood(grid,s,Pn=Pn)
+                llsum += ll
 
-        # except ValueError as e:
-        #     print("ValueError, setting likelihood to -inf: " + str(e))
-        #     llsum = -np.inf
+                if ind_surveys:
+                    ll_list.append(ll)
+
+        except ValueError as e:
+            print("ValueError, setting likelihood to -inf: " + str(e))
+            llsum = -np.inf
+            ll_list = [-np.inf for _ in range(len(surveys))]
 
     if np.isnan(llsum):
         print("llsum was NaN. Setting to -infinity", param_dict)    
         llsum = -np.inf
     
     # print("Posterior calc time: " + str(time.time()-t0) + " seconds", flush=True)
-
-    return llsum
+    if ind_surveys:
+        return llsum, ll_list
+    else:
+        return llsum
 
 #==============================================================================
 

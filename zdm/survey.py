@@ -907,7 +907,7 @@ class Survey:
             themax = max(NFRB+iFRB,self.NFRB)
             self.frbs=self.frbs[iFRB:themax]
         # Min latitude
-        if min_lat is not None:
+        if min_lat is not None and min_lat > 0.0:
             excluded = len(self.frbs[np.abs(self.frbs['Gb'].values) <= min_lat])
             self.frbs = self.frbs[np.abs(self.frbs['Gb'].values) > min_lat]
             print("Using minimum galactic latitude of " + str(min_lat) + ". Excluding " + str(excluded) + " FRBs")

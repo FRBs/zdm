@@ -5,7 +5,7 @@ import argparse
 import pickle
 import json
 import copy
-from numpy.core.fromnumeric import mean
+from numpy._core.fromnumeric import mean
 
 import scipy as sp
 

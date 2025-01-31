@@ -64,37 +64,10 @@ def main():
         print("-p and -o flags are required")
         exit()
 
-    # Initialise surveys
-    surveys = [[], []]
-    state = parameters.State()
-
-    grid_params = {}
-    grid_params['dmmax'] = 7000.0
-    grid_params['ndm'] = 1400
-    grid_params['nz'] = 500
-    ddm = grid_params['dmmax'] / grid_params['ndm']
-    dmvals = (np.arange(grid_params['ndm']) + 1) * ddm
-    
-    if args.files is not None:
-        for survey_name in args.files:
-            s = survey.load_survey(survey_name, state, dmvals, 
-                                sdir=args.sdir, edir=args.edir, rand_DMG=args.rand)
-            surveys[0].append(s)
-    
-    if args.rep_surveys is not None:
-        for survey_name in args.rep_surveys:
-            s = survey.load_survey(survey_name, state, dmvals, 
-                                sdir=args.sdir, edir=args.edir, rand_DMG=args.rand)
-            surveys[1].append(s)
-
-    # Make output directory
-    if args.outdir != "" and not os.path.exists(args.outdir):
-        os.mkdir(args.outdir)
-        
+    # Select from dictionary the necessary parameters to be changed        
     with open(args.pfile) as f:
         mcmc_dict = json.load(f)
 
-    # Select from dictionary the necessary parameters to be changed
     params = {k: mcmc_dict[k] for k in mcmc_dict['mcmc']['parameter_order']}
 
     state = parameters.State()
@@ -109,6 +82,32 @@ def main():
         print("Log prior on halo")
     if args.lin_host:
         print("Linear prior on host")
+
+    # Initialise surveys
+    surveys = [[], []]
+
+    grid_params = {}
+    grid_params['dmmax'] = 7000.0
+    grid_params['ndm'] = 1400
+    grid_params['nz'] = 500
+    ddm = grid_params['dmmax'] / grid_params['ndm']
+    dmvals = (np.arange(grid_params['ndm']) + 1) * ddm
+    
+    if args.files is not None:
+        for survey_name in args.files:
+            s = survey.load_survey(survey_name, state, dmvals,
+                                sdir=args.sdir, edir=args.edir, rand_DMG=args.rand)
+            surveys[0].append(s)
+    
+    if args.rep_surveys is not None:
+        for survey_name in args.rep_surveys:
+            s = survey.load_survey(survey_name, state, dmvals, 
+                                sdir=args.sdir, edir=args.edir, rand_DMG=args.rand)
+            surveys[1].append(s)
+
+    # Make output directory
+    if args.outdir != "" and not os.path.exists(args.outdir):
+        os.mkdir(args.outdir)
 
     MCMC2.mcmc_runner(MCMC2.calc_log_posterior, os.path.join(args.outdir, args.opfile), state, params, surveys, 
                         grid_params, nwalkers=args.walkers, nsteps=args.steps, nthreads=args.nthreads, Pn=args.Pn, 
