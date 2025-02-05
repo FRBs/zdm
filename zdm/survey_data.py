@@ -154,13 +154,14 @@ class Telescope(data_class.myDataClass):
     DRIFT_SCAN: int = field(
         default=2,
         metadata={'help': '1: beam represents solid angle viewed at each value of b, for time Tfield \
-                           2: (Drift scan) beam represents time (in days) spent on any given source at sensitivity level b. \
+                           2: (Drift scan) beam represents time (in days) spent on any \
+                               given source at sensitivity level b. \
                               Tfield is solid angle. Nfields then becomes a multiplier of the time.',
                   'unit': '',
                   'Notation': ''
                   })
     BTHRESH: float = field(
-        default=0.0,
+        default=1.e-3,
         metadata={'help': 'Minimum value of beam sensitivity to consider',
                   'unit': '',
                   'Notation': 'B_{\rm min}'})
