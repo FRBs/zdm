@@ -106,7 +106,7 @@ def get_names(which=None):
     return names
 
 def print_pset(pset):
-    """ pset defined as:
+    ''' pset defined as:
     [0]:	log10 Emin
     [1]:	log10 Emax
     [2]:	alpha (nu^-alpha)
@@ -115,7 +115,7 @@ def print_pset(pset):
     [5]:	dmx log mean
     [6]:	dmx log sigma #eventually make this a function with various parameters
     [7]:	constant \Phi) ('C') of Nfrb
-    """
+    '''
     print("Log_10 (Emin) : ",pset[0])
     print("Log_10 (Emax) : ",pset[1])
     print("alpha:        : ",pset[2])
@@ -339,13 +339,16 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=True,Pn=True,dol
         if repeaters:
             observed=survey.NORM_REPS
             C = grid.Rc
+            reps=True
         elif singles:
             observed=survey.NORM_SINGLES
             C = grid.Rc
+            reps=True
         else:
             observed=survey.NORM_FRB
             C = 10**grid.state.FRBdemo.lC
-        expected=CalculateIntegral(rates,survey)
+            reps=False
+        expected=CalculateIntegral(rates,survey,reps)
         expected *= C
 
         Pn=Poisson_p(observed,expected)
@@ -745,13 +748,16 @@ def calc_likelihoods_2D(grid,survey,
         if repeaters:
             observed=survey.NORM_REPS
             C = grid.Rc
+            reps=True
         elif singles:
             observed=survey.NORM_SINGLES
             C = grid.Rc
+            reps=True
         else:
             observed=survey.NORM_FRB
             C = 10**grid.state.FRBdemo.lC
-        expected=CalculateIntegral(rates,survey)
+            reps=False
+        expected=CalculateIntegral(rates,survey,reps)
         expected *= C
         
         Pn=Poisson_p(observed,expected)
@@ -2027,14 +2033,15 @@ def CalculateConstant(grid,survey):
     Hence the constant is 'Rate (FRB > Emin) Mpc^-3 day^-1 sr^-1'
     This should be scaled to be above some sensible value of Emin
     or otherwise made relevant.
+    
     """
     
-    expected=CalculateIntegral(grid.rates,survey)
+    expected=CalculateIntegral(grid.rates,survey,reps=False)
     observed=survey.NORM_FRB
     constant=observed/expected
     return constant
 
-def CalculateIntegral(rates,survey):
+def CalculateIntegral(rates,survey,reps=False):
     """
     Calculates the total expected number of FRBs for that rate array and survey
     
@@ -2043,7 +2050,10 @@ def CalculateIntegral(rates,survey):
     
     # check that the survey has a defined observation time
     if survey.TOBS is not None:
-        TOBS=survey.TOBS
+        if reps:
+            TOBS=1 # already taken into account
+        else:
+            TOBS=survey.TOBS
     else:
         return 0
     
@@ -2140,11 +2150,11 @@ def minimise_const_only(vparams:dict,grids:list,surveys:list,
         if s.TOBS is not None:
             # If we include repeaters, then total number of FRB progenitors = number of repeater progenitors + number of single burst progenitors
             if isinstance(grids[j], zdm_repeat_grid.repeat_Grid):
-                r=CalculateIntegral(grids[j].exact_singles, s) + CalculateIntegral(grids[j].exact_reps, s)
+                r=CalculateIntegral(grids[j].exact_singles, s,reps=True) + CalculateIntegral(grids[j].exact_reps, s,reps=True)
                 r*=grids[j].Rc
             # If we do not include repeaters, then we just integrate rates
             else:
-                r=CalculateIntegral(grids[j].rates, s)
+                r=CalculateIntegral(grids[j].rates, s, reps=False)
                 r*=10**grids[j].state.FRBdemo.lC #vparams['lC']
 
             o=s.NORM_FRB
