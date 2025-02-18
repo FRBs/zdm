@@ -538,86 +538,91 @@ class Survey:
         """
         # self.repeaters = self.meta["REPEATERS"]
         self.repeaters = True
-
-        if self.repeaters:
-            # Set repeater/singles list
-            self.replist = np.where(self.frbs["NREP"] > 1)[0]
-            self.singleslist = np.where(self.frbs["NREP"] == 1)[0]
-
-            #------------------------------------------------------------------
-            self.drift_scan = self.meta['DRIFT_SCAN']
-
-            if self.drift_scan == 2:
-                self.Nfields = 1
-                self.Tfield = self.TOBS
-            elif self.drift_scan == 1:
-                # Check we have the necessary data to construct Nfields and Tfield        
-                self.Nfields = self.meta['NFIELDS']
-                self.Tfield = self.meta['TFIELD']
-
-                if self.Nfields is None:
-                    if self.Tfield is None or self.TOBS is None:
-                        raise ValueError("At least 2 of NFIELDS, TFIELD and TOBS must be set in repeater surveys")
-                    else:
-                        self.Nfields = int(round(self.TOBS / self.Tfield))
-                        # To account for rounding errors - TOBS is used anyways
-                        self.Tfield = self.TOBS / self.Nfields
-                elif self.Tfield is None:
-                    if self.TOBS is None:
-                        raise ValueError("At least 2 of NFIELDS, TFIELD and TOBS must be set in repeater surveys")
-                    else:
-                        self.Tfield = self.TOBS / self.Nfields
-                elif self.TOBS is None:
-                    self.TOBS = self.Nfields * self.Tfield
+        
+        # checks to see if NREP info is present. If not, assumes all single bursts
+        if not "NREP" in self.frbs:
+            print("Warning, no information of repetition provided")
+            print("Assuming all FRBs are once-off bursts")
+            self.frbs["NREP"] = np.full([self.NFRB],1,dtype='int')
+        
+        # Set repeater/singles list
+        self.replist = np.where(self.frbs["NREP"] > 1)[0]
+        self.singleslist = np.where(self.frbs["NREP"] == 1)[0]
+        
+        #------------------------------------------------------------------
+        self.drift_scan = self.meta['DRIFT_SCAN']
+        
+        if self.drift_scan == 2:
+            self.Nfields = 1
+            self.Tfield = self.TOBS
+        elif self.drift_scan == 1:
+            # Check we have the necessary data to construct Nfields and Tfield        
+            self.Nfields = self.meta['NFIELDS']
+            self.Tfield = self.meta['TFIELD']
+            
+            if self.Nfields is None:
+                if self.Tfield is None or self.TOBS is None:
+                    raise ValueError("At least 2 of NFIELDS, TFIELD and TOBS must be set in repeater surveys")
                 else:
-                    # All three are set
-                    print("TOBS, TFIELD and NFIELDS all specified")
+                    self.Nfields = int(round(self.TOBS / self.Tfield))
+                    # To account for rounding errors - TOBS is used anyways
                     self.Tfield = self.TOBS / self.Nfields
-                
-                print("set TOBS = " + str(self.TOBS) + ", TFIELD = " + str(self.Tfield) + ", NFIELDS = " + str(self.Nfields))
-            
-            #------------------------------------------------------------------
-            # Check we have number of repeaters / singles
-            self.NORM_REPS = self.meta['NORM_REPS']
-            self.NORM_SINGLES = self.meta['NORM_SINGLES']
-
-            if self.NORM_FRB == 0:
-                # Case of no detections
-                if (self.NORM_REPS is None and self.NORM_SINGLES is None) or (self.NORM_REPS == 0 or self.NORM_SINGLES == 0):
-                    self.NORM_REPS = 0
-                    self.NORM_SINGLES = 0
-                # Case invalid
-                elif self.NORM_REPS is None or self.NORM_SINGLES is None:
-                    raise ValueError("At least 2 of NORM_FRB, NORM_REPS and NORM_SINGLES must be set in repeater surveys")
-                # Case of NORM_FRB not set
+            elif self.Tfield is None:
+                if self.TOBS is None:
+                    raise ValueError("At least 2 of NFIELDS, TFIELD and TOBS must be set in repeater surveys")
                 else:
-                    self.NORM_FRB = self.NORM_REPS + self.NORM_SINGLES
-                    # print("NORM_FRB set to NORM_REPS + NORM_SINGLES = " + str(self.NORM_FRB))
-            elif self.NORM_REPS is None:
-                # Case invalid
-                if self.NORM_SINGLES is None or self.NORM_SINGLES > self.NORM_FRB:
-                    raise ValueError("At least 2 of NORM_FRB, NORM_REPS and NORM_SINGLES must be set in repeater surveys and NORM_FRB = NORM_REPS + NORM_SINGLES")
-                # Case NORM_REPS not set
-                else:
-                    self.NORM_REPS = self.NORM_FRB - self.NORM_SINGLES
-                    # print("NORM_REPS set to NORM_FRB - NORM_SINGLES = " + str(self.NORM_REPS))
-            elif self.NORM_SINGLES is None:
-                # Do not need to consider NORM_REPS == None as that is done in the previous elif
-                # Case invalid
-                if self.NORM_REPS > self.NORM_FRB:
-                    raise ValueError("At least 2 of NORM_FRB, NORM_REPS and NORM_SINGLES must be set in repeater surveys and NORM_FRB = NORM_REPS + NORM_SINGLES")
-                # Case NORM_SINGLES not set
-                else:
-                    self.NORM_SINGLES = self.NORM_FRB - self.NORM_REPS
-                    # print("NORM_SINGLES set to NORM_FRB - NORM_REPS = " + str(self.NORM_SINGLES))
-            # Case all 3 are set
+                    self.Tfield = self.TOBS / self.Nfields
+            elif self.TOBS is None:
+                self.TOBS = self.Nfields * self.Tfield
             else:
-                # Common sense check
-                if self.NORM_FRB != self.NORM_REPS + self.NORM_SINGLES:
-                    raise ValueError("NORM_FRB != NORM_REPS + NORM_SINGLES")
+                # All three are set
+                if abs(self.Tfield - self.TOBS / self.Nfields) > 0.001:
+                    raise ValueError("WARNING: Inconsistent values of Tfield, Tobs, Nfields: ",
+                            self.Tfield, self.TOBS, self.Nfields)
+             
             
-            # Initialise repeater zs
-            self.init_zs_reps()
+        #------------------------------------------------------------------
+        # Check we have number of repeaters / singles
+        self.NORM_REPS = self.meta['NORM_REPS']
+        self.NORM_SINGLES = self.meta['NORM_SINGLES']
+        
+        if self.NORM_FRB == 0:
+            # Case of no detections
+            if (self.NORM_REPS is None and self.NORM_SINGLES is None) or (self.NORM_REPS == 0 or self.NORM_SINGLES == 0):
+                self.NORM_REPS = 0
+                self.NORM_SINGLES = 0
+            # Case invalid
+            elif self.NORM_REPS is None or self.NORM_SINGLES is None:
+                raise ValueError("At least 2 of NORM_FRB, NORM_REPS and NORM_SINGLES must be set in repeater surveys")
+            # Case of NORM_FRB not set
+            else:
+                self.NORM_FRB = self.NORM_REPS + self.NORM_SINGLES
+                # print("NORM_FRB set to NORM_REPS + NORM_SINGLES = " + str(self.NORM_FRB))
+        elif self.NORM_REPS is None:
+            # Case invalid
+            if self.NORM_SINGLES is None or self.NORM_SINGLES > self.NORM_FRB:
+                raise ValueError("At least 2 of NORM_FRB, NORM_REPS and NORM_SINGLES must be set in repeater surveys and NORM_FRB = NORM_REPS + NORM_SINGLES")
+            # Case NORM_REPS not set
+            else:
+                self.NORM_REPS = self.NORM_FRB - self.NORM_SINGLES
+                # print("NORM_REPS set to NORM_FRB - NORM_SINGLES = " + str(self.NORM_REPS))
+        elif self.NORM_SINGLES is None:
+            # Do not need to consider NORM_REPS == None as that is done in the previous elif
+            # Case invalid
+            if self.NORM_REPS > self.NORM_FRB:
+                raise ValueError("At least 2 of NORM_FRB, NORM_REPS and NORM_SINGLES must be set in repeater surveys and NORM_FRB = NORM_REPS + NORM_SINGLES")
+            # Case NORM_SINGLES not set
+            else:
+                self.NORM_SINGLES = self.NORM_FRB - self.NORM_REPS
+                # print("NORM_SINGLES set to NORM_FRB - NORM_REPS = " + str(self.NORM_SINGLES))
+        # Case all 3 are set
+        else:
+            # Common sense check
+            if self.NORM_FRB != self.NORM_REPS + self.NORM_SINGLES:
+                raise ValueError("NORM_FRB != NORM_REPS + NORM_SINGLES")
+        
+        # Initialise repeater zs
+        self.init_zs_reps()
 
     def randomise_DMG(self, uDMG=0.5):
         """ Change the DMG_ISM values to a random value within uDMG Gaussian uncertainty """
