@@ -1,5 +1,5 @@
 """ 
-This script creates zdm grids.
+This script creates zdm grids for MeerTRAP
 
 It steps through different effects, beginning with the
 intrinsic zdm, applying various cuts.

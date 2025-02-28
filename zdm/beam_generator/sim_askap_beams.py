@@ -169,7 +169,7 @@ def gen_askap_beams(pattern,sep,freq):
     dists = (x**2 + y**2)**0.5
     
     # from Hotan et al
-    avals = get_avals(dists)
+    avals,origx,origy = get_avals(dists)
     
     
     # function of frequency only
@@ -324,8 +324,10 @@ def get_avals(thetas):
     data = np.loadtxt("avals.dat")
     x = data[:,0]
     y = data[:,1]
-    avals = np.interp(thetas,x,y)
-    return avals
+    newx = np.concatenate([x,-x[::-1]])
+    newy = np.concatenate([y,y[::-1]])
+    avals = np.interp(thetas,newx,newy)
+    return avals,newx,newy
     
 def grid_beam(xvals,yvals,beamx,beamy,beamw):
     """
