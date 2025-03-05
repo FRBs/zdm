@@ -45,7 +45,7 @@ from zdm import optical as opt
 import numpy as np
 from zdm import survey
 from matplotlib import pyplot as plt
-
+from pkg_resources import resource_filename
 def main():
     
     # in case you wish to switch to another output directory
@@ -69,7 +69,7 @@ def main():
         os.mkdir(opdir)
     
     # Initialise surveys and grids
-    sdir='../../data/Surveys/'
+    sdir = os.path.join(resource_filename('zdm', 'data'), 'Surveys')
     names=['MeerTRAPcoherent']
     
     state = parameters.State()

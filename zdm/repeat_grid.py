@@ -103,7 +103,7 @@ class repeat_Grid(grid.Grid):
         self.drift_scan = survey.drift_scan
         self.Nfields = survey.Nfields
         self.Tfield = survey.Tfield
-
+        
         # these define the repeating population - repeaters with
         # rates between Rmin and Rmax with a power-law of Rgamma
         # dN(R)/dR ~ R**Rgamma
@@ -372,7 +372,7 @@ class repeat_Grid(grid.Grid):
                 if self.drift_scan==1:
                     time=self.Tfield # here, time is total time on field
                 else:
-                    time=self.beam_o[ib]*self.Nfields # here, o is time on field, not solid angle
+                    time=self.beam_o[ib] #*self.Nfields # here, o is time on field, not solid angle. Why Nfields???
                 Rmult=self.calcRmult(b,time)
                 # keeps a record of this Rmult, and sets the current value
                 self.Rmults[ib,:,:] = Rmult
