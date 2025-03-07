@@ -168,7 +168,7 @@ def maximise_likelihood(grid,survey):
     return results
 
 
-def get_log_likelihood(grid, s, norm=True, psnr=True, Pn=True):
+def get_log_likelihood(grid, s, norm=True, psnr=True, Pn=False, pNreps=True):
     """
     Returns the likelihood for the grid given the survey.
 
@@ -186,15 +186,15 @@ def get_log_likelihood(grid, s, norm=True, psnr=True, Pn=True):
     if isinstance(grid, zdm_repeat_grid.repeat_Grid):
         # Repeaters
         if s.nDr==1:
-            llsum1, lllist, expected = calc_likelihoods_1D(grid, s, norm=norm, psnr=psnr, dolist=1, repeaters=True, Pn=Pn)
+            llsum1, lllist, expected = calc_likelihoods_1D(grid, s, norm=norm, psnr=psnr, dolist=1, grid_type=1, Pn=Pn, pNreps=pNreps)
             llsum = llsum1
-            print(s.name, "repeaters:", lllist)
+            # print(s.name, "repeaters:", lllist)
         elif s.nDr==2:
-            llsum1, lllist, expected = calc_likelihoods_2D(grid, s, norm=norm, psnr=psnr, dolist=1, repeaters=True, Pn=Pn)
+            llsum1, lllist, expected = calc_likelihoods_2D(grid, s, norm=norm, psnr=psnr, dolist=1, grid_type=1, Pn=Pn, pNreps=pNreps)
             llsum = llsum1
         elif s.nDr==3:
-            llsum1, lllist1, expected1 = calc_likelihoods_1D(grid, s, norm=norm, psnr=psnr, dolist=1, repeaters=True, Pn=Pn)
-            llsum2, lllist2, expected2 = calc_likelihoods_2D(grid, s, norm=norm, psnr=psnr, dolist=1, repeaters=True, Pn=False)
+            llsum1, lllist1, expected1 = calc_likelihoods_1D(grid, s, norm=norm, psnr=psnr, dolist=1, grid_type=1, Pn=Pn, pNreps=pNreps)
+            llsum2, lllist2, expected2 = calc_likelihoods_2D(grid, s, norm=norm, psnr=psnr, dolist=1, grid_type=1, Pn=False, pNreps=False)
             llsum = llsum1 + llsum2
         else:
             print("Implementation is only completed for nD 1-3.")
@@ -202,15 +202,15 @@ def get_log_likelihood(grid, s, norm=True, psnr=True, Pn=True):
 
         # Singles
         if s.nDs==1:
-            llsum1, lllist, expected = calc_likelihoods_1D(grid, s, norm=norm, psnr=psnr, dolist=1, singles=True, Pn=Pn)
+            llsum1, lllist, expected = calc_likelihoods_1D(grid, s, norm=norm, psnr=psnr, dolist=1, grid_type=2, Pn=Pn)
             llsum += llsum1
-            print(s.name, "singles:", lllist)
+            # print(s.name, "singles:", lllist)
         elif s.nDs==2:
-            llsum1, lllist, expected = calc_likelihoods_2D(grid, s, norm=norm, psnr=psnr, dolist=1, singles=True, Pn=Pn)
+            llsum1, lllist, expected = calc_likelihoods_2D(grid, s, norm=norm, psnr=psnr, dolist=1, grid_type=2, Pn=Pn)
             llsum += llsum1
         elif s.nDs==3:
-            llsum1, lllist1, expected1 = calc_likelihoods_1D(grid, s, norm=norm, psnr=psnr, dolist=1, singles=True, Pn=Pn)
-            llsum2, lllist2, expected2 = calc_likelihoods_2D(grid, s, norm=norm, psnr=psnr, dolist=1, singles=True, Pn=False)
+            llsum1, lllist1, expected1 = calc_likelihoods_1D(grid, s, norm=norm, psnr=psnr, dolist=1, grid_type=2, Pn=Pn)
+            llsum2, lllist2, expected2 = calc_likelihoods_2D(grid, s, norm=norm, psnr=psnr, dolist=1, grid_type=2, Pn=False)
             llsum = llsum + llsum1 + llsum2
         else:
             print("Implementation is only completed for nD 1-3.")
@@ -232,7 +232,7 @@ def get_log_likelihood(grid, s, norm=True, psnr=True, Pn=True):
 
     return llsum
 
-def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=True,Pn=True,dolist=0,repeaters=False,singles=False):
+def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=True,Pn=False,pNreps=True,dolist=0,grid_type=0):
     """ Calculates 1D likelihoods using only observedDM values
     Here, Zfrbs is a dummy variable allowing it to be treated like a 2D function
     for purposes of calling.
@@ -250,32 +250,32 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=True,Pn=True,dol
     Pn:
         True: calculate probability of observing N FRBs
         False: do not calculate this
+    
+    pNreps:
+        True: calculate probability of the number of repetitions for each repeater
+        False: do not calculate this
 
     dolist
         2: llsum,lllist [Pzdm,Pn,Ps],expected,longlist
             longlist holds the LL for each FRB
         5: llsum,lllist,expected,[0.,0.,0.,0.]
 
-    repeaters:
-        True: assumes the grid passed is a repeat_grid.zdm_repeat_grid object and calculates likelihood for repeaters
-        False: assumes no repeaters considered (or singles = True)
-    singles:
-        True: assumes the grid passed is a repeat_grid.zdm_repeat_grid object and calculates likelihood for single bursts
-        False: assumes no repeaters considered (or repeaters = True)
-    NOTE: repeaters and singles should probably be combined into a single variable...
+    grid_type:
+        0: normal zdm grid
+        1: assumes the grid passed is a repeat_grid.zdm_repeat_grid object and calculates likelihood for repeaters
+        2: assumes the grid passed is a repeat_grid.zdm_repeat_grid object and calculates likelihood for single bursts
+
     """
     
     # Determine which array to perform operations on and initialise
-    if repeaters and singles: 
-        raise ValueError("Specify the likelihood for repeaters or singles, not both") 
-    elif repeaters: 
+    if grid_type == 1: 
         rates = grid.exact_reps 
         if survey.nozreps is not None:
             DMobs=survey.DMEGs[survey.nozreps]
             nozlist=survey.nozreps
         else:
             raise ValueError("No non-localised singles in this survey, cannot calculate 1D likelihoods")
-    elif singles: 
+    elif grid_type == 2: 
         rates = grid.exact_singles 
         if survey.nozsingles is not None:
             DMobs=survey.DMEGs[survey.nozsingles]
@@ -297,6 +297,23 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=True,Pn=True,dol
     # TODO: this is slow - should collapse only used columns
     pdm=np.sum(rates,axis=0)
     
+    if np.sum(pdm) == 0:
+        if dolist==0:
+            return -np.inf
+        elif dolist==1:
+            return -np.inf, None, None
+        elif dolist==2:
+            return -np.inf, None, None, None
+        elif dolist==5: #for compatibility with 2D likelihood calculation
+            return -np.inf, None, None,[0.,0.,0.,0.]
+    
+    if norm:
+        global_norm=np.sum(pdm)
+        log_global_norm=np.log10(global_norm)
+        #pdm /= global_norm
+    else:
+        log_global_norm=0
+
     #ddm=dmvals[1]-dmvals[0]
     #kdms=DMobs/ddm
     #idms1=kdms.astype('int')
@@ -318,13 +335,6 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=True,Pn=True,dol
         # For each FRB
         for i in range(len(idms1)):
             pvals[i]=np.sum(pdm[iweights[i]]*dm_weights[i])
-
-    if norm:
-        global_norm=np.sum(pdm)
-        log_global_norm=np.log10(global_norm)
-        #pdm /= global_norm
-    else:
-        log_global_norm=0
     
     # holds individual FRB data
     if dolist == 2:
@@ -336,11 +346,11 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=True,Pn=True,dol
     
     ### Assesses total number of FRBs ###
     if Pn and (survey.TOBS is not None):
-        if repeaters:
+        if grid_type==1:
             observed=survey.NORM_REPS
             C = grid.Rc
             reps=True
-        elif singles:
+        elif grid_type==2:
             observed=survey.NORM_SINGLES
             C = grid.Rc
             reps=True
@@ -352,6 +362,7 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=True,Pn=True,dol
         expected *= C
 
         Pn=Poisson_p(observed,expected)
+        print(observed, expected, grid.Rc)
         if Pn==0:
             Nll=-1e10
             if dolist==0:
@@ -534,10 +545,23 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=True,Pn=True,dol
             print("Total snr probabilities")
             for i,p in enumerate(psnr):
                 print(i,survey.Ss[i],p)
-        
-        
     else:
         lllist.append(0)
+    
+    if grid_type==1 and pNreps:
+        repll = 0
+        if len(survey.replist) != 0:
+            for irep in survey.replist:
+                pReps = grid.calc_exact_repeater_probability(Nreps=survey.frbs["NREP"][irep],DM=survey.DMs[irep],z=None)
+                if pReps == 0:
+                    repll += -1e10
+                else:
+                    repll += np.log10(float(pReps))
+        lllist.append(repll)
+        llsum += repll
+    else:
+        lllist.append(0)
+
     if doplot:
         plt.figure()
         plt.plot(dmvals,pdm,color='blue')
@@ -548,7 +572,7 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=True,Pn=True,dol
         plt.savefig('Plots/1d_dm_fit.pdf')
         plt.close()
 
-    # print(survey.name, "1D list:", lllist)
+    print(survey.name, "1D list:", lllist)
     if dolist==0:
         return llsum
     elif dolist==1:
@@ -559,11 +583,7 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=True,Pn=True,dol
         return llsum,lllist,expected,[0.,0.,0.,0.]
     
 
-def calc_likelihoods_2D(grid,survey,
-                        doplot=False,norm=True,psnr=True,
-                        printit=False,Pn=True,dolist=0,
-                        verbose=False,
-                        repeaters=False,singles=False):
+def calc_likelihoods_2D(grid,survey,doplot=False,norm=True,psnr=True,printit=False,Pn=False,pNreps=True,dolist=0,verbose=False,grid_type=0):
     """ Calculates 2D likelihoods using observed DM,z values
     
     grid: the grid object calculated from survey
@@ -578,6 +598,10 @@ def calc_likelihoods_2D(grid,survey,
 
     Pn:
         True: calculate probability of observing N FRBs
+        False: do not calculate this
+
+    pNreps:
+        True: calculate probability that each repeater detects the given number of bursts
         False: do not calculate this
     
     dolist:
@@ -599,13 +623,10 @@ def calc_likelihoods_2D(grid,survey,
         False: calculates p(detecting an FRB with z,DM). Meaningless unless
             some sensible normalisation has already been applied to the grid.
     
-    repeaters:
-        True: assumes the grid passed is a repeat_grid.zdm_repeat_grid object and calculates likelihood for repeaters
-        False: assumes no repeaters considered (or singles = True)
-    singles:
-        True: assumes the grid passed is a repeat_grid.zdm_repeat_grid object and calculates likelihood for single bursts
-        False: assumes no repeaters considered (or repeaters = True)
-    NOTE: repeaters and singles should probably be combined into a single variable...
+    grid_type:
+        0: normal zdm grid
+        1: assumes the grid passed is a repeat_grid.zdm_repeat_grid object and calculates likelihood for repeaters
+        2: assumes the grid passed is a repeat_grid.zdm_repeat_grid object and calculates likelihood for single bursts
     """
 
     ######## Calculates p(DM,z | FRB) ########
@@ -614,9 +635,7 @@ def calc_likelihoods_2D(grid,survey,
     # below is proportional to the total rate (ish)
     
     # Determine which array to perform operations on and initialise
-    if repeaters and singles: 
-        raise ValueError("Specify the likelihood for repeaters or singles, not both") 
-    elif repeaters: 
+    if grid_type == 1: 
         rates = grid.exact_reps 
         if survey.zreps is not None:
             DMobs=survey.DMEGs[survey.zreps]
@@ -624,7 +643,7 @@ def calc_likelihoods_2D(grid,survey,
             zlist=survey.zreps
         else:
             raise ValueError("No localised singles in this survey, cannot calculate 1D likelihoods")
-    elif singles: 
+    elif grid_type == 2: 
         rates = grid.exact_singles 
         if survey.zsingles is not None:
             DMobs=survey.DMEGs[survey.zsingles]
@@ -745,11 +764,11 @@ def calc_likelihoods_2D(grid,survey,
         dolist5_return = [llpzgdm,llpdm,llpdmgz,llpz]
     
     if Pn and (survey.TOBS is not None):
-        if repeaters:
+        if grid_type == 1:
             observed=survey.NORM_REPS
             C = grid.Rc
             reps=True
-        elif singles:
+        elif grid_type == 2:
             observed=survey.NORM_SINGLES
             C = grid.Rc
             reps=True
@@ -774,7 +793,7 @@ def calc_likelihoods_2D(grid,survey,
     else:
         expected=0
         lllist.append(0)
-    
+
     # plots figures as appropriate
     if doplot:
         plt.figure()
@@ -922,6 +941,17 @@ def calc_likelihoods_2D(grid,survey,
         if printit:
             for i,snr in enumerate(survey.Ss):
                 print(i,snr,psnr[i])
+    else:
+        lllist.append(0)
+
+    if grid_type==1 and pNreps:
+        repll = 0
+        if len(survey.replist) != 0:
+            for irep in survey.replist:
+                pReps = grid.calc_exact_repeater_probability(Nreps=survey.frbs["NREP"][irep],DM=survey.DMs[irep],z=survey.Zs[irep])
+                repll += np.log10(float(pReps))
+        lllist.append(repll)
+        llsum += repll
     else:
         lllist.append(0)
 
@@ -2150,7 +2180,9 @@ def minimise_const_only(vparams:dict,grids:list,surveys:list,
         if s.TOBS is not None:
             # If we include repeaters, then total number of FRB progenitors = number of repeater progenitors + number of single burst progenitors
             if isinstance(grids[j], zdm_repeat_grid.repeat_Grid):
-                r=CalculateIntegral(grids[j].exact_singles, s,reps=True) + CalculateIntegral(grids[j].exact_reps, s,reps=True)
+                r1= CalculateIntegral(grids[j].exact_singles, s,reps=True)
+                r2= CalculateIntegral(grids[j].exact_reps, s,reps=True)
+                r= r1 + r2
                 r*=grids[j].Rc
             # If we do not include repeaters, then we just integrate rates
             else:
@@ -2192,7 +2224,7 @@ def minimise_const_only(vparams:dict,grids:list,surveys:list,
             g.state.FRBdemo.lC = newC
 
             if isinstance(g, zdm_repeat_grid.repeat_Grid):
-                g.state.rep.RC *= float(dC)
+                g.state.rep.RC *= 10**float(dC)
                 g.Rc = g.state.rep.RC
 
                 # g.state.FRBdemo.lC += np.log10(float(dC))

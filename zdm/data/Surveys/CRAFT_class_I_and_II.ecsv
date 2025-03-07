@@ -23,7 +23,7 @@
 # - {name: XH, datatype: string}
 # - {name: XI, datatype: string}
 # - {name: XRA, datatype: string}
-# - {name: Z, datatype: string, subtype: 'float64[null]'}
+# - {name: Z, datatype: float64}
 # meta: !!omap
 # - {survey_data: "{\n    \"observing\": {\n        \"NORM_FRB\": 20,\n        \"TOBS\": 1274.6,\n    \"MAX_IDT\": 4096\n},\n    \"telescope\": {\n      \
 #     \  \"BEAM\": \"lat50_log\",\n        \"DIAM\": 12.0,\n        \"NBEAMS\": 36,\n        \"NBINS\": 5\n    }\n}"}

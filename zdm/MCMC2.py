@@ -32,7 +32,7 @@ from zdm import repeat_grid
 
 #==============================================================================
 
-def calc_log_posterior(param_vals, state, params, surveys_sep, grid_params, Pn=False, log_halo=False, lin_host=False, ind_surveys=False):
+def calc_log_posterior(param_vals, state, params, surveys_sep, grid_params, Pn=False, pNreps=True, log_halo=False, lin_host=False, ind_surveys=False):
     """
     Calculates the log posterior for a given set of parameters. Assumes uniform
     priors between the minimum and maximum values provided in 'params'.
@@ -131,14 +131,14 @@ def calc_log_posterior(param_vals, state, params, surveys_sep, grid_params, Pn=F
             # calculate all the likelihoods
             llsum = 0
             for s, grid in zip(surveys, grids):
-                ll = it.get_log_likelihood(grid,s,Pn=Pn)
+                ll = it.get_log_likelihood(grid,s,Pn=Pn,pNreps=pNreps)
                 llsum += ll
 
                 if ind_surveys:
                     ll_list.append(ll)
 
         except ValueError as e:
-            print("ValueError, setting likelihood to -inf: " + str(e))
+            print("Error, setting likelihood to -inf: " + str(e))
             llsum = -np.inf
             ll_list = [-np.inf for _ in range(len(surveys))]
 
@@ -154,7 +154,7 @@ def calc_log_posterior(param_vals, state, params, surveys_sep, grid_params, Pn=F
 
 #==============================================================================
 
-def mcmc_runner(logpf, outfile, state, params, surveys, grid_params, nwalkers=10, nsteps=100, nthreads=1, Pn=True, log_halo=False, lin_host=False):
+def mcmc_runner(logpf, outfile, state, params, surveys, grid_params, nwalkers=10, nsteps=100, nthreads=1, Pn=False, pNreps=True, log_halo=False, lin_host=False):
     """
     Handles the MCMC running.
 
@@ -170,6 +170,7 @@ def mcmc_runner(logpf, outfile, state, params, surveys, grid_params, nwalkers=10
         nsteps      (int)           =   Number of steps
         nthreads    (int)           =   Number of threads (currently not implemented - uses default)
         Pn          (bool)          =   Include Pn or not
+        pNreps      (bool)          =   Include pNreps or not
         log_halo    (bool)          =   Use a log uniform prior on DMhalo
     
     Outputs:
@@ -192,7 +193,7 @@ def mcmc_runner(logpf, outfile, state, params, surveys, grid_params, nwalkers=10
     
     start = time.time()
     with mp.Pool() as pool:
-        sampler = emcee.EnsembleSampler(nwalkers, ndim, logpf, args=[state, params, surveys, grid_params, Pn, log_halo, lin_host], backend=backend, pool=pool)
+        sampler = emcee.EnsembleSampler(nwalkers, ndim, logpf, args=[state, params, surveys, grid_params, Pn, pNreps, log_halo, lin_host], backend=backend, pool=pool)
         sampler.run_mcmc(starting_guesses, nsteps, progress=True)
     end = time.time()
     print("Total time taken: " + str(end - start))

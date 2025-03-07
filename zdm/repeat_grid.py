@@ -865,14 +865,17 @@ class repeat_Grid(grid.Grid):
                 prob = 0
                 for iz in np.arange(self.zvals.size):
                     prob += self.get_rep_prob_at_point(iz,idm,effGamma,factorial)
-                rel_prob = prob / np.sum(self.exact_reps[:,idm])
+                tot = np.sum(self.exact_reps[:,idm])
+
+                if tot == 0:
+                    rel_prob = 0
+                else:
+                    rel_prob = prob / tot
                 all_rel_prob += rel_prob * kdm
                 
             #else:
             #    Rmults = self.Rmult[:,idm]
             #    for iz,z in enumerate(self.zvals):
-                    
-                
             
         return all_rel_prob
 
