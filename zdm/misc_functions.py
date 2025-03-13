@@ -2713,14 +2713,20 @@ def plot_grid_2(
     # gets a square plot
     aspect = nz / float(ndm)
 
-    # sets the x and y tics
-    xtvals = np.arange(zvals.size)
+    # sets the x and y tics. These are now bin edges
+    
+    xtvals = np.arange(zvals.size+1)
+    xtlabels = np.linspace(0.,zvals[0]+zvals[-1],zvals.size+1)
     everx = int(zvals.size / 5)
-    plt.xticks(xtvals[everx - 1 :: everx], zvals[everx - 1 :: everx])
-
-    ytvals = np.arange(dmvals.size)
+    # adds xticks at "edges"
+    xtvals[-1] *= 0.999 # just allows it to squeeze on
+    plt.xticks(xtvals[0 :: everx], xtlabels[0 :: everx])
+    
+    ytvals = np.arange(dmvals.size+1)
+    ytvals[-1] *= 0.999 # just allows it to squeeze on
+    ytlabels = np.linspace(0.,dmvals[0]+dmvals[-1],dmvals.size+1)
     every = int(dmvals.size / 5)
-    plt.yticks(ytvals[every - 1 :: every], dmvals[every - 1 :: every])
+    plt.yticks(ytvals[0 :: every], ytlabels[0 :: every])
 
     im = plt.imshow(
         zDMgrid.T, cmap=cmx, origin="lower", interpolation="None", aspect=aspect
