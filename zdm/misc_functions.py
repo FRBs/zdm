@@ -2486,7 +2486,31 @@ def plot_zdm_basic_paper(
         plt.show()
     plt.close()
 
-
+def get_alevels(zDMgrid,Aconts):
+    """
+    Gets contour levels giving 
+    
+    Grid: inoput zDM grid
+    Aconts: list of contour levels giving %
+    
+    """
+    slist = np.sort(zDMgrid.flatten())
+    cslist = np.cumsum(slist)
+    cslist /= cslist[-1]
+    nAc = len(Aconts)
+    alevels = np.zeros([nAc])
+    for i, ac in enumerate(Aconts):
+        # cslist is the cumulative probability distribution
+        # Where cslist > ac determines the integer locations
+        #    of all cells exceeding the threshold
+        # The first in this list is the first place exceeding
+        #    the threshold
+        # The value of slist at that point is the
+        #    level of the countour to draw
+        iwhich = np.where(cslist > ac)[0][0]
+        alevels[i] = slist[iwhich]
+    return alevels
+    
 def plot_grid_2(
     zDMgrid,
     zvals,
@@ -2518,7 +2542,9 @@ def plot_grid_2(
     data_clr2="tab:blue",
     special=None,
     pdmgz=None,
-    save=True
+    save=True,
+    othergrids=None,
+    othernames=None
 ):
     """
     Very complicated routine for plotting 2D zdm grids 
@@ -2551,6 +2577,10 @@ def plot_grid_2(
         special(list,optional): list of [z,dm] values to show as a special big star
         pdmgz(list of floats, optional): a list of cumulative values of p(DM|z) to
             plot. Must range from 0 to 1.
+        othergrids (list of grids) [None]: a list of grids to plot contours for. Uses
+            Aconts
+        othernames (list of names) [None]: list of names for original *and* other grid.
+            Used only if othergrids is not None. Must be length of othergrids +1.
     """
     if H0 is None:
         H0 = cos.cosmo.H0
@@ -2596,12 +2626,16 @@ def plot_grid_2(
     plt.ylabel(ylabel)
 
     nz, ndm = zDMgrid.shape
-
+    
+    # attenuate grids in x-direction
     ixmax = np.where(zvals > zmax)[0]
     if len(ixmax) > 0:
         zvals = zvals[: ixmax[0]]
         nz = zvals.size
         zDMgrid = zDMgrid[: ixmax[0], :]
+        if othergrids:
+            for grid in othergrids:
+                grid = grid[: ixmax[0], :]
     
     # currently this is "per cell" - now to change to "per DM"
     # normalises the grid by the bin width, i.e. probability per bin, not probability density
@@ -2609,15 +2643,24 @@ def plot_grid_2(
     dz = zvals[1] - zvals[0]
     if norm == 1:
         zDMgrid /= ddm
+        if othergrids is not None:
+            for grid in othergrids:
+                grid /= ddm
         # if Aconts:
         #    alevels /= ddm
     elif norm == 2:
         xnorm = np.sum(zDMgrid)
         zDMgrid /= xnorm
+        if othergrids is not None:
+            for grid in othergrids:
+                grid /= np.sum(grid)
         # if Aconts:
         #    alevels /= xnorm
     elif norm == 3:
         zDMgrid /= np.max(zDMgrid)
+        if othergrids is not None:
+            for grid in othergrids:
+                grid /= np.max(grid)
 
     # sets up to plot contour-like things as a function of p(dm given z)
     if pdmgz is not None:
@@ -2639,26 +2682,17 @@ def plot_grid_2(
     
     # sets contours according to norm
     if Aconts:
-        slist = np.sort(zDMgrid.flatten())
-        cslist = np.cumsum(slist)
-        cslist /= cslist[-1]
-        nAc = len(Aconts)
-        alevels = np.zeros([nAc])
-        for i, ac in enumerate(Aconts):
-            # cslist is the cumulative probability distribution
-            # Where cslist > ac determines the integer locations
-            #    of all cells exceeding the threshold
-            # The first in this list is the first place exceeding
-            #    the threshold
-            # The value of slist at that point is the
-            #    level of the countour to draw
-            iwhich = np.where(cslist > ac)[0][0]
-            alevels[i] = slist[iwhich]
-
+        
+        alevels = get_alevels(zDMgrid,Aconts)
         if norm == 1:
             alevels /= ddm
         elif norm == 2:
             alevels /= xnorm
+        
+        if othergrids is not None:
+            other_alevels=[]
+            for grid in othergrids:
+                other_alevels.append(get_alevels(grid,Aconts))
 
     ### generates contours *before* cutting array in DM ###
     ### might need to normalise contours by integer lengths, oh well! ###
@@ -2696,6 +2730,14 @@ def plot_grid_2(
         dmvals = dmvals[: iymax[0]]
         zDMgrid = zDMgrid[:, : iymax[0]]
         ndm = dmvals.size
+        if othergrids:
+            for i,grid in enumerate(othergrids):
+                othergrids[i] = grid[:, : iymax[0]]
+    
+    # now sets the limits to the actual size of the grid
+    NX,NY = zDMgrid.shape
+    plt.xlim(0,NX)
+    plt.ylim(0,NY)
     
     if log:
         # checks against zeros for a log-plot
@@ -2713,27 +2755,55 @@ def plot_grid_2(
     # gets a square plot
     aspect = nz / float(ndm)
 
-    # sets the x and y tics
-    xtvals = np.arange(zvals.size)
+    # sets the x and y tics. These are now bin edges
+    
+    xtvals = np.arange(zvals.size+1)
+    xtlabels = np.linspace(0.,zvals[0]+zvals[-1],zvals.size+1)
     everx = int(zvals.size / 5)
-    plt.xticks(xtvals[everx - 1 :: everx], zvals[everx - 1 :: everx])
-
-    ytvals = np.arange(dmvals.size)
+    # adds xticks at "edges"
+    xtvals[-1] *= 0.999 # just allows it to squeeze on
+    plt.xticks(xtvals[0 :: everx], xtlabels[0 :: everx])
+    
+    ytvals = np.arange(dmvals.size+1)
+    ytvals[-1] *= 0.999 # just allows it to squeeze on
+    ytlabels = np.linspace(0.,dmvals[0]+dmvals[-1],dmvals.size+1)
     every = int(dmvals.size / 5)
-    plt.yticks(ytvals[every - 1 :: every], dmvals[every - 1 :: every])
+    plt.yticks(ytvals[0 :: every], ytlabels[0 :: every])
 
     im = plt.imshow(
         zDMgrid.T, cmap=cmx, origin="lower", interpolation="None", aspect=aspect
     )
-
+    
+    # plots "A"contours (i.e., over "Amplitudes"). Doing so for multiple grids
+    # if necessary
+    # NOTE: currently no way to plot contour labels, hence the use of dummy plots
     if Aconts:
-        styles = [":", "-.", "--"]
+        styles = [":", "-.", "--","-"]
+        colours=["orange","black","aqua","yellow"]
+        
         ax = plt.gca()
         cs = ax.contour(
-            zDMgrid.T, levels=alevels, origin="lower", colors="orange", linestyles=styles
+            zDMgrid.T, levels=alevels, origin="lower", colors=colours[0], linestyles=styles
         )
-        # plt.clim(0,2e-5)
-        # ax.clabel(cs, cs.levels, inline=True, fontsize=10,fmt=['0.5','0.1','0.01'])
+        cntrs=[cs]
+        if othernames is not None:
+            h,=plt.plot([-1e6,-2e6],[-1e6,-2e6],linestyle=styles[0],
+                                    color = "orange",label=othernames[0])
+            handles=[h]
+            
+        if othergrids is not None:
+            for i,grid in enumerate(othergrids):
+                cntr = ax.contour(grid.T, levels=other_alevels[i], origin="lower",
+                    linestyles=[styles[i+1]],colors = colours[i+1])
+                if othernames is not None:
+                    #make a dummy plot
+                    h,=plt.plot([-1e6,-2e6],[-1e6,-2e6],linestyle=styles[i+1],
+                        color = colours[i+1],label=othernames[i+1])
+                    handles.append(h)
+            if othernames is not None:
+                plt.legend(handles=handles,loc="lower right")
+    
+    
     ###### gets decent axis labels, down to 1 decimal place #######
     ax = plt.gca()
     labels = [item.get_text() for item in ax.get_xticklabels()]

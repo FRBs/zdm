@@ -152,7 +152,7 @@ class Telescope(data_class.myDataClass):
                   'Notation': '',
                   })
     DRIFT_SCAN: int = field(
-        default=2,
+        default=1,
         metadata={'help': '1: beam represents solid angle viewed at each value of b, for time Tfield \
                            2: (Drift scan) beam represents time (in days) spent on any \
                                given source at sensitivity level b. \
