@@ -33,7 +33,6 @@ font = {'family' : 'Helvetica',
 matplotlib.rc('font', **font)
 
 
-
 def main():
     
     # in case you wish to switch to another output directory
@@ -69,41 +68,32 @@ def main():
     # set limits for plots - will be LARGE!   
     
     ######### Loads public FRBs #######
-    from frb.galaxies import utils as frb_gal_u
-
-    # Load up the hosts
-    host_tbl, _ = frb_gal_u.build_table_of_hosts(attrs=['redshift'])
-
-    # Cut
-    host_tbl = host_tbl[host_tbl['P_Ox'] > POx_min]
-
-    # DMs
-    DM_FRB = units.Quantity([frb.DM for frb in host_tbl.FRBobj.values])
-    DM_ISM = units.Quantity([frb.DMISM for frb in host_tbl.FRBobj.values])
-    DM_EG = DM_FRB - DM_ISM - DM_MWhalo
     
-    
-    ###### plots MeerTRAP zDM figure ###########
-    s=ss[0]
-    g=gs[0]
-    name = names[0]
-    misc_functions.plot_grid_2(g.rates,g.zvals,g.dmvals,
-        name=opdir+name+"_zDM.pdf",norm=3,log=True,
-        label='$\\log_{10} p({\\rm DM}_{\\rm IGM} + {\\rm DM}_{\\rm host},z)$ [a.u.]',
-        project=False,ylabel='${\\rm DM}_{\\rm IGM} + {\\rm DM}_{\\rm host}$',
-        zmax=5,DMmax=5000,Aconts=[0.01,0.1,0.5])
+    if True:
+        from frb.galaxies import utils as frb_gal_u
+        
+        # Load up the hosts
+        host_tbl, _ = frb_gal_u.build_table_of_hosts(attrs=['redshift'])
+        
+        # Cut
+        host_tbl = host_tbl[host_tbl['P_Ox'] > POx_min]
+        
+        # DMs
+        DM_FRB = units.Quantity([frb.DM for frb in host_tbl.FRBobj.values])
+        DM_ISM = units.Quantity([frb.DMISM for frb in host_tbl.FRBobj.values])
+        DM_EG = DM_FRB - DM_ISM - DM_MWhalo
     
     
     ########### Get CHIME info ###########
     
     # defines CHIME grids to load
     NDECBINS=6
-    names=[]
+    cnames=[]
     for i in np.arange(NDECBINS):
-        name="CHIME_decbin_"+str(i)+"_of_6"
-        names.append(name)
+        cname="CHIME_decbin_"+str(i)+"_of_6"
+        cnames.append(cname)
     survey_dir = os.path.join(resource_filename('zdm', 'data'), 'Surveys/CHIME/')
-    css,cgs = loading.surveys_and_grids(survey_names=names, init_state=state, rand_DMG=False,sdir = survey_dir, repeaters=True)
+    css,cgs = loading.surveys_and_grids(survey_names=cnames, init_state=state, rand_DMG=False,sdir = survey_dir, repeaters=True)
     
     # compiles sums over all six declination bins
     crates = cgs[0].rates * 10**cgs[0].state.FRBdemo.lC * css[0].TOBS
@@ -118,6 +108,19 @@ def main():
             crates += g.rates * 10**g.state.FRBdemo.lC * s.TOBS
             creps += g.exact_reps * g.state.rep.RC
             csingles += g.exact_singles * g.state.rep.RC
+    
+    
+    ###### plots MeerTRAP zDM figure ###########
+    s=ss[0]
+    g=gs[0]
+    name = names[0]
+    misc_functions.plot_grid_2(g.rates,g.zvals,g.dmvals,
+        name=opdir+name+"_zDM.pdf",norm=3,log=True,
+        label='$\\log_{10} p({\\rm DM}_{\\rm IGM} + {\\rm DM}_{\\rm host},z)$ [a.u.]',
+        project=False,ylabel='${\\rm DM}_{\\rm IGM} + {\\rm DM}_{\\rm host}$',
+        zmax=5,DMmax=5000,Aconts=[0.01],othergrids=[gs[1].rates,crates,gs[2].rates],
+        othernames = ["MeerKAT","DSA","CHIME","ASKAP"])
+        #0.01, 0.1,0.5
     
     
     ############ Plots z projection ##########
