@@ -982,11 +982,11 @@ class repeat_Grid(grid.Grid):
         doplots: plots a bunch of stuff if True
         
         """
-        # should always be defined - this is aa historical just-in-case
+        # should always be defined - this is a historical just-in-case
         if Rmult is None:
             Rmult=self.calcRmult(beam_b,self.Tfield)
-            # keeps a record of this Rmult, and sets the current value
-            #self.Rmults.append(Rmult)
+        
+        # keeps a record of this Rmult, and sets the current value
         self.Rmult = Rmult
         
         self.volume_grid = self.tvolume_grid*Solid
@@ -995,7 +995,6 @@ class repeat_Grid(grid.Grid):
             self.do_2D_plot(Rmult,self.opdir+'Rmult_'+str(beam_b)[0:5]+'.pdf',clabel='log$_{10}$ rate multiplier')
         
         if Exact:
-            #exact_singles_rate=self.calc_singles_exactly(Rmult)
             exact_singles,exact_zeroes,exact_rep_bursts,exact_reps=self.perform_exact_calculations()
             exact_set = [exact_singles,exact_zeroes,exact_rep_bursts,exact_reps]
         else:
