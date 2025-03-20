@@ -90,7 +90,7 @@ def surveys_and_grids(init_state=None, alpha_method=1,
                       nz:int=500, ndm:int=1400,
                       NFRB=None, repeaters=False,
                       sdir=None, edir=None,
-                      rand_DMG=False, discard_empty=True): 
+                      rand_DMG=False, discard_empty=False): 
     """ Load up a survey and grid for a real dataset
 
     Args:
