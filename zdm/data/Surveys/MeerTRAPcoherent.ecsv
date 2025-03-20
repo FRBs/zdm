@@ -20,7 +20,7 @@
 # - {name: Z, datatype: float64}
 # meta: !!omap
 # - {survey_data: '{"observing": {"NORM_FRB": 1,"TOBS": 317.5},
-#                   "telescope": {"BEAM": "MeerTRAP_coherent_log","BTHRESH": 0.2,"NBEAMS": 1,"NBINS": 5}}'}
+#                   "telescope": {"BEAM": "MeerTRAP_coherent_log","BTHRESH": 0.25,"NBEAMS": 1,"NBINS": 5}}'}
 # schema: astropy-2.0
 TNS BW DM  DMG  FBAR  FRES   Gb Gl NREP SNR SNRTHRESH THRESH TRES    WIDTH XDec XRA Z
-0  770 200 35.0 1284  0.836  "" "" 1     10. 10.      0.66   0.30624 1.0   ""   ""  0.276
+0  770 200 35.0 1284  0.836  "" "" 1     10. 10.      0.66   0.30624 1.0   ""   ""  -1.0
