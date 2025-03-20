@@ -4,7 +4,7 @@
 #SBATCH --ntasks=1
 #SBATCH --time=7:00:00
 #SBATCH --export=NONE
-#SBATCH --mem=2GB
+#SBATCH --mem=10GB
 # SBATCH --mem-per-cpu=5GB
 
 ###############################################################################

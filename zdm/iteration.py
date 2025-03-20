@@ -412,6 +412,31 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=True,Pn=False,pN
         rnorms = np.sum(rs,axis=0)
         zpsnr *= rs
         psnr = np.sum(zpsnr,axis=0) / rnorms
+        # normalises for total probability of DM occurring in the first place.
+        # We need to do this. This effectively cancels however the Emin-Emax factor.
+        # sums down the z-axis
+
+        # Generate some plots here ****TODO****
+        # if true:
+        #     # Create a figure and an axes object
+        #     fig, ax = plt.subplots()
+
+        #     # Plot on the axes object
+        #     for i in len(survey.frbs):
+        #         ax.plot(grid.zvals, zpsnr[i,:], label='Line')
+
+        #     # Customize the axes object
+        #     ax.set_xlabel('X-axis')
+        #     ax.set_ylabel('Y-axis')
+        #     ax.set_title('Basic Plot Example with Axes')
+        #     ax.legend()
+
+        #     # Save the plot to a file
+        #     fig.savefig('my_plot.png')  # Saves as a PNG file
+        
+
+        psnr=np.sum(wzpsnr,axis=0)
+        psnr /= norms #normalises according to the per-DM probability
         
         # keeps individual FRB values
         if dolist==2:
