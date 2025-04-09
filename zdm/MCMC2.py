@@ -32,7 +32,7 @@ from zdm import repeat_grid
 
 #==============================================================================
 
-def calc_log_posterior(param_vals, state, params, surveys_sep, grid_params, Pn=True, log_halo=False):
+def calc_log_posterior(param_vals, state, params, surveys_sep, grid_params, Pn=False, pNreps=True, log_halo=False, lin_host=False, ind_surveys=False):
     """
     Calculates the log posterior for a given set of parameters. Assumes uniform
     priors between the minimum and maximum values provided in 'params'.
@@ -46,6 +46,8 @@ def calc_log_posterior(param_vals, state, params, surveys_sep, grid_params, Pn=T
         grid_params (dictionary)    =   nz, ndm, dmmax
         Pn          (bool)          =   Include Pn or not
         log_halo    (bool)          =   Use a log uniform prior on DMhalo
+        lin_host    (bool)          =   Use a linear uniform prior on host mean
+        ind_surveys (bool)          =   Return likelihoods for each survey
     
     Outputs:
         llsum       (double)        =   Total log likelihood for param_vals which is equivalent
@@ -63,8 +65,16 @@ def calc_log_posterior(param_vals, state, params, surveys_sep, grid_params, Pn=T
             in_priors = False
             break
 
-        param_dict[key] = param_vals[i]
+        if lin_host and key == 'lmean':
+            param_dict[key] = np.log10(param_vals[i])
+        else:
+            param_dict[key] = param_vals[i]
 
+    # Initialise list if requesting individual survey likelihoods
+    if ind_surveys:
+        ll_list = []
+    
+    # Check if it is in the priors and do the calculations
     if in_priors is False:
         llsum = -np.inf
     else:
@@ -110,34 +120,41 @@ def calc_log_posterior(param_vals, state, params, surveys_sep, grid_params, Pn=T
                 grids += mf.initialise_grids(surveys_sep[1], zDMgrid, zvals, dmvals, state, wdist=True, repeaters=True)
 
             # Minimse the constant accross all surveys
-            newC, llC = it.minimise_const_only(None, grids, surveys, update=True)
             if Pn:
-                for g in grids:
-                    g.state.FRBdemo.lC = newC
+                newC, llC = it.minimise_const_only(None, grids, surveys, update=True)
+                # for g in grids:
+                #     g.state.FRBdemo.lC = newC
 
-                if isinstance(g, repeat_grid.repeat_Grid):
-                    g.calc_constant()
+                # if isinstance(g, repeat_grid.repeat_Grid):
+                #     g.state.rep.RC = g.state.rep.RC / 10**oldC * 10**newC
 
             # calculate all the likelihoods
             llsum = 0
             for s, grid in zip(surveys, grids):
-                llsum += it.get_log_likelihood(grid,s,Pn=Pn)
+                ll = it.get_log_likelihood(grid,s,Pn=Pn,pNreps=pNreps)
+                llsum += ll
+
+                if ind_surveys:
+                    ll_list.append(ll)
 
         except ValueError as e:
-            print("ValueError, setting likelihood to -inf: " + str(e))
+            print("Error, setting likelihood to -inf: " + str(e))
             llsum = -np.inf
+            ll_list = [-np.inf for _ in range(len(surveys))]
 
     if np.isnan(llsum):
         print("llsum was NaN. Setting to -infinity", param_dict)    
         llsum = -np.inf
     
     # print("Posterior calc time: " + str(time.time()-t0) + " seconds", flush=True)
-
-    return llsum
+    if ind_surveys:
+        return llsum, ll_list
+    else:
+        return llsum
 
 #==============================================================================
 
-def mcmc_runner(logpf, outfile, state, params, surveys, grid_params, nwalkers=10, nsteps=100, nthreads=1, Pn=True, log_halo=False):
+def mcmc_runner(logpf, outfile, state, params, surveys, grid_params, nwalkers=10, nsteps=100, nthreads=1, Pn=False, pNreps=True, log_halo=False, lin_host=False):
     """
     Handles the MCMC running.
 
@@ -153,6 +170,7 @@ def mcmc_runner(logpf, outfile, state, params, surveys, grid_params, nwalkers=10
         nsteps      (int)           =   Number of steps
         nthreads    (int)           =   Number of threads (currently not implemented - uses default)
         Pn          (bool)          =   Include Pn or not
+        pNreps      (bool)          =   Include pNreps or not
         log_halo    (bool)          =   Use a log uniform prior on DMhalo
     
     Outputs:
@@ -175,7 +193,7 @@ def mcmc_runner(logpf, outfile, state, params, surveys, grid_params, nwalkers=10
     
     start = time.time()
     with mp.Pool() as pool:
-        sampler = emcee.EnsembleSampler(nwalkers, ndim, logpf, args=[state, params, surveys, grid_params, Pn, log_halo], backend=backend, pool=pool)
+        sampler = emcee.EnsembleSampler(nwalkers, ndim, logpf, args=[state, params, surveys, grid_params, Pn, pNreps, log_halo, lin_host], backend=backend, pool=pool)
         sampler.run_mcmc(starting_guesses, nsteps, progress=True)
     end = time.time()
     print("Total time taken: " + str(end - start))

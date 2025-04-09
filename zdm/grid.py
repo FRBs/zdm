@@ -28,6 +28,14 @@ class Grid:
                 Defines the parameters of the analysis
                 Note, each grid holds the *same* copy so modifying
                 it in one place affects them all.
+            zvals (np.1darray, float):
+                redshift values of the grid. These are "bin centres",
+                representing ranges from +- dz/2.
+            dmvals (np.1darray, float:
+                DM values of the grid. These are These are "bin centres",
+                representing ranges from +- dDM/2.
+            smear_mask (np.1darray, float):
+                1D array
             wdist (bool):
                 If True, allow for a distribution of widths
             prev_grid (grid.Grid):
@@ -43,7 +51,7 @@ class Grid:
         self.b_fractions = None
         # State
         self.state = state
-
+        self.MCinit = False
         self.source_function = cos.choose_source_evolution_function(
             state.FRBdemo.source_evolution
         )
@@ -137,12 +145,64 @@ class Grid:
         self.dmvals = io.load_data(dmfile)
         self.check_grid()
         self.volume_grid()
-
-    def check_grid(self):
-
+    
+    def get_dm_coeffs(self, DMlist):
+        """
+        Returns indices and coefficients for interpolating between DM values
+        
+        dmlist: np.ndarray of dispersion measures (extragalactic!)
+        """
+        # get indices in dm space
+        kdms=DMlist/self.ddm - 0.5 # idea: if DMobs = ddm, we are half-way between bin 0 and bin 1
+        Bin0 = np.where(kdms < 0.)[0] # if DMs are in the lower half of the lowest bin, use lowest bin only
+        kdms[Bin0] = 0. 
+        idms1=kdms.astype('int') # rounds down
+        idms2=idms1+1
+        dkdms2=kdms-idms1 # applies to idms2, i.e. the upper bin. If DM = ddm, then this should be 0.5
+        dkdms1 = 1.-dkdms2 # applies to idms1
+        return idms1,idms2,dkdms1,dkdms2
+    
+    def get_z_coeffs(self,zlist):
+        """
+        Returns indices and coefficients for interpolating between z values
+        
+        zlist: np.ndarray of dispersion measures (extragalactic!)
+        """
+        
+        kzs=zlist/self.dz - 0.5
+        Bin0 = np.where(kzs < 0.)[0]
+        kzs[Bin0] = 0. 
+        izs1=kzs.astype('int')
+        izs2=izs1+1
+        dkzs2=kzs-izs1 # applies to izs2
+        dkzs1 = 1. - dkzs2
+        
+        # checks for values which are too large
+        toobigz = np.where(zlist > self.zvals[-1] + self.dz/2.)[0]
+        if len(toobigz) > 0:
+            raise ValueError("Redshift values ",zlist[toobigz],
+                " too large for grid max of ",self.zvals[-1] + self.dz/2.)
+        
+        # checks for zs in top half of top bin - only works because of above bin
+        topbin = np.where(zlist > self.zvals[-1])[0]
+        if len(topbin) > 0:
+            izs2[topbin] = self.zvals.size-1
+            izs1[topbin] = self.zvals.size-2
+            dkzs2[topbin] = 1.
+            dkzs1[topbin] = 0.
+        
+        return izs1, izs2, dkzs1, dkzs2
+    
+    def check_grid(self,TOLERANCE = 1e-6):
+        """
+        Check that the grid values are behaving as expected
+        
+        TOLERANCE: defines the max relative difference in expected
+                    and found values that will be tolerated
+        """
         self.nz = self.zvals.size
         self.ndm = self.dmvals.size
-
+        
         # check to see if these are log-spaced
         if (self.zvals[-1] - self.zvals[-2]) / (self.zvals[1] - self.zvals[0]) > 1.01:
             if (
@@ -155,7 +215,7 @@ class Grid:
         else:
             self.zlog = False
             self.dz = self.zvals[1] - self.zvals[0]
-
+        
         self.ddm = self.dmvals[1] - self.dmvals[0]
         shape = self.grid.shape
         if shape[0] != self.nz:
@@ -178,17 +238,26 @@ class Grid:
             expectation = self.dz * np.arange(0, self.nz) + self.zvals[0]
         diff = self.zvals - expectation
         maxoff = np.max(diff ** 2)
-        if maxoff > 1e-6 * self.dz:
+        if maxoff > TOLERANCE * self.dz:
             raise ValueError(
                 "Maximum non-linearity in z-grid of ",
                 maxoff ** 0.5,
                 "detected, aborting",
             )
-
+        
+        # Ensures that log-spaced bins are truly bin centres
+        if not self.zlog and np.abs(self.zvals[0] - self.dz/2.) > TOLERANCE*self.dz:
+            raise ValueError(
+                "Linear z-grids *must* begin at dz/2. e.g. 0.05,0.15,0.25 etc, ",
+                " first value ",self.zvals[0]," expected to be half of spacing ",
+                self.dz,", aborting..."
+            )
+                
+        
         expectation = self.ddm * np.arange(0, self.ndm) + self.dmvals[0]
         diff = self.dmvals - expectation
         maxoff = np.max(diff ** 2)
-        if maxoff > 1e-6 * self.ddm:
+        if maxoff > TOLERANCE * self.ddm:
             raise ValueError(
                 "Maximum non-linearity in dm-grid of ",
                 maxoff ** 0.5,
@@ -460,14 +529,14 @@ class Grid:
         If Poisson=True, then interpret N as a Poisson expectation value
         Otherwise, generate precisely N FRBs
         
-        Generated values are DM, z, B, w, and SNR
+        Generated values are [MCz, MCDM, MCb, MCs, MCw]
         NOTE: the routine GenMCFRB does not know 'w', merely
             which w bin it generates.
         
         """
         # Boost?
         if self.state.energy.luminosity_function in [1, 2]:
-            Emax_boost = 2.0
+            Emax_boost = 3.0
         else:
             Emax_boost = 0.0
 
@@ -477,16 +546,92 @@ class Grid:
         else:
             NFRB = int(N)  # just to be sure...
         sample = []
-        pwb = None  # feeds this back to save time. Lots of time.
+        
         for i in np.arange(NFRB):
             if (i % 100) == 0:
                 print(i)
-            frb, pwb = self.GenMCFRB(pwb, Emax_boost=Emax_boost)
+            
+            # Regen if the survey would not find this FRB
+            frb = self.GenMCFRB(Emax_boost)
+            # This is a pretty naive method of generation.
+            while frb[1] > self.survey.max_dm:
+                print("Regenerating MC FRB with too high DM ",frb[1],self.survey.max_dm)
+                frb = self.GenMCFRB(Emax_boost)
+
             sample.append(frb)
+            
         sample = np.array(sample)
         return sample
-
-    def GenMCFRB(self, pwb=None, Emax_boost=0.0):
+    
+    
+    def initMC(self):
+        """
+        Initialises the MC sample, if it has not been doen already
+        This uses a great deal of RAM - hence, do not do this lightly!
+        """
+        
+        # shorthand
+        lEmin = self.state.energy.lEmin
+        lEmax = self.state.energy.lEmax
+        gamma = self.state.energy.gamma
+        Emin = 10 ** lEmin
+        Emax = 10 ** lEmax
+        
+        # grid of beam values, weights
+        nw = self.eff_weights.size
+        nb = self.beam_b.size
+        
+        # holds array of probabilities in w,b space
+        pwb = np.zeros([nw * nb])
+        rates = []
+        pzcs = []
+        
+        # gets list of DM probabilities to set to zero due to
+        # the survey missing these FRBs
+        if self.survey.max_dm is not None:
+            setDMzero = np.where(self.dmvals +self.ddm/2. > self.survey.max_dm)[0]
+                  
+        # Generates a joint distribution in B,w
+        for i, b in enumerate(self.beam_b):
+            for j, w in enumerate(self.eff_weights):
+                # each of the following is a 2D array over DM, z which we sum to generate B,w values
+                pzDM = self.array_cum_lf(
+                            self.thresholds[j, :, :] / b,
+                            Emin, Emax, gamma)
+                
+                # sets to zero if we have a max survey DM
+                if self.survey.max_dm is not None:
+                    pzDM [:,setDMzero] = 0.
+                
+                # weighted pzDM
+                wb_fraction = (self.beam_o[i] * w * pzDM)
+                pdv = np.multiply(wb_fraction.T, self.dV).T
+                rate = pdv * self.sfr_smear
+                rates.append(rate)
+                pwb[i * nw + j] = np.sum(rate)
+                
+                pz = np.sum(rate, axis=1)
+                pzc = np.cumsum(pz)
+                pzc /= pzc[-1]
+                
+                pzcs.append(pzc)
+        
+        # generates cumulative distribution for sampling w,b
+        pwbc = np.cumsum(pwb)
+        pwbc /= pwbc[-1]
+        
+        # saves cumulative distributions for sampling
+        self.MCpwbc = pwbc
+        
+        # saves individal wxb zDM rates for sampling these distributions
+        self.MCrates = rates
+        
+        # saves projections onto z-axis
+        self.MCpzcs = pzcs
+        
+        self.MCinit = True
+    
+    def GenMCFRB(self, Emax_boost):
         """
         Generates a single FRB according to the grid distributions
         
@@ -508,125 +653,192 @@ class Grid:
 
         Returns:
             tuple: FRBparams=[MCz,MCDM,MCb,j,MCs], pwb values
+            These are:
+                MCz: redshift
+                MCDM: dispersion measure (extragalactic)
+                MCb: beam value 
+                j: 
+                MCs: SNR/SNRth value of FRB
+                MCw: width value of FRB
+            [MCz, MCDM, MCb, j, MCs, MCw]
         """
-
+        
         # shorthand
         lEmin = self.state.energy.lEmin
         lEmax = self.state.energy.lEmax
         gamma = self.state.energy.gamma
         Emin = 10 ** lEmin
         Emax = 10 ** lEmax
-
+        
         # grid of beam values, weights
         nw = self.eff_weights.size
         nb = self.beam_b.size
-
-        # we do this to allow efficient recalculation of this when generating many FRBs
-        if pwb is not None:
-            pwbc = np.cumsum(pwb)
-            pwbc /= pwbc[-1]
-        else:
-            pwb = np.zeros([nw * nb])
-
-            # Generates a joint distribution in B,w
-            for i, b in enumerate(self.beam_b):
-                for j, w in enumerate(self.eff_weights):
-                    # each of the following is a 2D array over DM, z which we sum to generate B,w values
-                    wb_fraction = (
-                        self.beam_o[i]
-                        * w
-                        * self.array_cum_lf(
-                            self.thresholds[j, :, :] / b, Emin, Emax, gamma
-                        )
-                    )
-                    pdv = np.multiply(wb_fraction.T, self.dV).T
-                    rate = pdv * self.sfr_smear
-                    pwb[i * nw + j] = np.sum(rate)
-            pwbc = np.cumsum(pwb)
-            pwbc /= pwbc[-1]
-
+        
+        if not self.MCinit:
+            self.initMC()
+        
         # sample distribution in w,b
         # we do NOT interpolate here - we treat these as qualitative values
         # i.e. as if there was an irregular grid of them
         r = np.random.rand(1)[0]
-        which = np.where(pwbc > r)[0][0]
+        which = np.where(self.MCpwbc > r)[0][0]
         i = int(which / nw)
         j = which - i * nw
         MCb = self.beam_b[i]
         MCw = self.eff_weights[j]
-
-        # calculate zdm distribution for sampled w,b only
-        pzDM = self.array_cum_lf(self.thresholds[j, :, :] / MCb, Emin, Emax, gamma)
-        wb_fraction = self.array_cum_lf(
-            self.thresholds[j, :, :] / MCb, Emin, Emax, gamma
-        )
-        pdv = np.multiply(wb_fraction.T, self.dV).T
-        pzDM = pdv * self.sfr_smear
-
-        # sample distribution in z,DM
-        pz = np.sum(pzDM, axis=1)
-        pzc = np.cumsum(pz)
-        pzc /= pzc[-1]
+        
+        # get p(z,DM) distribution for this b,w
+        pzDM = self.MCrates[which]
+        
+        pzc = self.MCpzcs[which]
+        
         r = np.random.rand(1)[0]
+        
+        # sampling in DM and z space
+        # First choose z: pzc is the cumulative distribution in z
+        # for all dm
+        # each probability represents the p(bin), i.e. z-dz/2. to z+dz/2
+        # first, find the bin where the cumulative probability is higher
+        # than the sampled amount.
+        # Alternative method: just use the distribution from the bin,
+        # then multiply the resulting DM linearly with deltaz/z.
+        # Would be better at low z, worse at high z
         iz2 = np.where(pzc > r)[0][0]
         if iz2 > 0:
             iz1 = iz2 - 1
+            iz3 = iz2 + 1
             dr = r - pzc[iz1]
-            kz2 = dr / (pzc[iz2] - pzc[iz1])  # fraction of way to second value
-            kz1 = 1.0 - kz2
-            MCz = self.zvals[iz1] * kz1 + self.zvals[iz2] * kz2
-            pDM = pzDM[iz1, :] * kz1 + pzDM[iz2, :] * kz2
+            fz = dr / (pzc[iz2] - pzc[iz1])  # fraction of way to upper z value
+            
+            # move a fraction of kz2 between z-dz/0.5 and z + dz/0.5
+            #MCz = self.zvals[iz2] + (kz2-0.5)*dz
+            
+            # weigts between iz1 and iz2
+            if fz < 0.5:
+                kz1 = 0.5 - fz
+                kz2 = 0.5 + fz
+                kz3 = 0.
+                iz3 = 0 # dummy
+            elif iz2 == self.zvals.size-1:
+                # we are in the last bin - don't extrapolate, just use it
+                kz1 = 0.
+                kz2 = 1.
+                kz3 = 0.
+                iz1 = 0 # dummy
+                iz3 = 0 # dummy
+            else:
+                kz1 = 0.
+                kz2 = (1.5-fz)
+                kz3 = fz-0.5
+                iz1 = 0 #dummy
+            pDM = pzDM[iz1, :] * kz1 + pzDM[iz2, :] * kz2 + pzDM[iz3, :] * kz3
+            MCz = self.zvals[iz1] * kz1 + self.zvals[iz2] * kz2 + self.zvals[iz3]*kz3
         else:
             # we perform a simple linear interpolation in z from 0 to minimum bin
-            kz2 = r / pzc[iz2]
-            kz1 = 1.0 - kz2
-            MCz = self.zvals[iz2] * kz2
-            pDM = pzDM[iz2, :]  # just use the value of lowest bin
-
+            fz = r / pzc[iz2]
+            kz1 = 0.
+            kz2 = 1.
+            kz3 = 0.
+            iz1 = 0 # dummy
+            iz3 = 0 # dummy
+            MCz = (self.zvals[iz2] + self.dz/0.5) * fz
+            # Just use the value of lowest bin.
+            # This is a gross and repugnant approximation
+            pDM = pzDM[iz2, :]
+            
         # NOW DO dm
-        # pDM=pzDM[k,:]
+        # DM represents the distribution for the centre of z-bin
         pDMc = np.cumsum(pDM)
         pDMc /= pDMc[-1]
         r = np.random.rand(1)[0]
         iDM2 = np.where(pDMc > r)[0][0]
         if iDM2 > 0:
             iDM1 = iDM2 - 1
+            iDM3 = iDM2 + 1
             dDM = r - pDMc[iDM1]
-            kDM2 = dDM / (pDMc[iDM2] - pDMc[iDM1])
-            kDM1 = 1.0 - kDM2
-            MCDM = self.dmvals[iDM1] * kDM1 + self.dmvals[iDM2] * kDM2
-            if iz2 > 0:
-                Eth = (
-                    self.thresholds[j, iz1, iDM1] * kz1 * kDM1
-                    + self.thresholds[j, iz1, iDM2] * kz1 * kDM2
-                    + self.thresholds[j, iz2, iDM1] * kz2 * kDM1
-                    + self.thresholds[j, iz2, iDM2] * kz2 * kDM2
-                )
+            # fraction of value through DM bin
+            fDM = dDM / (pDMc[iDM2] - pDMc[iDM1])
+            
+            # get the MC DM through interpolation
+            if fDM < 0.5:
+                kDM1 = 0.5 - fDM
+                kDM2 = 0.5 + fDM
+                kDM3 = 0.
+                iDM3 = 0    # dummy
+                # sets iDM3 to be safe at 0
+                MCDM = self.dmvals[iDM1] * kDM1 + self.dmvals[iDM2] * kDM2
+            elif iDM2 == self.dmvals.size-1:
+                kDM1 = 0.
+                kDM2 = 1. # for future use, not here
+                kDM3 = 0.
+                iDM1 = 0    # dummy
+                iDM3 = 0    # dummy
+                MCDM = self.dmvals[iDM2] + (fDM - 0.5)*self.dDM # upper DM bins
             else:
-                Eth = (
-                    self.thresholds[j, iz2, iDM1] * kDM1
-                    + self.thresholds[j, iz2, iDM2] * kDM2
-                )
-                Eth *= kz2 ** 2  # assume threshold goes as Eth~z^2 in the near Universe
+                kDM1 = 0.
+                kDM2 = 1.5-fDM
+                kDM3 = fDM - 0.5
+                iDM1 = 0    # dummy
+                
+                MCDM = self.dmvals[iDM3] * kDM3 + self.dmvals[iDM2] * kDM2
+            
+            #MCDM = self.dmvals[iDM1] * kDM1 + self.dmvals[iDM2] * kDM2
+            #if iz2 > 0:
+            #    Eth = (
+            #        self.thresholds[j, iz1, iDM1] * kz1 * kDM1
+            #        + self.thresholds[j, iz1, iDM2] * kz1 * kDM2
+            #        + self.thresholds[j, iz1, iDM3] * kz1 * kDM3
+            #        + self.thresholds[j, iz2, iDM1] * kz2 * kDM1
+            #        + self.thresholds[j, iz2, iDM2] * kz2 * kDM2
+            #        + self.thresholds[j, iz2, iDM3] * kz2 * kDM3
+            #        + self.thresholds[j, iz3, iDM1] * kz3 * kDM1
+            #        + self.thresholds[j, iz3, iDM2] * kz3 * kDM2
+            #        + self.thresholds[j, iz3, iDM3] * kz3 * kDM3
+            #    )
+            #else:
+            #    Eth = (
+            #        self.thresholds[j, iz2, iDM1] * kDM1
+            #        + self.thresholds[j, iz2, iDM2] * kDM2
+            #    )
+            #    Eth *= kz2 ** 2  # assume threshold goes as Eth~z^2 in the near Universe
         else:
             # interpolate linearly from 0 to the minimum value
-            kDM2 = r / pDMc[iDM2]
-            MCDM = self.dmvals[iDM2] * kDM2
-            if iz2 > 0:  # ignore effect of lowest DM bin on threshold
-                Eth = (
-                    self.thresholds[j, iz1, iDM2] * kz1
-                    + self.thresholds[j, iz2, iDM2] * kz2
-                )
-            else:
-                Eth = self.thresholds[j, iz2, iDM2] * kDM2
-                Eth *= kz2 ** 2  # assume threshold goes as Eth~z^2 in the near Universe
-
+            fDM = r / pDMc[iDM2]
+            MCDM = (self.dmvals[iDM2] + self.ddm/2.) * fDM
+            kDM1 = 0.
+            kDM2 = 1.
+            kDM3 = 0.
+            iDM1 = 0 #dummy
+            iDM3 = 0 #dummy
+            
+            #if iz2 > 0:  # ignore effect of lowest DM bin on threshold
+            #    Eth = (
+            #        self.thresholds[j, iz1, iDM2] * kz1
+            #        + self.thresholds[j, iz2, iDM2] * kz2
+            #    )
+            #else:
+            #    Eth = self.thresholds[j, iz2, iDM2] * kDM2
+            #    Eth *= kz2 ** 2  # assume threshold goes as Eth~z^2 in the near Universe
+        
+        # This is constructed such that weights and iz, iDM will work out
+        # for all cases of the above. Note that only four of these terms at
+        # most will ever be non-zero.
+        Eth = self.thresholds[j, iz1, iDM1] * kz1 * kDM1 \
+                + self.thresholds[j, iz1, iDM2] * kz1 * kDM2 \
+                + self.thresholds[j, iz1, iDM3] * kz1 * kDM3 \
+                + self.thresholds[j, iz2, iDM1] * kz2 * kDM1 \
+                + self.thresholds[j, iz2, iDM2] * kz2 * kDM2 \
+                + self.thresholds[j, iz2, iDM3] * kz2 * kDM3 \
+                + self.thresholds[j, iz3, iDM1] * kz3 * kDM1 \
+                + self.thresholds[j, iz3, iDM2] * kz3 * kDM2 \
+                + self.thresholds[j, iz3, iDM3] * kz3 * kDM3 \
+        
         # now account for beamshape
         Eth /= MCb
 
         # NOW GET snr
         # Eth=self.thresholds[j,k,l]/MCb
-        Es = np.logspace(np.log10(Eth), np.log10(Emax) + Emax_boost, 1000)
+        Es = np.logspace(np.log10(Eth), lEmax + Emax_boost, 1000)
         PEs = self.vector_cum_lf(Es, Emin, Emax, gamma)
         PEs /= PEs[0]  # normalises: this is now cumulative distribution from 1 to 0
         r = np.random.rand(1)[0]
@@ -638,8 +850,8 @@ class Grid:
         MCE = 10 ** (np.log10(Es[iE1]) * kE1 + np.log10(Es[iE2]) * kE2)
         MCs = MCE / Eth
 
-        FRBparams = [MCz, MCDM, MCb, j, MCs]
-        return FRBparams, pwb
+        FRBparams = [MCz, MCDM, MCb, MCs, MCw]
+        return FRBparams
 
     def build_sz(self):
         pass
@@ -700,7 +912,11 @@ class Grid:
         reset_cos, get_zdm, calc_dV = False, False, False
         smear_mask, smear_dm, calc_pdv, set_evol = False, False, False, False
         new_sfr_smear, new_pdv_smear, calc_thresh = False, False, False
-
+        
+        # if we are updating a grid, the MC will in-general need to be
+        # re-initialised
+        self.MCinit = False
+        
         # Cosmology -- Only H0 so far
         if self.chk_upd_param("H0", vparams, update=True):
             reset_cos = True

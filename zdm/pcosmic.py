@@ -47,11 +47,16 @@ def pcosmic(delta, z, logF, C0):
     
     delta: = DM_cosmic/ <DM_cosmic>
            i.e. fractional cosmic DM
-    alpha, beta: fitted parameters
     
-    constraints: std dev must be f*z^0.5
+    z: redshift (sigma depends on this)
     
-    A: arbitrary amplitude of relative probability, ignore...
+    logF: log10 of the fluctuation constant, F
+    
+    C0: constant to be optimised
+    
+    alpha, beta: these are fitted parameters to be optimised
+    
+    constraints: std dev must be F*z^0.5
     """
 
     ### logF compensation
@@ -77,14 +82,23 @@ def p_delta_DM(z, F, C0, deltas=None, dmin=1e-3, dmax=10, ndelta=10000):
 
 
 def iterate_C0(z, F, C0=1, Niter=10):
-    """ Iteratively solves for C_0 as a function of z and F """
+    """
+    Iteratively solves for C_0 as a function of z and F
+    
+    C0 goes through 10 iterations, where each iteration
+    uses the prior value of C0 to calculate C0.
+    
+    """
     dmin = 1e-3
     dmax = 10
     ndelta = 10000
+    # these represent central bin values of delta = DM/<DM>
     deltas = np.linspace(dmin, dmax, ndelta)
+    bin_w = deltas[1] - deltas[0]
     for i in np.arange(Niter):
+        # pcosmic is a probability density
+        # hence, we should calculate this at bin centres
         pdeltas = pcosmic(deltas, z, F, C0)
-        bin_w = deltas[1] - deltas[0]
         norm = bin_w * np.sum(pdeltas)
         mean = bin_w * np.sum(pdeltas * deltas) / norm
         C0 += mean - 1.0
@@ -102,12 +116,15 @@ def make_C0_grid(zeds, F):
     return C0s
 
 
-def get_mean_DM(zeds: np.ndarray, state: parameters.State):
+def get_mean_DM(zeds: np.ndarray, state: parameters.State,Plot=False):
     """ Gets mean average z to which can be applied deltas 
 
     Args:
         zeds (np.ndarray): redshifts (must be linearly spaced)
-        state (parameters.State): 
+            These zeds are assumed to represent mid-points of
+            bins, i.e. from 0.5, 1.5, 2.5 etc dz
+        state (parameters.State):
+        Plot (bool): create a test plot of DM vs z 
 
     Returns:
         np.ndarray: DM_cosmic
@@ -117,14 +134,58 @@ def get_mean_DM(zeds: np.ndarray, state: parameters.State):
         H0=state.cosmo.H0, Ob0=state.cosmo.Omega_b, Om0=state.cosmo.Omega_m
     )
     #
-    zmax = zeds[-1]
+    dz = zeds[1]-zeds[0]
+    zmax = zeds[-1] + dz/2. # top of uppermost zbin
     nz = zeds.size
-    DMbar, zeval = igm.average_DM(zmax, cosmo=cosmo, cumul=True, neval=nz + 1)
-
-    # Check
-    assert np.allclose(zeds, zeval[1:])
-    # wrong dimension
-    return DMbar[1:].value
+    
+    # this routine offsets zeval by 1 unit. That is, DM[i]
+    # is the mean cosmic DM at zeval[i+1]
+    # we want this for every 0.5, 1.5 etc
+    # hence, we evaluate at 2*nz+1,
+    tempDMbar, zeval = igm.average_DM(zmax, cosmo=cosmo, cumul=True, neval=2*nz + 1)
+    
+    # we now exract the DMbar that we actually want!
+    # the zeroeth DMbar corresponds to zeval[1] which
+    # since we calculate too many, is zeds[1]
+    DMbar = tempDMbar[:-1:2]
+    
+    # performs a test to check if igm.average_DM has been fixed yet or not
+    if np.abs(DMbar[0]/DMbar[1] - 1./3.) > 1e-2:
+        print("DMbar is not scaling as expected! Central bins ",
+                zeds[0]," and ",zeds[1]," have respective DM of ",
+                DMbar[0]," and ",DMbar[1]," . Expected the second ",
+                "value to be ",DMbar[0]*3.," . Perhaps ",
+                igm.average_DM," has been fixed?",DMbar[0]/DMbar[1] - 1./3.)
+        exit()
+    
+    if Plot:
+        plt.figure()
+        plt.xlabel('z')
+        plt.ylabel('DM')
+        dz = zeval[1]-zeval[0]
+        plt.plot(zeds,DMbar,marker='+',label="wanted")
+        plt.plot(zeval+dz,tempDMbar,linestyle=":",marker='x',label="eval")
+        plt.xlim(0,0.1)
+        plt.ylim(0,100)
+        plt.legend()
+        plt.tight_layout()
+        plt.show()
+        
+        plt.xlim(4.9,5.)
+        plt.ylim(4900,5500)
+        plt.tight_layout()
+        plt.show()
+        
+        plt.close()
+    
+    
+    # Remove this check - now replaced as above
+    # assert np.allclose(zeds, zeval[1:])
+    
+    # now returns the actual values, since
+    # we have modified DMbar to exclude the
+    # zero value already
+    return DMbar.value
 
 
 def get_log_mean_DM(zeds: np.ndarray, state: parameters.State):
@@ -194,9 +255,9 @@ def get_pDM(z, F, DMgrid, zgrid, Fgrid, C0grid, zlog=False):
     """
     C0 = get_C0(z, F, zgrid, Fgrid, C0grid)
     if zlog:
-        DMbar = get_mean_DM(z)
-    else:
         DMbar = get_log_mean_DM(z)
+    else:
+        DMbar = get_mean_DM(z)
     deltas = DMgrid / DMbar  # in units of fractional DM
     pDM = pcosmic(deltas, z, F, C0)
     return pDM
@@ -209,8 +270,9 @@ def get_pDM_grid(
     state
     C0grid: C0 values obtained by convergence
     DMgrid: range of DMs for which we are generating a histogram
+            This represent bin centres
     zgrid: redshifts. These do not have to be in any particular
-        order or spacing.
+            order or spacing. We just iterature through these
     zlog (bool): True if zs are log-spaced
                  False if linearly spaced
     
@@ -277,18 +339,31 @@ def plot_mean(zvals, saveas, title="Mean DM"):
 
 
 def get_dm_mask(dmvals, params, zvals=None, plot=False):
-    """ Generates a mask over which to integrate the lognormal
-    Apply this mask as DM[i] = DM[set[i]]*mask[i]
-    DMvals: these give local probabilities of p(DM).
+    """
+    Generates a mask over which to integrate the lognormal
+        distribution of FRM host galaxy DM contributions. It's
+        essentially just a probability distribution of p(DMhost),
+        such that p(DMeg = DMhost + DMcosmic) can be quickly
+        calculated, as DM[i] = DM[set[i]]*mask[i]
+    
+    DMvals (np.ndarray): DMs over which to calculate the mask.
+        These represent local probabilities of p(DM), i.e.
+        the probability of getting a DM between
+        DMval - dDM/2. and DMval + dDM/2.
+    
+    params [vector, 2]: mean and sigma of the lognormal (log10)
+            host galaxy DM distribution
+    
+    zvals [np.ndarray]: redshift values at which to calculate this.
+        If None: return a single, redshift-independent vector.
+        If not None: return a mask for each value of z, with
+        DMhost reduced by the (1+z) value.
+        In future: add a parameter to scale this as (1+z)^xi.
+    
     We simply assign lognormal values at the midpoints
     The renormalisation constants then give some idea of the
     error in this procedure
-    This requires parameters to be passed as a vector
     
-    
-    dmvals: numpy array storing the dms over which to calculate the mask
-    
-    params [vector, 2]: mean and sigma of the lognormal (log10) distribution
     """
 
     if len(params) != 2:
@@ -297,7 +372,7 @@ def get_dm_mask(dmvals, params, zvals=None, plot=False):
             params,
             " (expected log10mean, log10sigma)",
         )
-        exit()
+    
     # expect the params to be log10 of actual values for simplicity
     # this converts to natural log
     logmean = params[0] / 0.4342944619
@@ -307,9 +382,11 @@ def get_dm_mask(dmvals, params, zvals=None, plot=False):
 
     ##### first generates a mask from the lognormal distribution #####
     # in theory allows a mask up to length of the DN values, but will
-    # get truncated
-    # the first value has half weight (0 to 0.5)
-    # the rest have width of 1
+    # get truncated.
+    # The first value has half weight (0dDM to 0.5dDM) and represents
+    # adding no new DM. The rest have width of dDM and represent
+    # adding an integer number of dDM intervals.
+    
     mask = np.zeros([dmvals.size])
     if zvals is not None:
         ndm = dmvals.size
@@ -318,7 +395,8 @@ def get_dm_mask(dmvals, params, zvals=None, plot=False):
         for j, z in enumerate(zvals):
             # with each redshift, we reduce the effects of a 'host' contribution by (1+z)
             # this means that we divide the value of logmean by 1/(1+z)
-            # or equivalently, we multiply the ddm by this factor
+            # or equivalently, we multiply the ddm by this factor, since a
+            # measurable increase of dDM means an intrinsic dDM*(1+z)
             # here we choose the latter, but it is the same
             mask[j, :] = integrate_pdm(ddm * (1.0 + z), ndm, logmean, logsigma)
             mask[j, :] /= np.sum(mask[j, :])  # the mask must integrate to unity
@@ -366,6 +444,8 @@ def integrate_pdm(ddm, ndm, logmean, logsigma, quick=True, plot=False):
     Assigns probabilities of DM smearing (e.g. due to the host galaxy contribution)
     to a histogram in dm space.
     
+    Here, the resulting mask assumes DM values of 0 (0 to 0.5), 1( 0.5 to 1.5) etc.
+    
     Two methods: quick (use central values of DM bins), and slow (integrate bins)
     
     Arguments:
@@ -386,8 +466,12 @@ def integrate_pdm(ddm, ndm, logmean, logsigma, quick=True, plot=False):
     Returns:
         mask (np.ndarray)
     """
-    # do this for the z=0 case
-
+    # do this for the z=0 case (handling of z>0 can be performed at
+    # when calling the routine by multiplying dDM values)
+    
+    # normalisation constant of a normal distribution.
+    # Normalisation should probably be redone afterwards
+    # anyway.
     norm = (2.0 * np.pi) ** -0.5 / logsigma
 
     # csum=pdm
@@ -405,6 +489,9 @@ def integrate_pdm(ddm, ndm, logmean, logsigma, quick=True, plot=False):
     if plot or not quick:
         m2 = np.zeros([ndm])
         args = (logmean, logsigma, norm)
+        # performs integration of first bin in log space
+        # Does this for the first bin: probability from
+        # "0" (-logsigma*10) to ddm*0.5
         pdm, err = sp.integrate.quad(
             loglognormal_dlog,
             np.log(ddm * 0.5) - logsigma * 10,
@@ -412,7 +499,9 @@ def integrate_pdm(ddm, ndm, logmean, logsigma, quick=True, plot=False):
             args=args,
         )
         m2[0] = pdm
-
+        
+        # performs the integration for all other bins;
+        # goes from lower to upper bin bounds 
         for i in np.arange(1, ndm):
             # if csum > CSUMCUT:
             #    imax=i
@@ -439,5 +528,6 @@ def integrate_pdm(ddm, ndm, logmean, logsigma, quick=True, plot=False):
         plt.savefig("dm_mask_comparison_plot.pdf")
         plt.close()
         print("Generated plot of dm masks, exiting...")
-        exit()  # quit to avoid infinite plots
+        # Quit to avoid infinite plots. This is just a saftey measure.
+        exit()
     return mask

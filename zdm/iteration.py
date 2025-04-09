@@ -105,29 +105,6 @@ def get_names(which=None):
         names=names[which]
     return names
 
-def print_pset(pset):
-    """ pset defined as:
-    [0]:	log10 Emin
-    [1]:	log10 Emax
-    [2]:	alpha (nu^-alpha)
-    [3]:	gamma (E^gamma)
-    [4]:	sfr n
-    [5]:	dmx log mean
-    [6]:	dmx log sigma #eventually make this a function with various parameters
-    [7]:	constant \Phi) ('C') of Nfrb
-    """
-    print("Log_10 (Emin) : ",pset[0])
-    print("Log_10 (Emax) : ",pset[1])
-    print("alpha:        : ",pset[2])
-    print("gamma:        : ",pset[3])
-    print("sfr scaling n : ",pset[4])
-    print("DMx params    : ",pset[5:7])
-    print("Log_10 (C)    : ",pset[7])
-    if pset[8] is not None:
-        print("H0            : ",pset[8])
-    #print("DMx sigma     : ",pset[6])
-    #added H0 as a param
-
 def maximise_likelihood(grid,survey):
     # specifies which set of parameters to pass to the dmx function
     
@@ -168,7 +145,7 @@ def maximise_likelihood(grid,survey):
     return results
 
 
-def get_log_likelihood(grid, s, norm=True, psnr=True, Pn=True):
+def get_log_likelihood(grid, s, norm=True, psnr=True, Pn=False, pNreps=True):
     """
     Returns the likelihood for the grid given the survey.
 
@@ -186,29 +163,31 @@ def get_log_likelihood(grid, s, norm=True, psnr=True, Pn=True):
     if isinstance(grid, zdm_repeat_grid.repeat_Grid):
         # Repeaters
         if s.nDr==1:
-            llsum1, lllist, expected = calc_likelihoods_1D(grid, s, norm=norm, psnr=psnr, dolist=1, repeaters=True, Pn=Pn)
+            llsum1, lllist, expected = calc_likelihoods_1D(grid, s, norm=norm, psnr=psnr, dolist=1, grid_type=1, Pn=Pn, pNreps=pNreps)
             llsum = llsum1
+            # print(s.name, "repeaters:", lllist)
         elif s.nDr==2:
-            llsum1, lllist, expected = calc_likelihoods_2D(grid, s, norm=norm, psnr=psnr, dolist=1, repeaters=True, Pn=Pn)
+            llsum1, lllist, expected = calc_likelihoods_2D(grid, s, norm=norm, psnr=psnr, dolist=1, grid_type=1, Pn=Pn, pNreps=pNreps)
             llsum = llsum1
         elif s.nDr==3:
-            llsum1, lllist1, expected1 = calc_likelihoods_1D(grid, s, norm=norm, psnr=psnr, dolist=1, repeaters=True, Pn=Pn)
-            llsum2, lllist2, expected2 = calc_likelihoods_2D(grid, s, norm=norm, psnr=psnr, dolist=1, repeaters=True, Pn=False)
+            llsum1, lllist1, expected1 = calc_likelihoods_1D(grid, s, norm=norm, psnr=psnr, dolist=1, grid_type=1, Pn=Pn, pNreps=pNreps)
+            llsum2, lllist2, expected2 = calc_likelihoods_2D(grid, s, norm=norm, psnr=psnr, dolist=1, grid_type=1, Pn=False, pNreps=False)
             llsum = llsum1 + llsum2
         else:
             print("Implementation is only completed for nD 1-3.")
             exit()
-        
+
         # Singles
         if s.nDs==1:
-            llsum1, lllist, expected = calc_likelihoods_1D(grid, s, norm=norm, psnr=psnr, dolist=1, singles=True, Pn=Pn)
+            llsum1, lllist, expected = calc_likelihoods_1D(grid, s, norm=norm, psnr=psnr, dolist=1, grid_type=2, Pn=Pn)
             llsum += llsum1
+            # print(s.name, "singles:", lllist)
         elif s.nDs==2:
-            llsum1, lllist, expected = calc_likelihoods_2D(grid, s, norm=norm, psnr=psnr, dolist=1, singles=True, Pn=Pn)
+            llsum1, lllist, expected = calc_likelihoods_2D(grid, s, norm=norm, psnr=psnr, dolist=1, grid_type=2, Pn=Pn)
             llsum += llsum1
         elif s.nDs==3:
-            llsum1, lllist1, expected1 = calc_likelihoods_1D(grid, s, norm=norm, psnr=psnr, dolist=1, singles=True, Pn=Pn)
-            llsum2, lllist2, expected2 = calc_likelihoods_2D(grid, s, norm=norm, psnr=psnr, dolist=1, singles=True, Pn=False)
+            llsum1, lllist1, expected1 = calc_likelihoods_1D(grid, s, norm=norm, psnr=psnr, dolist=1, grid_type=2, Pn=Pn)
+            llsum2, lllist2, expected2 = calc_likelihoods_2D(grid, s, norm=norm, psnr=psnr, dolist=1, grid_type=2, Pn=False)
             llsum = llsum + llsum1 + llsum2
         else:
             print("Implementation is only completed for nD 1-3.")
@@ -230,7 +209,7 @@ def get_log_likelihood(grid, s, norm=True, psnr=True, Pn=True):
 
     return llsum
 
-def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=True,Pn=True,dolist=0,repeaters=False,singles=False):
+def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=True,Pn=False,pNreps=True,dolist=0,grid_type=0):
     """ Calculates 1D likelihoods using only observedDM values
     Here, Zfrbs is a dummy variable allowing it to be treated like a 2D function
     for purposes of calling.
@@ -248,32 +227,32 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=True,Pn=True,dol
     Pn:
         True: calculate probability of observing N FRBs
         False: do not calculate this
+    
+    pNreps:
+        True: calculate probability of the number of repetitions for each repeater
+        False: do not calculate this
 
     dolist
         2: llsum,lllist [Pzdm,Pn,Ps],expected,longlist
             longlist holds the LL for each FRB
         5: llsum,lllist,expected,[0.,0.,0.,0.]
 
-    repeaters:
-        True: assumes the grid passed is a repeat_grid.zdm_repeat_grid object and calculates likelihood for repeaters
-        False: assumes no repeaters considered (or singles = True)
-    singles:
-        True: assumes the grid passed is a repeat_grid.zdm_repeat_grid object and calculates likelihood for single bursts
-        False: assumes no repeaters considered (or repeaters = True)
-    NOTE: repeaters and singles should probably be combined into a single variable...
+    grid_type:
+        0: normal zdm grid
+        1: assumes the grid passed is a repeat_grid.zdm_repeat_grid object and calculates likelihood for repeaters
+        2: assumes the grid passed is a repeat_grid.zdm_repeat_grid object and calculates likelihood for single bursts
+
     """
     
     # Determine which array to perform operations on and initialise
-    if repeaters and singles: 
-        raise ValueError("Specify the likelihood for repeaters or singles, not both") 
-    elif repeaters: 
+    if grid_type == 1: 
         rates = grid.exact_reps 
         if survey.nozreps is not None:
             DMobs=survey.DMEGs[survey.nozreps]
             nozlist=survey.nozreps
         else:
             raise ValueError("No non-localised singles in this survey, cannot calculate 1D likelihoods")
-    elif singles: 
+    elif grid_type == 2: 
         rates = grid.exact_singles 
         if survey.nozsingles is not None:
             DMobs=survey.DMEGs[survey.nozsingles]
@@ -295,28 +274,44 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=True,Pn=True,dol
     # TODO: this is slow - should collapse only used columns
     pdm=np.sum(rates,axis=0)
     
-    ddm=dmvals[1]-dmvals[0]
-    kdms=DMobs/ddm
-    idms1=kdms.astype('int')
-    idms2=idms1+1
-    dkdms=kdms-idms1
-
-    if grid.state.MW.sigmaDMG == 0.0:
-        # Linear interpolation
-        pvals=pdm[idms1]*(1.-dkdms) + pdm[idms2]*dkdms
-    else:
-        dm_weights, iweights = calc_DMG_weights(DMobs, survey.DMhalo, survey.DMGs[nozlist], grid.state.MW.sigmaDMG, dmvals)
-        pvals = np.zeros(len(idms1))
-        # For each FRB
-        for i in range(len(idms1)):
-            pvals[i]=np.sum(pdm[iweights[i]]*dm_weights[i])
-
+    if np.sum(pdm) == 0:
+        if dolist==0:
+            return -np.inf
+        elif dolist==1:
+            return -np.inf, None, None
+        elif dolist==2:
+            return -np.inf, None, None, None
+        elif dolist==5: #for compatibility with 2D likelihood calculation
+            return -np.inf, None, None,[0.,0.,0.,0.]
+    
     if norm:
         global_norm=np.sum(pdm)
         log_global_norm=np.log10(global_norm)
         #pdm /= global_norm
     else:
         log_global_norm=0
+
+    #ddm=dmvals[1]-dmvals[0]
+    #kdms=DMobs/ddm
+    #idms1=kdms.astype('int')
+    #idms2=idms1+1
+    #dkdms=kdms-idms1
+    
+    idms1,idms2,dkdms1,dkdms2 = grid.get_dm_coeffs(DMobs)
+
+    if grid.state.MW.sigmaDMG == 0.0 and grid.state.MW.sigmaHalo == 0.0:
+        if np.any(DMobs < 0):
+            raise ValueError("Negative DMobs with no uncertainty")
+
+        # Linear interpolation
+        pvals=pdm[idms1]*dkdms1 + pdm[idms2]*dkdms2
+    else:
+        dm_weights, iweights = calc_DMG_weights(DMobs, survey.DMhalos[nozlist], survey.DMGs[nozlist], dmvals, grid.state.MW.sigmaDMG, 
+                                                 grid.state.MW.sigmaHalo, grid.state.MW.logu)
+        pvals = np.zeros(len(idms1))
+        # For each FRB
+        for i in range(len(idms1)):
+            pvals[i]=np.sum(pdm[iweights[i]]*dm_weights[i])
     
     # holds individual FRB data
     if dolist == 2:
@@ -327,20 +322,25 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=True,Pn=True,dol
     lllist=[llsum]
     
     ### Assesses total number of FRBs ###
+    # TODO: make the grid tell you the correct nromalisation
     if Pn and (survey.TOBS is not None):
-        if repeaters:
+        if grid_type==1:
             observed=survey.NORM_REPS
             C = grid.Rc
-        elif singles:
+            reps=True
+        elif grid_type==2:
             observed=survey.NORM_SINGLES
             C = grid.Rc
+            reps=True
         else:
             observed=survey.NORM_FRB
             C = 10**grid.state.FRBdemo.lC
-        expected=CalculateIntegral(rates,survey)
+            reps=False
+        expected=CalculateIntegral(rates,survey,reps)
         expected *= C
 
         Pn=Poisson_p(observed,expected)
+        print(observed, expected, grid.Rc)
         if Pn==0:
             Nll=-1e10
             if dolist==0:
@@ -355,12 +355,10 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=True,Pn=True,dol
     
     # this is updated version, and probably should overwrite the previous calculations
     if psnr:
-        # NOTE: to break this into a p(SNR|b) p(b) term, we first take
-        # the relative likelihood of the threshold b value compared
-        # to the entire lot, and then we calculate the local
-        # psnr for that beam only. But this requires a much more
-        # refined view of 'b', rather than the crude standatd 
-        # parameterisation
+        # We now evaluate p(snr) at every point in b,w,and z space
+        # This is p(snr) = p(Eobs) dE / \int_Eth^inf p(E) dE
+        # We then sum p(snr) over the three above dimensions,
+        # normalising in each case.
         
         # calculate vector of grid thresholds
         Emax=10**grid.state.energy.lEmax
@@ -369,30 +367,27 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=True,Pn=True,dol
         psnr=np.zeros([DMobs.size]) # has already been cut to non-localised number
         
         # Evaluate thresholds at the exact DMobs
-        kdmobs=(survey.DMs - survey.DMhalo - survey.meta['DMG'])/ddm
-        kdmobs=kdmobs[nozlist]
-        kdmobs[kdmobs<0] = 0
-        idmobs1=kdmobs.astype('int')
-        idmobs2=idmobs1+1
-        dkdmobs=kdmobs-idmobs1 # applies to idms2
-
-        # Linear interpolation
-        Eths = grid.thresholds[:,:,idmobs1]*(1.-dkdmobs) + grid.thresholds[:,:,idmobs2]*dkdmobs
-
-        ##### IGNORE THIS, PVALS NOW CONTAINS CORRECT NORMALISATION ######
-        # we have previously calculated p(DM), normalised by the global sum over all DM (i.e. given 1 FRB detection)
-        # what we need to do now is calculate this normalised by p(DM),
-        # i.e. psnr is the probability of snr given DM, and hence the total is
-        # p(snr,DM)/p(DM) * p(DM)/b(burst)
-        # get a vector of rates as a function of z
-        #rs = rates[:,idms1[j]]*(1.-dkdms[j])+ rates[:,idms2[j]]*dkdms[j]
-        rs = rates[:,idms1]*(1.-dkdms)+ rates[:,idms2]*dkdms	
-        #norms=np.sum(rs,axis=0)/global_norm
-        norms=pvals
+        DMEGmeans = survey.DMs[nozlist] - np.median(survey.DMGs + survey.DMhalos)
+        idmobs1,idmobs2,dkdmobs1,dkdmobs2 = grid.get_dm_coeffs(DMEGmeans)
         
+        # Linear interpolation
+        Eths = grid.thresholds[:,:,idmobs1]*dkdmobs1 + grid.thresholds[:,:,idmobs2]*dkdmobs2
+        
+        # get the correct p(z) distributions to weight the likelihoods by
+        if grid.state.MW.sigmaDMG == 0.0:
+            # Linear interpolation
+            rs = rates[:,idms1]*dkdms1+ rates[:,idms2]*dkdms2
+        else:
+            rs = np.zeros([grid.zvals.size, len(idms1)])
+            # For each FRB
+            for i in range(len(idms1)):
+                # For each redshift
+                for j in range(grid.zvals.size):
+                    rs[j,i] = np.sum(grid.rates[j,iweights[i]] * dm_weights[i]) / np.sum(dm_weights[i])
+                    
+        # this has shape nz,nFRB - FRBs could come from any z-value
         zpsnr=np.zeros(Eths.shape[1:])
-        beam_norm=np.sum(survey.beam_o)
-        #in theory, we might want to normalise by the sum of the omeba_b weights, although it does not matter here
+        zpsnr = zpsnr.flatten()
         
         for i,b in enumerate(survey.beam_b):
             #iterate over the grid of weights
@@ -401,35 +396,25 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=True,Pn=True,dol
             #wbEths=bEths #this is the only bit that depends on j, but OK also!
             bEobs=bEths*survey.Ss[nozlist] #should correctly multiply the last dimensions
             for j,w in enumerate(grid.eff_weights):
-                temp=(grid.array_diff_lf(bEobs[j,:,:],Emin,Emax,gamma).T).T
-                zpsnr += temp*survey.beam_o[i]*w*bEths[j,:,:] #weights this be beam solid angle and efficiency
+                differential = grid.array_diff_lf(bEobs[j,:,:],Emin,Emax,gamma) * bEths[j,:,:]
+                cumulative=grid.array_cum_lf(bEobs[j,:,:],Emin,Emax,gamma)
                 
+                # check for zero probabilities
+                OK = np.where(cumulative.flatten()>0)[0]
+                zpsnr[OK] += (differential.flatten()[OK]/cumulative.flatten()[OK])*survey.beam_o[i]*w
         
-        # we have now effectively calculated the local probabilities in the source-counts histogram for a given DM
-        # we have to weight this by the sfr_smear factors, and the volumetric probabilities
-        # this are the grid smearing factors incorporating pcosmic and the host contributions
-        if grid.state.MW.sigmaDMG == 0.0:
-            # Linear interpolation
-            sg = grid.sfr_smear[:,idms1]*(1.-dkdms)+ grid.sfr_smear[:,idms2]*dkdms
-        else:
-            sg = np.zeros([grid.sfr_smear.shape[0], len(idms1)])
-            # For each FRB
-            for i in range(len(idms1)):
-                # For each redshift
-                for j in range(sg.shape[0]):
-                    sg[j,i] = np.sum(grid.sfr_smear[j,iweights[i]] * dm_weights[i]) / np.sum(dm_weights[i])
-        sgV = (sg.T*grid.dV.T).T
-        wzpsnr = zpsnr * sgV
-        #THIS HAS NOT YET BEEN NORMALISED!!!!!!!!
-        # at this point, wzpsnr should look exactly like the grid.rates, albeit
-        # A: differential, and 
-        # B: slightly modified according to observed and not threshold fluence
+        # normalise by the beam and FRB width values
+        NORM = np.sum(survey.beam_o) * np.sum(grid.eff_weights)
+        zpsnr /= NORM
+        zpsnr = zpsnr.reshape(Eths.shape[1:])
         
+        # perform the weighting over the redshift axis
+        rnorms = np.sum(rs,axis=0)
+        zpsnr *= rs
+        psnr = np.sum(zpsnr,axis=0) / rnorms
         # normalises for total probability of DM occurring in the first place.
         # We need to do this. This effectively cancels however the Emin-Emax factor.
         # sums down the z-axis
-        psnr=np.sum(wzpsnr,axis=0)
-        psnr /= norms #normalises according to the per-DM probability
         
         # keeps individual FRB values
         if dolist==2:
@@ -441,10 +426,9 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=True,Pn=True,dol
             snrll = -1e10 # none of this is possible! [somehow...]
         else:
             snrll = np.sum(np.log10(psnr))
+        
         lllist.append(snrll)
         llsum += snrll
-
-        #embed(header='450 of it')
         
         if doplot:
             fig1=plt.figure()
@@ -469,9 +453,8 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=True,Pn=True,dol
             fig3=plt.figure()
             plt.xlabel('z')
             plt.ylabel('p(z)')
-            #plt.xlim(0,1)
             
-            tm1=np.max(wzpsnr)
+            tm1=np.max(psnr)
             tm2=np.max(rs)
             for j in np.arange(survey.Ss.size):
                 linestyle='-'
@@ -483,7 +466,7 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=True,Pn=True,dol
                     linestyle='-.'
                 
                 plt.figure(fig1.number)
-                plt.plot(zvals,wzpsnr[:,j],label=str(int(DMobs[j])),linestyle=linestyle,linewidth=1)
+                plt.plot(zvals,psnr[:,j],label=str(int(DMobs[j])),linestyle=linestyle,linewidth=1)
                 
                 plt.figure(fig4.number)
                 plt.plot(zvals,rs[:,j],label=str(int(DMobs[j])),linestyle=linestyle,linewidth=2)
@@ -498,7 +481,7 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=True,Pn=True,dol
             fig1.tight_layout()
             plt.figure(fig1.number)
             plt.ylim(tm1/1e5,tm1)
-            fig1.savefig('TEMP_p_wzpsnr.pdf')
+            fig1.savefig('TEMP_p_psnr.pdf')
             plt.close(fig1.number)
             
             fig4.legend(ncol=2,loc='upper right',fontsize=8)
@@ -522,9 +505,23 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=True,Pn=True,dol
             for i,p in enumerate(psnr):
                 print(i,survey.Ss[i],p)
         
-        
     else:
         lllist.append(0)
+    
+    if grid_type==1 and pNreps:
+        repll = 0
+        if len(survey.replist) != 0:
+            for irep in survey.replist:
+                pReps = grid.calc_exact_repeater_probability(Nreps=survey.frbs["NREP"][irep],DM=survey.DMs[irep],z=None)
+                if pReps == 0:
+                    repll += -1e10
+                else:
+                    repll += np.log10(float(pReps))
+        lllist.append(repll)
+        llsum += repll
+    else:
+        lllist.append(0)
+
     if doplot:
         plt.figure()
         plt.plot(dmvals,pdm,color='blue')
@@ -535,7 +532,7 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=True,Pn=True,dol
         plt.savefig('Plots/1d_dm_fit.pdf')
         plt.close()
 
-    # print("1D list:", lllist)
+    print(survey.name, "1D list:", lllist)
     if dolist==0:
         return llsum
     elif dolist==1:
@@ -546,11 +543,7 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=True,Pn=True,dol
         return llsum,lllist,expected,[0.,0.,0.,0.]
     
 
-def calc_likelihoods_2D(grid,survey,
-                        doplot=False,norm=True,psnr=True,
-                        printit=False,Pn=True,dolist=0,
-                        verbose=False,
-                        repeaters=False,singles=False):
+def calc_likelihoods_2D(grid,survey,doplot=False,norm=True,psnr=True,printit=False,Pn=False,pNreps=True,dolist=0,verbose=False,grid_type=0):
     """ Calculates 2D likelihoods using observed DM,z values
     
     grid: the grid object calculated from survey
@@ -566,6 +559,10 @@ def calc_likelihoods_2D(grid,survey,
     Pn:
         True: calculate probability of observing N FRBs
         False: do not calculate this
+
+    pNreps:
+        True: calculate probability that each repeater detects the given number of bursts
+        False: do not calculate this
     
     dolist:
         0: returns total log10 likelihood llsum only [float]
@@ -573,10 +570,10 @@ def calc_likelihoods_2D(grid,survey,
         2: as above, plus a 'long list' giving log10(likelihood)
             for each FRB individually
         3: return (llsum, -np.log10(norm)*Zobs.size, 
-                np.sum(np.log10(pvals)), np.sum(np.log10(wzpsnr)))
+                np.sum(np.log10(pvals)), np.sum(np.log10(psnr)))
         4: return (llsum, -np.log10(norm)*Zobs.size, 
                 np.sum(np.log10(pvals)), 
-                pvals.copy(), wzpsnr.copy())
+                pvals.copy(), psnr.copy())
         5: returns llsum, log10([Pzdm,Pn,Ps]), <Nfrbs>, 
             np.log10([p(z|DM), p(DM), p(DM|z), p(z)])
         else: returns nothing (actually quite useful behaviour!)
@@ -586,13 +583,10 @@ def calc_likelihoods_2D(grid,survey,
         False: calculates p(detecting an FRB with z,DM). Meaningless unless
             some sensible normalisation has already been applied to the grid.
     
-    repeaters:
-        True: assumes the grid passed is a repeat_grid.zdm_repeat_grid object and calculates likelihood for repeaters
-        False: assumes no repeaters considered (or singles = True)
-    singles:
-        True: assumes the grid passed is a repeat_grid.zdm_repeat_grid object and calculates likelihood for single bursts
-        False: assumes no repeaters considered (or repeaters = True)
-    NOTE: repeaters and singles should probably be combined into a single variable...
+    grid_type:
+        0: normal zdm grid
+        1: assumes the grid passed is a repeat_grid.zdm_repeat_grid object and calculates likelihood for repeaters
+        2: assumes the grid passed is a repeat_grid.zdm_repeat_grid object and calculates likelihood for single bursts
     """
 
     ######## Calculates p(DM,z | FRB) ########
@@ -601,9 +595,7 @@ def calc_likelihoods_2D(grid,survey,
     # below is proportional to the total rate (ish)
     
     # Determine which array to perform operations on and initialise
-    if repeaters and singles: 
-        raise ValueError("Specify the likelihood for repeaters or singles, not both") 
-    elif repeaters: 
+    if grid_type == 1: 
         rates = grid.exact_reps 
         if survey.zreps is not None:
             DMobs=survey.DMEGs[survey.zreps]
@@ -611,7 +603,7 @@ def calc_likelihoods_2D(grid,survey,
             zlist=survey.zreps
         else:
             raise ValueError("No localised singles in this survey, cannot calculate 1D likelihoods")
-    elif singles: 
+    elif grid_type == 2: 
         rates = grid.exact_singles 
         if survey.zsingles is not None:
             DMobs=survey.DMEGs[survey.zsingles]
@@ -637,34 +629,31 @@ def calc_likelihoods_2D(grid,survey,
     else:
         norm=1.
     
-    # get indices in dm space
-    ddm=dmvals[1]-dmvals[0]
-    kdms=DMobs/ddm
-    idms1=kdms.astype('int')
-    idms2=idms1+1
-    dkdms=kdms-idms1 # applies to idms2
-
-    # get indices in z space
-    dz=zvals[1]-zvals[0]
-    kzs=Zobs/dz
-    izs1=kzs.astype('int')
-    izs2=izs1+1
-    dkzs=kzs-izs1 # applies to izs2
+    # in the grid, each z and dm value represents the centre of a bin, with p(z,DM)
+    # giving the probability of finding the FRB in the range z +- dz/2, dm +- dm/2.
+    # threshold for when we shift from lower to upper is if z < zcentral,
+    # weight slowly shifts from lower to upper bin
+    
+    idms1,idms2,dkdms1,dkdms2 = grid.get_dm_coeffs(DMobs)
+    izs1,izs2,dkzs1,dkzs2 = grid.get_z_coeffs(Zobs)
     
     # Calculate probability
+    if grid.state.MW.sigmaDMG == 0.0 and grid.state.MW.sigmaHalo == 0.0:
+        if np.any(DMobs < 0):
+            raise ValueError("Negative DMobs with no uncertainty")
 
-    if grid.state.MW.sigmaDMG == 0.0:
         # Linear interpolation
-        pvals = rates[izs1,idms1]*(1.-dkdms)*(1-dkzs)
-        pvals += rates[izs2,idms1]*(1.-dkdms)*dkzs
-        pvals += rates[izs1,idms2]*dkdms*(1-dkzs)
-        pvals += rates[izs2,idms2]*dkdms*dkzs
+        pvals = rates[izs1,idms1]*dkdms1*dkzs1
+        pvals += rates[izs2,idms1]*dkdms1*dkzs2
+        pvals += rates[izs1,idms2]*dkdms2*dkzs1
+        pvals += rates[izs2,idms2]*dkdms2*dkzs2
     else:
-        dm_weights, iweights = calc_DMG_weights(DMobs, survey.DMhalo, survey.DMGs[zlist], grid.state.MW.sigmaDMG, dmvals)
+        dm_weights, iweights = calc_DMG_weights(DMobs, survey.DMhalos[zlist], survey.DMGs[zlist], dmvals, grid.state.MW.sigmaDMG, 
+                                                grid.state.MW.sigmaHalo, grid.state.MW.logu)
         pvals = np.zeros(len(izs1))
         for i in range(len(izs1)):
-            pvals[i] = np.sum(rates[izs1[i],iweights[i]] * dm_weights[i] * (1.-dkzs[i]) 
-                              + rates[izs2[i],iweights[i]] * dm_weights[i] * dkzs[i])
+            pvals[i] = np.sum(rates[izs1[i],iweights[i]] * dm_weights[i] * dkzs1[i] 
+                              + rates[izs2[i],iweights[i]] * dm_weights[i] * dkzs2[i])
     
     bad= pvals <= 0.
     flg_bad = False
@@ -689,20 +678,19 @@ def calc_likelihoods_2D(grid,survey,
     # calculating p(DM) and p(z)
     if dolist==5:
         # calculates p(dm)
-        pdmvals = np.sum(rates[:,idms1],axis=0)*(1.-dkdms)
-        pdmvals += np.sum(rates[:,idms2],axis=0)*dkdms
+        pdmvals = np.sum(rates[:,idms1],axis=0)*dkdms1
+        pdmvals += np.sum(rates[:,idms2],axis=0)*dkdms2
         
         # implicit calculation of p(z|DM) from p(z,DM)/p(DM)
         #neither on the RHS is normalised so this is OK!
         pzgdmvals = pvals/pdmvals
         
         #calculates p(z)
-        pzvals = np.sum(rates[izs1,:],axis=1)*(1.-dkzs)
-        pzvals += np.sum(rates[izs2,:],axis=1)*dkzs
+        pzvals = np.sum(rates[izs1,:],axis=1)*dkzs1
+        pzvals += np.sum(rates[izs2,:],axis=1)*dkzs2
         
         # implicit calculation of p(z|DM) from p(z,DM)/p(DM)
         pdmgzvals = pvals/pzvals
-        
         
         for array in pdmvals,pzgdmvals,pzvals,pdmgzvals:
             bad=np.array(np.where(array <= 0.))
@@ -717,16 +705,19 @@ def calc_likelihoods_2D(grid,survey,
         dolist5_return = [llpzgdm,llpdm,llpdmgz,llpz]
     
     if Pn and (survey.TOBS is not None):
-        if repeaters:
+        if grid_type == 1:
             observed=survey.NORM_REPS
             C = grid.Rc
-        elif singles:
+            reps=True
+        elif grid_type == 2:
             observed=survey.NORM_SINGLES
             C = grid.Rc
+            reps=True
         else:
             observed=survey.NORM_FRB
             C = 10**grid.state.FRBdemo.lC
-        expected=CalculateIntegral(rates,survey)
+            reps=False
+        expected=CalculateIntegral(rates,survey,reps)
         expected *= C
         
         Pn=Poisson_p(observed,expected)
@@ -743,7 +734,7 @@ def calc_likelihoods_2D(grid,survey,
     else:
         expected=0
         lllist.append(0)
-    
+
     # plots figures as appropriate
     if doplot:
         plt.figure()
@@ -774,13 +765,13 @@ def calc_likelihoods_2D(grid,survey,
     # - we want to make FRB width analogous to beam, THEN
     # - we need an analogous 'beam' (i.e. width) distribution to integrate over,
     #     which gives the normalisation
-
+    
     if psnr:
         # NOTE: to break this into a p(SNR|b) p(b) term, we first take
         # the relative likelihood of the threshold b value compare
         # to the entire lot, and then we calculate the local
         # psnr for that beam only. But this requires a much more
-        # refined view of 'b', rather than the crude standatd 
+        # refined view of 'b', rather than the crude standard 
         # parameterisation
 
         # calculate vector of grid thresholds
@@ -789,95 +780,52 @@ def calc_likelihoods_2D(grid,survey,
         gamma=grid.state.energy.gamma
 
         # Evaluate thresholds at the exact DMobs
-        kdmobs=(survey.DMs - survey.DMhalo - survey.meta['DMG'])/ddm
-        kdmobs=kdmobs[zlist]
-        kdmobs[kdmobs<0] = 0
-        idmobs1=kdmobs.astype('int')
-        idmobs2=idmobs1+1
-        dkdmobs=kdmobs-idmobs1 # applies to idms2
-
-        # Linear interpolation
-        Eths = grid.thresholds[:,izs1,idmobs1]*(1.-dkdmobs)*(1-dkzs)
-        Eths += grid.thresholds[:,izs2,idmobs1]*(1.-dkdmobs)*dkzs
-        Eths += grid.thresholds[:,izs1,idmobs2]*dkdmobs*(1-dkzs)
-        Eths += grid.thresholds[:,izs2,idmobs2]*dkdmobs*dkzs
-
-        FtoE = grid.FtoE[izs1]*(1.-dkzs)
-        FtoE += grid.FtoE[izs2]*dkzs
+        # The thresholds have already been calculated at mean values
+        # of the below quantities. Hence, we use the DM relative to
+        # those means, not the actual DMEG for that FRB
+        DMEGmeans = survey.DMs[zlist] - np.median(survey.DMGs + survey.DMhalos)
+        idmobs1,idmobs2,dkdmobs1,dkdmobs2 = grid.get_dm_coeffs(DMEGmeans)
         
-        beam_norm=np.sum(survey.beam_o)
+        # Linear interpolation
+        Eths = grid.thresholds[:,izs1,idmobs1]*dkdmobs1*dkzs1
+        Eths += grid.thresholds[:,izs2,idmobs1]*dkdmobs1*dkzs2
+        Eths += grid.thresholds[:,izs1,idmobs2]*dkdmobs2*dkzs1
+        Eths += grid.thresholds[:,izs2,idmobs2]*dkdmobs2*dkzs2
 
+        FtoE = grid.FtoE[izs1]*dkzs1
+        FtoE += grid.FtoE[izs2]*dkzs2
+        
         # now do this in one go
-        # We integrate p(snr|b,w) p(b,w) db dw. 
-        # I have no idea how this could be multidimensional
+        # We integrate p(snr|b,w) p(b,w) db dw.
+        # Eths.shape[i] is the number of FRBs: length of izs1
         psnr=np.zeros(Eths.shape[1])
+        
         for i,b in enumerate(survey.beam_b):
             bEths=Eths/b # array of shape NFRB, 1/b
             bEobs=bEths*survey.Ss[zlist]
+            
             for j,w in enumerate(grid.eff_weights):
                 temp=grid.array_diff_lf(bEobs[j,:],Emin,Emax,gamma) # * FtoE #one dim in beamshape, one dim in FRB
-                psnr += temp.T*survey.beam_o[i]*w*bEths[j,:] #multiplies by beam factors and weight
+                differential = temp.T*bEths[j,:] #multiplies by beam factors and weight
                 
-        # at this stage, we have the amplitude from diff power law 
-        # summed over beam and weight
+                temp2=grid.array_cum_lf(bEths[j,:],Emin,Emax,gamma) # * FtoE #one dim in beamshape, one dim in FRB
+                cumulative = temp2.T #*bEths[j,:] #multiplies by beam factors and weight
+                
+                psnr += (differential/cumulative)*survey.beam_o[i]*w
         
-        # we only calculate the following sg and V factors to get units to be
-        # comparable to the 1D case - otherwise it is superfluous
-        if grid.state.MW.sigmaDMG == 0.0:
-            # Linear interpolation
-            sg = grid.sfr_smear[izs1,idms1]*(1.-dkdms)*(1-dkzs)
-            sg += grid.sfr_smear[izs2,idms1]*(1.-dkdms)*dkzs
-            sg += grid.sfr_smear[izs1,idms2]*dkdms*(1-dkzs)
-            sg += grid.sfr_smear[izs2,idms2]*dkdms*dkzs
-        else:
-            sg = np.zeros(len(izs1))
-            # For each FRB
-            for i in range(len(izs1)):
-                sg[i] = np.sum(grid.sfr_smear[izs1[i],iweights[i]] * dm_weights[i] * (1.-dkzs[i]) 
-                                + grid.sfr_smear[izs2[i],iweights[i]] * dm_weights[i] * dkzs[i]) / np.sum(dm_weights[i])
-
-        dV = grid.dV[izs1]*(1-dkzs) +  grid.dV[izs2]*dkzs
-        # at this stage, sg and dV account for the DM distribution and SFR;
-        # dV is the volume elements
-        # we just multiply these together
-        sgV = sg*dV
-        wzpsnr = psnr.T*sgV
-
-        
-        # this step weights psnr by the volumetric values
-        
-        ######## NORMALISATION DISCUSSION ######
-        # we want to calculate p(snr) dpsnr
-        # this must be \int p(snr | w,b) p(w,b) dw,b
-        # \int p(snr | detection) p(det|w,b) p(w,b) dw,b
-        # to make it an indpeendent factor, and not double-count it, 
-        # means calculating
-        # \int p(snr | detection) dsnr p(det|w,b) p(w,b) dw,b / \int p(det|w,b) p(w,b) dw,b
-        # array_diff_power_law simply calculates p(snr), which is the probability amplitude
-        # -(gamma*Eth**(gamma-1)) / (Emin**gamma-Emax**gamma )
-        # this includes the probability; hence need to account for this
-        
-        # it is essential that this normalisation occurs for a normalised pvals
-        # this normalisation essentially undoes 
-        # the absolute calculation of the rate, 
-        # i.e. we are normalising by the total distribution
-        # hence we *really* ought to be adding the normalisation to this...
-        # the idea here is that p(snr,det)/p(det) * p(det)/pnorm. 
-        # Hence pvals - which contains
-        # the normalisation - should be the un-normalised values.
-        
-        wzpsnr /= pvals
+        NORM = np.sum(grid.eff_weights) * np.sum(survey.beam_o)
+        psnr /= NORM
         
         # keeps individual FRB values
         if dolist==2:
-            longlist += np.log10(wzpsnr)
+            longlist += np.log10(psnr)
         
         # checks to ensure all frbs have a chance of being detected
-        bad=np.array(np.where(wzpsnr == 0.))
+        bad=np.array(np.where(psnr == 0.))
         if bad.size > 0:
             snrll = -1e10 # none of this is possible! [somehow...]
         else:
-            snrll = np.sum(np.log10(wzpsnr))
+            snrll = np.sum(np.log10(psnr))
         
         lllist.append(snrll)
         llsum += snrll
@@ -887,14 +835,25 @@ def calc_likelihoods_2D(grid,survey,
     else:
         lllist.append(0)
 
+    if grid_type==1 and pNreps:
+        repll = 0
+        if len(survey.replist) != 0:
+            for irep in survey.replist:
+                pReps = grid.calc_exact_repeater_probability(Nreps=survey.frbs["NREP"][irep],DM=survey.DMs[irep],z=survey.Zs[irep])
+                repll += np.log10(float(pReps))
+        lllist.append(repll)
+        llsum += repll
+    else:
+        lllist.append(0)
+
     if verbose:
         print(f"rates={np.sum(rates):0.5f}," \
             f"nterm={-np.log10(norm)*Zobs.size:0.2f}," \
             f"pvterm={np.sum(np.log10(pvals)):0.2f}," \
-            f"wzterm={np.sum(np.log10(wzpsnr)):0.2f}," \
-            f"comb={np.sum(np.log10(wzpsnr*pvals)):0.2f}")
+            f"wzterm={np.sum(np.log10(psnr)):0.2f}," \
+            f"comb={np.sum(np.log10(psnr*pvals)):0.2f}")
     
-    # print("2D list:", lllist)
+    # print(survey.name, "2D list:", lllist)
     if dolist==0:
         return llsum
     elif dolist==1:
@@ -903,15 +862,15 @@ def calc_likelihoods_2D(grid,survey,
         return llsum,lllist,expected,longlist
     elif dolist==3:
         return (llsum, -np.log10(norm)*Zobs.size, 
-                np.sum(np.log10(pvals)), np.sum(np.log10(wzpsnr)))
+                np.sum(np.log10(pvals)), np.sum(np.log10(psnr)))
     elif dolist==4:
         return (llsum, -np.log10(norm)*Zobs.size, 
                 np.sum(np.log10(pvals)), 
-                pvals.copy(), wzpsnr.copy())
+                pvals.copy(), psnr.copy())
     elif dolist==5:
         return llsum,lllist,expected,dolist5_return
 
-def calc_DMG_weights(DMEGs, DMhalo, DM_ISMs, sigma_ISM, dmvals, sigma_halo=15):
+def calc_DMG_weights(DMEGs, DMhalos, DM_ISMs, dmvals, sigma_ISM=0.5, sigma_halo_abs=15.0, log=False):
     """
     Given an uncertainty on the DMG value, calculate the weights of DM values to integrate over
 
@@ -919,8 +878,8 @@ def calc_DMG_weights(DMEGs, DMhalo, DM_ISMs, sigma_ISM, dmvals, sigma_halo=15):
         DMEGs       =   Extragalactic DMs
         DMhalo      =   Assumed constant (average) DMhalo
         DM_ISMs     =   Array of each DM_ISM value
-        sigma_ISM   =   Fractional uncertainty in DMG values
         dmvals      =   Vector of DM values used
+        sigma_ISM   =   Fractional uncertainty in DMG values
         sigma_halo  =   Uncertainty in DMhalo value (in pc/cm3)
 
     Returns:
@@ -932,22 +891,43 @@ def calc_DMG_weights(DMEGs, DMhalo, DM_ISMs, sigma_ISM, dmvals, sigma_halo=15):
 
     # Loop through the DMG of each FRB in the survey and determine the weights
     for i,DM_ISM in enumerate(DM_ISMs):
-        # Get absolute uncertainty in DM_ISM
-        sigma_ISM_abs = DM_ISM * sigma_ISM
-
         # Determine lower and upper DM values used
         # From 0 to DM_total
-        DM_total = DMEGs[i] + DM_ISM + DMhalo
+        DM_total = DMEGs[i] + DM_ISM + DMhalos[i]
+
         idxs = np.where(dmvals < DM_total)
 
         # Get weights
         DMGvals = DM_total - dmvals[idxs] # Descending order because dmvals are ascending order
         ddm = dmvals[1] - dmvals[0]
 
-        pISM = st.norm.pdf(DMGvals, loc=DM_ISM, scale=sigma_ISM_abs) * ddm
-        pHalo = st.norm.pdf(DMGvals, loc=DMhalo, scale=sigma_halo) * ddm
+        # Get absolute uncertainty in DM_ISM
+        sigma_ISM_abs = DM_ISM * sigma_ISM
+
+        # pISM
+        if sigma_ISM_abs == 0.0:
+            pISM = None
+        elif log:
+            pISM = st.lognorm.pdf(DMGvals, scale=DM_ISM, s=sigma_ISM) * ddm
+        else:
+            pISM = st.norm.pdf(DMGvals, loc=DM_ISM, scale=sigma_ISM_abs) * ddm
+    
+        # pHalo
+        if sigma_halo_abs == 0.0:
+            pDMG = None
+        elif log:
+            sigma_halo = sigma_halo_abs / DMhalos[i]
+            pHalo = st.lognorm.pdf(DMGvals, scale=DMhalos[i], s=sigma_halo) * ddm
+        else:
+            pHalo = st.norm.pdf(DMGvals, loc=DMhalos[i], scale=sigma_halo_abs) * ddm
         
-        pDMG = np.convolve(pISM, pHalo, mode='full')
+        if pISM is None:
+            pDMG = pHalo 
+        elif pHalo is None:
+            pDMG = pISM
+        else:
+            pDMG = np.convolve(pISM, pHalo, mode='full')
+
         # Set upper limit of DMG = DM_total 
         # Reversed because DMGvals are descending order which corresponds to DMEGvals (dmvals) in ascending order
         pDMG = pDMG[-len(DMGvals):] 
@@ -1974,19 +1954,27 @@ def CalculateConstant(grid,survey):
     Hence the constant is 'Rate (FRB > Emin) Mpc^-3 day^-1 sr^-1'
     This should be scaled to be above some sensible value of Emin
     or otherwise made relevant.
+    
     """
     
-    expected=CalculateIntegral(grid.rates,survey)
+    expected=CalculateIntegral(grid.rates,survey,reps=False)
     observed=survey.NORM_FRB
     constant=observed/expected
     return constant
 
-def CalculateIntegral(rates,survey):
-    """ Calculates the total expected number of FRBs for that rate array and survey """
+def CalculateIntegral(rates,survey,reps=False):
+    """
+    Calculates the total expected number of FRBs for that rate array and survey
+    
+    This does NOT include the aboslute number of FRBs (through the log-constant)
+    """
     
     # check that the survey has a defined observation time
     if survey.TOBS is not None:
-        TOBS=survey.TOBS
+        if reps:
+            TOBS=1 # already taken into account
+        else:
+            TOBS=survey.TOBS
     else:
         return 0
     
@@ -2018,7 +2006,7 @@ def minus_poisson_ps(log10C,data):
     os=data[1,:]
     rsp = rs*10**log10C
     lp=0
-    for i,r in enumerate(rs):
+    for i,r in enumerate(rsp):
         Pn=Poisson_p(os[i],r)
         if (Pn == 0):
             lp = -1e10
@@ -2083,12 +2071,15 @@ def minimise_const_only(vparams:dict,grids:list,surveys:list,
         if s.TOBS is not None:
             # If we include repeaters, then total number of FRB progenitors = number of repeater progenitors + number of single burst progenitors
             if isinstance(grids[j], zdm_repeat_grid.repeat_Grid):
-                r=CalculateIntegral(grids[j].exact_singles, s) + CalculateIntegral(grids[j].exact_reps, s)
+                r1= CalculateIntegral(grids[j].exact_singles, s,reps=True)
+                r2= CalculateIntegral(grids[j].exact_reps, s,reps=True)
+                r= r1 + r2
                 r*=grids[j].Rc
             # If we do not include repeaters, then we just integrate rates
             else:
-                r=CalculateIntegral(grids[j].rates, s)
+                r=CalculateIntegral(grids[j].rates, s, reps=False)
                 r*=10**grids[j].state.FRBdemo.lC #vparams['lC']
+
             o=s.NORM_FRB
             rs.append(r)
             os.append(o)
@@ -2124,7 +2115,12 @@ def minimise_const_only(vparams:dict,grids:list,surveys:list,
             g.state.FRBdemo.lC = newC
 
             if isinstance(g, zdm_repeat_grid.repeat_Grid):
-                g.Rc *= 10**float(dC)
+                g.state.rep.RC *= 10**float(dC)
+                g.Rc = g.state.rep.RC
+
+                # g.state.FRBdemo.lC += np.log10(float(dC))
+            # else:
+                # g.state.FRBdemo.lC += float(dC)
 
     return newC,llC
     

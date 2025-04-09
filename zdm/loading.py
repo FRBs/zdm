@@ -88,8 +88,9 @@ def surveys_and_grids(init_state=None, alpha_method=1,
                       survey_names=None,
                       add_20220610A=False,
                       nz:int=500, ndm:int=1400,
-                      repeaters=False,
-                      sdir=None, edir=None): 
+                      NFRB=None, repeaters=False,
+                      sdir=None, edir=None,
+                      rand_DMG=False, discard_empty=False): 
     """ Load up a survey and grid for a real dataset
 
     Args:
@@ -108,6 +109,10 @@ def surveys_and_grids(init_state=None, alpha_method=1,
             Number of DM bins
         edir (string, optional):
             Directory containing efficiency files if using FRB-specific responses
+        rand_DMG (bool, optional):
+            If true, randomise the galactic DM - for MCMC studies
+        discard_empty (bool, optional):
+            If true, does not calculate empty surveys (mostly for after latitude cuts)
 
     Raises:
         IOError: [description]
@@ -144,14 +149,18 @@ def surveys_and_grids(init_state=None, alpha_method=1,
     surveys = []
     for survey_name in survey_names:
         # print(f"Initializing {survey_name}")
-        s = survey.load_survey(survey_name, 
-                               state, dmvals, 
-                               sdir=sdir, edir=edir)
-        # Check necessary parameters exist if considering repeaters
-        if repeaters:
-            s.init_repeaters()
+        s = survey.load_survey(survey_name, state, dmvals, 
+                               NFRB=NFRB, sdir=sdir, edir=edir, 
+                               rand_DMG=rand_DMG)
+        
+        if discard_empty == False or s.NFRB != 0:
+            # Check necessary parameters exist if considering repeaters
+            if repeaters:
+                s.init_repeaters()
 
-        surveys.append(s)
+            surveys.append(s)
+        else:
+            print("Skipping empty survey " + s.name)
         
     print("Initialised surveys")
 

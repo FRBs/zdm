@@ -2,91 +2,107 @@ import argparse
 import numpy as np
 import os
 
-from zdm import loading
 from zdm import misc_functions
 from zdm import iteration as it
 
 from zdm import parameters
-from astropy.cosmology import Planck18
-from zdm import MCMC2
-
 from zdm import repeat_grid as zdm_repeat_grid
+from zdm import MCMC2
+from zdm import survey
+from astropy.cosmology import Planck18
 
-import argparse
 import matplotlib.pyplot as plt
+import time
 
 def main():
     
+    t0 = time.time()
     parser = argparse.ArgumentParser()
-    parser.add_argument(dest='names',type=commasep,help='Survey names')
     parser.add_argument(dest='param',type=str,help="Parameter to do the slice in")
     parser.add_argument(dest='min',type=float,help="Min value")
     parser.add_argument(dest='max',type=float,help="Max value")
+    parser.add_argument('-f', '--files', default=None, nargs='+', type=str, help="Survey file names")
+    parser.add_argument('-r', '--rep_surveys', default=None, nargs='+', type=str, help="Surveys to consider repeaters in")
     parser.add_argument('-n',dest='n',type=int,default=50,help="Number of values")   
-    parser.add_argument('-r',dest='repeaters',default=False,action='store_true',help="Surveys are repeater surveys")   
+    # parser.add_argument('-r',dest='repeaters',default=False,action='store_true',help="Surveys are repeater surveys")   
     args = parser.parse_args()
 
     vals = np.linspace(args.min, args.max, args.n)
 
+    # Set state
     state = parameters.State()
     state.set_astropy_cosmo(Planck18)
-    # state = loading.set_state()
-    # state.update_param('Rgamma', -1.5)
-    # state.update_param('lRmax', 1.0)
-    # state.update_param('lRmin', -4.0)
-    # state.update_param('luminosity_function', 2)
-    # state.update_param('H0', 100.0)
-    # state.update_param('sfr_n', 1.18)
-    # state.update_param('alpha', 1.17)
-    # state.update_param('lmean', 2.16)
-    # state.update_param('lsigma', 0.5)
-    # state.update_param('lEmax', 41.05)
-    # state.update_param('gamma', -0.995)
-    # state.update_param('sigmaDMG', 0.0)
-    # state.update_params({'sfr_n': 0.6858762799998724, 'alpha': 1.7665198706279686, 'lmean': 2.074825172832976, 'lsigma': 0.4003714831421404, 'lEmax': 41.13739600201252, 'lEmin': 39.551691554143936, 'gamma': -1.0348224611860115, 'H0': 61.22965004043496})
-    state.update_params({'sfr_n': 0.8806591144921403, 'alpha': 1.0451512509567609, 'lmean': 2.0411626762512824, 'lsigma': 0.4285714684532393, 'lEmax': 41.45631839060552, 'lEmin': 39.52262703306915, 'gamma': -1.1856556240866645, 'H0': 57.59867790323104})
-    state.update_param(args.param, vals[0])
-
-    surveys, grids = loading.surveys_and_grids(survey_names = args.names, repeaters=args.repeaters, init_state=state)
+    # param_dict={'sfr_n': 1.13, 'alpha': 1.5, 'lmean': 2.27, 'lsigma': 0.55, 
+    #         'lEmax': 41.26, 'lEmin': 39.5, 'gamma': -0.95, 'H0': 73,
+    #         'min_lat': 0.0,  'sigmaDMG': 0.0, 'sigmaHalo': 20.0}
+    # param_dict={'sfr_n': 0.8808527057055584, 'alpha': 0.7895161131856694, 
+    #             'lmean': 2.1198711983468064, 'lsigma': 0.44944780033763343, 
+    #             'lEmax': 41.18671139482926, 'lEmin': 39.81049090314043, 'gamma': -1.1558450520609953, 
+    #             'H0': 54.6887137195215, 'halo_method': 0, 'sigmaDMG': 0.0, 'sigmaHalo': 0.0, 'min_lat': 30.0}
     
-    outdir = 'cube/' + args.param
+    # state.update_params(param_dict)
+
+    state.update_param('Rgamma', -2.2)
+    state.update_param('lRmax', 3.0)
+    state.update_param('lRmin', -4.0)
+    state.update_param('min_lat', 0.0)
+
+    # Initialise surveys
+    surveys_sep = [[], []]
+
+    grid_params = {}
+    grid_params['dmmax'] = 7000.0
+    grid_params['ndm'] = 1400
+    grid_params['nz'] = 500
+    ddm = grid_params['dmmax'] / grid_params['ndm']
+    dmvals = (np.arange(grid_params['ndm']) + 1) * ddm
+    
+    if args.files is not None:
+        for survey_name in args.files:
+            s = survey.load_survey(survey_name, state, dmvals)
+            surveys_sep[0].append(s)
+    
+    if args.rep_surveys is not None:
+        for survey_name in args.rep_surveys:
+            s = survey.load_survey(survey_name, state, dmvals)
+            surveys_sep[1].append(s)
+
+    t1 = time.time()
+    print("Step 1: ", str(t1-t0), flush=True)
+
+    # state.update_param('halo_method', 1)
+    # state.update_param(args.param, vals[0])
+    
+    outdir = 'cube/' + args.param + '/'
     if not os.path.exists(outdir):
         os.mkdir(outdir)
 
-    llsum = np.zeros(len(vals))
-    lls_list = [[] for _ in range(len(grids))]
-
+    ll_lists = []
     for val in vals:
         print("val:", val)
-        vparams = {}
-        vparams[args.param] = val
+        param = {args.param: {'min': -np.inf, 'max': np.inf}}
 
-        newC, llC = it.minimise_const_only(vparams, grids, surveys,  update=True)
-
-        ll=0
-        for i, g in enumerate(grids):
-            g.state.FRBdemo.lC = newC
-
-            # if isinstance(g, zdm_repeat_grid.repeat_Grid):
-            #     g.calc_constant()
-            
-            # try:
-            ll = it.get_log_likelihood(g, surveys[i], Pn=True)
-            # except ValueError:
-            #     ll = -np.inf
-
-            # plot_grids(grids, surveys, outdir, val)
-                
-            lls_list[i].append(ll)
-            print("ll", ll)
+        ll, ll_list = MCMC2.calc_log_posterior([val], state, param, surveys_sep, grid_params, ind_surveys=True)
+        print(ll, ll_list)
+        ll_lists.append(ll_list)
+        t2 = time.time()
+        print("Step 2: ", str(t2-t1), flush=True)
+        t1 = t2
+    print(ll_lists)
+    ll_lists = np.asarray(ll_lists)
 
     plt.figure()
     plt.clf()
-    for s, lls in zip(surveys, lls_list):
-        lls = np.array(lls)
+
+    llsum = np.zeros(ll_lists.shape[0])
+    surveys = surveys_sep[0] + surveys_sep[1]
+    for i in range(len(surveys)):
+        s = surveys[i]
+        lls = ll_lists[:, i]
+        
         lls[lls < -1e10] = -np.inf
         lls[np.argwhere(np.isnan(lls))] = -np.inf
-        # print(lls, len(s.DMs))
+        
         llsum += lls
 
         lls = lls - np.max(lls)
@@ -104,18 +120,19 @@ def main():
     print("peak", peak)
     plt.axvline(peak)
     plt.legend()
-    plt.savefig(outdir + ".pdf")
+    plt.savefig(outdir + args.param + ".pdf")
 
     # llsum = llsum - np.max(llsum)
     # llsum[llsum < -1e10] = -np.inf
     plt.figure()
     plt.clf()
     plt.plot(vals, llsum, label='Total')
+    plt.axvline(peak)
     # plt.plot(vals, llsum2)
     plt.xlabel(args.param)
     plt.ylabel('log likelihood')
     plt.legend()
-    plt.savefig(outdir + "_sum.pdf")
+    plt.savefig(outdir + args.param + "_sum.pdf")
 
 #==============================================================================
 """
