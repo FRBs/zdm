@@ -129,7 +129,7 @@ def surveys_and_grids(init_state=None, alpha_method=1,
     zDMgrid, zvals,dmvals = misc_functions.get_zdm_grid(
         state, new=True, plot=False, method='analytic', 
         nz=nz, ndm=ndm,
-        datdir=resource_filename('zdm', 'GridData'))
+        datdir='/Users/lmasriba/FRBs/zdm/zdm/GridData')# resource_filename('zdm', 'GridData'))
     
     ############## Initialise surveys ##############
     if survey_names is None:
