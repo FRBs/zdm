@@ -69,13 +69,13 @@ def main():
     with open(args.pfile) as f:
         mcmc_dict = json.load(f)
 
-    params = {k: mcmc_dict[k] for k in mcmc_dict['mcmc']['parameter_order']}
+    params = {k: mcmc_dict[k] for k in mcmc_dict["mcmc"]["parameter_order"]}
 
     state = parameters.State()
     state.set_astropy_cosmo(Planck18)
-    state.update_params(mcmc_dict['config'])
+    state.update_params(mcmc_dict["config"])
 
-    print("Config: ", mcmc_dict['config'])
+    print("Config: ", mcmc_dict["config"])
 
     if args.Pn:
         print("Using Pn")

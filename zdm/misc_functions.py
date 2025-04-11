@@ -11,6 +11,7 @@ import scipy as sp
 
 import matplotlib.pyplot as plt
 import matplotlib
+import cmasher as cmr
 
 from frb import dlas
 from frb.dm import igm
@@ -2527,8 +2528,8 @@ def plot_grid_2(
     FRBZs=None,
     FRBDMs=None,
     plt_dicts=None,
+    cont_dicts=None,
     cmap=None,
-    cont_colours=None,
     Aconts=False,
     Macquart=None,
     title=None,
@@ -2588,9 +2589,23 @@ def plot_grid_2(
     if H0 is None:
         H0 = cos.cosmo.H0
     if cmap is None:
-        cmx = plt.get_cmap("cubehelix")
+        # cmx = plt.get_cmap("cubehelix")
+        cmap = cmr.prinsenvlag_r
     else:
-        cmx = plt.get_cmap(cmap)
+        cmap = plt.get_cmap(cmap)
+
+    # Set default colors
+    if plt_dicts == None and FRBDMs is not None:
+        p_cmap = cmr.arctic
+        data_clrs = p_cmap(np.linspace(0.2, 0.8, len(FRBDMs)))
+        plt_dicts = [{'color': clr, 'marker': 'o'} for clr in data_clrs]
+
+    if Aconts is not None:
+        linestyles = ['--', '-.', ':', '-']
+        c_cmap = cmr.arctic
+        cont_clrs = c_cmap(np.linspace(0.2, 0.8, len(Aconts)))
+        if cont_dicts == None:
+            cont_dicts = [{'color': cont_clrs[i], 'linestyle': linestyles[i % len(linestyles)]} for i in range(len(cont_clrs))]
 
     ##### imshow of grid #######
 
@@ -2781,26 +2796,22 @@ def plot_grid_2(
     # if necessary
     # NOTE: currently no way to plot contour labels, hence the use of dummy plots
     if Aconts:
-        styles = [":", "-.", "--","-"]
-        
         ax = plt.gca()
         cs = ax.contour(
-            zDMgrid.T, levels=alevels, origin="lower", colors=[cont_colours[0]], linestyles=styles, linewidths=2
+            zDMgrid.T, levels=alevels, origin="lower", linewidths=2, linestyles=linestyles, colors=cont_clrs
         )
         cntrs=[cs]
         if othernames is not None:
-            h,=plt.plot([-1e6,-2e6],[-1e6,-2e6],linestyle=styles[0],
-                                    color = cont_colours[0],label=othernames[0])
+            h,=plt.plot([-1e6,-2e6],[-1e6,-2e6],**cont_dicts[0],label=othernames[0])
             handles=[h]
             
         if othergrids is not None:
             for i,grid in enumerate(othergrids):
                 cntr = ax.contour(grid.T, levels=other_alevels[i], origin="lower",
-                    linestyles=[styles[i+1]],colors = [cont_colours[i+1]])
+                    **cont_dicts[i+1])
                 if othernames is not None:
                     #make a dummy plot
-                    h,=plt.plot([-1e6,-2e6],[-1e6,-2e6],linestyle=styles[i+1], marker=plt_dicts[i+1]['marker'], 
-                    markeredgewidth=plt_dicts[i+1]['markeredgewidth'], color=cont_colours[i+1],label=othernames[i+1])
+                    h,=plt.plot([-1e6,-2e6],[-1e6,-2e6], **cont_dicts[i+1],label=othernames[i+1])
                     handles.append(h)
             if othernames is not None:
                 plt.legend(handles=handles,loc="lower right")

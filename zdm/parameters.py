@@ -182,7 +182,7 @@ class MWParams(data_class.myDataClass):
         default=0,
         metadata={'help': '0: Uniform halo' +
                           '1: Directionally dependent halo (Yamasaki and Totani 2020)' +
-                          '2: Sanskriti+ 2020'
+                          '2: Das+ 2021'
         })
     DMhalo: float = field(
         default=50.,
