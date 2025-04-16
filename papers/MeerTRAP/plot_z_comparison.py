@@ -75,28 +75,40 @@ def main():
     # np.save("MeerTRAP_zvals", g.zvals)
     # np.save("MeerTRAP_dmvals", g.dmvals)
 
-    # set limits for plots - will be LARGE!   
+    if False:
+        #### plots p(z|DM) for the MeerTRAP FRB ####
+        DMfrb = 2398
+        iDM = np.where(DMfrb < gs[0].dmvals)[0][0]
+        pzgdm = gs[0].rates[:,iDM]
+        
+        pzgdm /= np.sum(pzgdm)
+        plt.figure()
+        plt.xlabel("z")
+        plt.ylabel("p(z|DMEG = 2398)")
+        plt.plot(gs[0].zvals,pzgdm)
+        plt.tight_layout()
+        plt.savefig("pzgdm.png")
+        plt.close()
     
-    ######### Loads public FRBs ####### -- Currently using zDM surveys instead
-    # from frb.galaxies import utils as frb_gal_u
+        np.save("pzgdm.npy",pzgdm)
+        np.save("zvals.npy",gs[0].zvals)
     
-    # # Load up the hosts
-    # host_tbl, _ = frb_gal_u.build_table_of_hosts() #attrs=['redshift']
-    
-    # # Cut
-    # POx_min = 0.9
-    # host_tbl = host_tbl[host_tbl['P_Ox'] > POx_min]
-    
-    # # DMs
-    # DM_FRB = units.Quantity([frb.DM for frb in host_tbl.FRBobj.values])
-    # DM_ISM = units.Quantity([frb.DMISM for frb in host_tbl.FRBobj.values])
-    # DM_MWhalo = state.MW.DMhalo * units.pc / units.cm**3
-    
-    # DM_EG = DM_FRB - DM_ISM - DM_MWhalo
 
-    # # zs
-    # z = units.Quantity([frb.z for frb in host_tbl.FRBobj.values])
-
+    # this is howto use the FRB library to load up known hosts
+    if False:
+        from frb.galaxies import utils as frb_gal_u
+        
+        # Load up the hosts
+        host_tbl, _ = frb_gal_u.build_table_of_hosts(attrs=['redshift'])
+        
+        # Cut
+        host_tbl = host_tbl[host_tbl['P_Ox'] > POx_min]
+        
+        # DMs
+        DM_FRB = units.Quantity([frb.DM for frb in host_tbl.FRBobj.values])
+        DM_ISM = units.Quantity([frb.DMISM for frb in host_tbl.FRBobj.values])
+        DM_EG = DM_FRB - DM_ISM - DM_MWhalo
+    
     ########### Get CHIME info ###########
     
     # defines CHIME grids to load
@@ -148,7 +160,7 @@ def main():
     cont_clrs = data_clrs
     markers=["*", "o", "o", "x"]
     markersize = [10, 4, 4, 5]
-
+    ewidths = [1,1,1,1]
 
     plt_dicts = []
     for i in range(len(data_clrs)):
@@ -156,7 +168,8 @@ def main():
             'color': data_clrs[i],
             'marker': markers[i],
             'markersize': markersize[i],
-            'label': point_labels[i]
+            'label': point_labels[i],
+            'markeredgewidth': ewidths[i]
         }
         plt_dicts.append(styles)
 

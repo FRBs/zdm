@@ -2796,6 +2796,8 @@ def plot_grid_2(
     # if necessary
     # NOTE: currently no way to plot contour labels, hence the use of dummy plots
     if Aconts:
+        styles = [":", "-.", "--","-",":", "-.", "--","-"]
+        
         ax = plt.gca()
         cs = ax.contour(
             zDMgrid.T, levels=alevels, origin="lower", linewidths=2, linestyles=linestyles, colors=cont_clrs
@@ -2812,6 +2814,8 @@ def plot_grid_2(
                 if othernames is not None:
                     #make a dummy plot
                     h,=plt.plot([-1e6,-2e6],[-1e6,-2e6], **cont_dicts[i+1],label=othernames[i+1])
+                    #h,=plt.plot([-1e6,-2e6],[-1e6,-2e6],linestyle=styles[i+1], marker=plt_dicts[i+1]['marker'], 
+                    #    markeredgewidth=plt_dicts[i+1]['markeredgewidth'], color=cont_colours[i+1],label=othernames[i+1])
                     handles.append(h)
             if othernames is not None:
                 plt.legend(handles=handles,loc="lower right")
