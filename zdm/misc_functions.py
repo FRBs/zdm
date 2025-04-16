@@ -2797,7 +2797,8 @@ def plot_grid_2(
     # NOTE: currently no way to plot contour labels, hence the use of dummy plots
     if Aconts:
         styles = [":", "-.", "--","-",":", "-.", "--","-"]
-        
+        if cont_colours is None:
+            cont_colours=np.linspace(0,100,100)
         ax = plt.gca()
         cs = ax.contour(
             zDMgrid.T, levels=alevels, origin="lower", linewidths=2, linestyles=linestyles, colors=cont_clrs
