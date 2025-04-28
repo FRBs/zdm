@@ -15,6 +15,8 @@ from zdm import misc_functions
 
 import pytest
 
+from IPython import embed
+
 # TODO
 #  Update all TNS
 #  Confirm THRESH and SNRTHESH
@@ -98,4 +100,25 @@ def test_refactor():
     # Clean up
     os.remove(outfile)
     
-run_all()
+#run_all()
+
+#def test_gmrt():
+
+state = parameters.State()
+# Cosmology
+cos.set_cosmology(state)
+cos.init_dist_measures()
+zDMgrid, zvals,dmvals = misc_functions.get_zdm_grid(
+    state, new=True, plot=False, method='analytic', 
+    nz=500, datdir=resource_filename('zdm', 'GridData'))
+# Survey
+isurvey = survey.load_survey('GMRT_band4', state, dmvals)
+#isurvey = survey.load_survey('DSA', state, dmvals)
+# Grid
+grids = misc_functions.initialise_grids(
+    [isurvey], zDMgrid, zvals, dmvals, state, wdist=True)
+
+from zdm.misc_functions import make_dm_redshift
+make_dm_redshift(grid=grids[0], DMmax=2000.0, showplot=True)
+
+embed(header="GMRT")
