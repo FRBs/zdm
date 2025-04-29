@@ -118,7 +118,21 @@ isurvey = survey.load_survey('GMRT_band4', state, dmvals)
 grids = misc_functions.initialise_grids(
     [isurvey], zDMgrid, zvals, dmvals, state, wdist=True)
 
-from zdm.misc_functions import make_dm_redshift
-make_dm_redshift(grid=grids[0], DMmax=2000.0, showplot=True)
+from zdm.misc_functions import plot_grid_2
 
+g = grids[0]
+misc_functions.plot_grid_2(
+            g.rates,
+            g.zvals,
+            g.dmvals,
+            name="pretty_GMRT_plot.png",
+            norm=3,
+            log=True,
+            label="$\\log_{10} p({\\rm DM}_{\\rm EG},z)$ [a.u.]",
+            project=False,
+            Aconts=[0.01, 0.1, 0.5],
+            zmax=3,
+            DMmax=3000
+        )
+# Plot
 embed(header="GMRT")
