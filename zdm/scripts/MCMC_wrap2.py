@@ -54,7 +54,10 @@ def main():
     parser.add_argument('--edir', default=None, type=str, help="Directory containing efficiency files")
     parser.add_argument('--outdir', default="", type=str, help="Output directory")
     parser.add_argument('--Pn', default=False, action='store_true', help="Include Pn")
+    parser.add_argument('--pNreps', default=False, action='store_true', help="Include pNreps")
+    parser.add_argument('--rand', default=False, action='store_true', help="Randomise DMG within uncertainty")
     parser.add_argument('--log_halo', default=False, action='store_true', help="Give a log prior on the halo instead of linear")
+    parser.add_argument('--lin_host', default=False, action='store_true', help="Give a linear prior on host mean contribution")
     args = parser.parse_args()
 
     # Check correct flags are specified
@@ -62,9 +65,27 @@ def main():
         print("-p and -o flags are required")
         exit()
 
+    # Select from dictionary the necessary parameters to be changed        
+    with open(args.pfile) as f:
+        mcmc_dict = json.load(f)
+
+    params = {k: mcmc_dict[k] for k in mcmc_dict["mcmc"]["parameter_order"]}
+
+    state = parameters.State()
+    state.set_astropy_cosmo(Planck18)
+    state.update_params(mcmc_dict["config"])
+
+    print("Config: ", mcmc_dict["config"])
+
+    if args.Pn:
+        print("Using Pn")
+    if args.log_halo:
+        print("Log prior on halo")
+    if args.lin_host:
+        print("Linear prior on host")
+
     # Initialise surveys
     surveys = [[], []]
-    state = parameters.State()
 
     grid_params = {}
     grid_params['dmmax'] = 7000.0
@@ -75,39 +96,23 @@ def main():
     
     if args.files is not None:
         for survey_name in args.files:
-            s = survey.load_survey(survey_name, state, dmvals, 
-                                sdir=args.sdir, edir=args.edir)
+            s = survey.load_survey(survey_name, state, dmvals,
+                                sdir=args.sdir, edir=args.edir, rand_DMG=args.rand)
             surveys[0].append(s)
     
     if args.rep_surveys is not None:
         for survey_name in args.rep_surveys:
             s = survey.load_survey(survey_name, state, dmvals, 
-                                sdir=args.sdir, edir=args.edir)
+                                sdir=args.sdir, edir=args.edir, rand_DMG=args.rand)
             surveys[1].append(s)
 
     # Make output directory
     if args.outdir != "" and not os.path.exists(args.outdir):
         os.mkdir(args.outdir)
-        
-    with open(args.pfile) as f:
-        mcmc_dict = json.load(f)
 
-    # Select from dictionary the necessary parameters to be changed
-    params = {k: mcmc_dict[k] for k in mcmc_dict['mcmc']['parameter_order']}
-
-    state = parameters.State()
-    state.set_astropy_cosmo(Planck18)
-    state.update_params(mcmc_dict['config'])
-
-    print("Config: ", mcmc_dict['config'])
-
-    if args.Pn:
-        print("Using Pn")
-    if args.log_halo:
-        print("Log prior on halo")
-
-    MCMC2.mcmc_runner(MCMC2.calc_log_posterior, os.path.join(args.outdir, args.opfile), state, params, surveys, grid_params, 
-                nwalkers=args.walkers, nsteps=args.steps, nthreads=args.nthreads, Pn=args.Pn, log_halo=args.log_halo)
+    MCMC2.mcmc_runner(MCMC2.calc_log_posterior, os.path.join(args.outdir, args.opfile), state, params, surveys, 
+                        grid_params, nwalkers=args.walkers, nsteps=args.steps, nthreads=args.nthreads, Pn=args.Pn, pNreps=args.pNreps, 
+                        log_halo=args.log_halo, lin_host=args.lin_host)
 
 #==============================================================================
 
