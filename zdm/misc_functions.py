@@ -2531,6 +2531,7 @@ def plot_grid_2(
     cont_dicts=None,
     cmap=None,
     Aconts=False,
+    cont_colours=None,
     Macquart=None,
     title=None,
     H0=None,

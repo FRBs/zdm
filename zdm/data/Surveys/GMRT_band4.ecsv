@@ -4,23 +4,23 @@
 # - {name: TNS, datatype: string}
 # - {name: BW, datatype: float64}
 # - {name: DM, datatype: float64}
-# - {name: DMG, unit: pc / cm3, datatype: float64}
+# - {name: DMG, datatype: float64}
 # - {name: FBAR, datatype: float64}
 # - {name: FRES, datatype: float64}
-# - {name: Gb, unit: deg, datatype: float64}
-# - {name: Gl, unit: deg, datatype: float64}
+# - {name: Gb, datatype: string, subtype: 'float64[null]'}
+# - {name: Gl, datatype: string, subtype: 'float64[null]'}
 # - {name: NREP, datatype: int64}
 # - {name: SNR, datatype: float64}
 # - {name: SNRTHRESH, datatype: float64}
 # - {name: THRESH, datatype: float64}
 # - {name: TRES, datatype: float64}
 # - {name: WIDTH, datatype: float64}
-# - {name: XDec, datatype: float64}
-# - {name: XRA, datatype: float64}
+# - {name: XDec, datatype: string, subtype: 'float64[null]'}
+# - {name: XRA, datatype: string, subtype: 'float64[null]'}
 # - {name: Z, datatype: float64}
 # meta: !!omap
-# - {survey_data: '{"observing": {"MAX_LOC_DMEG": 0, "FBAR": 650.0, "MAX_DM": 1500}, "telescope": {"BMETHOD": 0, "BTHRESH": 0.001, "DIAM": 45.0, "NBEAMS": 1,
-#     "NBINS": 30}}'}
+# - {survey_data: '{"observing": {"NORM_FRB": 1,"TOBS": 317.5},
+#                   "telescope": {"BMETHOD": 0, "BTHRESH": 0.001,"NBEAMS": 1, "DIAM": 45.0, "NBINS": 10}}'}
 # schema: astropy-2.0
-TNS BW DM DMG FBAR FRES Gb Gl NREP SNR SNRTHRESH THRESH TRES WIDTH XDec XRA Z
-20220121B 187.5 313.421 79.9897066205502 1405.0 0.244141 17.56564323577294 147.12748848204882 1 9.38042 8.5 1.96 0.262144 2.097152 65.72272589512798 84.73011927667115 ""
+TNS BW DM  DMG  FBAR  FRES   Gb Gl NREP SNR SNRTHRESH THRESH TRES    WIDTH XDec XRA Z
+0  200 200 35.0  650  0.100  "" "" 1     10. 10.      0.3   1.30624 1.0   ""   ""  0.276
