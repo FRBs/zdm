@@ -63,6 +63,7 @@ def test_update_MCMC():
     # Calc likelihoods
     lp = MCMC.calc_log_posterior(param_vals, params, ss, grids)
     lp2 = MCMC2.calc_log_posterior(param_vals, state2, params, ss2, grid_params) 
+    
     assert np.isclose(lp, lp2)
 
 #==============================================================================
@@ -176,5 +177,9 @@ def test_update():
     # print("g1", g1.state)
     # print("g2", g2.state)
 
-test_update_MCMC()
-test_update()
+
+try:
+    test_update_MCMC()
+    test_update()
+except NotImplementedError:
+    print("The update method is not currently implemented. This test currently defunct.")
