@@ -23,4 +23,4 @@
 #                   "telescope": {"BMETHOD": 0, "BTHRESH": 0.001,"NBEAMS": 1, "DIAM": 45.0, "NBINS": 10}}'}
 # schema: astropy-2.0
 TNS BW DM  DMG  FBAR  FRES   Gb Gl NREP SNR SNRTHRESH THRESH TRES    WIDTH XDec XRA Z
-0  200 200 35.0  650  0.050  "" "" 1     10. 10.      0.3   1.30624 1.0   ""   ""  0.276
+0  280 200 35.0  1280  0.050  "" "" 1     10. 10.      0.3   1.30624 1.0   ""   ""  0.276

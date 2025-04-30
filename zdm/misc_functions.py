@@ -2520,7 +2520,7 @@ def plot_grid_2(
     DMmax=1000,
     norm=0,
     log=True,
-    name="temp.pdf",
+    name:str="temp.pdf",
     label='$\\log_{10}p(DM_{\\rm EG},z)$',
     ylabel="${\\rm DM}_{\\rm EG}$ (pc cm$^{-3}$)",
     project=False,
@@ -3017,7 +3017,7 @@ def plot_grid_2(
     if title is not None:
         plt.title(title)
 
-    if save:
+    if save and name is not None:
         plt.tight_layout()
         plt.savefig(name, dpi=300, bbox_inches='tight')
     if showplot:

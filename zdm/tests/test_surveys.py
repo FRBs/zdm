@@ -105,41 +105,6 @@ def test_refactor():
 
 #def test_gmrt():
 
-zmax = 7.
-state = parameters.State()
-param_dict={'sfr_n': 0.21, 'alpha': 0.11, 'lmean': 2.18, 'lsigma': 0.42, 'lEmax': 41.37, 
-                'lEmin': 39.47, 'gamma': -1.04, 'H0': 70.23, 'halo_method': 0, 'sigmaDMG': 0.0, 'sigmaHalo': 0.0,
-                'lC': -7.61, 'min_lat': 0.0}
-state.set_astropy_cosmo(Planck18)
-state.update_params(param_dict)
 
-# Cosmology
-cos.set_cosmology(state)
-cos.init_dist_measures()
-zDMgrid, zvals,dmvals = misc_functions.get_zdm_grid(
-    state, new=True, plot=False, method='analytic', 
-    zmax=zmax,
-    nz=700, datdir=resource_filename('zdm', 'GridData'))
-# Survey
-isurvey = survey.load_survey('GMRT_band4', state, dmvals)
-#isurvey = survey.load_survey('DSA', state, dmvals)
-# Grid
-grids = misc_functions.initialise_grids(
-    [isurvey], zDMgrid, zvals, dmvals, state, wdist=True)
-
-g = grids[0]
-misc_functions.plot_grid_2(
-            g.rates,
-            g.zvals,
-            g.dmvals,
-            name="pretty_GMRT_plot.png",
-            norm=3,
-            log=True,
-            label="$\\log_{10} p({\\rm DM}_{\\rm EG},z)$ [a.u.]",
-            project=False,
-            Aconts=[0.01, 0.1, 0.5],
-            zmax=zmax,
-            DMmax=4500
-        )
 # Plot
 #embed(header="GMRT")
