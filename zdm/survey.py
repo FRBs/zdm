@@ -24,6 +24,7 @@ from zdm import misc_functions
 import matplotlib.pyplot as plt
 
 from IPython import embed
+import warnings
 
 from astropy import units as u
 from astropy.coordinates import SkyCoord
@@ -919,8 +920,30 @@ class Survey:
         
         # Min latitude
         if min_lat is not None and min_lat > 0.0:
-            excluded = len(self.frbs[np.abs(self.frbs['Gb'].values) <= min_lat])
-            self.frbs = self.frbs[np.abs(self.frbs['Gb'].values) > min_lat]
+            excluded = 0
+            # blanks = np.where(self.frbs['Gb'].values == None)[0]
+
+            # if len(blanks) > 0:
+            #     warnings.warn("Some FRBs have no Gb value, using DMG cut of 50 instead", UserWarning)
+            # self.frbs = self.frbs[self.frbs['Gb'].values != None]
+
+            # excluded += len(self.frbs[np.abs(self.frbs['Gb'].values) <= min_lat])
+            # self.frbs = self.frbs[np.abs(self.frbs['Gb'].values) > min_lat]
+
+            frbs =  []
+
+            for i, frb in self.frbs.iterrows():
+                if np.isnan(frb['Gb']):
+                    warnings.warn("FRB " + frb['TNS'] + " has no Gb value, using DMG cut of 50 instead", UserWarning)
+                    if frb['DMG'] < 50:
+                        frbs.append(frb)
+                    else:
+                        excluded += 1
+                elif np.abs(frb['Gb']) > min_lat:
+                    frbs.append(frb)
+                else:
+                    excluded += 1
+            
             print("Using minimum galactic latitude of " + str(min_lat) + ". Excluding " + str(excluded) + " FRBs")
         # Max DM
         if dmg_cut is not None:

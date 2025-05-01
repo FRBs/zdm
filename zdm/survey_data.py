@@ -39,13 +39,13 @@ class FRB(data_class.myDataClass):
                   'Notation': '',
                   })
     Gb: float = field( 
-        default=1., 
+        default=None, 
         metadata={'help': "Galactic latitude",
                   'unit': 'deg', 
                   'Notation': '',
                   })
     Gl: float = field( 
-        default=1., 
+        default=None, 
         metadata={'help': "Galactic longitude",
                   'unit': 'deg', 
                   'Notation': '',
