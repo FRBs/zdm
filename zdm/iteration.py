@@ -1200,7 +1200,7 @@ def cube_likelihoods(grids:list,surveys:list,
             # in theory we could save the following step if we have already minimised but oh well. Too annoying!
             ll=0.
             longlistsum=np.array([0.,0.,0.,0.])
-            alistsum=np.array([0.,0.,0.])
+            alistsum=np.array([0.,0.,0.,0.])
             for j,s in enumerate(surveys):
                 if clone is not None and clone[j] > 0:
                     embed(header='1047 of it -- this wont work')
@@ -1222,7 +1222,8 @@ def cube_likelihoods(grids:list,surveys:list,
                     lls[j] = llsum1+llsum2
                     # adds log-likelihoods for psnrs, pzdm, pn
                     # however, one of these Pn *must* be zero by setting Pn=False
-                    alist = [alist1[0]+alist2[0], alist1[1]+alist2[1], alist1[2]+alist2[2]] #messy!
+                    alist = [alist1[0]+alist2[0], alist1[1]+alist2[1],\
+                         alist1[2]+alist2[2], alist1[3]+alist2[3]] #messy!
                     expected = expected1 #expected number of FRBs ignores how many are localsied
                     longlist = [longlist1[0]+longlist2[0], longlist1[1]+longlist2[1], 
                                 longlist1[2]+longlist2[2],

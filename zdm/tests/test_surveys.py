@@ -27,8 +27,8 @@ def run_all():
     """
     Here to allow local tests of all the test routines in this file
     """
-    test_load_new_grid()
-    test_load_new_survey()
+    #test_load_new_grid()
+    #test_load_new_survey()
     test_load_old()
     test_refactor()
 

@@ -670,11 +670,14 @@ class repeat_Grid(grid.Grid):
             norms /= self.Rmult.flatten()**(self.Rgamma+1)
         
         # get rid of negative parts - might come from random floating point errors
-        themin = np.min(norms)
-        if themin < -1e-20:
-            print("Significant negative value found in singles",themin)
-        zero = np.where(norms < 0.)[0]
-        norms[zero]=0.
+        # this check can occur if a crazy part of the parameter space predicts
+        # no repeaters at all
+        if norms.size > 0:
+            themin = np.min(norms)
+            if themin < -1e-20:
+                print("Significant negative value found in singles",themin)
+            zero = np.where(norms < 0.)[0]
+            norms[zero]=0.
         
         #we create a zero array, which is mostly zero due to Rmult being very low.
         if NZ:
@@ -777,11 +780,12 @@ class repeat_Grid(grid.Grid):
             norms /= self.Rmult.flatten()**(effGamma)
         
         # get rid of negative parts - might come from random floating point errors
-        themin = np.min(norms)
-        zero = np.where(norms < 0.)[0]
-        norms[zero]=0.
-        if themin < -1e-20:
-            print("Significant negative value found in zeroes",themin)
+        if norms.size >0:
+            themin = np.min(norms)
+            zero = np.where(norms < 0.)[0]
+            norms[zero]=0.
+            if themin < -1e-20:
+                print("Significant negative value found in zeroes",themin)
         
         # the problem here is that when Rmult is zero, we need to ensure that all the FRBs
         # are detected as such
