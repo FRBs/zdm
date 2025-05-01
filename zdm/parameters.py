@@ -20,7 +20,7 @@ class AnalysisParams(data_class.myDataClass):
         },
     )
     min_lat: float = field(
-        default=30,
+        default=None,
         metadata={
             "help": "Discard FRBs below this absolute galactic latitude",
             "unit": "Degrees"

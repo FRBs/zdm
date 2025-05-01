@@ -19,8 +19,8 @@ from ne2001 import density
 from zdm import beams, parameters
 from zdm import pcosmic
 from zdm import survey_data
-from zdm import dmg_sanskriti2020
-
+from zdm import galactic_dm_models
+from zdm import misc_functions
 import matplotlib.pyplot as plt
 
 from IPython import embed
@@ -712,7 +712,7 @@ class Survey:
             self.DMG_el = np.zeros(len(self.frbs))
             self.DMG_eu = np.zeros(len(self.frbs))
             for i, (Gl, Gb) in enumerate(zip(self.Gls, self.Gbs)):
-                self.DMGs[i], self.DMG_el[i], self.DMG_eu[i] = dmg_sanskriti2020.dmg_sanskriti2020(Gl, Gb)
+                self.DMGs[i], self.DMG_el[i], self.DMG_eu[i] = galactic_dm_models.dmg_sanskriti2020(Gl, Gb)
 
         # self.DMGal = np.median(self.DMGals)
 
@@ -892,14 +892,19 @@ class Survey:
             # checks to see if this is a field in metadata: if so, takes priority
             if field.name in self.meta.keys():
                 default_value = self.meta[field.name]
+            elif field.name in frb_tbl.columns:
+                default_value = frb_tbl[field.name]
             else:
                 default_value = getattr(default_frb, field.name)
+                frb_tbl[field.name] = default_value
+                print("WARNING: no ",field.name," found in survey",
+                    "replcing with default value of ",default_value)
             
             # iterate over fields, checking if they are populated
             for i,val in enumerate(frb_tbl[field.name]):
                 if isinstance(val,np.ma.core.MaskedArray):
                     frb_tbl[field.name][i] = default_value
-        
+            
         self.frbs = frb_tbl.to_pandas()
         
         # Cut down?
@@ -911,6 +916,7 @@ class Survey:
             # Not sure the following linematters given the Error above
             themax = max(NFRB+iFRB,self.NFRB)
             self.frbs=self.frbs[iFRB:themax]
+        
         # Min latitude
         if min_lat is not None and min_lat > 0.0:
             excluded = len(self.frbs[np.abs(self.frbs['Gb'].values) <= min_lat])
@@ -921,7 +927,6 @@ class Survey:
             self.frbs = self.frbs[np.abs(self.frbs['DMG'].values) < dmg_cut]
         # Get new number of FRBs
         self.NFRB = len(self.frbs)
-        print(self.NFRB)
         
         # Vet
         vet_frb_table(self.frbs, mandatory=True)
@@ -942,6 +947,8 @@ class Survey:
             self.meta['WIDTH'] = np.median(self.frbs['WIDTH'])
             self.meta['DMG'] = np.mean(self.frbs['DMG'])
         
+        
+        
         ### processes galactic contributions
         self.process_dmg()
         
@@ -956,10 +963,37 @@ class Survey:
         self.BWs=self.frbs['BW'].values
         self.THRESHs=self.frbs['THRESH'].values
         self.SNRTHRESHs=self.frbs['SNRTHRESH'].values
-        self.Gls = self.frbs['Gl'].values
-        self.Gbs = self.frbs['Gb'].values
-        self.XDec = self.frbs['XDec'].values
-        self.XRA = self.frbs['XRA'].values
+        
+        # Checks to see if coordinates exist
+        if 'Gl' in self.frbs and 'Gb' in self.frbs:
+            self.Gls = self.frbs['Gl'].values
+            self.Gbs = self.frbs['Gb'].values
+            if 'Dec' in self.frbs and 'RA' in self.frbs:
+                self.Dec = self.frbs['Dec'].values
+                self.RA = self.frbs['RA'].values
+            else:
+                RAs,Decs = misc_functions.galactic_to_j2000(self.Gls, self.Gbs)
+                self.Dec = Decs
+                self.RAs = RAs
+                self.frbs['RA'] = RAs
+                self.frbs['Dec'] = Decs
+        elif 'Dec' in self.frbs and 'RA' in self.frbs:
+            self.RAs = self.frbs['RA'].values
+            self.Decs = self.frbs['Dec'].values
+            Gbs,Gls = misc_functions.j2000_to_galactic(self.RAs, self.Decs)
+            self.frbs['Gl'] = Gls
+            self.frbs['Gb'] = Gbs
+            self.Gls = self.frbs['Gl'].values
+            self.Gbs = self.frbs['Gb'].values
+        else:
+            self.Dec = None
+            self.RA = None
+            self.Gb = None
+            self.Dec = None
+            self.frbs['RA'] = None
+            self.frbs['Dec'] = None
+            self.frbs['Gl'] = None
+            self.frbs['Gb'] = None
         
         self.Ss=self.SNRs/self.SNRTHRESHs
         self.TOBS=self.meta['TOBS']
