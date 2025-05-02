@@ -39,7 +39,6 @@ matplotlib.rc('font', **font)
 def main():
     
     # in case you wish to switch to another output directory
-    
     opdir='zcomparison/'
     
     # approximate best-fit values from recent analysis
@@ -183,7 +182,7 @@ def main():
     s=ss[0]
     g=gs[0]
     name = names[0]
-
+    
     # Do the plotting
     misc_functions.plot_grid_2(g.rates,g.zvals,g.dmvals,
         name=opdir+name+"_zDM.pdf",norm=3,log=True,

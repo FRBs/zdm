@@ -101,3 +101,4 @@ def dmg_sanskriti2020(l_FRB, b_FRB, sep_th=5, sep_tol=5, verb=False):
     #         print ("No extra sightline found. Same result as option I")
     
     return mean, el_mean, eu_mean
+

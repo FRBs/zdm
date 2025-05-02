@@ -19,8 +19,8 @@ from ne2001 import density
 from zdm import beams, parameters
 from zdm import pcosmic
 from zdm import survey_data
-from zdm import dmg_sanskriti2020
-
+from zdm import galactic_dm_models
+from zdm import misc_functions
 import matplotlib.pyplot as plt
 
 from IPython import embed
@@ -713,7 +713,7 @@ class Survey:
             self.DMG_el = np.zeros(len(self.frbs))
             self.DMG_eu = np.zeros(len(self.frbs))
             for i, (Gl, Gb) in enumerate(zip(self.Gls, self.Gbs)):
-                self.DMGs[i], self.DMG_el[i], self.DMG_eu[i] = dmg_sanskriti2020.dmg_sanskriti2020(Gl, Gb)
+                self.DMGs[i], self.DMG_el[i], self.DMG_eu[i] = galactic_dm_models.dmg_sanskriti2020(Gl, Gb)
 
         # self.DMGal = np.median(self.DMGals)
 
@@ -896,11 +896,20 @@ class Survey:
             else:
                 default_value = getattr(default_frb, field.name)
             
-            # iterate over fields, checking if they are populated
-            for i,val in enumerate(frb_tbl[field.name]):
-                if isinstance(val,np.ma.core.MaskedArray):
-                    frb_tbl[field.name][i] = default_value
-        
+            # now checks for missing data, fills with the default value
+            if field.name in frb_tbl.columns:
+                # iterate over fields, checking if they are populated
+                for i,val in enumerate(frb_tbl[field.name]):
+                    if isinstance(val,np.ma.core.MaskedArray):
+                        frb_tbl[field.name][i] = default_value
+            else:
+                default_value = getattr(default_frb, field.name)
+                frb_tbl[field.name] = default_value
+                print("WARNING: no ",field.name," found in survey",
+                    "replcing with default value of ",default_value)
+            
+            
+            
         self.frbs = frb_tbl.to_pandas()
         
         # Cut down?
@@ -912,6 +921,7 @@ class Survey:
             # Not sure the following linematters given the Error above
             themax = max(NFRB+iFRB,self.NFRB)
             self.frbs=self.frbs[iFRB:themax]
+        
         # Min latitude
         if min_lat is not None and min_lat > 0.0:
             excluded = 0
@@ -944,7 +954,6 @@ class Survey:
             self.frbs = self.frbs[np.abs(self.frbs['DMG'].values) < dmg_cut]
         # Get new number of FRBs
         self.NFRB = len(self.frbs)
-        print(self.NFRB)
         
         # Vet
         vet_frb_table(self.frbs, mandatory=True)
@@ -965,6 +974,9 @@ class Survey:
             self.meta['WIDTH'] = np.median(self.frbs['WIDTH'])
             self.meta['DMG'] = np.mean(self.frbs['DMG'])
         
+        # fills in missing coordinates is possible
+        self.fix_coordinates(verbose=False)
+        
         ### processes galactic contributions
         self.process_dmg()
         
@@ -979,11 +991,6 @@ class Survey:
         self.BWs=self.frbs['BW'].values
         self.THRESHs=self.frbs['THRESH'].values
         self.SNRTHRESHs=self.frbs['SNRTHRESH'].values
-        self.Gls = self.frbs['Gl'].values
-        self.Gbs = self.frbs['Gb'].values
-        self.XDec = self.frbs['XDec'].values
-        self.XRA = self.frbs['XRA'].values
-        
         self.Ss=self.SNRs/self.SNRTHRESHs
         self.TOBS=self.meta['TOBS']
         self.NORM_FRB=self.meta['NORM_FRB']
@@ -1000,6 +1007,29 @@ class Survey:
             exit()
         
         print("FRB survey sucessfully initialised with ",self.NFRB," FRBs starting from", self.iFRB)
+
+    def fix_coordinates(self,verbose=False):
+        """
+        Takes and FRB, and fills out missing coordinate values
+        Note that now, RA, DEC, Gl, and Gb will be present
+        But their default values are None
+        """
+        
+        
+        for i,gl in enumerate(self.frbs['Gl']):
+            if gl is None or self.frbs['Gb'][i] is None:
+                # test RA
+                if self.frbs['RA'][i] is None or self.frbs['DEC'][i] is None:
+                    if verbose:
+                        print("WARNING: no coordinates calculable for FRB ",i)
+                else:
+                    Gb,Gl = misc_functions.j2000_to_galactic(self.frbs['RA'][i], self.frbs['DEC'][i])
+                    self.frbs['Gb'][i] = Gb
+                    self.frbs['Gl'][i] = Gl
+            elif self.frbs['RA'][i] is None or self.frbs['DEC'][i] is None:
+                RA,Dec = misc_functions.galactic_to_j2000(gl, self.frbs['Gb'][i])
+                self.frbs['RA'][i] = RA
+                self.frbs['DEC'][i] = Dec
     
     def process_dmg(self):
         """ Estimates galactic DM according to

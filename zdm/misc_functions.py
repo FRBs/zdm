@@ -27,6 +27,60 @@ from zdm import repeat_grid as zdm_repeat_grid
 from zdm import pcosmic
 from zdm import parameters
 
+
+def j2000_to_galactic(ra_deg, dec_deg):
+    """
+    Convert Galactic coordinates to Equatorial J2000 coordinates.
+
+    Parameters:
+    l_deg (float): Galactic longitude in degrees
+    b_deg (float): Galactic latitude in degrees
+
+    Returns:
+    tuple: Right Ascension and Declination in degrees (RA, Dec)
+    
+    # this code written by ChatGPT
+    """
+    
+    from astropy.coordinates import SkyCoord
+    import astropy.units as u
+    
+    # Create a SkyCoord object in ICRS coordinates
+    icrs_coord = SkyCoord(ra = ra_deg * u.degree, dec = dec_deg * u.degree, frame='icrs')
+    
+    # Convert to ICRS frame (J2000 equatorial coordinates)
+    galactic_coord = icrs_coord.galactic
+
+    # Return RA and Dec in degrees
+    return galactic_coord.b.degree, galactic_coord.l.degree
+
+
+def galactic_to_j2000(l_deg, b_deg):
+    """
+    Convert J2000 Equatorial coordinates to Galactic coordinates.
+
+    Parameters:
+    ra_deg (float): Right Ascension in degrees
+    dec_deg (float): Declination in degrees
+
+    Returns:
+    tuple: Galactic longitude and latitude in degrees (l, b)
+    
+    # this code written by ChatGPT
+    """
+    
+    from astropy.coordinates import SkyCoord
+    import astropy.units as u
+    
+    # Create a SkyCoord object in Galactic coordinates
+    galactic_coord = SkyCoord(l=l_deg * u.degree, b=b_deg * u.degree, frame='galactic')
+    
+    # Convert to ICRS frame (J2000 equatorial coordinates)
+    equatorial_coord = galactic_coord.icrs
+
+    # Return RA and Dec in degrees
+    return equatorial_coord.ra.degree, equatorial_coord.dec.degree
+
 def marginalise(
     pset,
     grids,
@@ -2530,7 +2584,7 @@ def plot_grid_2(
     plt_dicts=None,
     cont_dicts=None,
     cmap=None,
-    Aconts=False,
+    Aconts=None,
     Macquart=None,
     title=None,
     H0=None,
@@ -2600,7 +2654,7 @@ def plot_grid_2(
         data_clrs = p_cmap(np.linspace(0.2, 0.8, len(FRBDMs)))
         plt_dicts = [{'color': clr, 'marker': 'o'} for clr in data_clrs]
 
-    if Aconts is not None:
+    if Aconts:
         linestyles = ['--', '-.', ':', '-']
         c_cmap = cmr.arctic
         if othergrids is not None:
@@ -2822,6 +2876,7 @@ def plot_grid_2(
             
         if othergrids is not None:
             for i,grid in enumerate(othergrids):
+                print("size of i in othergrids is ",i)
                 cntr = ax.contour(grid.T, levels=other_alevels[i], origin="lower",
                     **cont_dicts[i+1])
                 if othernames is not None:
