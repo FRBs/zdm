@@ -1016,17 +1016,17 @@ class Survey:
         
         
         for i,gl in enumerate(self.frbs['Gl']):
-            if gl is None or self.frbs[i,'Gb'] is None:
+            if gl is None or self.frbs['Gb'][i] is None:
                 # test RA
-                if self.frbs[i,'RA'] is None or self.frbs[i,'DEC'] is None:
+                if self.frbs['RA'][i] is None or self.frbs['DEC'][i] is None:
                     if verbose:
                         print("WARNING: no coordinates calculable for FRB ",i)
                 else:
-                    Gb,Gl = misc_functions.j2000_to_galactic(self.frbs[i,'RA'], self.frbs[i,'DEC'])
+                    Gb,Gl = misc_functions.j2000_to_galactic(self.frbs['RA'][i], self.frbs['DEC'][i])
                     self.frbs[i,'Gb'] = Gb
                     self.frbs[i,'Gl'] = Gl
-            elif self.frbs[i,'RA'] is None or self.frbs[[i,'DEC'] is None:
-                RA,Dec = misc_functions.galactic_to_j2000(gl, self.frbs[i,'Gb'])
+            elif self.frbs['RA'][i] is None or self.frbs['DEC'][i] is None:
+                RA,Dec = misc_functions.galactic_to_j2000(gl, self.frbs['Gb'][i])
                 self.frbs[i,'RA'] = RA
                 self.frbs[i,'DEC'] = Dec
     
