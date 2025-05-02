@@ -898,6 +898,7 @@ class Survey:
             
             # now checks for missing data, fills with the default value
             if field.name in frb_tbl.columns:
+                
                 # iterate over fields, checking if they are populated
                 for i,val in enumerate(frb_tbl[field.name]):
                     if isinstance(val,np.ma.core.MaskedArray):
@@ -907,9 +908,7 @@ class Survey:
                 frb_tbl[field.name] = default_value
                 print("WARNING: no ",field.name," found in survey",
                     "replcing with default value of ",default_value)
-            
-            
-            
+        
         self.frbs = frb_tbl.to_pandas()
         
         # Cut down?
