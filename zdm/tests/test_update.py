@@ -177,9 +177,11 @@ def test_update():
     # print("g1", g1.state)
     # print("g2", g2.state)
 
+def main():
+    try:
+        test_update_MCMC()
+        test_update()
+    except NotImplementedError:
+        print("The update method is not currently implemented. This test currently defunct.")
 
-try:
-    test_update_MCMC()
-    test_update()
-except NotImplementedError:
-    print("The update method is not currently implemented. This test currently defunct.")
+main()
