@@ -2603,9 +2603,23 @@ def plot_grid_2(
     if Aconts is not None:
         linestyles = ['--', '-.', ':', '-']
         c_cmap = cmr.arctic
-        cont_clrs = c_cmap(np.linspace(0.2, 0.8, len(Aconts)))
+        if othergrids is not None:
+            n_conts = len(Aconts) + len(othergrids)
+        else:
+            n_conts = len(Aconts)
+        cont_clrs = c_cmap(np.linspace(0.2, 0.8, n_conts))
+
+        # Make dictionary for the contours
         if cont_dicts == None:
-            cont_dicts = [{'color': cont_clrs[i], 'linestyle': linestyles[i % len(linestyles)]} for i in range(len(cont_clrs))]
+            cont_dicts = [{'colors': [cont_clrs[i]], 'linestyles': [linestyles[i % len(linestyles)]]} for i in range(len(cont_clrs))]
+            
+        # Make dictionary for the legend
+        l_cont_dicts = [cont_dict.copy() for cont_dict in cont_dicts]
+        for i in range(len(l_cont_dicts)):
+            l_cont_dicts[i]['color'] = l_cont_dicts[i]['colors'][0]
+            del l_cont_dicts[i]['colors']
+            l_cont_dicts[i]['linestyle'] = l_cont_dicts[i]['linestyles'][0]
+            del l_cont_dicts[i]['linestyles']
 
     ##### imshow of grid #######
 
@@ -2796,16 +2810,14 @@ def plot_grid_2(
     # if necessary
     # NOTE: currently no way to plot contour labels, hence the use of dummy plots
     if Aconts:
-        styles = [":", "-.", "--","-",":", "-.", "--","-"]
-        if cont_colours is None:
-            cont_colours=np.linspace(0,100,100)
         ax = plt.gca()
         cs = ax.contour(
             zDMgrid.T, levels=alevels, origin="lower", linewidths=2, linestyles=linestyles, colors=cont_clrs
+            # zDMgrid.T, levels=alevels, **cont_dicts
         )
         cntrs=[cs]
         if othernames is not None:
-            h,=plt.plot([-1e6,-2e6],[-1e6,-2e6],**cont_dicts[0],label=othernames[0])
+            h,=plt.plot([-1e6,-2e6],[-1e6,-2e6],**l_cont_dicts[0],label=othernames[0])
             handles=[h]
             
         if othergrids is not None:
@@ -2814,10 +2826,11 @@ def plot_grid_2(
                     **cont_dicts[i+1])
                 if othernames is not None:
                     #make a dummy plot
-                    h,=plt.plot([-1e6,-2e6],[-1e6,-2e6], **cont_dicts[i+1],label=othernames[i+1])
+                    h,=plt.plot([-1e6,-2e6],[-1e6,-2e6], **l_cont_dicts[i+1],label=othernames[i+1])
                     #h,=plt.plot([-1e6,-2e6],[-1e6,-2e6],linestyle=styles[i+1], marker=plt_dicts[i+1]['marker'], 
                     #    markeredgewidth=plt_dicts[i+1]['markeredgewidth'], color=cont_colours[i+1],label=othernames[i+1])
                     handles.append(h)
+    
             if othernames is not None:
                 plt.legend(handles=handles,loc="lower right")
     
