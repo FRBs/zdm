@@ -970,7 +970,8 @@ class Survey:
             self.meta['WIDTH'] = np.median(self.frbs['WIDTH'])
             self.meta['DMG'] = np.mean(self.frbs['DMG'])
         
-        
+        # fills in missing coordinates is possible
+        self.fix_coordinates(verbose=False)
         
         ### processes galactic contributions
         self.process_dmg()
@@ -986,38 +987,6 @@ class Survey:
         self.BWs=self.frbs['BW'].values
         self.THRESHs=self.frbs['THRESH'].values
         self.SNRTHRESHs=self.frbs['SNRTHRESH'].values
-        
-        # Checks to see if coordinates exist
-        if 'Gl' in self.frbs and 'Gb' in self.frbs:
-            self.Gls = self.frbs['Gl'].values
-            self.Gbs = self.frbs['Gb'].values
-            if 'Dec' in self.frbs and 'RA' in self.frbs:
-                self.Dec = self.frbs['Dec'].values
-                self.RA = self.frbs['RA'].values
-            else:
-                RAs,Decs = misc_functions.galactic_to_j2000(self.Gls, self.Gbs)
-                self.Dec = Decs
-                self.RAs = RAs
-                self.frbs['RA'] = RAs
-                self.frbs['Dec'] = Decs
-        elif 'Dec' in self.frbs and 'RA' in self.frbs:
-            self.RAs = self.frbs['RA'].values
-            self.Decs = self.frbs['Dec'].values
-            Gbs,Gls = misc_functions.j2000_to_galactic(self.RAs, self.Decs)
-            self.frbs['Gl'] = Gls
-            self.frbs['Gb'] = Gbs
-            self.Gls = self.frbs['Gl'].values
-            self.Gbs = self.frbs['Gb'].values
-        else:
-            self.Dec = None
-            self.RA = None
-            self.Gb = None
-            self.Dec = None
-            self.frbs['RA'] = None
-            self.frbs['Dec'] = None
-            self.frbs['Gl'] = None
-            self.frbs['Gb'] = None
-        
         self.Ss=self.SNRs/self.SNRTHRESHs
         self.TOBS=self.meta['TOBS']
         self.NORM_FRB=self.meta['NORM_FRB']
@@ -1034,6 +1003,29 @@ class Survey:
             exit()
         
         print("FRB survey sucessfully initialised with ",self.NFRB," FRBs starting from", self.iFRB)
+
+    def fix_coordinates(self,verbose=False):
+        """
+        Takes and FRB, and fills out missing coordinate values
+        Note that now, RA, DEC, Gl, and Gb will be present
+        But their default values are None
+        """
+        
+        
+        for i,gl in enumerate(self.frbs['Gl']):
+            if gl is None or self.frbs['Gb'][i] is None:
+                # test RA
+                if self.frbs['RA'][i] is None or self.frbs['DEC'][i] is None:
+                    if verbose:
+                        print("WARNING: no coordinates calculable for FRB ",i)
+                else:
+                    Gb,Gl = misc_functions.j2000_to_galactic(self.frbs['RA'][i], self.frbs['DEC'][i])
+                    self.frbs['Gb'][i] = Gb
+                    self.frbs['Gl'][i] = Gl
+            elif self.frbs['RA'][i] is None or self.frbs['DEC'][i] is None:
+                RA,Dec = misc_functions.galactic_to_j2000(gl, self.frbs['Gb'][i])
+                self.frbs['RA'][i] = RA
+                self.frbs['DEC'][i] = Dec
     
     def process_dmg(self):
         """ Estimates galactic DM according to

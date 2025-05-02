@@ -50,12 +50,24 @@ class FRB(data_class.myDataClass):
                   'unit': 'deg', 
                   'Notation': '',
                   })
-    # NREP: np.int64 = field( 
-    #     default=1, 
-    #     metadata={'help': "Number of repetitions detected", 
-    #               'unit': '', 
-    #               'Notation': '',
-    #               })
+    RA: float = field( 
+        default=None, 
+        metadata={'help': "Right ascension in J2000 coordinates",
+                  'unit': 'deg', 
+                  'Notation': '',
+                  })
+    DEC: float = field( 
+        default=None, 
+        metadata={'help': "Declination in J2000 coordinates",
+                  'unit': 'deg', 
+                  'Notation': '',
+                  })
+    NREP: np.int64 = field( 
+         default=1, 
+         metadata={'help': "Number of repetitions detected", 
+                   'unit': '', 
+                   'Notation': '',
+                   })
     SNR: float = field( 
         default=0., 
         metadata={'help': "S/N", 

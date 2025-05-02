@@ -13,10 +13,9 @@
 # - {name: THRESH, datatype: float64}
 # - {name: TRES, datatype: float64}
 # - {name: WIDTH, datatype: float64}
-# - {name: Z, datatype: float64}
 # meta: !!omap
 # - {survey_data: '{"observing": {"NORM_FRB": 1,"TOBS": 317.5},
 #                   "telescope": {"BEAM": "MeerTRAP_coherent_log","BTHRESH": 0.001,"NBEAMS": 1,"NBINS": 5}}'}
 # schema: astropy-2.0
-TNS    BW  DM  DMG  FBAR  FRES   NREP  SNR SNRTHRESH THRESH TRES    WIDTH Z
-DUMMY  770 200 35.0 1284  0.836  1     10. 10.       3.3    0.30624 1.0   -1
+TNS    BW  DM  DMG  FBAR  FRES   NREP  SNR SNRTHRESH THRESH TRES    WIDTH
+DUMMY  770 200 35.0 1284  0.836  1     10. 10.       3.3    0.30624 1.0

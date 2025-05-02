@@ -52,7 +52,7 @@ def j2000_to_galactic(ra_deg, dec_deg):
     galactic_coord = icrs_coord.galactic
 
     # Return RA and Dec in degrees
-    return galactic_coord.ra.degree, galactic_coord.dec.degree
+    return galactic_coord.b.degree, galactic_coord.l.degree
 
 
 def galactic_to_j2000(l_deg, b_deg):
