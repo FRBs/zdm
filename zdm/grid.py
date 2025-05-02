@@ -8,6 +8,7 @@ from zdm import energetics
 from zdm import pcosmic
 from zdm import io
 import time
+import warnings
 
 class Grid:
     """A class to hold a grid of z-dm plots
@@ -908,6 +909,8 @@ class Grid:
         Args:
             vparams (dict): [description]
         """
+        warnings.warn("grid.update is deprecated, create a new instantiation instead", DeprecationWarning)
+
         # Init
         reset_cos, get_zdm, calc_dV = False, False, False
         smear_mask, smear_dm, calc_pdv, set_evol = False, False, False, False

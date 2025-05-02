@@ -156,22 +156,29 @@ def main():
     temp = data_clrs[1].copy()
     data_clrs[1] = data_clrs[2]
     data_clrs[2] = temp
-    cont_clrs = data_clrs
     markers=["*", "o", "o", "x"]
     markersize = [10, 4, 4, 5]
     ewidths = [1,1,1,1]
 
     plt_dicts = []
+    cont_dicts = None
     for i in range(len(data_clrs)):
-        styles = {
+        plt_styles = {
             'color': data_clrs[i],
             'marker': markers[i],
             'markersize': markersize[i],
             'label': point_labels[i],
             'markeredgewidth': ewidths[i]
         }
-        plt_dicts.append(styles)
-    
+        plt_dicts.append(plt_styles)
+
+        # cont_styles = {
+        #     'color': data_clrs[i],
+        #     'label': point_labels[i]
+        # }
+        # cont_dicts.append(cont_styles)
+
+
     s=ss[0]
     g=gs[0]
     name = names[0]
@@ -182,12 +189,12 @@ def main():
         label='$\\log_{10} p({\\rm DM}_{\\rm IGM} + {\\rm DM}_{\\rm host},z)$ [a.u.]',
         project=False,ylabel='${\\rm DM}_{\\rm IGM} + {\\rm DM}_{\\rm host}$',
         zmax=3,DMmax=3000, FRBZs=Zs, FRBDMs=DMs, 
-        #point_labels=point_labels, data_clrs=data_clrs, markersize=5, data_styles=markers,
-        plt_dicts = plt_dicts,
-        cont_dicts = plt_dicts,
+        # point_labels=point_labels, data_clrs=data_clrs, markersize=5, data_styles=markers,
+        plt_dicts=plt_dicts, cont_dicts=cont_dicts,
         Aconts=[0.1],othergrids=[gs[1].rates,crates,gs[2].rates],
         othernames = ["MeerKAT","DSA","CHIME","ASKAP"], 
         cmap=cmr.prinsenvlag_r)
+        #0.01, 0.1,0.5
     
     
     ############ Plots z projection ##########
