@@ -18,7 +18,7 @@ import pytest
 import os
 
 def test_update_MCMC():
-
+    
     survey_names = ["CRAFT_ICS_892"]
     rsurvey_names = ["CHIME/CHIME_decbin_0_of_6"]
 
@@ -178,10 +178,12 @@ def test_update():
     # print("g2", g2.state)
 
 def main():
-    try:
-        test_update_MCMC()
-        test_update()
-    except NotImplementedError:
-        print("The update method is not currently implemented. This test currently defunct.")
+    print("The update method is not currently implemented. This test currently defunct.")
+
+    #try:
+    #    test_update_MCMC()
+    #    test_update()
+    #except NotImplementedError:
+    #    print("The update method is not currently implemented. This test currently defunct.")
 
 main()
