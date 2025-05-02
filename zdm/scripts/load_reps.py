@@ -1,20 +1,13 @@
 """ 
-This script shows how to use repeating FRB grids.
+This script loads CHIME repeating FRBs in six different declination bins.
 
-It produces four outputs in the "Repeaters" directory,
-showing zDM for:
-- 1: All bursts (single bursts, and bursts from repeating sources)
-- 2: FRBs expected as single bursts
-- 3: Repeating FRBs (each source counts once)
-- 4: Bursts from repeaters (each source counts Nburst times)
-
-We expect 1 = 2+4 (if not, it's a bug!)
+It then shows fits to the DM distribution of repeaters and single bursts.
 
 """
 from zdm import parameters
 from zdm import loading as loading
 from zdm import iteration as it
-
+from pkg_resources import resource_filename
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -28,12 +21,13 @@ def main(plots=False):
     names = ['CHIME_decbin_0_of_6', 'CHIME_decbin_1_of_6', 'CHIME_decbin_2_of_6', 'CHIME_decbin_3_of_6', 'CHIME_decbin_4_of_6', 'CHIME_decbin_5_of_6']
     
     state = parameters.State()
-    state.update_param('min_lat', None)
+    # shows how to update repeating parameters in the survey
     # state.update_param('lRmin', -1.0)
     # state.update_param('lRmax', -0.9)
     # state.update_param('Rgamma', -3.0)
     
-    sdir='../data/Surveys/CHIME'
+    sdir = os.path.join(resource_filename('zdm', 'data'), 'Surveys/CHIME')
+    
     # use loading.survey_and_grid for proper estimates
     # remove loading for width-based estimates
     # the below is hard-coded for a *very* simplified analysis!
@@ -45,7 +39,6 @@ def main(plots=False):
     print("Repeater dimension: " + str(s.nDr))
     print("Singles dimension: " + str(s.nDs))
     print("FRB dimension: " + str(s.nD))
-    # print(s.nozreps, s.zreps, s.nozsingles, s.zsingles)
 
     print("Rmin:", g.Rmin)
     print("Rmax:", g.Rmax)
@@ -54,20 +47,12 @@ def main(plots=False):
     it.minimise_const_only(None, gs, ss, update=True)
     for g in gs:
         print("lC, Rc", g.state.FRBdemo.lC, g.Rc)
-
-    # ll_sum = 0
-    # for g,s in zip(gs, ss):
-    #     ll = it.get_log_likelihood(g,s,pNreps=True,Pn=True)
-    #     ll_sum += ll
-    #     print(ll)
     
-    # print(ll_sum)
-
     if plots:
         print("Making plots")
 
         # Create subplots
-        fig, axes = plt.subplots(len(ss), 2, figsize=(8, 2*len(ss)))
+        fig, axes = plt.subplots(len(ss), 2, figsize=(10, 2*len(ss)))
 
         # Plot data
         for i in range(len(ss)):
@@ -95,11 +80,11 @@ def main(plots=False):
             axes[i, 1].set_xlabel('DM')
             axes[i, 1].set_ylabel('p(DM)')
             axes[i, 1].set_xlim(0, 2000)
-
+            
         # Adjust layout
         plt.tight_layout()
         plt.savefig('repeaters.png')
         plt.show()
-
+        plt.close()
 
 main(True)

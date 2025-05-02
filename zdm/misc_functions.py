@@ -2669,7 +2669,8 @@ def plot_grid_2(
     dmvals = np.copy(dmvals)
 
     if project:
-        plt.figure(1, figsize=(8, 8))
+        fig = plt.figure(1, figsize=(8, 8))
+        
         left, width = 0.1, 0.65
         bottom, height = 0.1, 0.65
         gap = 0.02
@@ -2689,14 +2690,13 @@ def plot_grid_2(
         axy = plt.axes(rect_1Dy)
         acb = plt.axes(rect_cb)
     else:
-        plt.figure()
-        ax1 = plt.axes()
-
+        fig,ax1 = plt.subplots()
+    
     plt.sca(ax1)
-
+    
     plt.xlabel("z")
     plt.ylabel(ylabel)
-
+    
     nz, ndm = zDMgrid.shape
     
     # attenuate grids in x-direction
