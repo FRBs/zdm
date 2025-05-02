@@ -39,7 +39,6 @@ matplotlib.rc('font', **font)
 def main():
     
     # in case you wish to switch to another output directory
-    
     opdir='zcomparison/'
     
     # approximate best-fit values from recent analysis
@@ -172,24 +171,23 @@ def main():
             'markeredgewidth': ewidths[i]
         }
         plt_dicts.append(styles)
-
-
+    
     s=ss[0]
     g=gs[0]
     name = names[0]
-
+    
     # Do the plotting
     misc_functions.plot_grid_2(g.rates,g.zvals,g.dmvals,
         name=opdir+name+"_zDM.pdf",norm=3,log=True,
         label='$\\log_{10} p({\\rm DM}_{\\rm IGM} + {\\rm DM}_{\\rm host},z)$ [a.u.]',
         project=False,ylabel='${\\rm DM}_{\\rm IGM} + {\\rm DM}_{\\rm host}$',
         zmax=3,DMmax=3000, FRBZs=Zs, FRBDMs=DMs, 
-        # point_labels=point_labels, data_clrs=data_clrs, markersize=5, data_styles=markers,
-        plt_dicts=plt_dicts,
+        #point_labels=point_labels, data_clrs=data_clrs, markersize=5, data_styles=markers,
+        plt_dicts = plt_dicts,
+        cont_dicts = plt_dicts,
         Aconts=[0.1],othergrids=[gs[1].rates,crates,gs[2].rates],
         othernames = ["MeerKAT","DSA","CHIME","ASKAP"], 
-        cmap=cmr.prinsenvlag_r, cont_colours=cont_clrs)
-        #0.01, 0.1,0.5
+        cmap=cmr.prinsenvlag_r)
     
     
     ############ Plots z projection ##########

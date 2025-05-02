@@ -893,18 +893,22 @@ class Survey:
             # checks to see if this is a field in metadata: if so, takes priority
             if field.name in self.meta.keys():
                 default_value = self.meta[field.name]
-            elif field.name in frb_tbl.columns:
-                default_value = frb_tbl[field.name]
+            else:
+                default_value = getattr(default_frb, field.name)
+            
+            # now checks for missing data, fills with the default value
+            if field.name in frb_tbl.columns:
+                # iterate over fields, checking if they are populated
+                for i,val in enumerate(frb_tbl[field.name]):
+                    if isinstance(val,np.ma.core.MaskedArray):
+                        frb_tbl[field.name][i] = default_value
             else:
                 default_value = getattr(default_frb, field.name)
                 frb_tbl[field.name] = default_value
                 print("WARNING: no ",field.name," found in survey",
                     "replcing with default value of ",default_value)
             
-            # iterate over fields, checking if they are populated
-            for i,val in enumerate(frb_tbl[field.name]):
-                if isinstance(val,np.ma.core.MaskedArray):
-                    frb_tbl[field.name][i] = default_value
+            
             
         self.frbs = frb_tbl.to_pandas()
         

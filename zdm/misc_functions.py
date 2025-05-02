@@ -2851,26 +2851,30 @@ def plot_grid_2(
     # NOTE: currently no way to plot contour labels, hence the use of dummy plots
     if Aconts:
         styles = [":", "-.", "--","-",":", "-.", "--","-"]
-        if cont_colours is None:
-            cont_colours=np.linspace(0,100,100)
+        
         ax = plt.gca()
         cs = ax.contour(
             zDMgrid.T, levels=alevels, origin="lower", linewidths=2, linestyles=linestyles, colors=cont_clrs
         )
         cntrs=[cs]
-        if othernames is not None:
+        if 'label' in cont_dicts[0].keys():
+            h,=plt.plot([-1e6,-2e6],[-1e6,-2e6],**cont_dicts[0])
+            handles=[h]
+        elif othernames is not None:
             h,=plt.plot([-1e6,-2e6],[-1e6,-2e6],**cont_dicts[0],label=othernames[0])
             handles=[h]
             
         if othergrids is not None:
             for i,grid in enumerate(othergrids):
+                print("size of i in othergrids is ",i)
                 cntr = ax.contour(grid.T, levels=other_alevels[i], origin="lower",
                     **cont_dicts[i+1])
-                if othernames is not None:
-                    #make a dummy plot
+                #make a dummy plot
+                if "label" in cont_dicts[i+1].keys():
+                    h,=plt.plot([-1e6,-2e6],[-1e6,-2e6], **cont_dicts[i+1])
+                    handles.append(h)
+                elif othernames is not None:
                     h,=plt.plot([-1e6,-2e6],[-1e6,-2e6], **cont_dicts[i+1],label=othernames[i+1])
-                    #h,=plt.plot([-1e6,-2e6],[-1e6,-2e6],linestyle=styles[i+1], marker=plt_dicts[i+1]['marker'], 
-                    #    markeredgewidth=plt_dicts[i+1]['markeredgewidth'], color=cont_colours[i+1],label=othernames[i+1])
                     handles.append(h)
             if othernames is not None:
                 plt.legend(handles=handles,loc="lower right")
