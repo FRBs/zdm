@@ -3013,15 +3013,23 @@ def plot_grid_2(
     
     ##### add FRB host galaxies at some DM/redshift #####
     if FRBZs is not None and len(FRBZs) != 0:
-        for i, FRBZ in enumerate(FRBZs):
-            if FRBZ is not None and len(FRBZ) != 0:
-                FRBDM = FRBDMs[i]
-            
-                iDMs = FRBDM / ddm
-                iZ = FRBZ / dz
-                OK = np.where(FRBZ > 0)[0]
-
-                plt.plot(iZ[OK], iDMs[OK], linestyle="", **plt_dicts[i])
+        if hasattr(FRBZs[0], "__len__"):
+            # we are dealing with a list of lists from multiple surveys
+            for i, FRBZ in enumerate(FRBZs):
+                # test if this is a list of FRBZs or a list of lists
+                
+                if FRBZ is not None and len(FRBZ) != 0:
+                    FRBDM = FRBDMs[i]
+                    iDMs = FRBDM / ddm
+                    iZ = FRBZ / dz
+                    OK = np.where(FRBZ > 0)[0]
+                    plt.plot(iZ[OK], iDMs[OK], linestyle="", **plt_dicts[i])
+        else:
+            # just a single list of values
+            OK = np.where(FRBDMs > 0)[0]
+            iDMs = FRBDMs / ddm
+            iZ = FRBZs / dz
+            plt.plot(iZ[OK], iDMs[OK], linestyle="")
             
     legend = plt.legend(loc='upper left')
     # legend = plt.legend(loc='upper left', bbox_to_anchor=(0.0, -0.15), fontsize=12, markerscale=1, ncol=2)
@@ -3053,29 +3061,47 @@ def plot_grid_2(
 
         # if plotting DM only, put this on the axy axis showing DM distribution
         if FRBDMs is not None:
-            for FRBDM in FRBDMs:
-                if FRBDM is not None:
-                    hvals=np.zeros(FRBDM.size)
-                    for i,DM in enumerate(FRBDM):
-                        if DM > dmvals[-1]:
-                            havls[i] = 0
-                        else:
-                            hvals[i] = yonly[np.where(dmvals > DM)[0][0]]
+            if hasattr(FRBDMs[0], "__len__"):
+                # dealing with a list of lists
+                for FRBDM in FRBDMs:
+                    if FRBDM is not None:
+                        hvals=np.zeros(FRBDM.size)
+                        for i,DM in enumerate(FRBDM):
+                            if DM > dmvals[-1]:
+                                havls[i] = 0
+                            else:
+                                hvals[i] = yonly[np.where(dmvals > DM)[0][0]]
                     
-                    axy.plot(hvals,FRBDM,'ro',linestyle="")
-                    for tick in axy.yaxis.get_major_ticks():
-                        tick.label.set_fontsize(6)
-
+                        axy.plot(hvals,FRBDM,'ro',linestyle="")
+                        for tick in axy.yaxis.get_major_ticks():
+                            tick.label.set_fontsize(6)
+            else:
+                hvals=np.zeros(FRBDMs.size)
+                for i,DM in enumerate(FRBDMs):
+                    if DM > dmvals[-1]:
+                        havls[i] = 0
+                    else:
+                        hvals[i] = yonly[np.where(dmvals > DM)[0][0]]
+                axy.plot(hvals,FRBDMs,'ro',linestyle="")
+                
         if FRBZs is not None:
-            for FRBZ in FRBZs:
-                if FRBZ is not None:
-                    OK = np.where(FRBZ > 0)[0]
-                    hvals = np.zeros(FRBZ[OK].size)
-                    for i, Z in enumerate(FRBZ[OK]):
-                        hvals[i] = xonly[np.where(zvals > Z)[0][0]]
-                    axx.plot(FRBZ[OK], hvals, "ro", color=data_clr, linestyle="", markersize=markersize)
-                    for tick in axx.xaxis.get_major_ticks():
-                        tick.label.set_fontsize(6)
+            if hasattr(FRBZs[0], "__len__"):
+                # dealing with a list of lists
+                for FRBZ in FRBZs:
+                    if FRBZ is not None:
+                        OK = np.where(FRBZ > 0)[0]
+                        hvals = np.zeros(FRBZ[OK].size)
+                        for i, Z in enumerate(FRBZ[OK]):
+                            hvals[i] = xonly[np.where(zvals > Z)[0][0]]
+                        axx.plot(FRBZ[OK], hvals, "ro", color=data_clr, linestyle="")
+                        for tick in axx.xaxis.get_major_ticks():
+                            tick.label.set_fontsize(6)
+            else:
+                OK = np.where(FRBZs > 0)[0]
+                hvals = np.zeros(FRBZs[OK].size)
+                for i, Z in enumerate(FRBZs[OK]):
+                    hvals[i] = xonly[np.where(zvals > Z)[0][0]]
+                axx.plot(FRBZs[OK], hvals, "ro", linestyle="")
     else:
         cbar = plt.colorbar(im, fraction=0.046, shrink=1.2, aspect=15, pad=0.05)
         cbar.set_label(label)

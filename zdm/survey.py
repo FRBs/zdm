@@ -921,6 +921,9 @@ class Survey:
             themax = max(NFRB+iFRB,self.NFRB)
             self.frbs=self.frbs[iFRB:themax]
         
+        # fills in missing coordinates if possible
+        self.fix_coordinates(verbose=False)
+        
         # Min latitude
         if min_lat is not None and min_lat > 0.0:
             excluded = 0
@@ -972,9 +975,6 @@ class Survey:
             self.meta['TRES'] = np.median(self.frbs['TRES'])
             self.meta['WIDTH'] = np.median(self.frbs['WIDTH'])
             self.meta['DMG'] = np.mean(self.frbs['DMG'])
-        
-        # fills in missing coordinates is possible
-        self.fix_coordinates(verbose=False)
         
         ### processes galactic contributions
         self.process_dmg()
@@ -1646,7 +1646,7 @@ def refactor_old_survey_file(survey_name:str, outfile:str,
 
     # Vet+populate the FRBs
     vet_frb_table(frbs, mandatory=False, fill=True)
-
+    
     # Add X columns (ancillay)
     for letter in ['A', 'B', 'C', 'D', 'E', 'F', 
                    'G', 'H', 'I', 'J', 'K']:
@@ -1681,8 +1681,15 @@ def refactor_old_survey_file(survey_name:str, outfile:str,
 def vet_frb_table(frb_tbl:pandas.DataFrame,
                   mandatory:bool=False,
                   fill:bool=False):
+    """
+    This should not be necessary anymore, since
+    all required FRB data should be populated with
+    default values. However, it's great as a check. If
+    this complains, it means we have a bug in the
+    replacement with default value procedure.
+    """
     frb_data = survey_data.FRB()
-    # Loop on the stadnard fields
+    # Loop on the standard fields
     for field in frb_data.__dataclass_fields__.keys():
         if field in frb_tbl.keys():
             not_none = frb_tbl[field].values != None

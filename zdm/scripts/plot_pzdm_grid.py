@@ -55,7 +55,6 @@ def main():
         # adds a list of localised FRBs to the plot
         if surveys[i].zlist is not None:
             OK = surveys[i].zlist
-            print("OK is ",OK)
             FRBDMs=surveys[i].DMEGs[OK]
             FRBZs=surveys[i].Zs[OK]
         else:
