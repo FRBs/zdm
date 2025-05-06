@@ -19,6 +19,20 @@ class AnalysisParams(data_class.myDataClass):
             + "Std: faster - fine for max likelihood calculations, not as pretty"
         },
     )
+    min_lat: float = field(
+        default=-1.0,
+        metadata={
+            "help": "Discard FRBs below this absolute galactic latitude",
+            "unit": "Degrees"
+        }
+    )
+    DMG_cut: float = field(
+        default=None,
+        metadata={
+            "help": "Discard FRBs above this DMG",
+            "unit": "pc / cm3"
+        }
+    )
 
 # Cosmology parameters
 @dataclass
@@ -150,15 +164,25 @@ class MWParams(data_class.myDataClass):
         metadata={'help': 'Assumed DM for the Galactic ISM',
                   'unit': 'pc cm$^{-3}$',
         })
+    logu: bool = field(
+        default=False,
+        metadata={'help': 'Use log normal distributions for DMG values'}
+    )
     sigmaDMG: float = field(
-        default=0.5,
+        default=0.0,
         metadata={'help': 'Fractional uncertainty in DM from Galactic ISM',
                   'unit': '',
+        })
+    sigmaHalo: float = field(
+        default=15.0,
+        metadata={'help': 'Uncertainty in DM from Galactic Halo',
+                  'unit': 'pc cm$^{-3}$',
         })
     halo_method: int = field(
         default=0,
         metadata={'help': '0: Uniform halo' +
-                            '1: Directionally dependent halo (Yamasaki and Totani 2020)'
+                          '1: Directionally dependent halo (Yamasaki and Totani 2020)' +
+                          '2: Das+ 2021'
         })
     DMhalo: float = field(
         default=50.,

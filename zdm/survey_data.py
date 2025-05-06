@@ -39,23 +39,35 @@ class FRB(data_class.myDataClass):
                   'Notation': '',
                   })
     Gb: float = field( 
-        default=1., 
+        default=None, 
         metadata={'help': "Galactic latitude",
                   'unit': 'deg', 
                   'Notation': '',
                   })
     Gl: float = field( 
-        default=1., 
+        default=None, 
         metadata={'help': "Galactic longitude",
                   'unit': 'deg', 
                   'Notation': '',
                   })
-    # NREP: np.int64 = field( 
-    #     default=1, 
-    #     metadata={'help': "Number of repetitions detected", 
-    #               'unit': '', 
-    #               'Notation': '',
-    #               })
+    RA: float = field( 
+        default=None, 
+        metadata={'help': "Right ascension in J2000 coordinates",
+                  'unit': 'deg', 
+                  'Notation': '',
+                  })
+    DEC: float = field( 
+        default=None, 
+        metadata={'help': "Declination in J2000 coordinates",
+                  'unit': 'deg', 
+                  'Notation': '',
+                  })
+    NREP: np.int64 = field( 
+         default=1, 
+         metadata={'help': "Number of repetitions detected", 
+                   'unit': '', 
+                   'Notation': '',
+                   })
     SNR: float = field( 
         default=0., 
         metadata={'help': "S/N", 
@@ -152,15 +164,16 @@ class Telescope(data_class.myDataClass):
                   'Notation': '',
                   })
     DRIFT_SCAN: int = field(
-        default=2,
+        default=1,
         metadata={'help': '1: beam represents solid angle viewed at each value of b, for time Tfield \
-                           2: (Drift scan) beam represents time (in days) spent on any given source at sensitivity level b. \
+                           2: (Drift scan) beam represents time (in days) spent on any \
+                               given source at sensitivity level b. \
                               Tfield is solid angle. Nfields then becomes a multiplier of the time.',
                   'unit': '',
                   'Notation': ''
                   })
     BTHRESH: float = field(
-        default=0.0,
+        default=1.e-3,
         metadata={'help': 'Minimum value of beam sensitivity to consider',
                   'unit': '',
                   'Notation': 'B_{\rm min}'})

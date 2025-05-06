@@ -5,12 +5,13 @@ import argparse
 import pickle
 import json
 import copy
-from numpy.core.fromnumeric import mean
+from numpy import mean
 
 import scipy as sp
 
 import matplotlib.pyplot as plt
 import matplotlib
+import cmasher as cmr
 
 from frb import dlas
 from frb.dm import igm
@@ -25,6 +26,60 @@ from zdm import grid as zdm_grid
 from zdm import repeat_grid as zdm_repeat_grid
 from zdm import pcosmic
 from zdm import parameters
+
+
+def j2000_to_galactic(ra_deg, dec_deg):
+    """
+    Convert Galactic coordinates to Equatorial J2000 coordinates.
+
+    Parameters:
+    l_deg (float): Galactic longitude in degrees
+    b_deg (float): Galactic latitude in degrees
+
+    Returns:
+    tuple: Right Ascension and Declination in degrees (RA, Dec)
+    
+    # this code written by ChatGPT
+    """
+    
+    from astropy.coordinates import SkyCoord
+    import astropy.units as u
+    
+    # Create a SkyCoord object in ICRS coordinates
+    icrs_coord = SkyCoord(ra = ra_deg * u.degree, dec = dec_deg * u.degree, frame='icrs')
+    
+    # Convert to ICRS frame (J2000 equatorial coordinates)
+    galactic_coord = icrs_coord.galactic
+
+    # Return RA and Dec in degrees
+    return galactic_coord.b.degree, galactic_coord.l.degree
+
+
+def galactic_to_j2000(l_deg, b_deg):
+    """
+    Convert J2000 Equatorial coordinates to Galactic coordinates.
+
+    Parameters:
+    ra_deg (float): Right Ascension in degrees
+    dec_deg (float): Declination in degrees
+
+    Returns:
+    tuple: Galactic longitude and latitude in degrees (l, b)
+    
+    # this code written by ChatGPT
+    """
+    
+    from astropy.coordinates import SkyCoord
+    import astropy.units as u
+    
+    # Create a SkyCoord object in Galactic coordinates
+    galactic_coord = SkyCoord(l=l_deg * u.degree, b=b_deg * u.degree, frame='galactic')
+    
+    # Convert to ICRS frame (J2000 equatorial coordinates)
+    equatorial_coord = galactic_coord.icrs
+
+    # Return RA and Dec in degrees
+    return equatorial_coord.ra.degree, equatorial_coord.dec.degree
 
 def marginalise(
     pset,
@@ -2154,9 +2209,11 @@ def get_zdm_grid(
             MC: generate via Monte Carlo using dlas.monte_dm
         nz (int, optional): Size of grid in redshift. Defaults to 500.
         zmin (float,optional): Minimum z. Used only for log-spaced grids.
-        zmax (float, optional): Maximum z. Defaults to 5.
+        zmax (float, optional): Maximum z. Defaults to 5. Represents the
+                upper edge of the maximum zbin.
         ndm (int, optional): Size of grid in DM.  Defaults to 1400.
-        dmmax ([type], optional): Maximum DM of grid. Defaults to 7000..
+        dmmax ([type], optional): Maximum DM of grid. Defaults to 7000.
+                Represents the upper edge of the max bin in the DM grid.
         datdir (str, optional): Directory to load/save grid data. Defaults to 'GridData'.
         tag (str, optional): Label for grids (unique identifier). Defaults to "".
         orig (bool, optional): Use original calculations for 
@@ -2230,9 +2287,13 @@ def get_zdm_grid(
         )
     # labelled pickled files with H0
     if new:
-
+        
         ddm = dmmax / ndm
-
+        # the DMvals and the zvals generated below
+        # represent bin centres. i.e. characteristic values.
+        # Probabilities then derived will correspond
+        # to p(zbin-0.5*dz < z < zbin+0.5*dz) etc.
+        
         if zlog:
             # generates a pseudo-log spacing
             # grid values increase with \sqrt(log)
@@ -2241,14 +2302,19 @@ def get_zdm_grid(
             zvals = np.logspace(lzmin, lzmax, nz)
         else:
             dz = zmax / nz
-            zvals = (np.arange(nz) + 1) * dz
-        dmvals = (np.arange(ndm) + 1) * ddm
-
-        dmmeans = dmvals[1:] - (dmvals[1] - dmvals[0]) / 2.0
+            zvals = (np.arange(nz) + 0.5) * dz
+        dmvals = (np.arange(ndm) + 0.5) * ddm
+        
+        # Deprecated. dmvals now mean bin centre values
+        # dmmeans used to be those bin centres
+        #dmmeans = dmvals[1:] - (dmvals[1] - dmvals[0]) / 2.0
+        
+        # initialises zDM grid
         zdmgrid = np.zeros([nz, ndm])
 
         if method == "MC":
             # generate DM grid from the models
+            # NOT CHECKED
             if verbose:
                 print("Generating the zdm Monte Carlo grid")
             nfrb = 10000
@@ -2270,6 +2336,7 @@ def get_zdm_grid(
             if orig:
                 C0s = pcosmic.make_C0_grid(zvals, state.IGM.logF)
             else:
+                # interpolate C0 as a function of log10F
                 f_C0_3 = cosmic.grab_C0_spline()
                 actual_F = 10 ** (state.IGM.logF)
                 sigma = actual_F / np.sqrt(zvals)
@@ -2474,7 +2541,31 @@ def plot_zdm_basic_paper(
         plt.show()
     plt.close()
 
-
+def get_alevels(zDMgrid,Aconts):
+    """
+    Gets contour levels giving 
+    
+    Grid: inoput zDM grid
+    Aconts: list of contour levels giving %
+    
+    """
+    slist = np.sort(zDMgrid.flatten())
+    cslist = np.cumsum(slist)
+    cslist /= cslist[-1]
+    nAc = len(Aconts)
+    alevels = np.zeros([nAc])
+    for i, ac in enumerate(Aconts):
+        # cslist is the cumulative probability distribution
+        # Where cslist > ac determines the integer locations
+        #    of all cells exceeding the threshold
+        # The first in this list is the first place exceeding
+        #    the threshold
+        # The value of slist at that point is the
+        #    level of the countour to draw
+        iwhich = np.where(cslist > ac)[0][0]
+        alevels[i] = slist[iwhich]
+    return alevels
+    
 def plot_grid_2(
     zDMgrid,
     zvals,
@@ -2488,64 +2579,101 @@ def plot_grid_2(
     ylabel="${\\rm DM}_{\\rm EG}$ (pc cm$^{-3}$)",
     project=False,
     conts=False,
-    FRBZ=None,
-    FRBDM=None,
-    FRBZ2=None,
-    FRBDM2=None,
-    Aconts=False,
+    FRBZs=None,
+    FRBDMs=None,
+    plt_dicts=None,
+    cont_dicts=None,
+    cmap=None,
+    Aconts=None,
     Macquart=None,
     title=None,
-    cmap=None,
     H0=None,
     showplot=False,
     DMlines=None,
     DMlims=None,
-    markersize=10,
     clim=False,
-    data_clr="red",
-    data_clr2="tab:blue",
     special=None,
     pdmgz=None,
-    save=True
+    save=True,
+    othergrids=None,
+    othernames=None
 ):
     """
     Very complicated routine for plotting 2D zdm grids 
 
     Args:
-        zDMgrid ([type]): [description]
-        zvals ([type]): [description]
-        dmvals ([type]): [description]
-        zmax (int, optional): [description]. Defaults to 1.
-        DMmax (int, optional): [description]. Defaults to 1000.
-        norm (int, optional): [description]. Defaults to 0.
-        log (bool, optional): [description]. Defaults to True.
-        name (str, optional): [description]. Defaults to 'temp.pdf'.
-        ylabel (str,optional): Label on y axis of plot. Defaults to '${\\rm DM}_{\\rm EG}$'
-        label (str, optional): [description]. Defaults to '$\log_{10}p(DM_{\rm EG},z)$'.
-        project (bool, optional): [description]. Defaults to False.
+        zDMgrid (2D array): P(z,DM) grid
+        zvals (1D array): z values corresponding to zDMgrid
+        dmvals (1D array): DM values corresponding to zDMgrid
+        zmax (int, optional): Maximum z value to display
+        DMmax (int, optional): Maximum DM value to display
+        norm (int, optional): Method to normalise zDMgrid.
+                                0: No normalisation
+                                1: Normalise by dm bin
+                                2: Normalise by sum of zDMgrid
+                                3: Normalise by max value of zDMgrid
+        log (bool, optional): Plot P(z,DM) in log space
+        name (str, optional): Outfile name
+        label (str, optional): Colourbar label
+        ylabel (str,optional): Label on y axis of plot
+        project (bool, optional): Add projections of P(z) and P(DM)
         conts (bool, optional): [description]. Defaults to False.
-        FRBZ ([type], optional): [description]. Defaults to None.
-        FRBDM ([type], optional): [description]. Defaults to None.
+        FRBZs (list of 1D arrays, optional): List of FRB Zs to plot (each list can have customised plotting styles, e.g. for different surveys)
+        FRBDMs (list of 1D arrays, optional): List of FRB DMs to plot (corrseponding to FRBZs)
+        plt_dicts (list of dictionaries, optional): List of dictionaries containing the plotting parameters for each 'set' of data points (corresponding to FRBZs and FRBDMs). E.g. can contain marker, color, label etc
+        cmap (str, optional): Alternate color map for PDF
         Aconts (bool, optional): [description]. Defaults to False.
         Macquart (state, optional): state object.  Used to generate the Maquart relation.
             Defaults to None, i.e. do not show the Macquart relation.
-        title (str, optional): [description]. Defaults to "Plot".
+        title (str, optional): Title of the plot
         H0 ([type], optional): [description]. Defaults to None.
         showplot (bool, optional): use plt.show to show plot. Defaults to False.
+        DMlines (list, optional): plot lines for unlocalised FRBs at these DMs
+        DMlims (list, optional): plot horizontal lines to indicate the maximum searched DM of a given survey
         clim ([float,float], optional): pair of floats giving colorbar limits.
             Defaults to False (automatic limit)
-        cmap (str, optional): Alternate color map for PDF
-        data_clr (str, optional): Alternate color for data
         special(list,optional): list of [z,dm] values to show as a special big star
         pdmgz(list of floats, optional): a list of cumulative values of p(DM|z) to
             plot. Must range from 0 to 1.
+        othergrids (list of grids) [None]: a list of grids to plot contours for. Uses
+            Aconts
+        othernames (list of names) [None]: list of names for original *and* other grid.
+            Used only if othergrids is not None. Must be length of othergrids +1.
     """
     if H0 is None:
         H0 = cos.cosmo.H0
     if cmap is None:
-        cmx = plt.get_cmap("cubehelix")
+        # cmx = plt.get_cmap("cubehelix")
+        cmap = cmr.prinsenvlag_r
     else:
-        cmx = plt.get_cmap(cmap)
+        cmap = plt.get_cmap(cmap)
+
+    # Set default colors
+    if plt_dicts == None and FRBDMs is not None:
+        p_cmap = cmr.arctic
+        data_clrs = p_cmap(np.linspace(0.2, 0.8, len(FRBDMs)))
+        plt_dicts = [{'color': clr, 'marker': 'o'} for clr in data_clrs]
+
+    if Aconts:
+        linestyles = ['--', '-.', ':', '-']
+        c_cmap = cmr.arctic
+        if othergrids is not None:
+            n_conts = len(Aconts) + len(othergrids)
+        else:
+            n_conts = len(Aconts)
+        cont_clrs = c_cmap(np.linspace(0.2, 0.8, n_conts))
+
+        # Make dictionary for the contours
+        if cont_dicts == None:
+            cont_dicts = [{'colors': [cont_clrs[i]], 'linestyles': [linestyles[i % len(linestyles)]]} for i in range(len(cont_clrs))]
+            
+        # Make dictionary for the legend
+        l_cont_dicts = [cont_dict.copy() for cont_dict in cont_dicts]
+        for i in range(len(l_cont_dicts)):
+            l_cont_dicts[i]['color'] = l_cont_dicts[i]['colors'][0]
+            del l_cont_dicts[i]['colors']
+            l_cont_dicts[i]['linestyle'] = l_cont_dicts[i]['linestyles'][0]
+            del l_cont_dicts[i]['linestyles']
 
     ##### imshow of grid #######
 
@@ -2555,7 +2683,8 @@ def plot_grid_2(
     dmvals = np.copy(dmvals)
 
     if project:
-        plt.figure(1, figsize=(8, 8))
+        fig = plt.figure(1, figsize=(8, 8))
+        
         left, width = 0.1, 0.65
         bottom, height = 0.1, 0.65
         gap = 0.02
@@ -2575,21 +2704,24 @@ def plot_grid_2(
         axy = plt.axes(rect_1Dy)
         acb = plt.axes(rect_cb)
     else:
-        plt.figure()
-        ax1 = plt.axes()
-
+        fig,ax1 = plt.subplots()
+    
     plt.sca(ax1)
-
+    
     plt.xlabel("z")
     plt.ylabel(ylabel)
-
+    
     nz, ndm = zDMgrid.shape
-
+    
+    # attenuate grids in x-direction
     ixmax = np.where(zvals > zmax)[0]
     if len(ixmax) > 0:
         zvals = zvals[: ixmax[0]]
         nz = zvals.size
         zDMgrid = zDMgrid[: ixmax[0], :]
+        if othergrids:
+            for grid in othergrids:
+                grid = grid[: ixmax[0], :]
     
     # currently this is "per cell" - now to change to "per DM"
     # normalises the grid by the bin width, i.e. probability per bin, not probability density
@@ -2597,15 +2729,24 @@ def plot_grid_2(
     dz = zvals[1] - zvals[0]
     if norm == 1:
         zDMgrid /= ddm
+        if othergrids is not None:
+            for grid in othergrids:
+                grid /= ddm
         # if Aconts:
         #    alevels /= ddm
     elif norm == 2:
         xnorm = np.sum(zDMgrid)
         zDMgrid /= xnorm
+        if othergrids is not None:
+            for grid in othergrids:
+                grid /= np.sum(grid)
         # if Aconts:
         #    alevels /= xnorm
     elif norm == 3:
         zDMgrid /= np.max(zDMgrid)
+        if othergrids is not None:
+            for grid in othergrids:
+                grid /= np.max(grid)
 
     # sets up to plot contour-like things as a function of p(dm given z)
     if pdmgz is not None:
@@ -2627,26 +2768,17 @@ def plot_grid_2(
     
     # sets contours according to norm
     if Aconts:
-        slist = np.sort(zDMgrid.flatten())
-        cslist = np.cumsum(slist)
-        cslist /= cslist[-1]
-        nAc = len(Aconts)
-        alevels = np.zeros([nAc])
-        for i, ac in enumerate(Aconts):
-            # cslist is the cumulative probability distribution
-            # Where cslist > ac determines the integer locations
-            #    of all cells exceeding the threshold
-            # The first in this list is the first place exceeding
-            #    the threshold
-            # The value of slist at that point is the
-            #    level of the countour to draw
-            iwhich = np.where(cslist > ac)[0][0]
-            alevels[i] = slist[iwhich]
-
+        
+        alevels = get_alevels(zDMgrid,Aconts)
         if norm == 1:
             alevels /= ddm
         elif norm == 2:
             alevels /= xnorm
+        
+        if othergrids is not None:
+            other_alevels=[]
+            for grid in othergrids:
+                other_alevels.append(get_alevels(grid,Aconts))
 
     ### generates contours *before* cutting array in DM ###
     ### might need to normalise contours by integer lengths, oh well! ###
@@ -2684,6 +2816,14 @@ def plot_grid_2(
         dmvals = dmvals[: iymax[0]]
         zDMgrid = zDMgrid[:, : iymax[0]]
         ndm = dmvals.size
+        if othergrids:
+            for i,grid in enumerate(othergrids):
+                othergrids[i] = grid[:, : iymax[0]]
+    
+    # now sets the limits to the actual size of the grid
+    NX,NY = zDMgrid.shape
+    plt.xlim(0,NX)
+    plt.ylim(0,NY)
     
     if log:
         # checks against zeros for a log-plot
@@ -2701,27 +2841,55 @@ def plot_grid_2(
     # gets a square plot
     aspect = nz / float(ndm)
 
-    # sets the x and y tics
-    xtvals = np.arange(zvals.size)
+    # sets the x and y tics. These are now bin edges
+    
+    xtvals = np.arange(zvals.size+1)
+    xtlabels = np.linspace(0.,zvals[0]+zvals[-1],zvals.size+1)
     everx = int(zvals.size / 5)
-    plt.xticks(xtvals[everx - 1 :: everx], zvals[everx - 1 :: everx])
-
-    ytvals = np.arange(dmvals.size)
+    # adds xticks at "edges"
+    xtvals[-1] *= 0.999 # just allows it to squeeze on
+    plt.xticks(xtvals[0 :: everx], xtlabels[0 :: everx])
+    
+    ytvals = np.arange(dmvals.size+1)
+    ytvals[-1] *= 0.999 # just allows it to squeeze on
+    ytlabels = np.linspace(0.,dmvals[0]+dmvals[-1],dmvals.size+1)
     every = int(dmvals.size / 5)
-    plt.yticks(ytvals[every - 1 :: every], dmvals[every - 1 :: every])
+    plt.yticks(ytvals[0 :: every], ytlabels[0 :: every])
 
     im = plt.imshow(
-        zDMgrid.T, cmap=cmx, origin="lower", interpolation="None", aspect=aspect
+        zDMgrid.T, cmap=cmap, origin="lower", interpolation="None", aspect=aspect
     )
-
+    
+    # plots "A"contours (i.e., over "Amplitudes"). Doing so for multiple grids
+    # if necessary
+    # NOTE: currently no way to plot contour labels, hence the use of dummy plots
     if Aconts:
-        styles = ["--", "-.", ":"]
         ax = plt.gca()
         cs = ax.contour(
-            zDMgrid.T, levels=alevels, origin="lower", colors="white", linestyles=styles
+            zDMgrid.T, levels=alevels, origin="lower", linewidths=2, linestyles=linestyles, colors=cont_clrs
+            # zDMgrid.T, levels=alevels, **cont_dicts
         )
-        # plt.clim(0,2e-5)
-        # ax.clabel(cs, cs.levels, inline=True, fontsize=10,fmt=['0.5','0.1','0.01'])
+        cntrs=[cs]
+        if othernames is not None:
+            h,=plt.plot([-1e6,-2e6],[-1e6,-2e6],**l_cont_dicts[0],label=othernames[0])
+            handles=[h]
+            
+        if othergrids is not None:
+            for i,grid in enumerate(othergrids):
+                print("size of i in othergrids is ",i)
+                cntr = ax.contour(grid.T, levels=other_alevels[i], origin="lower",
+                    **cont_dicts[i+1])
+                if othernames is not None:
+                    #make a dummy plot
+                    h,=plt.plot([-1e6,-2e6],[-1e6,-2e6], **l_cont_dicts[i+1],label=othernames[i+1])
+                    #h,=plt.plot([-1e6,-2e6],[-1e6,-2e6],linestyle=styles[i+1], marker=plt_dicts[i+1]['marker'], 
+                    #    markeredgewidth=plt_dicts[i+1]['markeredgewidth'], color=cont_colours[i+1],label=othernames[i+1])
+                    handles.append(h)
+    
+            if othernames is not None:
+                plt.legend(handles=handles,loc="lower right")
+    
+    
     ###### gets decent axis labels, down to 1 decimal place #######
     ax = plt.gca()
     labels = [item.get_text() for item in ax.get_xticklabels()]
@@ -2771,8 +2939,9 @@ def plot_grid_2(
 
     if DMlims is not None:
         for DMlim in DMlims:
-            DMlim /= dmvals[1] - dmvals[0]
-            ax.axhline(DMlim, 0, 1, color=data_clr, linestyle="-")
+            if DMlim is not None and DMlim < DMmax:
+                DMlim /= dmvals[1] - dmvals[0]
+                ax.axhline(DMlim, 0, 1, color='white', linestyle="-")
 
     # performs plots for the pdmgz variable
     if pdmgz is not None:
@@ -2843,17 +3012,28 @@ def plot_grid_2(
         plt.clim(clim[0], clim[1])
     
     ##### add FRB host galaxies at some DM/redshift #####
-    if FRBZ is not None and len(FRBZ2) != 0:
-        iDMs = FRBDM / ddm
-        iZ = FRBZ / dz
-        OK = np.where(FRBZ > 0)[0]
-        plt.plot(iZ[OK], iDMs[OK], "o", color=data_clr, linestyle="")
-
-    if FRBZ2 is not None and len(FRBZ2) != 0:
-        iDMs = FRBDM2 / ddm
-        iZ = FRBZ2 / dz
-        OK = np.where(FRBZ2 > 0)[0]
-        plt.plot(iZ[OK], iDMs[OK], "o", color=data_clr2, linestyle="")
+    if FRBZs is not None and len(FRBZs) != 0:
+        if hasattr(FRBZs[0], "__len__"):
+            # we are dealing with a list of lists from multiple surveys
+            for i, FRBZ in enumerate(FRBZs):
+                # test if this is a list of FRBZs or a list of lists
+                
+                if FRBZ is not None and len(FRBZ) != 0:
+                    FRBDM = FRBDMs[i]
+                    iDMs = FRBDM / ddm
+                    iZ = FRBZ / dz
+                    OK = np.where(FRBZ > 0)[0]
+                    plt.plot(iZ[OK], iDMs[OK], linestyle="", **plt_dicts[i])
+        else:
+            # just a single list of values
+            OK = np.where(FRBDMs > 0)[0]
+            iDMs = FRBDMs / ddm
+            iZ = FRBZs / dz
+            plt.plot(iZ[OK], iDMs[OK], linestyle="")
+            
+    legend = plt.legend(loc='upper left')
+    # legend = plt.legend(loc='upper left', bbox_to_anchor=(0.0, -0.15), fontsize=12, markerscale=1, ncol=2)
+    # legend.get_frame().set_facecolor('lightgrey')
 
     if special is not None:
         iDM = special[0] / ddm
@@ -2880,26 +3060,48 @@ def plot_grid_2(
         axx.plot(zvals, xonly)
 
         # if plotting DM only, put this on the axy axis showing DM distribution
-        if FRBDM is not None:
-            hvals=np.zeros(FRBDM.size)
-            for i,DM in enumerate(FRBDM):
-                if DM > dmvals[-1]:
-                    havls[i] = 0
-                else:
-                    hvals[i] = yonly[np.where(dmvals > DM)[0][0]]
-            
-            axy.plot(hvals,FRBDM,'ro',linestyle="")
-            for tick in axy.yaxis.get_major_ticks():
-                tick.label.set_fontsize(6)
-
-        if FRBZ is not None:
-            OK = np.where(FRBZ > 0)[0]
-            hvals = np.zeros(FRBZ[OK].size)
-            for i, Z in enumerate(FRBZ[OK]):
-                hvals[i] = xonly[np.where(zvals > Z)[0][0]]
-            axx.plot(FRBZ[OK], hvals, "ro", color=data_clr, linestyle="", markersize=markersize)
-            for tick in axx.xaxis.get_major_ticks():
-                tick.label.set_fontsize(6)
+        if FRBDMs is not None:
+            if hasattr(FRBDMs[0], "__len__"):
+                # dealing with a list of lists
+                for FRBDM in FRBDMs:
+                    if FRBDM is not None:
+                        hvals=np.zeros(FRBDM.size)
+                        for i,DM in enumerate(FRBDM):
+                            if DM > dmvals[-1]:
+                                havls[i] = 0
+                            else:
+                                hvals[i] = yonly[np.where(dmvals > DM)[0][0]]
+                    
+                        axy.plot(hvals,FRBDM,'ro',linestyle="")
+                        for tick in axy.yaxis.get_major_ticks():
+                            tick.label.set_fontsize(6)
+            else:
+                hvals=np.zeros(FRBDMs.size)
+                for i,DM in enumerate(FRBDMs):
+                    if DM > dmvals[-1]:
+                        havls[i] = 0
+                    else:
+                        hvals[i] = yonly[np.where(dmvals > DM)[0][0]]
+                axy.plot(hvals,FRBDMs,'ro',linestyle="")
+                
+        if FRBZs is not None:
+            if hasattr(FRBZs[0], "__len__"):
+                # dealing with a list of lists
+                for FRBZ in FRBZs:
+                    if FRBZ is not None:
+                        OK = np.where(FRBZ > 0)[0]
+                        hvals = np.zeros(FRBZ[OK].size)
+                        for i, Z in enumerate(FRBZ[OK]):
+                            hvals[i] = xonly[np.where(zvals > Z)[0][0]]
+                        axx.plot(FRBZ[OK], hvals, "ro", color=data_clr, linestyle="")
+                        for tick in axx.xaxis.get_major_ticks():
+                            tick.label.set_fontsize(6)
+            else:
+                OK = np.where(FRBZs > 0)[0]
+                hvals = np.zeros(FRBZs[OK].size)
+                for i, Z in enumerate(FRBZs[OK]):
+                    hvals[i] = xonly[np.where(zvals > Z)[0][0]]
+                axx.plot(FRBZs[OK], hvals, "ro", linestyle="")
     else:
         cbar = plt.colorbar(im, fraction=0.046, shrink=1.2, aspect=15, pad=0.05)
         cbar.set_label(label)
@@ -2910,7 +3112,7 @@ def plot_grid_2(
 
     if save:
         plt.tight_layout()
-        plt.savefig(name, dpi=300)
+        plt.savefig(name, dpi=300, bbox_inches='tight')
     if showplot:
         plt.show()
     plt.close()

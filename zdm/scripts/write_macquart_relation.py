@@ -11,7 +11,7 @@ import numpy as np
 def main():
     
     # Initialise surveys and grids
-    name='CRAFT_ICS'
+    name='CRAFT_ICS_1300'
     
     # approximate best-fit values from recent analysis
     vparams = {}
@@ -28,6 +28,8 @@ def main():
     
     zvals=np.linspace(0.1,5.,50)
     macquart_relation=pcosmic.get_mean_DM(zvals, g.state)
-    print(macquart_relation)
+    for i,z in enumerate(zvals):
+        print(z,macquart_relation[i])
+    #print(macquart_relation)
     
 main()

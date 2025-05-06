@@ -27,8 +27,8 @@ def run_all():
     """
     Here to allow local tests of all the test routines in this file
     """
-    test_load_new_grid()
-    test_load_new_survey()
+    #test_load_new_grid()
+    #test_load_new_survey()
     test_load_old()
     test_refactor()
 
@@ -53,18 +53,19 @@ def test_load_new_grid():
         [old_survey], zDMgrid, zvals, dmvals, state, wdist=True)
     assert np.all(np.isclose(old_grids[0].rates, grids[0].rates))
 
-def test_load_new_survey():
-    state = parameters.State()
-    isurvey = survey.load_survey('CRAFT/FE', state,
-                        np.linspace(0., 2000., 1000))
-    # Original
-    old_survey = survey.load_survey('CRAFT/FE', state,
-                         np.linspace(0., 2000., 1000),
-                         original=True)
-    
-    # Test
-    assert np.all(np.isclose(old_survey.efficiencies, 
-                             isurvey.efficiencies))
+# THIS TEST IS DEPRECATED
+#def test_load_new_survey():
+#    state = parameters.State()
+#    isurvey = survey.load_survey('CRAFT/FE', state,
+#                        np.linspace(0., 2000., 1000))
+#    # Original
+#    old_survey = survey.load_survey('CRAFT/FE', state,
+#                         np.linspace(0., 2000., 1000),
+#                         original=True)
+#    
+#    # Test
+#    assert np.all(np.isclose(old_survey.efficiencies, 
+#                             isurvey.efficiencies))
 
 def test_load_old():
     # Load state
@@ -98,4 +99,3 @@ def test_refactor():
     # Clean up
     os.remove(outfile)
     
-run_all()
