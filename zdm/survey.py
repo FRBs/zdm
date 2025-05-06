@@ -898,6 +898,7 @@ class Survey:
             
             # now checks for missing data, fills with the default value
             if field.name in frb_tbl.columns:
+                
                 # iterate over fields, checking if they are populated
                 for i,val in enumerate(frb_tbl[field.name]):
                     if isinstance(val,np.ma.core.MaskedArray):
@@ -907,9 +908,7 @@ class Survey:
                 frb_tbl[field.name] = default_value
                 print("WARNING: no ",field.name," found in survey",
                     "replcing with default value of ",default_value)
-            
-            
-            
+        
         self.frbs = frb_tbl.to_pandas()
         
         # Cut down?
@@ -921,6 +920,9 @@ class Survey:
             # Not sure the following linematters given the Error above
             themax = max(NFRB+iFRB,self.NFRB)
             self.frbs=self.frbs[iFRB:themax]
+        
+        # fills in missing coordinates if possible
+        self.fix_coordinates(verbose=False)
         
         # Min latitude
         if min_lat is not None and min_lat > 0.0:
@@ -974,9 +976,6 @@ class Survey:
             self.meta['WIDTH'] = np.median(self.frbs['WIDTH'])
             self.meta['DMG'] = np.mean(self.frbs['DMG'])
         
-        # fills in missing coordinates is possible
-        self.fix_coordinates(verbose=False)
-        
         ### processes galactic contributions
         self.process_dmg()
         
@@ -1024,12 +1023,12 @@ class Survey:
                         print("WARNING: no coordinates calculable for FRB ",i)
                 else:
                     Gb,Gl = misc_functions.j2000_to_galactic(self.frbs['RA'][i], self.frbs['DEC'][i])
-                    self.frbs['Gb'][i] = Gb
-                    self.frbs['Gl'][i] = Gl
+                    self.frbs[i,'Gb'] = Gb
+                    self.frbs[i,'Gl'] = Gl
             elif self.frbs['RA'][i] is None or self.frbs['DEC'][i] is None:
                 RA,Dec = misc_functions.galactic_to_j2000(gl, self.frbs['Gb'][i])
-                self.frbs['RA'][i] = RA
-                self.frbs['DEC'][i] = Dec
+                self.frbs[i,'RA'] = RA
+                self.frbs[i,'DEC'] = Dec
     
     def process_dmg(self):
         """ Estimates galactic DM according to
@@ -1647,7 +1646,7 @@ def refactor_old_survey_file(survey_name:str, outfile:str,
 
     # Vet+populate the FRBs
     vet_frb_table(frbs, mandatory=False, fill=True)
-
+    
     # Add X columns (ancillay)
     for letter in ['A', 'B', 'C', 'D', 'E', 'F', 
                    'G', 'H', 'I', 'J', 'K']:
@@ -1682,8 +1681,15 @@ def refactor_old_survey_file(survey_name:str, outfile:str,
 def vet_frb_table(frb_tbl:pandas.DataFrame,
                   mandatory:bool=False,
                   fill:bool=False):
+    """
+    This should not be necessary anymore, since
+    all required FRB data should be populated with
+    default values. However, it's great as a check. If
+    this complains, it means we have a bug in the
+    replacement with default value procedure.
+    """
     frb_data = survey_data.FRB()
-    # Loop on the stadnard fields
+    # Loop on the standard fields
     for field in frb_data.__dataclass_fields__.keys():
         if field in frb_tbl.keys():
             not_none = frb_tbl[field].values != None
