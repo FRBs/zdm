@@ -8,7 +8,7 @@ from zdm import iteration as it
 
 from zdm import parameters
 from astropy.cosmology import Planck18
-from zdm import MCMC2
+from zdm import MCMC
 
 import argparse
 import matplotlib.pyplot as plt
@@ -16,10 +16,11 @@ import matplotlib.pyplot as plt
 def main():
     
     parser = argparse.ArgumentParser()
-    parser.add_argument(dest='names',type=commasep,help='Survey names')
     parser.add_argument(dest='param',type=str,help="Parameter to do the slice in")
     parser.add_argument(dest='min',type=float,help="Min value")
     parser.add_argument(dest='max',type=float,help="Max value")
+    parser.add_argument('-f', '--files', default=None, nargs='+', type=str, help="Survey file names")
+    # parser.add_argument('-r', '--rep_surveys', default=None, nargs='+', type=str, help="Surveys to consider repeaters in")
     parser.add_argument('-n',dest='n',type=int,default=50,help="Number of values")   
     args = parser.parse_args()
 
@@ -46,19 +47,19 @@ def main():
     dmvals = (np.arange(grid_params['ndm']) + 1) * ddm
     
     surveys = []
-    for survey_name in args.names:
+    for survey_name in args.files:
         s = survey.load_survey(survey_name, state, dmvals)
         surveys.append(s)
     
     outdir = 'cube/' + args.param
     if not os.path.exists(outdir):
-        os.mkdir(outdir)
+        os.makedirs(outdir)
 
     vals = np.linspace(args.min, args.max, args.n)
 
     lls = []
     for val in vals:
-        ll = MCMC2.calc_log_posterior([val], param_dict, [surveys, []], grid_params)
+        ll = MCMC.calc_log_posterior([val], state, param_dict, [surveys, []], grid_params)
         print(ll, val, flush=True)
 
         lls.append(ll)
@@ -71,7 +72,7 @@ def main():
     # plt.plot(vals, llsum2)
     plt.xlabel(args.param)
     plt.ylabel('log likelihood')
-    plt.savefig(outdir + "_MCMC2.pdf")
+    plt.savefig(os.path.join(outdir, args.param + "_MCMC2.pdf"))
 
 #==============================================================================
 """
