@@ -1,14 +1,13 @@
 """
-File: MCMC2.py
+File: MCMC.py
 Author: Jordan Hoffmann
 Date: 06/12/23
 Purpose: 
-    Contains functions used for MCMC runs of the zdm code. MCMC_wrap2.py is the 
+    Contains functions used for MCMC runs of the zdm code. MCMC_wrap.py is the 
     main function which does the calling and this holds functions which do the 
     MCMC analysis.
 
-    This function re-initialises the grids on every run while MCMC.py updates the grid.
-    Typically this run is more efficient than MCMC.py.
+    This function re-initialises the grids on every run
 """
 
 import numpy as np

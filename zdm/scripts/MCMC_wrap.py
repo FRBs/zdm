@@ -1,11 +1,11 @@
 """
-File: MCMC_wrap2.py
+File: MCMC_wrap.py
 Author: Jordan Hoffmann
 Date: 28/09/23
 Purpose: 
     Wrapper file to run MCMC analysis for zdm code. Handles command line
     parameters and loading of surveys, grids and parameters. Actual MCMC
-    analysis functions are in MCMC2.py.
+    analysis functions are in MCMC.py.
 
     scripts/run_mcmc.slurm contains an example sbatch script.
 """
@@ -20,7 +20,7 @@ from astropy.cosmology import Planck18
 from zdm import survey
 from zdm import cosmology as cos
 from zdm import loading
-from zdm import MCMC2
+from zdm import MCMC
 from zdm import parameters
 
 import pickle
@@ -110,7 +110,7 @@ def main():
     if args.outdir != "" and not os.path.exists(args.outdir):
         os.mkdir(args.outdir)
 
-    MCMC2.mcmc_runner(MCMC2.calc_log_posterior, os.path.join(args.outdir, args.opfile), state, params, surveys, 
+    MCMC.mcmc_runner(MCMC.calc_log_posterior, os.path.join(args.outdir, args.opfile), state, params, surveys, 
                         grid_params, nwalkers=args.walkers, nsteps=args.steps, nthreads=args.nthreads, Pn=args.Pn, pNreps=args.pNreps, 
                         log_halo=args.log_halo, lin_host=args.lin_host)
 
