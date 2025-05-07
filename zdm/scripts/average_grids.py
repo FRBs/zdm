@@ -1,6 +1,6 @@
 """
-Tghis file demonstrates how to use MCMC output to sample random walkers, and generate
-zDM grids which include the uncertainty in best-fit parameters.
+This file demonstrates how to use MCMC output to sample random walkers,
+and generate zDM grids which include the uncertainty in best-fit parameters.
 
 It requires an MCMC output to sample from - see the directory data/MCMC/
 for examples.
