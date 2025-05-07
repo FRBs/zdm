@@ -1606,24 +1606,31 @@ def plot_grid_2(
                                 1: Normalise by dm bin
                                 2: Normalise by sum of zDMgrid
                                 3: Normalise by max value of zDMgrid
+                                4: Set peak value at each z to unity
         log (bool, optional): Plot P(z,DM) in log space
         name (str, optional): Outfile name
         label (str, optional): Colourbar label
         ylabel (str,optional): Label on y axis of plot
         project (bool, optional): Add projections of P(z) and P(DM)
-        conts (bool, optional): [description]. Defaults to False.
-        FRBZs (list of 1D arrays, optional): List of FRB Zs to plot (each list can have customised plotting styles, e.g. for different surveys)
+        conts (bool, optional): create contours in probability p(dm|z),
+            at fractional levels set by conts. Defaults to False.
+        FRBZs (list of 1D arrays, optional): List of FRB Zs to plot
+            (each list can have customised plotting styles, e.g. for different surveys)
         FRBDMs (list of 1D arrays, optional): List of FRB DMs to plot (corrseponding to FRBZs)
-        plt_dicts (list of dictionaries, optional): List of dictionaries containing the plotting parameters for each 'set' of data points (corresponding to FRBZs and FRBDMs). E.g. can contain marker, color, label etc
+        plt_dicts (list of dictionaries, optional): List of dictionaries
+                containing the plotting parameters for each 'set' of data points
+                (corresponding to FRBZs and FRBDMs). E.g. can contain marker, color, label etc
         cmap (str, optional): Alternate color map for PDF
-        Aconts (bool, optional): [description]. Defaults to False.
+        Aconts (bool, optional): Create contours in 2D probabilty space, at fractional
+                    levels set by Aconts. Defaults to False.
         Macquart (state, optional): state object.  Used to generate the Maquart relation.
             Defaults to None, i.e. do not show the Macquart relation.
         title (str, optional): Title of the plot
         H0 ([type], optional): [description]. Defaults to None.
         showplot (bool, optional): use plt.show to show plot. Defaults to False.
         DMlines (list, optional): plot lines for unlocalised FRBs at these DMs
-        DMlims (list, optional): plot horizontal lines to indicate the maximum searched DM of a given survey
+        DMlims (list, optional): plot horizontal lines to indicate the
+                        maximum searched DM of a given survey
         clim ([float,float], optional): pair of floats giving colorbar limits.
             Defaults to False (automatic limit)
         special(list,optional): list of [z,dm] values to show as a special big star
@@ -1741,7 +1748,15 @@ def plot_grid_2(
         if othergrids is not None:
             for grid in othergrids:
                 grid /= np.max(grid)
-
+    elif norm == 4:
+        # normalise by peak value in p(DM|z))
+        peaks = np.max(zDMgrid,axis=1)
+        zDMgrid = (zDMgrid.T / peaks).T
+        if othergrids is not None:
+            for grid in othergrids:
+                peaks = np.max(grid,axis=1)
+                grid = (grid.T / peaks).T
+        
     # sets up to plot contour-like things as a function of p(dm given z)
     if pdmgz is not None:
         # gets all values where zsum is not zero
@@ -1867,7 +1882,12 @@ def plot_grid_2(
         if othernames is not None:
             h,=plt.plot([-1e6,-2e6],[-1e6,-2e6],**l_cont_dicts[0],label=othernames[0])
             handles=[h]
-            
+        else:
+            handles=[]
+            for iA,Alevel in enumerate(Aconts):
+                    h,=plt.plot([-1e6,-2e6],[-1e6,-2e6],**l_cont_dicts[iA],label=str(1.-Alevel)+"%")
+            handles.append(h)
+        
         if othergrids is not None:
             for i,grid in enumerate(othergrids):
                 print("size of i in othergrids is ",i)
@@ -1880,8 +1900,7 @@ def plot_grid_2(
                     #    markeredgewidth=plt_dicts[i+1]['markeredgewidth'], color=cont_colours[i+1],label=othernames[i+1])
                     handles.append(h)
     
-            if othernames is not None:
-                plt.legend(handles=handles,loc="lower right")
+            plt.legend(handles=handles,loc="lower right")
     
     
     ###### gets decent axis labels, down to 1 decimal place #######
@@ -1951,10 +1970,13 @@ def plot_grid_2(
     
     # plots contours i there
     if conts:
+        cont_styles=[":","-","--","-."]
         plt.ylim(0, ndm - 1)
         for i in np.arange(nc):
+            cstyle = i%4
             j = int(nc - i - 1)
-            plt.plot(np.arange(nz), carray[j, :], label=str(conts[j]), color="white")
+            plt.plot(np.arange(nz), carray[j, :], label=str(int(conts[j]*100))+"%", color="white",\
+                    linestyle=cont_styles[cstyle])
         l = plt.legend(loc="upper left", fontsize=8)
         # l=plt.legend(bbox_to_anchor=(0.2, 0.8),fontsize=8)
         for text in l.get_texts():
@@ -2023,7 +2045,7 @@ def plot_grid_2(
             OK = np.where(FRBDMs > 0)[0]
             iDMs = FRBDMs / ddm
             iZ = FRBZs / dz
-            plt.plot(iZ[OK], iDMs[OK], linestyle="")
+            plt.plot(iZ[OK], iDMs[OK], 'ro',linestyle="")
             
     legend = plt.legend(loc='upper left')
     # legend = plt.legend(loc='upper left', bbox_to_anchor=(0.0, -0.15), fontsize=12, markerscale=1, ncol=2)
@@ -2042,8 +2064,10 @@ def plot_grid_2(
         )
         cbar.ax.tick_params(labelsize=6)
         cbar.set_label(label, fontsize=8)
-
+        
         axy.set_yticklabels([])
+        axy.set_ylim(0,DMmax)
+        axx.set_xlim(0,zmax)
         # axy.set_xticklabels([])
         # axx.set_yticklabels([])
         axx.set_xticklabels([])
@@ -2103,12 +2127,18 @@ def plot_grid_2(
 
     if title is not None:
         plt.title(title)
-
+    
+    # checks if we still need the legend
+    h,l = ax.get_legend_handles_labels()
+    if len(h) == 0:
+        # no handles in legend
+        ax.get_legend().remove()
     if save:
         plt.tight_layout()
         plt.savefig(name, dpi=300, bbox_inches='tight')
     if showplot:
         plt.show()
+    
     plt.close()
 
 
