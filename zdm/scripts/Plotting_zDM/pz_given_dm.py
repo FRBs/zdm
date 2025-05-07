@@ -1,4 +1,8 @@
-""" Calculate p(z|DM) for a given DM and survey
+""" 
+Calculate p(z|DM) for a given DM and survey
+
+Used to estimate redshift for a given detected, but
+not localised, FRB.
 """
 
 # It should be possible to remove all the matplotlib calls from this
