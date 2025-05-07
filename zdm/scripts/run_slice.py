@@ -7,7 +7,7 @@ from zdm import iteration as it
 
 from zdm import parameters
 from zdm import repeat_grid as zdm_repeat_grid
-from zdm import MCMC2
+from zdm import MCMC
 from zdm import survey
 from astropy.cosmology import Planck18
 
@@ -39,13 +39,17 @@ def main():
     #             'lmean': 2.1198711983468064, 'lsigma': 0.44944780033763343, 
     #             'lEmax': 41.18671139482926, 'lEmin': 39.81049090314043, 'gamma': -1.1558450520609953, 
     #             'H0': 54.6887137195215, 'halo_method': 0, 'sigmaDMG': 0.0, 'sigmaHalo': 0.0, 'min_lat': 30.0}
-    
-    # state.update_params(param_dict)
+    param_dict={'sfr_n': 1.7294049204398037, 'alpha': 1.4859524003747502, 
+                 'lmean': 2.3007428869522486, 'lsigma': 0.396300210604263, 
+                 'lEmax': 41.0, 'lEmin': 38.35533894604933, 'gamma': 0.6032500201815869, 
+                 'H0': 70.51322705185869, 'DMhalo': 39.800465306883666}
+    # param_dict={'lEmax': 40.578551786703116}
+    state.update_params(param_dict)
 
     state.update_param('Rgamma', -2.2)
     state.update_param('lRmax', 3.0)
     state.update_param('lRmin', -4.0)
-    state.update_param('min_lat', 0.0)
+    state.update_param('min_lat', 30.0)
 
     # Initialise surveys
     surveys_sep = [[], []]
@@ -75,14 +79,14 @@ def main():
     
     outdir = 'cube/' + args.param + '/'
     if not os.path.exists(outdir):
-        os.mkdir(outdir)
+        os.makedirs(outdir)
 
     ll_lists = []
     for val in vals:
         print("val:", val)
         param = {args.param: {'min': -np.inf, 'max': np.inf}}
 
-        ll, ll_list = MCMC2.calc_log_posterior([val], state, param, surveys_sep, grid_params, ind_surveys=True)
+        ll, ll_list = MCMC.calc_log_posterior([val], state, param, surveys_sep, grid_params, ind_surveys=True, psnr=True)
         print(ll, ll_list)
         ll_lists.append(ll_list)
         t2 = time.time()
