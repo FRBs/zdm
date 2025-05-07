@@ -1,4 +1,14 @@
-""" Calculate p(DM|z) for a given DM and survey
+""" 
+Calculate and plot p(DM|z) for a given z and survey
+
+Typically, this is used for estimating the relative DM
+excess for an already localised FRB
+
+Usage example:
+python pdm_given_z.py -z 1.5 -s CRAFT_ICS_1300
+
+Outputs:
+dm_component_probabilities.png
 """
 
 import argparse
@@ -19,24 +29,28 @@ def main(pargs):
     from zdm import misc_functions
     
     
-    
-    plot_mean_dm()
+    if False:
+        # just plots the Macquart relation, and prints out expectation values
+        plot_mean_dm()
     
     limits = (2.5, 97.5)
 
     # Set parmaeters
     state = parameters.State()
-    state.host.lmean = pargs.host_lmean
-    state.host.lsigma = pargs.host_lsigma
-    state.energy.luminosity_function = 2  # Gamma + spline
+    if pargs.host_lmean is not None:
+        state.host.lmean = pargs.host_lmean
+    if pargs.host_lsigma is not None:
+        state.host.lsigma = pargs.host_lsigma
+    
 
     # Cosmology
     cos.set_cosmology(state)
     cos.init_dist_measures()
 
     # get the grid of p(DM|z)
+    dmmax=2000
     zDMgrid, zvals,dmvals = misc_functions.get_zdm_grid(
-        state, new=True, plot=False, method='analytic',zmax=1,dmmax=2000)
+        state, new=True, plot=False, method='analytic',zmax=1,dmmax=dmmax)
 
     # Survey
     isurvey = survey.load_survey(pargs.survey, state, dmvals)
@@ -49,7 +63,7 @@ def main(pargs):
     PDM_z = igrid.rates # This is p(DM,z) including telescope bias
 
     # Find z in the grid
-    iz = np.argmin(np.abs(zvals - pargs.z))
+    iz = np.argmin(np.abs(zvals - pargs.redshift))
     PDMz = PDM_z[iz, :] / np.sum(PDM_z[iz, :])
     
     # gets values of IGM only and also unbiased estimates
@@ -71,7 +85,7 @@ def main(pargs):
     ax = plt.gca()
     ax.plot(dmvals, PDMz,label='p(DM|z)')
     ax.plot(dmvals, PDMz_unbiased,color='orange',label='intrinsic (no bias)')
-    ax.plot(dmvals, PDMz_igm_only,color='green',label='DM_IGM only')
+    ax.plot(dmvals, PDMz_igm_only,color='green',label='DM$_{\\rm cosmic}$ only')
     plt.ylim(0,0.006)
 
     # Limits
@@ -89,22 +103,23 @@ def main(pargs):
 
     ax.set_xlim(0, DM_EG_max*1.5)
 
-    ax.legend(fontsize=15.)
+    ax.legend(fontsize=10.)
 
     ax.set_xlabel(r'DM$_{\rm EG}$')
     ax.set_ylabel('P(DM_EG|z) [Normalized]')
     set_fontsize(ax, 15.)
     
-    plt.savefig('other_lines_added.pdf')
+    plt.tight_layout()
+    plt.savefig('dm_component_probabilities.png')
         
 
 def parse_args(options=None):
     # test for command-line arguments here
     parser = argparse.ArgumentParser()
-    parser.add_argument("z", type=float, help="FRB redshift")
-    parser.add_argument('-s','--survey',type=str, default='CRAFT/ICS', help="Name of survey [CRAFT/ICS, PKS/Mb]")
-    parser.add_argument("--host_lmean", type=float, default=2.16, help="Log10 mean of DM host contribution (log normal)")
-    parser.add_argument("--host_lsigma", type=float, default=0.51, help="Log10 sigma of DM host contribution (log normal)")
+    parser.add_argument('-z','--redshift', type=float,default=1.015, help="FRB redshift")
+    parser.add_argument('-s','--survey',type=str, default='CRAFT_ICS_1300', help="Name of survey [e.g. CRAFT_ICS_1300]")
+    parser.add_argument("--host_lmean", type=float, default=None, help="Log10 mean of DM host contribution (log normal)")
+    parser.add_argument("--host_lsigma", type=float, default=None, help="Log10 sigma of DM host contribution (log normal)")
     args = parser.parse_args()
     return args
 
