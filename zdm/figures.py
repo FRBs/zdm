@@ -99,6 +99,8 @@ def plot_grid(
         p_cmap = cmr.arctic
         data_clrs = p_cmap(np.linspace(0.2, 0.8, len(FRBDMs)))
         plt_dicts = [{'color': clr, 'marker': 'o'} for clr in data_clrs]
+    elif isinstance(plt_dicts, dict):
+        plt_dicts = [plt_dicts]
 
     if Aconts:
         linestyles = ['--', '-.', ':', '-']
@@ -393,13 +395,13 @@ def plot_grid(
             zstop = kDM * zvals[stop2] + (1.0 - kDM) * zvals[stop1]
             zstop /= zvals[1] - zvals[0]
             DM /= dmvals[1] - dmvals[0]
-            plt.plot([0, zstop], [DM, DM], color=data_clr, linestyle=":")
+            plt.plot([0, zstop], [DM, DM], color=plt_dicts[0]['color'], linestyle=":")
 
     if DMlims is not None:
         for DMlim in DMlims:
             if DMlim is not None and DMlim < DMmax:
                 DMlim /= dmvals[1] - dmvals[0]
-                ax.axhline(DMlim, 0, 1, color='white', linestyle="-")
+                ax.axhline(DMlim, 0, 1, color='k', linestyle="-")
 
     # performs plots for the pdmgz variable
     if pdmgz is not None:
@@ -535,9 +537,9 @@ def plot_grid(
                             else:
                                 hvals[i] = yonly[np.where(dmvals > DM)[0][0]]
                     
-                        axy.plot(hvals,FRBDM,'ro',linestyle="")
+                        axy.plot(hvals,FRBDM,'ro', linestyle="")
                         for tick in axy.yaxis.get_major_ticks():
-                            tick.label.set_fontsize(6)
+                            tick.label1.set_fontsize(6)
             else:
                 hvals=np.zeros(FRBDMs.size)
                 for i,DM in enumerate(FRBDMs):
@@ -556,9 +558,9 @@ def plot_grid(
                         hvals = np.zeros(FRBZ[OK].size)
                         for i, Z in enumerate(FRBZ[OK]):
                             hvals[i] = xonly[np.where(zvals > Z)[0][0]]
-                        axx.plot(FRBZ[OK], hvals, "ro", color=data_clr, linestyle="")
+                        axx.plot(FRBZ[OK], hvals, "ro", linestyle="")
                         for tick in axx.xaxis.get_major_ticks():
-                            tick.label.set_fontsize(6)
+                            tick.label1.set_fontsize(6)
             else:
                 OK = np.where(FRBZs > 0)[0]
                 hvals = np.zeros(FRBZs[OK].size)
