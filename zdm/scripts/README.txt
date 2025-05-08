@@ -16,3 +16,6 @@ Scripts to illustrate certain effects.
 
 MCMC
 Scripts related to, or requiring, a Markov Chain Monte Carlo run
+
+slurm
+Scripts for submitting slurm jobs
