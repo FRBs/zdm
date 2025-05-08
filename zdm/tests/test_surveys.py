@@ -12,6 +12,7 @@ from zdm import parameters
 from zdm import cosmology as cos
 from zdm.tests import tstutils 
 from zdm import misc_functions
+from zdm import figures
 
 import pytest
 
