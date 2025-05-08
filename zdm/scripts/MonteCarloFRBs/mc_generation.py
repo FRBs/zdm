@@ -37,7 +37,7 @@ Plots get generated at each iteration. These are:
 import os
 
 from zdm import cosmology as cos
-from zdm import misc_functions
+from zdm import figures
 from zdm import parameters
 from zdm import survey
 from zdm import pcosmic
@@ -224,12 +224,12 @@ def main():
     
     # zDM 2D plot
     # plots the p(DMEG (host + cosmic)|z) grid
-    misc_functions.plot_grid_2(zDMhist,g.zvals,g.dmvals,
+    figures.plot_grid(zDMhist,g.zvals,g.dmvals,
         name='MCzDM.pdf',norm=3,log=False,
         label='$\\log_{10} p({\\rm DM}_{\\rm IGM} + {\\rm DM}_{\\rm host}|z)$ [a.u.]',
         project=False)
     
-    misc_functions.plot_grid_2(g.rates,g.zvals,g.dmvals,
+    figures.plot_grid(g.rates,g.zvals,g.dmvals,
         name='grid_expectation.pdf',norm=3,log=False,
         label='$\\log_{10} p({\\rm DM}_{\\rm IGM} + {\\rm DM}_{\\rm host}|z)$ [a.u.]',
         project=False)
@@ -238,7 +238,7 @@ def main():
     zDMerr = (expectation * NFRB)**0.5 / NFRB
     rel_err = (zDMhist - expectation)/zDMhisterr
     
-    misc_functions.plot_grid_2(rel_err,g.zvals,g.dmvals,
+    figures.plot_grid(rel_err,g.zvals,g.dmvals,
         name='rel_zDM_err.pdf',norm=3,log=False,
         label='$\\sigma$ deviation',
         project=False)
