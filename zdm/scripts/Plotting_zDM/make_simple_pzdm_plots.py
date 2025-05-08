@@ -17,7 +17,7 @@ directory for the nuanced plotting of particular surveys.
 import os
 
 from zdm import cosmology as cos
-from zdm import misc_functions
+from zdm import figures
 from zdm import parameters
 from zdm import survey
 from zdm import pcosmic
@@ -79,7 +79,7 @@ def main():
     
     ######### Create a plot of p(z,DM) and show FRBs ##################
     # in the below, set "project" to False to create only a single 2D plot
-    misc_functions.plot_grid_2(
+    figures.plot_grid(
                 g.rates,
                 g.zvals,
                 g.dmvals,
@@ -96,7 +96,7 @@ def main():
                 )
     
     ######### Create a plot of p(DMEG|z) and show FRBs ##################
-    misc_functions.plot_grid_2(
+    figures.plot_grid(
                 g.smear_grid,
                 g.zvals,
                 g.dmvals,
@@ -114,7 +114,7 @@ def main():
     
     
     ######### Create a plot of p(DMcosmic|z) and show FRBs ##################
-    misc_functions.plot_grid_2(
+    figures.plot_grid(
                 g.grid,
                 g.zvals,
                 g.dmvals,

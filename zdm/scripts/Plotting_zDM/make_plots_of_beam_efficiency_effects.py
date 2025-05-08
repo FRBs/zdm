@@ -25,7 +25,7 @@ pEG_beam_effect.pdf: shows p(DM,z) as with efficiency above,
 import os
 
 from zdm import cosmology as cos
-from zdm import misc_functions
+from zdm import figures
 from zdm import parameters
 from zdm import survey
 from zdm import pcosmic
@@ -86,7 +86,7 @@ def main():
     g.calc_rates()
     
     
-    misc_functions.plot_grid_2(g.rates,g.zvals,g.dmvals,
+    figures.plot_grid(g.rates,g.zvals,g.dmvals,
         name=opdir+survey_name+'_pEG_perfect_survey.pdf',norm=3,log=True,
         label='$\\log_{10} p({\\rm DM}_{\\rm EG},z|B=1,\\epsilon=1)$ [a.u.]',
         project=False,ylabel='${\\rm DM}_{\\rm EG} = {\\rm DM}_{\\rm cosmic} + {\\rm DM}_{\\rm host}$',
@@ -100,7 +100,7 @@ def main():
     ####### Applies beamshape effect only #######
     g.calc_pdv(beam_b=orig_beam_b,beam_o=orig_beam_o)
     g.calc_rates()
-    misc_functions.plot_grid_2(g.rates,g.zvals,g.dmvals,
+    figures.plot_grid(g.rates,g.zvals,g.dmvals,
         name=opdir+survey_name+'_pEG_beam_effect.pdf',norm=3,log=True,
         label='$\\log_{10} p({\\rm DM}_{\\rm EG},z|\\epsilon=1)$ [a.u.]',
         project=False,ylabel='${\\rm DM}_{\\rm EG} = {\\rm DM}_{\\rm cosmic} + {\\rm DM}_{\\rm host}$',
@@ -111,7 +111,7 @@ def main():
     g.calc_thresholds(s.meta['THRESH'],s.efficiencies,weights=s.wplist)
     g.calc_pdv(beam_b=np.array([1.]),beam_o=np.array([1.]))
     g.calc_rates()
-    misc_functions.plot_grid_2(g.rates,g.zvals,g.dmvals,
+    figures.plot_grid(g.rates,g.zvals,g.dmvals,
         name=opdir+survey_name+'_pEG_efficiency_effect.pdf',norm=3,log=True,
         label='$\\log_{10} p({\\rm DM}_{\\rm IGM} + {\\rm DM}_{\\rm host},z|b=1)$ [a.u.]',
         project=False,ylabel='${\\rm DM}_{\\rm IGM} + {\\rm DM}_{\\rm host}$',

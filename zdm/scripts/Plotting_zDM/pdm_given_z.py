@@ -26,7 +26,7 @@ def main(pargs):
     from zdm import survey
     from zdm import parameters
     from zdm import cosmology as cos
-    from zdm import misc_functions
+    from zdm import figures
     
     
     if False:
@@ -49,14 +49,14 @@ def main(pargs):
 
     # get the grid of p(DM|z)
     dmmax=2000
-    zDMgrid, zvals,dmvals = misc_functions.get_zdm_grid(
+    zDMgrid, zvals,dmvals = figures.get_zdm_grid(
         state, new=True, plot=False, method='analytic',zmax=1,dmmax=dmmax)
 
     # Survey
     isurvey = survey.load_survey(pargs.survey, state, dmvals)
 
     # Grid
-    igrid = misc_functions.initialise_grids(
+    igrid = figures.initialise_grids(
         [isurvey], zDMgrid, zvals, dmvals, state, wdist=True)[0]
     
     

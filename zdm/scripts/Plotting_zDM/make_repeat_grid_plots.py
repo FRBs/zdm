@@ -13,7 +13,7 @@ We expect 1 = 2+4 (if not, it's a bug!)
 """
 import os
 from pkg_resources import resource_filename
-from zdm import misc_functions
+from zdm import figures
 from zdm import parameters
 from zdm import iteration as it
 from zdm import loading as loading
@@ -66,22 +66,22 @@ def main():
     #newC,llC=it.minimise_const_only(None,[g],[s])
     
     ############# do 2D plots ##########
-    misc_functions.plot_grid_2(g.rates,g.zvals,g.dmvals,
+    figures.plot_grid(g.rates,g.zvals,g.dmvals,
         name=opdir+survey_name+'all_frbs.pdf',norm=3,log=True,label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$  [a.u.]',
         project=False,FRBDMs=s.DMEGs,FRBZs=s.frbs["Z"],Aconts=[0.01,0.1,0.5],zmax=1.5,
         DMmax=1500)
     
-    misc_functions.plot_grid_2(g.exact_singles,g.zvals,g.dmvals,
+    figures.plot_grid(g.exact_singles,g.zvals,g.dmvals,
         name=opdir+survey_name+'single_frbs.pdf',norm=3,log=True,label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$  [a.u.]',
         project=False,FRBDMs=s.DMEGs,FRBZs=s.frbs["Z"],Aconts=[0.01,0.1,0.5],zmax=1.5,
         DMmax=1500)
     
-    misc_functions.plot_grid_2(g.exact_reps,g.zvals,g.dmvals,
+    figures.plot_grid(g.exact_reps,g.zvals,g.dmvals,
         name=opdir+survey_name+'repeating_sources.pdf',norm=3,log=True,label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$  [a.u.]',
         project=False,FRBDMs=s.DMEGs,FRBZs=s.frbs["Z"],Aconts=[0.01,0.1,0.5],zmax=1.5,
         DMmax=1500)
     
-    misc_functions.plot_grid_2(g.exact_rep_bursts,g.zvals,g.dmvals,
+    figures.plot_grid(g.exact_rep_bursts,g.zvals,g.dmvals,
         name=opdir+survey_name+'bursts_from_repeaters.pdf',norm=3,log=True,label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$  [a.u.]',
         project=False,FRBDMs=s.DMEGs,FRBZs=s.frbs["Z"],Aconts=[0.01,0.1,0.5],zmax=1.5,
         DMmax=1500)
