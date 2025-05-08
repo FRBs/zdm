@@ -19,6 +19,7 @@ from zdm import survey
 import numpy as np
 from zdm import parameters
 from astropy.cosmology import Planck18
+from zdm import figures
 from zdm import misc_functions as mf
 from zdm import grid as zdm_grid
 import copy
@@ -80,7 +81,7 @@ def main():
     
     
     # Do plotting
-    mf.plot_grid_2(
+    figures.plot_grid(
         av_rates,
         grid_vals[1],
         grid_vals[2],
@@ -95,7 +96,7 @@ def main():
         )
     
     for i, rate in enumerate(rates):
-        mf.plot_grid_2(
+        figures.plot_grid(
             rate,
             grid_vals[1],
             grid_vals[2],

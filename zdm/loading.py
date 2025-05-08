@@ -12,6 +12,7 @@ from zdm import survey
 from zdm import parameters
 from zdm import cosmology as cos
 from zdm import misc_functions
+from zdm import figures
 
 from IPython import embed
 
@@ -83,6 +84,100 @@ def set_state(alpha_method=1, cosmo=Planck18):
     # Return
     return state
 
+
+def load_CHIME(Nbin:int=6, make_plots:bool=False, opdir='CHIME/',\
+                Verbose=False,state=None):
+    """
+    Loads CHIME grids
+    Nbins is the number of declination bins to use
+
+    Args:
+        Nbin (int, optional): Number of declination bins to use. Defaults to 6.
+           30 is allowed too
+        make_plots (bool, optional): Whether to make plots. Defaults to False.
+
+    Returns:
+        tuple: 
+            dmvals (np.ndarray): 1D array of DM values
+            zvals (np.ndarray): 1D array of redshift values
+            all_rates (np.ndarray): 2D array of rates
+            all_singles (np.ndarray): 2D array of single FRB rates
+            all_reps (np.ndarray): 2D array of repeating FRB rates
+        
+    """
+    
+    if not os.path.exists(opdir) and make_plots:
+        os.mkdir(opdir)
+    
+    # gets the possible states for evaluation
+    #pset = st.james_fit()
+    #state = st.set_state(pset)
+    
+    # loads survey data
+    sdir = resource_filename('zdm','data/Surveys/CHIME/')
+    if Verbose:
+        print("Loading CHIME surveys from ",sdir)
+    
+    # loads beam data
+
+    #bounds = np.load(beams.beams_path+'bounds.npy')
+    #solids = np.load(beams.beams_path+'solids.npy')
+    
+    names=[]
+    # Loops through CHIME declination bins
+    for ibin in np.arange(Nbin):
+        name = "CHIME_decbin_"+str(ibin)+"_of_"+str(Nbin)
+        names.append(name)
+    
+    # loads grids
+    ss,rgs = surveys_and_grids(survey_names=names,sdir=sdir,
+        init_state=state,repeaters=True)#,init_state=state)
+    
+    # sums outputs
+    for ibin in np.arange(Nbin):
+        s = ss[ibin]
+        rg = rgs[ibin]
+        if Verbose:
+            print("Loaded dec bin ",ibin)
+        
+        # The below is specific to CHIME data. For CRAFT and other
+        # FRB surveys, do not use "bmethod=2", and you will have to
+        # enter the time per field and Nfields manually.
+        # Also, for other surveys, you do not need to iterate over
+        # declination bins!
+        # rg = rep.repeat_Grid(g,Tfield=s.TOBS,Nfields=1,MC=False,opdir=None,bmethod=2)
+        if Verbose:
+            print("Loaded repeat grid")
+        
+        if ibin==0:
+            all_rates = rg.rates
+            all_singles = rg.exact_singles
+            all_reps = rg.exact_reps
+        else:
+            all_rates = all_rates + rg.rates
+            all_singles = all_singles + rg.exact_singles
+            all_reps = all_reps + rg.exact_reps
+        
+    if make_plots:
+        figures.plot_grid(all_rates,rg.zvals,rg.dmvals,
+                name=opdir+'all_CHIME_FRBs.pdf',norm=3,log=True,
+                label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$ [a.u.]',
+                project=False,Aconts=[0.01,0.1,0.5],
+                zmax=3.0,DMmax=3000)
+        
+        figures.plot_grid(all_reps,rg.zvals,rg.dmvals,
+                name=opdir+'repeating_CHIME_FRBs.pdf',norm=3,log=True,
+                label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$ [a.u.]',
+                project=False,Aconts=[0.01,0.1,0.5],
+                zmax=1.0,DMmax=1000)
+        
+        figures.plot_grid(all_singles,rg.zvals,rg.dmvals,
+                name=opdir+'single_CHIME_FRBs.pdf',norm=3,log=True,
+                label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$ [a.u.]',
+                project=False,Aconts=[0.01,0.1,0.5],
+                zmax=3.0,DMmax=3000)
+
+    return ss,rgs,all_rates, all_singles, all_reps
 
 def surveys_and_grids(init_state=None, alpha_method=1, 
                       survey_names=None,

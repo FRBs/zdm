@@ -836,7 +836,8 @@ def test_pks_beam(
 
     if not os.path.isdir(outdir):
         os.mkdir(outdir)
-
+    
+    from zdm import figures
     # get parameter values
     lEmin, lEmax, alpha, gamma, sfr_n, logmean, logsigma = pset
     Emin = 10 ** lEmin
@@ -880,7 +881,7 @@ def test_pks_beam(
             )  # calculates volumetric-weighted probabilities
             grid.calc_rates()  # calculates rates by multiplying above with pdm plot
             name = outdir + "rates_" + s.meta["BEAM"] + ".pdf"
-            plot_grid_2(
+            figures.plot_grid(
                 grid.rates,
                 grid.zvals,
                 grid.dmvals,
@@ -1046,7 +1047,7 @@ def test_beam_rates(
 
     # zmax=4
     # DMmax=4000
-
+    from zdm import figures
     if not os.path.isdir(outdir):
         os.mkdir(outdir)
 
@@ -1113,7 +1114,7 @@ def test_beam_rates(
             + str(nbins)
             + ".pdf"
         )
-        plot_grid_2(
+        figures.plot_grid(
             grid.rates,
             grid.zvals,
             grid.dmvals,
@@ -1243,7 +1244,7 @@ def test_beam_rates(
             + ".pdf"
         )
 
-        plot_grid_2(
+        figures.plot_grid(
             diff,
             grid.zvals,
             grid.dmvals,
@@ -1266,7 +1267,7 @@ def test_beam_rates(
             + str(binset[i])
             + ".pdf"
         )
-        plot_grid_2(
+        figures.plot_grid(
             diff,
             grid.zvals,
             grid.dmvals,
