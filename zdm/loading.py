@@ -181,7 +181,6 @@ def load_CHIME(Nbin:int=6, make_plots:bool=False, opdir='CHIME/',\
 
 def surveys_and_grids(init_state=None, alpha_method=1, 
                       survey_names=None,
-                      add_20220610A=False,
                       nz:int=500, ndm:int=1400,
                       NFRB=None, repeaters=False,
                       sdir=None, edir=None,
@@ -238,8 +237,6 @@ def surveys_and_grids(init_state=None, alpha_method=1,
                     'CRAFT_ICS_892', 
                     'CRAFT_ICS_1300',
                     'PKS/Mb']
-    if add_20220610A:
-        survey_names[3] = 'CRAFT_ICS_w_220610'
 
     surveys = []
     for survey_name in survey_names:
