@@ -1122,3 +1122,24 @@ def minimise_const_only(vparams:dict,grids:list,surveys:list,
                 g.Rc = g.state.rep.RC
 
     return newC,llC
+
+def parse_input_dict(input_dict:dict):
+    """ Method to parse the input dict for generating a cube
+    It is split up into its various pieces
+
+    Args:
+        input_dict (dict): [description]
+
+    Returns:
+        tuple: dicts (can be empty):  state, cube, input
+        
+    This is almost deprecated, but not quite!
+    """
+    state_dict, cube_dict = {}, {}
+    # 
+    if 'state' in input_dict.keys():
+        state_dict = input_dict.pop('state')
+    if 'cube' in input_dict.keys():
+        cube_dict = input_dict.pop('cube')
+    # Return 
+    return state_dict, cube_dict, input_dict
