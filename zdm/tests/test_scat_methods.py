@@ -8,11 +8,11 @@ import pytest
 
 #from astropy.cosmology import Planck18
 
-from zdm import misc_functions
+from zdm import figures
 from zdm import survey
 from zdm import pcosmic
 from zdm import iteration as it
-from zdm.craco import loading
+from zdm import loading
 from zdm import io
 from zdm.tests import tstutils
 
@@ -48,11 +48,12 @@ def test_scat_methods():
     # For this purporse, we only need two different surveys
     sdir = os.path.join(resource_filename('zdm', 'data'), 'Surveys')
     name = 'CRAFT/ICS892'
-    s1,g1 = loading.survey_and_grid(
+    s1,g1 = loading.surveys_and_grids(
         state_dict=vparam_dict1,
         sdir=sdir,
-        survey_name=name,NFRB=None) # should be equal to actual number of FRBs, but for this purpose it doesn't matter
-    
+        survey_names=[name],NFRB=None) # should be equal to actual number of FRBs, but for this purpose it doesn't matter
+    s1=s1[0]
+    g1=g1[0]
     ############## Load up new model ##############
     input_dict=io.process_jfile(tstutils.data_path('scat_test_new.json'))
 
@@ -61,27 +62,28 @@ def test_scat_methods():
     
     # Initialise survey and grid
     # For this purporse, we only need two different surveys
-    s2,g2 = loading.survey_and_grid(
+    s2,g2 = loading.surveys_and_grids(
         state_dict=vparam_dict2,
         sdir=sdir,
-        survey_name=name,NFRB=None) # should be equal to actual number of FRBs, but for this purpose it doesn't matter
-    
+        survey_names=[name],NFRB=None) # should be equal to actual number of FRBs, but for this purpose it doesn't matter
+    s2=s2[0]
+    g2=g2[0]
     # Plots?
     if not op:
         return
     
     
     ############# do 2D plots ##########
-    misc_functions.plot_grid_2(g1.rates,g1.zvals,g1.dmvals,
+    figures.plot_grid(g1.rates,g1.zvals,g1.dmvals,
         name=opdir+'/CRAFT_ICS892_old_scat.pdf',norm=0,log=True,label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$',
         project=True,FRBDM=s1.DMEGs,FRBZ=s1.frbs["Z"],Aconts=[0.01,0.1,0.5])
     
-    misc_functions.plot_grid_2(g2.rates,g2.zvals,g2.dmvals,
+    figures.plot_grid(g2.rates,g2.zvals,g2.dmvals,
         name=opdir+'/CRAFT_ICS892_new_scat.pdf',norm=0,log=True,label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$',
         project=True,FRBDM=s2.DMEGs,FRBZ=s2.frbs["Z"],Aconts=[0.01,0.1,0.5])
     
     # second rates are higher. Why?
-    misc_functions.plot_grid_2((g2.rates-g1.rates)/g1.rates,g2.zvals,g2.dmvals,
+    figures.plot_grid((g2.rates-g1.rates)/g1.rates,g2.zvals,g2.dmvals,
         name=opdir+'/CRAFT_ICS892_diff_scat.pdf',norm=0,log=False,label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$',
         project=True,FRBDM=s2.DMEGs,FRBZ=s2.frbs["Z"])
     

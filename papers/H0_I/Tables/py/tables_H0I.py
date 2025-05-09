@@ -5,7 +5,7 @@ import os, sys
 import pandas
 
 
-from zdm.craco import loading
+from zdm.MC_sample import loading
 from zdm import survey
 from zdm import parameters
 from zdm import misc_functions

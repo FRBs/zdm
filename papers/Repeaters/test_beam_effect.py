@@ -11,7 +11,7 @@ from zdm import parameters
 from zdm import survey
 from zdm import pcosmic
 from zdm import iteration as it
-from zdm.craco import loading
+from zdm.MC_sample import loading
 from zdm import io
 from zdm import repeat_grid as rep
 from zdm import beams

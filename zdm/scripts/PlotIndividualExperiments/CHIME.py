@@ -13,13 +13,14 @@ from pkg_resources import resource_filename
 # zdm imports
 from zdm import loading
 from zdm import parameters
-from zdm import misc_functions
+from zdm import figures
 
 def main():
     '''
     Main program to evaluate log0-likelihoods and predictions for
     repeat grids
     '''
+    
     opname="CHIME"
     opdir = opname+'/'
     
@@ -29,13 +30,9 @@ def main():
     # sets basic state and cosmology
     state = parameters.State()
     state.set_astropy_cosmo(Planck18)
-    param_dict={'sfr_n': 0.8808527057055584, 'alpha': 0.7895161131856694,
-                'lmean': 2.1198711983468064, 'lsigma': 0.44944780033763343,
-                'lEmax': 41.18671139482926, 'lEmin': 39.81049090314043,
-                'gamma': -1.1558450520609953, 'H0': 54.6887137195215,
-                'sigmaDMG': 0.0, 'sigmaHalo': 0.0,'lC': -7.61}
-    state.update_params(param_dict)
     
+    # shortest method to load CHIME grids. Slightly expanded below
+    #ss,rgs,all_rates, all_singles, all_reps = loading.load_CHIME(state=state)
     
     # defines CHIME grids to load
     NDECBINS=6
@@ -73,19 +70,19 @@ def main():
     s=ss[0]
     g=gs[0]
     name = names[0]
-    misc_functions.plot_grid_2(rates,g.zvals,g.dmvals,
+    figures.plot_grid(rates,g.zvals,g.dmvals,
         name=opdir+opname+"total_zDM.pdf",norm=3,log=True,
         label='$\\log_{10} p({\\rm DM}_{\\rm IGM} + {\\rm DM}_{\\rm host},z)$ [a.u.]',
         project=False,ylabel='${\\rm DM}_{\\rm IGM} + {\\rm DM}_{\\rm host}$',
         zmax=zmax,DMmax=DMmax,Aconts=[0.01,0.1,0.5])
     
-    misc_functions.plot_grid_2(reps,g.zvals,g.dmvals,
+    figures.plot_grid(reps,g.zvals,g.dmvals,
         name=opdir+opname+"reps_zDM.pdf",norm=3,log=True,
         label='$\\log_{10} p({\\rm DM}_{\\rm IGM} + {\\rm DM}_{\\rm host},z)$ [a.u.]',
         project=False,ylabel='${\\rm DM}_{\\rm IGM} + {\\rm DM}_{\\rm host}$',
         zmax=zmax,DMmax=DMmax,Aconts=[0.01,0.1,0.5])
         
-    misc_functions.plot_grid_2(singles,g.zvals,g.dmvals,
+    figures.plot_grid(singles,g.zvals,g.dmvals,
         name=opdir+opname+"singles_zDM.pdf",norm=3,log=True,
         label='$\\log_{10} p({\\rm DM}_{\\rm IGM} + {\\rm DM}_{\\rm host},z)$ [a.u.]',
         project=False,ylabel='${\\rm DM}_{\\rm IGM} + {\\rm DM}_{\\rm host}$',

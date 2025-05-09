@@ -3,7 +3,7 @@ import numpy as np
 import os
 
 from zdm import loading
-from zdm import misc_functions
+from zdm import figures
 from zdm import iteration as it
 
 from zdm import parameters
@@ -116,7 +116,7 @@ def plot_grids(grids, surveys, outdir, val):
         frbzvals = np.array(zvals)
         frbdmvals = np.array(dmvals)
 
-        misc_functions.plot_grid_2(
+        figures.plot_grid(
             g.rates,
             g.zvals,
             g.dmvals,

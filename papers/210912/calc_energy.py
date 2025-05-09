@@ -2,7 +2,7 @@
 This script performs simple calculations to estimate the true energy of the FRB
 """
 
-from zdm.craco import loading
+from zdm.MC_sample import loading
 import numpy as np
 from zdm import cosmology as cos
 

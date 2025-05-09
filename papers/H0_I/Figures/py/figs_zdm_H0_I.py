@@ -25,7 +25,7 @@ import h5py
 from frb.figures import utils as fig_utils
 from frb.dm import igm as figm
 
-from zdm.craco import loading
+from zdm.MC_sample import loading
 from zdm import pcosmic
 from zdm import figures
 from zdm import misc_functions

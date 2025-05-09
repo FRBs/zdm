@@ -1,31 +1,6 @@
 """ 
 This script creates zdm grids for ASKAP incoherent sum observations.
 
-It steps through different effects, beginning with the
-intrinsic zdm, applying various cuts.
-
-It generates the following plots in opdir:
-
-dm_cosmic.pdf: shows only intrinsic p(dm_cosmic|z)
-dm_eg.pdf: shows intrinsic p(dm_host + dm_cosmic|z)
-
-pEG_luminosity.pdf: shows p(DM,z) including
-    - source evolution
-    - FRB luminosity function
-    - cosmological volume calculation
-
-pEG_luminosity_eff.pdf: shows p(DM,z) as pEG_luminosity, adding in
-    - detection efficiency losses from FRB width, DM smearing etc
-
-pEG_luminosity_beam.pdf: shows p(DM,z) as pEG_luminosity, adding in
-    - antenna beamshape
-
-pEG_luminosity_eff_beam.pdf: shows p(DM,z) as pEG_luminosity, adding in
-    - detection efficiency losses from FRB width, DM smearing etc
-    - telescope beamshape
-    (i.e. this is the full calculation of FRB rates)
-
-pEG_luminosity_eff_beam_FRBs.pdf: as above, but shows detected FRBs
 
 
 """
@@ -33,7 +8,7 @@ import os
 
 from astropy.cosmology import Planck18
 from zdm import cosmology as cos
-from zdm import misc_functions
+from zdm import figures
 from zdm import parameters
 from zdm import survey
 from zdm import pcosmic
@@ -104,7 +79,7 @@ def main():
     s=ss[0]
     g=gs[0]
     name = names[0]
-    misc_functions.plot_grid_2(mean_rates,g.zvals,g.dmvals,
+    figures.plot_grid(mean_rates,g.zvals,g.dmvals,
         name=opdir+name+"_zDM.pdf",norm=3,log=True,
         label='$\\log_{10} p({\\rm DM}_{\\rm IGM} + {\\rm DM}_{\\rm host},z)$ [a.u.]',
         project=False,ylabel='${\\rm DM}_{\\rm IGM} + {\\rm DM}_{\\rm host}$',
