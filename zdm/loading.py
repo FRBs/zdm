@@ -184,7 +184,8 @@ def surveys_and_grids(init_state=None, alpha_method=1,
                       nz:int=500, ndm:int=1400,
                       NFRB=None, repeaters=False,
                       sdir=None, edir=None,
-                      rand_DMG=False, discard_empty=False): 
+                      rand_DMG=False, discard_empty=False,
+                      state_dict=None): 
     """ Load up a survey and grid for a real dataset
 
     Args:
@@ -219,7 +220,8 @@ def surveys_and_grids(init_state=None, alpha_method=1,
         state = set_state(alpha_method=alpha_method)
     else:
         state = init_state
-
+    if state_dict is not None:
+        state.update_param_dict(state_dict)
     # Cosmology
     cos.set_cosmology(state)
     cos.init_dist_measures()
