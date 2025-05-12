@@ -39,13 +39,13 @@ class Hosts(data_class.myDataClass):
                   'Notation': '',
                   })
     Appmax: float = field( 
-        default=100, 
+        default=35, 
         metadata={'help': "Maximum host apparent magnitude", 
                   'unit': 'L*', 
                   'Notation': '',
                   })
     NAppBins: int = field( 
-        default=300, 
+        default=250, 
         metadata={'help': "Number of apparent magnitude bins",
                   'unit': '', 
                   'Notation': '',
