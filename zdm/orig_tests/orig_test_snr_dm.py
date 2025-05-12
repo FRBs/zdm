@@ -5,7 +5,7 @@ This tests various SNR/DM routines
 Apologies, this is dodgy quick code - probably there are *way* too many import calls
 """
 
-from zdm.craco import loading
+from zdm.MC_sample import loading
 import os
 
 import numpy as np
