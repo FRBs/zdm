@@ -202,8 +202,16 @@ class host_model:
         
         # mapping of apparent to absolute magnitude
         self.zmap = self.CalcApparentMags(self.AbsMags,zvals)
+        self.zvals = zvals
+        self.NZ = self.zvals.size
         
-        self.NZ = zvals.size
+        self.init_maghist()
+    
+    def init_maghist(self):
+        """
+        Initialises the array mapping redshifts and absolute magnitudes
+        to redshift and apparent magnitude
+        """
         
         # for current model, calculate weighted histogram of apparent magnitude
         # for each redshift. Done by converting intrinsic to apparent for each z,
@@ -221,6 +229,22 @@ class host_model:
             
         self.maghist = maghist
         
+    def reinit_model(self):
+        """
+        Re-initialises all internal info which depends on the optical
+        param model. It assumes that the changes have been implemented in
+        self.AbsPrior
+        """
+        
+        # this maps the weights from the parameter file to the absoluate magnitudes use
+        # internally within the program. We now initialise this during an "init"
+        self.AbsMagWeights = self.init_abs_mag_weights()
+        
+        # renormalises the weights, so all internal apparent mags sum to unity
+        # include this step in the init routine perhaps?
+        self.AbsMagWeights /= np.sum(self.AbsMagWeights)
+        
+        self.init_maghist()
     
     def init_abs_mag_weights(self):
         """
@@ -320,6 +344,8 @@ class host_model:
         path_raw_prior_Oi can be called for numerous
         host galaxy candidates.
         
+        It returns the priors distribution
+        
         """
         
         # we start by getting the posterior distribution p(z)
@@ -333,6 +359,8 @@ class host_model:
         # stores knowledge of the DM used to calculate the priors
         self.prior_DM = DM
         self.priors = priors
+        
+        return priors
     
     
     def calc_magnitude_priors(self,zlist:np.ndarray,pzlist:np.ndarray):
