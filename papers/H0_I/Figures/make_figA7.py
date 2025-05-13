@@ -4,7 +4,7 @@ Produces Figure A7 - or at least a statistically identical version of it
 
 
 from zdm import io
-from zdm.craco import loading
+from zdm.MC_sample import loading
 import os
 import numpy as np
 from zdm import survey

@@ -1,6 +1,6 @@
 #!/bin/bash
-#SBATCH --job-name=halo_gamma_test
-#SBATCH --output=../mcmc/halo_gamma_test.out
+#SBATCH --job-name=halo_gamma_test2
+#SBATCH --output=../../mcmc/halo_gamma_test2.out
 #SBATCH --ntasks=10
 #SBATCH --time=24:00:00
 #SBATCH --export=NONE
@@ -23,7 +23,7 @@ source $ZDM/.venv/bin/activate
 
 cd $ZDM/zdm
 
-outfile="mcmc/halo_gamma_test"
+outfile="mcmc/halo_gamma_test2"
 walkers=20
 steps=3000
 
@@ -43,6 +43,6 @@ echo "Steps: $steps"
 # python scripts/MCMC_wrap.py -f $surveys -r $rep_surveys -p data/MCMC/params.json -o $outfile -w $walkers -s $steps -n 1
 # python scripts/MCMC_wrap2.py -f $surveys -p data/MCMC/params4.json -o $outfile -w $walkers -s $steps -n 10 --Pn --lin_host
 # python scripts/MCMC_wrap2.py -f MC_CRAFT_ICS_1300_e5 -p data/MCMC/params3.json -o $outfile -w $walkers -s $steps -n 10 --log_halo
-python scripts/MCMC_wrap2.py -f $surveys -p data/MCMC/params.json -o $outfile -w $walkers -s $steps -n 10
+python scripts/MCMC_wrap.py -f $surveys -p data/MCMC/params.json -o $outfile -w $walkers -s $steps -n 10
 # python scripts/MCMC_wrap2.py -f $surveys -p data/MCMC/params.json -o $outfile -w $walkers -s $steps -n 10
 # python scripts/MCMC_wrap2.py -r $rep_surveys -p data/MCMC/params4.json -o $outfile -w $walkers -s $steps -n 20 --Pn --pNreps

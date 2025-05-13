@@ -6,7 +6,7 @@ Simply plots the Macquart relation
 
 
 from zdm import pcosmic
-from zdm.craco import loading
+from zdm.MC_sample import loading
 import numpy as np
 def main():
     
