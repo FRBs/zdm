@@ -105,7 +105,7 @@ def plot_frb(name,ralist,declist,plist,opfile):
     plt.tight_layout()
     plt.close()
 
-def do_frb(name,model,PU=0.1,usemodel = False, sort = False):
+def run_path(name,model,PU=0.1,usemodel = False, sort = False):
     """
     evaluates PATH on an FRB
     

@@ -14,7 +14,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 from zdm import cosmology as cos
 from zdm import optical_params as op
-
+from scipy.interpolate import CubicSpline
 
 class host_model:
     """
@@ -79,6 +79,9 @@ class host_model:
         if opstate.AbsModelID == 0:
             if verbose:
                 print("Describing absolute mags with N independent bins")
+        elif opstate.AbsModelID == 1:
+            if verbose:
+                print("Describing absolute mags with spline interpoilation of N points")
         else:
             raise ValueError("Model ",opstate.AbsModelID," not implemented")
         
@@ -179,8 +182,14 @@ class host_model:
         ModelNBins = self.opstate.NModelBins
         self.ModelNBins = ModelNBins
         
-        # generally small number of model bins
-        ModelBins = np.linspace(self.Absmin,self.Absmax,ModelNBins)
+        if self.AbsModelID == 0:
+            # bins are centres
+            dbin = (self.Absmax - self.Absmin)/ModelNBins
+            ModelBins = np.linspace(self.Absmin+dbin/2.,self.Absmax-dbin/2.,ModelNBins)
+            
+        elif self.AbsModelID == 1:
+            # bins on edges
+            ModelBins = np.linspace(self.Absmin,self.Absmax,ModelNBins)
         
         self.ModelBins = ModelBins
         self.dModel = ModelBins[1]-ModelBins[0]
@@ -257,11 +266,23 @@ class host_model:
         if self.AbsModelID==0:
             # describes absolute magnitudes via ModelNBins
             # between AbsMin and AbsMax
+            # coefficients at centre of bins
             
             # gives mapping from model bins to mag bins
             self.imags = ((self.AbsMags - self.Absmin)/self.dModel).astype('int')
             
+            #rounding errors
+            toohigh = np.where(self.imags == self.ModelNBins)
+            self.imags[toohigh] = self.ModelNBins-1
+            
             weights = self.AbsPrior[self.imags]
+        elif self.AbsModelID == 1:
+            # As above, but with spline interpolation of model.
+            # coefficients span full range
+            cs = CubicSpline(self.ModelBins,self.AbsPrior)
+            weights = cs(self.AbsMags)
+            toolow = np.where(weights < 0.)
+            weights[toolow] = 0.
         else:
             raise ValueError("This weighting scheme not yet implemented")
         return weights
@@ -277,11 +298,19 @@ class host_model:
         particular DM is unseen in the optical image
         
         This requires initialisation of init_path_raw_prior_Oi
+        
+        NOTE: The total normalisation of priors in the magnitude range
+            may be less than unity. This is because some probability
+            may fall outside of the magnitude range being examined.
+            Hence, the correct normalisation is found by summing
+            the visible magnitudes, and subtracting them from unity. 
+        
         """
         
-        toofaint = np.where(self.AppMags > mag_limit)[0]
+        visible = np.where(self.AppMags < mag_limit)[0]
         
-        PU = np.sum(self.priors[toofaint])
+        PSeen = np.sum(self.priors[visible])
+        PU = 1.-PSeen
         return PU
     
     def path_raw_prior_Oi(self,mags,ang_sizes,Sigma_ms):

@@ -79,11 +79,11 @@ def calc_path_priors():
         DMEG = s.DMEGs[imatch]
         
         # original calculation
-        P_O1,P_Ox1,P_Ux1,mags1 = ute.do_frb(frb,model,usemodel=False,PU=0.1)
+        P_O1,P_Ox1,P_Ux1,mags1 = ute.run_path(frb,model,usemodel=False,PU=0.1)
         
         model.init_path_raw_prior_Oi(DMEG,g)
         PU = model.estimate_unseen_prior(mag_limit=26) # might not be correct
-        P_O2,P_Ox2,P_Ux2,mags2 = ute.do_frb(frb,model,usemodel=True,PU = PU)
+        P_O2,P_Ox2,P_Ux2,mags2 = ute.run_path(frb,model,usemodel=True,PU = PU)
         
         if False:
             # compares outcomes
