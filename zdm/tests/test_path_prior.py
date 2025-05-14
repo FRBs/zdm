@@ -16,7 +16,7 @@ from zdm import cosmology as cos
 from zdm import parameters
 from zdm import loading
 
-def calc_path_priors():
+def test_path_priors():
     """
     Loops over all ICS FRBs
     """
@@ -109,10 +109,4 @@ def matchFRB(TNSname,survey):
             match = i
             break
     return match
-        
-if __name__ == "__main__":
-    
-    calc_path_priors()
 
-    
-    
