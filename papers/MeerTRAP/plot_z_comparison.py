@@ -39,7 +39,6 @@ matplotlib.rc('font', **font)
 def main():
     
     # in case you wish to switch to another output directory
-    
     opdir='zcomparison/'
     
     # approximate best-fit values from recent analysis
@@ -75,28 +74,40 @@ def main():
     # np.save("MeerTRAP_zvals", g.zvals)
     # np.save("MeerTRAP_dmvals", g.dmvals)
 
-    # set limits for plots - will be LARGE!   
+    if False:
+        #### plots p(z|DM) for the MeerTRAP FRB ####
+        DMfrb = 2398
+        iDM = np.where(DMfrb < gs[0].dmvals)[0][0]
+        pzgdm = gs[0].rates[:,iDM]
+        
+        pzgdm /= np.sum(pzgdm)
+        plt.figure()
+        plt.xlabel("z")
+        plt.ylabel("p(z|DMEG = 2398)")
+        plt.plot(gs[0].zvals,pzgdm)
+        plt.tight_layout()
+        plt.savefig("pzgdm.png")
+        plt.close()
     
-    ######### Loads public FRBs ####### -- Currently using zDM surveys instead
-    # from frb.galaxies import utils as frb_gal_u
+        np.save("pzgdm.npy",pzgdm)
+        np.save("zvals.npy",gs[0].zvals)
     
-    # # Load up the hosts
-    # host_tbl, _ = frb_gal_u.build_table_of_hosts() #attrs=['redshift']
-    
-    # # Cut
-    # POx_min = 0.9
-    # host_tbl = host_tbl[host_tbl['P_Ox'] > POx_min]
-    
-    # # DMs
-    # DM_FRB = units.Quantity([frb.DM for frb in host_tbl.FRBobj.values])
-    # DM_ISM = units.Quantity([frb.DMISM for frb in host_tbl.FRBobj.values])
-    # DM_MWhalo = state.MW.DMhalo * units.pc / units.cm**3
-    
-    # DM_EG = DM_FRB - DM_ISM - DM_MWhalo
 
-    # # zs
-    # z = units.Quantity([frb.z for frb in host_tbl.FRBobj.values])
-
+    # this is howto use the FRB library to load up known hosts
+    if False:
+        from frb.galaxies import utils as frb_gal_u
+        
+        # Load up the hosts
+        host_tbl, _ = frb_gal_u.build_table_of_hosts(attrs=['redshift'])
+        
+        # Cut
+        host_tbl = host_tbl[host_tbl['P_Ox'] > POx_min]
+        
+        # DMs
+        DM_FRB = units.Quantity([frb.DM for frb in host_tbl.FRBobj.values])
+        DM_ISM = units.Quantity([frb.DMISM for frb in host_tbl.FRBobj.values])
+        DM_EG = DM_FRB - DM_ISM - DM_MWhalo
+    
     ########### Get CHIME info ###########
     
     # defines CHIME grids to load
@@ -145,26 +156,33 @@ def main():
     temp = data_clrs[1].copy()
     data_clrs[1] = data_clrs[2]
     data_clrs[2] = temp
-    cont_clrs = data_clrs
     markers=["*", "o", "o", "x"]
     markersize = [10, 4, 4, 5]
-
+    ewidths = [1,1,1,1]
 
     plt_dicts = []
+    cont_dicts = None
     for i in range(len(data_clrs)):
-        styles = {
+        plt_styles = {
             'color': data_clrs[i],
             'marker': markers[i],
             'markersize': markersize[i],
-            'label': point_labels[i]
+            'label': point_labels[i],
+            'markeredgewidth': ewidths[i]
         }
-        plt_dicts.append(styles)
+        plt_dicts.append(plt_styles)
+
+        # cont_styles = {
+        #     'color': data_clrs[i],
+        #     'label': point_labels[i]
+        # }
+        # cont_dicts.append(cont_styles)
 
 
     s=ss[0]
     g=gs[0]
     name = names[0]
-
+    
     # Do the plotting
     misc_functions.plot_grid_2(g.rates,g.zvals,g.dmvals,
         name=opdir+name+"_zDM.pdf",norm=3,log=True,
@@ -172,10 +190,10 @@ def main():
         project=False,ylabel='${\\rm DM}_{\\rm IGM} + {\\rm DM}_{\\rm host}$',
         zmax=3,DMmax=3000, FRBZs=Zs, FRBDMs=DMs, 
         # point_labels=point_labels, data_clrs=data_clrs, markersize=5, data_styles=markers,
-        plt_dicts=plt_dicts,
+        plt_dicts=plt_dicts, cont_dicts=cont_dicts,
         Aconts=[0.1],othergrids=[gs[1].rates,crates,gs[2].rates],
         othernames = ["MeerKAT","DSA","CHIME","ASKAP"], 
-        cmap=cmr.prinsenvlag_r, cont_colours=cont_clrs)
+        cmap=cmr.prinsenvlag_r)
         #0.01, 0.1,0.5
     
     

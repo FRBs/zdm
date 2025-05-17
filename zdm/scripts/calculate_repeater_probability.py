@@ -14,7 +14,7 @@ from zdm import iteration
 
 def main():
     '''
-    Main program to evaluate log0-likelihoods and predictions for
+    Main program to evaluate log-likelihoods and predictions for
     repeat grids
     '''
     

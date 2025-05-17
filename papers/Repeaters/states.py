@@ -11,7 +11,7 @@ therein, and the best fits of Shin et al.
 """
 
 import numpy as np
-from zdm.craco import loading
+from zdm.MC_sample import loading
 Planck_H0=67.4
 
 def shin_fit():
