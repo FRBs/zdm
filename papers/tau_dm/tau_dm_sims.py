@@ -86,9 +86,9 @@ def creategrid():
     # plots it
     misc_functions.plot_grid_2(g.rates,g.zvals,g.dmvals,
             name=os.path.join(sdir,'tau_dm_grid.png'),norm=3,log=True,
-            label='$\\log_{10} p({\\rm DM}_{\\rm cosmic}|z)$ [a.u.]',
+            label='$\\log_{10} p(z|{\\rm DM}_{\\rm cosmic})$ [a.u.]',
             project=False,
-            zmax=2.5,DMmax=3000,cmap="Oranges")#,Aconts=[0.01,0.1,0.5])#,
+            zmax=2.5,DMmax=3000,cmap="Oranges",Aconts=[0.01,0.1,0.5])#,
     #            pdmgz=[0.05,0.5,0.95])
 
     return grids[0]

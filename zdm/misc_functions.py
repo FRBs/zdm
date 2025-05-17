@@ -2785,7 +2785,7 @@ def plot_grid_2(
         
         ax = plt.gca()
         cs = ax.contour(
-            zDMgrid.T, levels=alevels, origin="lower", colors=[cont_colours[0]], linestyles=styles, linewidths=2
+            zDMgrid.T, levels=alevels, origin="lower", colors="white", linestyles=styles, linewidths=2
         )
         cntrs=[cs]
         if othernames is not None:
