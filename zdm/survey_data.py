@@ -257,6 +257,18 @@ class Observing(data_class.myDataClass):
                   'unit': '',
                   'Notation': '',
                   })
+    MAX_IW: int = field(
+        default=None,
+        metadata={'help': "Maximum width of FRB search in units of tres (12 for CRAFT ICS)",
+                  'unit': '',
+                  'Notation': '',
+                  })
+    MAXWMETH: int = field(
+        default=0,
+        metadata={'help': "Method for treating FRBs with width > max width. 0: do nothing, 1: ignore them, 2: reduce sensitivity to 1/w",
+                  'unit': '',
+                  'Notation': '',
+                  })
     MAX_LOC_DMEG: int = field(
         default=-1,
         metadata={'help': "Ignore zs with DMEG larger than 'x'. \n-1: Use all zs \n0: 'x' = smallest DMEG for an FRB without a z \n>0: 'x' = this value",

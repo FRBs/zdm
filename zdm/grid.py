@@ -379,7 +379,6 @@ class Grid:
                             thresh, Emin, Emax, self.state.energy.gamma, self.use_log10
                         )
                     )
-
         # here, b-fractions are unweighted according to the value of b.
         self.fractions = np.sum(
             self.b_fractions, axis=2
@@ -782,26 +781,6 @@ class Grid:
                 iDM1 = 0    # dummy
                 
                 MCDM = self.dmvals[iDM3] * kDM3 + self.dmvals[iDM2] * kDM2
-            
-            #MCDM = self.dmvals[iDM1] * kDM1 + self.dmvals[iDM2] * kDM2
-            #if iz2 > 0:
-            #    Eth = (
-            #        self.thresholds[j, iz1, iDM1] * kz1 * kDM1
-            #        + self.thresholds[j, iz1, iDM2] * kz1 * kDM2
-            #        + self.thresholds[j, iz1, iDM3] * kz1 * kDM3
-            #        + self.thresholds[j, iz2, iDM1] * kz2 * kDM1
-            #        + self.thresholds[j, iz2, iDM2] * kz2 * kDM2
-            #        + self.thresholds[j, iz2, iDM3] * kz2 * kDM3
-            #        + self.thresholds[j, iz3, iDM1] * kz3 * kDM1
-            #        + self.thresholds[j, iz3, iDM2] * kz3 * kDM2
-            #        + self.thresholds[j, iz3, iDM3] * kz3 * kDM3
-            #    )
-            #else:
-            #    Eth = (
-            #        self.thresholds[j, iz2, iDM1] * kDM1
-            #        + self.thresholds[j, iz2, iDM2] * kDM2
-            #    )
-            #    Eth *= kz2 ** 2  # assume threshold goes as Eth~z^2 in the near Universe
         else:
             # interpolate linearly from 0 to the minimum value
             fDM = r / pDMc[iDM2]
@@ -812,14 +791,6 @@ class Grid:
             iDM1 = 0 #dummy
             iDM3 = 0 #dummy
             
-            #if iz2 > 0:  # ignore effect of lowest DM bin on threshold
-            #    Eth = (
-            #        self.thresholds[j, iz1, iDM2] * kz1
-            #        + self.thresholds[j, iz2, iDM2] * kz2
-            #    )
-            #else:
-            #    Eth = self.thresholds[j, iz2, iDM2] * kDM2
-            #    Eth *= kz2 ** 2  # assume threshold goes as Eth~z^2 in the near Universe
         
         # This is constructed such that weights and iz, iDM will work out
         # for all cases of the above. Note that only four of these terms at

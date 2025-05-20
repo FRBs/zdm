@@ -29,6 +29,9 @@ import warnings
 from astropy import units as u
 from astropy.coordinates import SkyCoord
 
+# minimum threshold to use - it's a substitute for zero
+MIN_THRESH = 1e-10
+
 class Survey:
     def __init__(self, state, survey_name:str, 
                  filename:str, 
@@ -192,10 +195,6 @@ class Survey:
         self.DMhalo=DMhalo
         self.process_dmhalo(halo_method)
         self.DMEGs=self.DMs-self.DMGs - self.DMhalos
-        # self.DMEGs=self.DMs-self.DMGals
-        # self.DMEGs_obs=self.DMs-self.DMGs-DMhalo
-        # self.DMEGs = np.copy(self.DMEGs_obs)
-        # self.DMEGs[self.DMEGs < 0] = 10. # Minimum value of 10. pc/cm^3
     
     def process_dmhalo(self, halo_method):
         """
@@ -434,7 +433,8 @@ class Survey:
         for key in self.survey_data.params:
             DC = self.survey_data.params[key]
             self.meta[key] = getattr(self.survey_data[DC],key)
-        
+            
+            
         # Get default values from default frb data
         default_frb = survey_data.FRB()
         
@@ -708,7 +708,9 @@ class Survey:
                 max_dm=self.meta['MAX_DM'],
                 model=model,
                 dsmear=False,
-                edir=edir)
+                edir=edir,
+                max_iw=self.meta['MAX_IW'],
+                max_meth = self.meta['MAXWMETH'])
         # keep an internal record of this
         self.efficiencies=efficiencies
         self.wplist=plist
@@ -730,7 +732,9 @@ class Survey:
         
 # implements something like Mawson's formula for sensitivity
 # t_res in ms
-def calc_relative_sensitivity(DM_frb,DM,w,fbar,t_res,nu_res,Nchan=336,max_idt=None,max_dm=None,model='Quadrature',dsmear=True,edir=None):
+def calc_relative_sensitivity(DM_frb,DM,w,fbar,t_res,nu_res,Nchan=336,max_idt=None,
+            max_dm=None,model='Quadrature',dsmear=True,edir=None,max_iw=None,
+            max_meth = 0):
     """ Calculates DM-dependent sensitivity
     
     This function adjusts sensitivity to a given burst as a function of DM.
@@ -753,7 +757,14 @@ def calc_relative_sensitivity(DM_frb,DM,w,fbar,t_res,nu_res,Nchan=336,max_idt=No
                 NOTE: Quadrature_s and Sammons_s should be input to this function as
                         just Quadrature and Sammons respectively
         dsmear: subtract DM smearing from measured width to calculate intrinsic
+        edir [string]: directory containing efficiency files to be loaded
+        max_iw [int]: maximum integer width of the search
+        maxmeth [int]:
+            0: ignore maximum width
+            1: truncate sensitivity at maximum width
+            2: scale sensitivity as 1/w at maximum width
     """
+    global MIN_THRESH
     
     # this model returns the parameterised CHIME DM-dependent sensitivity
     # it is independent of width
@@ -782,6 +793,7 @@ def calc_relative_sensitivity(DM_frb,DM,w,fbar,t_res,nu_res,Nchan=336,max_idt=No
         # hence we must first adjust for this prior to estimating the DM-dependence
         # for this we use the *true* DM at which the FRB was observed
         if dsmear==True:
+            # width is the total width
             measured_dm_smearing=2*(nu_res/1.e3)*k_DM*DM_frb/(fbar/1e3)**3 #smearing factor of FRB in the band
             uw=w**2-measured_dm_smearing**2-t_res**2 # uses the quadrature model to calculate intrinsic width uw
             if uw < 0:
@@ -789,13 +801,28 @@ def calc_relative_sensitivity(DM_frb,DM,w,fbar,t_res,nu_res,Nchan=336,max_idt=No
             else:
                 uw=uw**0.5
         else:
+            # w represents the intrinsic width
             uw=w
         
+        totalw = (uw**2 + dm_smearing**2 + t_res**2)**0.5
+        
+        
+        # calculates relative sensitivity to bursts as a function of DM
         if model=='Quadrature':
-            sensitivity=(uw**2+dm_smearing**2+t_res**2)**-0.25
+            sensitivity=totalw**-0.5
         elif model=='Sammons':
             sensitivity=0.75*(0.93*dm_smearing + uw + 0.35*t_res)**-0.5
-        # calculates relative sensitivity to bursts as a function of DM
+        
+        # implements max integer width cut.
+        if max_meth != 0 and max_iw is not None:
+            max_w = t_res*(max_iw+0.5)
+            toolong = np.where(totalw > max_w)[0]
+            if max_meth == 1:
+                sensitivity[toolong] = MIN_THRESH # something close to zero
+            elif max_meth == 2:
+                # we have already reduced it by \sqrt{t}
+                # we thus add a further sqrt{t} factor
+                sensitivity[toolong] *= (max_w / totalw[toolong])**0.5
     
     # If model not CHIME, Quadrature or Sammons assume it is a filename
     else:
