@@ -282,6 +282,14 @@ class ScatParams(data_class.myDataClass):
             "Notation": "\log \sigma_{s}",
         },
     )
+    Smaxsigma: float = field(
+        default=3.,
+        metadata={
+            "help": " Multiple of the Slogsigma out to which to model the width distribution ",
+            "unit": "",
+            "Notation": "N_{\sigma_{s}}",
+        },
+    )
     Sfnorm: float = field(
         default=600,
         metadata={
@@ -296,6 +304,14 @@ class ScatParams(data_class.myDataClass):
             "help": "Power-law scaling with frequency, nu^lambda",
             "unit": "",
             "Notation": "\lambda",
+        },
+    )
+    ScatDist: int = field(
+        default=2,
+        metadata={
+            "help": "Method for describing scattering distribution. 0 log uniform, 1 is lognormal, 2 upper lognormal",
+            "unit": "",
+            "Notation": "",
         },
     )
 

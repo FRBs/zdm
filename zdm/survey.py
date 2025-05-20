@@ -840,7 +840,8 @@ def calc_relative_sensitivity(DM_frb,DM,w,fbar,t_res,nu_res,Nchan=336,max_idt=No
     return sensitivity
 
 def geometric_lognormals2(lmu1,ls1,lmu2,ls2,bins=None,
-                         Ndivs=100,Nsigma=3.,plot=False,Nbins=101):
+                         Ndivs=100,Nsigma=3.,plot=False,Nbins=101,
+                         ScatDist=1):
     '''
     Numerically evaluates the resulting distribution of y=\sqrt{x1^2+x2^2},
     where logx1~normal and logx2~normal with log-mean lmu and 
@@ -864,36 +865,41 @@ def geometric_lognormals2(lmu1,ls1,lmu2,ls2,bins=None,
     #draw from both distributions
     np.random.seed(1234)
     
-    # xvals in ln space
     xvals1 = np.linspace(lmu1-Nsigma*ls1,lmu1+Nsigma*ls1,Ndivs)
+    yvals1 = pcosmic.loglognormal_dlog(xvals1,lmu1,ls1,1.)
+    yvals1 /= np.sum(yvals1)
+    
+    # xvals in ln space
+    lnlog = np.log10(np.exp(1))
+    xvals2 = np.logspace(lnlog*(lmu2-Nsigma*ls2),lnlog*(lmu2+Nsigma*ls2),Ndivs)
     if ScatDist == 0:
         # log uniform
-        yvals1 = np.full([Ndivs],1./Ndivs)
+        yvals2 = np.full([Ndivs],2./Ndivs)
     elif ScatDist == 1:
         # lognormal
-        yvals1 = pcosmic.loglognormal_dlog(xvals1,[lmu1,ls1,1.])
-        yvals1 /= np.sum(yvals1)
+        yvals2 = pcosmic.loglognormal_dlog(xvals2,lmu2,ls2,2.)
+        yvals2 /= np.sum(yvals2)
     elif ScatDist == 2:
         # upper lognormal is flat
-        yvals1 = pcosmic.loglognormal_dlog(xvals1,[lmu1,ls1,1.])
-        upper = np.where(xvals1 > lmu1)[0]
-        ymax = np.max(yvals1)
-        yvals1[upper] = ymax
-        yvals1 /= np.sum(yvals1)
-    
-    xvals2 = np.linspace(lmu2-Nsigma*ls2,lmu2+Nsigma*ls2,Ndivs)
-    yvals2 = pcosmic.loglognormal_dlog(xvals2,[lmu2,ls2,1.])
+        yvals2 = pcosmic.loglognormal_dlog(xvals2,lmu2,ls2,2.)
+        upper = np.where(xvals2 > lmu2)[0]
+        ymax = np.max(yvals2)
+        yvals2[upper] = ymax
+        yvals2 /= np.sum(yvals2)
     
     xvals1 = np.exp(xvals1)
     xvals2 = np.exp(xvals2)
+    themin = np.min([np.min(xvals1),np.min(xvals2)])
+    themax = 2**0.5 * np.max([np.max(xvals1),np.max(xvals2)])
     
     if bins is None:
         #bins=np.linspace(0,np.max(ys)/4.,Nbins)
         delta=1e-3
         # ensures the first bin begins at 0
         bins=np.zeros([Nbins+1])
-        bins[1:]=np.logspace(np.log10(np.min(ys))-delta,np.log10(np.max(ys))+delta,Nbins)
-    
+        bins[1:]=np.logspace(np.log10(themin)-delta,np.log10(themax)+delta,Nbins)
+    else:
+        Nbins = len(bins)-1
     
     # calculate widths
     hist = np.zeros([Nbins])
@@ -968,7 +974,6 @@ def geometric_lognormals(lmu1,ls1,lmu2,ls2,bins=None,
         plt.hist(np.log(ys),bins=lbins)
         plt.savefig('log_adding_lognormals.pdf')
         plt.close()
-        
     
     # renomalises - total will be less than unity, assuming some large
     # values fall off the largest bin
@@ -1040,6 +1045,8 @@ def make_widths(s:Survey,state):
     slogsigma=state.scat.Slogsigma
     sfnorm=state.scat.Sfnorm
     sfpower=state.scat.Sfpower
+    maxsigma=state.scat.Smaxsigma
+    scatdist=state.scat.ScatDist
     
     # constant of DM
     k_DM=4.149 #ms GHz^2 pc^-1 cm^3
@@ -1094,53 +1101,17 @@ def make_widths(s:Survey,state):
         # scale scattering time according to frequency in logspace
         slogmean = slogmean + sfpower*np.log(fbar/sfnorm)
         
-        #gets cumulative hist and bin edges
-        dist,cdist,cbins=geometric_lognormals(wlogmean,
-                                              wlogsigma,
-                                              slogmean,
-                                              slogsigma)
+        # generates bins
         
-        # In the below, imin1 and imin2 are the two indices bracketing the minimum
-        # bin, while imax1 and imax2 bracket the upper max bin
-        imin1=0
-        kmin=0.
-        imin2=1
-        maxbins=cdist.size
-        for i in np.arange(nbins):
-            if i==nbins-1 or wmax >= cbins[-1]:
-                imax2=maxbins-1
-            else:
-                imax2=np.where(cbins > wmax)[0][0]
-                if imax2 >= maxbins:
-                    imax2=maxbins-1
-            
-            imax1=imax2-1
-            
-            # interpolating max bin. kmax applies to imax2, 1-kmax to imax1
-            kmax=(wmax-cbins[imax1])/(cbins[imax2]-cbins[imax1])
-            
-            #these are cumulative bins
-            # the area in the middle is just cmax-cmin
-            cmin=kmin*cdist[imin2]+(1-kmin)*cdist[imin1]
-            cmax=kmax*cdist[imax2]+(1-kmax)*cdist[imax1]
-            if i==0:
-                weight=cmax #forces integration from zero
-            else:
-                weight=cmax-cmin #integrates from bin min to bin max
-            # upper bins becomes lower bins
-            imin1=imax1
-            imin2=imax2
-            kmin=kmax
-            
-            width=(wmin*wmax)**0.5
-            widths.append(width)
-            weights.append(weight)
-            wsum += weight
-            
-            # updates widths of bin mins and maxes
-            wmin = wmax
-            wmax *= scale
-    
+        bins = np.zeros([nbins+1])
+        bins[1:] = np.logspace(np.log10(wmax),np.log10(wmax) + np.log10(scale)*(nbins-1), nbins)
+        
+        
+        #gets cumulative hist and bin edges
+        dist,cdist,cbins=geometric_lognormals2(wlogmean,
+                               wlogsigma,slogmean,slogsigma,Nsigma=maxsigma,
+                               ScatDist=scatdist,bins=bins)
+        
     elif width_method==3:
         # use specific width of FRB. This requires there to be only a single FRB in the survey
         if s.meta['NFRB'] != 1:
