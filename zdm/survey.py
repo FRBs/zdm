@@ -839,6 +839,79 @@ def calc_relative_sensitivity(DM_frb,DM,w,fbar,t_res,nu_res,Nchan=336,max_idt=No
 
     return sensitivity
 
+def geometric_lognormals2(lmu1,ls1,lmu2,ls2,bins=None,
+                         Ndivs=100,Nsigma=3.,plot=False,Nbins=101):
+    '''
+    Numerically evaluates the resulting distribution of y=\sqrt{x1^2+x2^2},
+    where logx1~normal and logx2~normal with log-mean lmu and 
+    log-sigma ls.
+    This is typically used for two log-normals of intrinsic
+    FRB width and scattering time
+    
+    lmu1, ls1 (float, float): log mean and log-sigma of the first distribution
+    
+    lmu2, ls2 (float, float): log-mean and log-sigma of the second distribution
+    
+    bins (np.ndarray([NBINS+1],dtype='float')): bin edges for resulting plot.
+    
+    Returns:
+        hist: histogram of probability within bins
+        chist: cumulative histogram of probability within bins
+        bins: bin edges for histogram
+    
+    '''
+    
+    #draw from both distributions
+    np.random.seed(1234)
+    
+    # xvals in ln space
+    xvals1 = np.linspace(lmu1-Nsigma*ls1,lmu1+Nsigma*ls1,Ndivs)
+    if ScatDist == 0:
+        # log uniform
+        yvals1 = np.full([Ndivs],1./Ndivs)
+    elif ScatDist == 1:
+        # lognormal
+        yvals1 = pcosmic.loglognormal_dlog(xvals1,[lmu1,ls1,1.])
+        yvals1 /= np.sum(yvals1)
+    elif ScatDist == 2:
+        # upper lognormal is flat
+        yvals1 = pcosmic.loglognormal_dlog(xvals1,[lmu1,ls1,1.])
+        upper = np.where(xvals1 > lmu1)[0]
+        ymax = np.max(yvals1)
+        yvals1[upper] = ymax
+        yvals1 /= np.sum(yvals1)
+    
+    xvals2 = np.linspace(lmu2-Nsigma*ls2,lmu2+Nsigma*ls2,Ndivs)
+    yvals2 = pcosmic.loglognormal_dlog(xvals2,[lmu2,ls2,1.])
+    
+    xvals1 = np.exp(xvals1)
+    xvals2 = np.exp(xvals2)
+    
+    if bins is None:
+        #bins=np.linspace(0,np.max(ys)/4.,Nbins)
+        delta=1e-3
+        # ensures the first bin begins at 0
+        bins=np.zeros([Nbins+1])
+        bins[1:]=np.logspace(np.log10(np.min(ys))-delta,np.log10(np.max(ys))+delta,Nbins)
+    
+    
+    # calculate widths
+    hist = np.zeros([Nbins])
+    for i,x1 in enumerate(xvals1):
+        widths = (x1**2 + xvals2**2)**0.5
+        probs = yvals1[i]*yvals2
+        h,b = np.histogram(widths,bins=bins,weights=probs)
+        hist += h
+    
+    chist=np.zeros([Nbins+1])
+    chist[1:]=np.cumsum(hist)
+    # we do not want to renormalise, since the normalisation reflects the values
+    # which are too large
+    #hist /= chist[-1]
+    chist /= chist[-1]
+    
+    return hist,chist,bins
+
 def geometric_lognormals(lmu1,ls1,lmu2,ls2,bins=None,
                          Nrand=10000,plot=False,Nbins=101):
     '''
@@ -901,7 +974,35 @@ def geometric_lognormals(lmu1,ls1,lmu2,ls2,bins=None,
     # values fall off the largest bin
     #hist = hist/Nrand
     return hist,chist,bins
+
+def halflognormal(logmean,logsigma,minw,maxw,nbins):
+    """
+    Generates a parameterised half-lognormal distribution.
+    This acts as a lognormal in the lower half, but
+    keeps a constant per-log-bin width in the upper half
+    """
     
+    logmin = np.log(minw)
+    logmax = np.log(maxw)
+    logbins = np.linspace(logmin,logmax,nbins+1)
+    dlogbin = (logmax - logmin)/nbins
+    logbinmean = logbins[:-1] + dlogbin/2.
+    
+    probs = np.zeros([nbins])
+    
+    # gets weighting in smaller bins
+    args=[logmin,logmax,1.]
+    for i in np.arange(nbins):
+        weight,err=quad(pcosmic.loglognormal_dlog,logbins[i],logbins[i+1],args=args)
+        probs[i] = weight
+        if logbins[i+1] > logmean:
+            break
+    # fills up remaining bins with the peak value
+    probs[i+1:] = probs[i]
+    # normalisation
+    probs /= np.sum(pobs)
+    return probs
+        
 def make_widths(s:Survey,state):
     """
     This method takes a distribution of intrinsic FRB widths 
@@ -928,11 +1029,10 @@ def make_widths(s:Survey,state):
     else:
         width_method = state.width.Wmethod
     
-    # just extracting for now to get thrings straight
+    # just extracting for now to get things straight
     nbins=state.width.Wbins
     scale=state.width.Wscale
     thresh=state.width.Wthresh
-    #width_method=state.width.Wmethod
     wlogmean=state.width.Wlogmean
     wlogsigma=state.width.Wlogsigma
     
@@ -944,11 +1044,6 @@ def make_widths(s:Survey,state):
     # constant of DM
     k_DM=4.149 #ms GHz^2 pc^-1 cm^3
     
-    # Parse
-    # OLD
-    #    tres=s.meta['TRES']
-    #    nu_res=s.meta['FRES']
-    #    fbar=s.meta['FBAR']
     tres=s.meta['TRES']
     nu_res=s.meta['FRES']
     fbar=s.meta['FBAR']

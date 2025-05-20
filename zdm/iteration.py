@@ -257,12 +257,6 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=True,Pn=False,pN
         #pdm /= global_norm
     else:
         log_global_norm=0
-
-    #ddm=dmvals[1]-dmvals[0]
-    #kdms=DMobs/ddm
-    #idms1=kdms.astype('int')
-    #idms2=idms1+1
-    #dkdms=kdms-idms1
     
     idms1,idms2,dkdms1,dkdms2 = grid.get_dm_coeffs(DMobs)
 
