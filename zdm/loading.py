@@ -119,10 +119,6 @@ def load_CHIME(Nbin:int=6, make_plots:bool=False, opdir='CHIME/',\
         print("Loading CHIME surveys from ",sdir)
     
     # loads beam data
-
-    #bounds = np.load(beams.beams_path+'bounds.npy')
-    #solids = np.load(beams.beams_path+'solids.npy')
-    
     names=[]
     # Loops through CHIME declination bins
     for ibin in np.arange(Nbin):
@@ -243,7 +239,7 @@ def surveys_and_grids(init_state=None, alpha_method=1,
     surveys = []
     for survey_name in survey_names:
         # print(f"Initializing {survey_name}")
-        s = survey.load_survey(survey_name, state, dmvals, 
+        s = survey.load_survey(survey_name, state, dmvals, zvals,
                                NFRB=NFRB, sdir=sdir, edir=edir, 
                                rand_DMG=rand_DMG)
         

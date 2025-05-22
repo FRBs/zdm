@@ -36,6 +36,7 @@ class Survey:
     def __init__(self, state, survey_name:str, 
                  filename:str, 
                  dmvals:np.ndarray,
+                 zvals:np.ndarray,
                  NFRB:int=None, 
                  iFRB:int=0,
                  edir=None,
@@ -47,7 +48,8 @@ class Survey:
             survey_name (str): 
                 Name of the survey
             filename (str): _description_
-            dmvals (np.ndarray): _description_
+            dmvals (np.ndarray): Extragalactic DM values at which to calculate efficiencies
+            zvals  (np.ndarray): Redshift values at which to calculate efficiencies
             NFRB (int, optional): _description_. Defaults to None.
             iFRB (int, optional): _description_. Defaults to 0.
             edir (str, optional): Location of efficiency files
@@ -56,6 +58,10 @@ class Survey:
         # Proceed
         self.name = survey_name
         self.dmvals = dmvals
+        self.zvals = zvals
+        self.NDM = dmvals.size
+        self.NZ = zvals.size
+        
         # Load up
         self.process_survey_file(filename, NFRB, iFRB, min_lat=state.analysis.min_lat, dmg_cut=state.analysis.DMG_cut)
         # Check if repeaters or not and set relevant parameters
@@ -80,10 +86,28 @@ class Survey:
                        method=beam_method, 
                        plot=False, 
                        thresh=beam_thresh) # tells the survey to use the beam file
+        
         # Efficiency: width_method passed through "self" here
-        pwidths,pprobs=make_widths(self, state)
-        _ = self.get_efficiency_from_wlist(dmvals,
-                                       pwidths,pprobs,model=width_bias, edir=edir) 
+        # Determines if the model is redshift dependent
+        
+        if self.meta['WMETHOD'] != 3:
+            pwidths,pprobs=make_widths(self, state)
+            _ = self.get_efficiency_from_wlist(pwidths,pprobs,
+                                        model=width_bias, edir=edir, iz=None) 
+        else:
+            # evaluate efficiencies at each redshift
+            self.NWbins = state.width.Wbins
+            self.efficiencies = np.zeros([self.NWbins,self.NZ,self.NDM])
+            self.wplist = np.zeros([self.NWbins,self.NZ])
+            self.wlist = np.zeros([self.NWbins,self.NZ])
+            self.DMlist = np.zeros([self.NZ,self.NDM])
+            self.mean_efficiencies = np.zeros([self.NZ,self.NDM])
+            
+            # we have a z-dependent scattering and width model
+            for iz,z in enumerate(self.zvals):
+                pwidths,pprobs=make_widths(self, state, z=z)
+                _ = self.get_efficiency_from_wlist(pwidths,pprobs,
+                                        model=width_bias, edir=edir,iz=iz)
         self.calc_max_dm()
 
     def init_repeaters(self):
@@ -434,7 +458,6 @@ class Survey:
             DC = self.survey_data.params[key]
             self.meta[key] = getattr(self.survey_data[DC],key)
             
-            
         # Get default values from default frb data
         default_frb = survey_data.FRB()
         
@@ -552,8 +575,8 @@ class Survey:
         # checks for incorrectSNR values
         toolow = np.where(self.Ss < 1.)[0]
         if len(toolow) > 0:
-            print("FRBs ",toolow," have SNR < SNRTHRESH!!! Please correct this. Exiting...")
-            exit()
+            raise ValueError("FRBs ",toolow," have SNR < SNRTHRESH!!! Please correct this. Exiting...")
+            
         
         print("FRB survey sucessfully initialised with ",self.NFRB," FRBs starting from", self.iFRB)
 
@@ -658,17 +681,13 @@ class Survey:
 
         self.max_dm = max_dm
 
-    def get_efficiency_from_wlist(self,DMlist,wlist,plist, 
+    def get_efficiency_from_wlist(self,wlist,plist, 
                                   model="Quadrature", 
                                   addGalacticDM=True,
-                                  edir=None):
+                                  edir=None, iz=None):
         """ Gets efficiency to FRBs
         Returns a list of relative efficiencies
         as a function of dispersion measure for each width given in wlist
-        
-        
-        DMlist:
-            - list of dispersion measures (pc/cm3) at which to calculate efficiency
         
         wlist:
             list of intrinsic FRB widths
@@ -688,7 +707,11 @@ class Survey:
         edir:
             - Directory where efficiency files are contained. Only relevant if specific FRB responses are used
         
+        iz:
+            - izth z-bin where these efficiencies are being calculated
         """
+        DMlist = self.dmvals
+        
         efficiencies=np.zeros([wlist.size,DMlist.size])
         
         if addGalacticDM:
@@ -712,12 +735,21 @@ class Survey:
                 max_iw=self.meta['MAX_IW'],
                 max_meth = self.meta['MAXWMETH'])
         # keep an internal record of this
-        self.efficiencies=efficiencies
-        self.wplist=plist
-        self.wlist=wlist
-        self.DMlist=DMlist
-        mean_efficiencies=np.mean(efficiencies,axis=0)
-        self.mean_efficiencies=mean_efficiencies #be careful here!!! This may not be what we want!
+        
+        if iz is None:
+            self.efficiencies=efficiencies
+            self.wplist=plist
+            self.wlist=wlist
+            self.DMlist=DMlist
+            mean_efficiencies=np.mean(efficiencies,axis=0)
+            self.mean_efficiencies=mean_efficiencies #be careful here!!! This may not be what we want!
+        else:
+            self.efficiencies[:,iz,:]=efficiencies
+            self.wplist[:,iz]=plist
+            self.wlist[:,iz]=wlist
+            self.DMlist[iz,:]=DMlist
+            mean_efficiencies=np.mean(efficiencies,axis=0)
+            self.mean_efficiencies[iz,:]=mean_efficiencies #be careful here!!! This may not be what we want!
         return efficiencies
     
     def __repr__(self):
@@ -1008,7 +1040,7 @@ def halflognormal(logmean,logsigma,minw,maxw,nbins):
     probs /= np.sum(pobs)
     return probs
         
-def make_widths(s:Survey,state):
+def make_widths(s:Survey,state,z=0.):
     """
     This method takes a distribution of intrinsic FRB widths 
     (lognormal, defined by wlogmean and wlogsigma), and returns 
@@ -1021,18 +1053,13 @@ def make_widths(s:Survey,state):
     Args:
         s (Survey,required): instance of survey class
         state (state class,required): instance of the state class
-
+        z (float): redshift at which this is being calculated
+    
     Returns:
         list: list of widths
     """
     # variables which can be over-ridden by a survey, but which
     # appear by default in the parameter set
-    
-    # method to use to calculate FRB width distribution
-    if 'WMETHOD' in s.meta and s.meta['WMETHOD'] is not None:
-        width_method = s.meta['WMETHOD']
-    else:
-        width_method = state.width.Wmethod
     
     # just extracting for now to get things straight
     nbins=state.width.Wbins
@@ -1040,6 +1067,7 @@ def make_widths(s:Survey,state):
     thresh=state.width.Wthresh
     wlogmean=state.width.Wlogmean
     wlogsigma=state.width.Wlogsigma
+    width_method = s.meta["WMETHOD"]
     
     slogmean=state.scat.Slogmean
     slogsigma=state.scat.Slogsigma
@@ -1047,6 +1075,10 @@ def make_widths(s:Survey,state):
     sfpower=state.scat.Sfpower
     maxsigma=state.scat.Smaxsigma
     scatdist=state.scat.ScatDist
+    
+    # adjusts these model values according to redshift
+    wlogmean += np.log(1.+z) # scales with (1+z)
+    slogmean -= 3.*np.log(1.+z) # scales with (1+z)^-3
     
     # constant of DM
     k_DM=4.149 #ms GHz^2 pc^-1 cm^3
@@ -1096,23 +1128,27 @@ def make_widths(s:Survey,state):
             wsum += weight
             wmin = wmax
             wmax *= scale
-    elif width_method==2:
-        # include scattering distribution
+    elif width_method==2 or width_method==3:
+        # include scattering distribution. 3 means include z-dependence
         # scale scattering time according to frequency in logspace
         slogmean = slogmean + sfpower*np.log(fbar/sfnorm)
         
         # generates bins
         
         bins = np.zeros([nbins+1])
-        bins[1:] = np.logspace(np.log10(wmax),np.log10(wmax) + np.log10(scale)*(nbins-1), nbins)
-        
+        dbin = np.log10(scale)
+        logwmin = np.log10(wmax)
+        # bins ignore wmax - scale takes precedent
+        bins[1:] = np.logspace(logwmin,logwmin + dbin*(nbins-1), nbins)
+        widths = dbin * (np.arange(nbins)-0.5) + logwmin
         
         #gets cumulative hist and bin edges
         dist,cdist,cbins=geometric_lognormals2(wlogmean,
                                wlogsigma,slogmean,slogsigma,Nsigma=maxsigma,
                                ScatDist=scatdist,bins=bins)
+        weights = dist
         
-    elif width_method==3:
+    elif width_method==4:
         # use specific width of FRB. This requires there to be only a single FRB in the survey
         if s.meta['NFRB'] != 1:
             raise ValueError("If width method in make_widths is 3 only one FRB should be specified in the survey but ", str(s.meta['NFRB']), " FRBs were specified")
@@ -1121,19 +1157,23 @@ def make_widths(s:Survey,state):
             widths.append(s.frbs['WIDTH'][0])
     else:
         raise ValueError("Width method in make_widths must be 0, 1 or 2, not ",width_method)
+    # check this is correct - we may wish to lose extra probability
+    # off the top, though never off the bottom
     weights[-1] += 1.-wsum #adds defecit here
     weights=np.array(weights)
     widths=np.array(widths)
     # removes unneccesary bins
-    keep=np.where(weights>1e-4)[0]
-    weights=weights[keep]
-    widths=widths[keep]
+    # cannot do this when considering z-dependent bins for consistency
+    #keep=np.where(weights>1e-4)[0]
+    #weights=weights[keep]
+    #widths=widths[keep]
     
     return widths,weights
 
 
 def load_survey(survey_name:str, state:parameters.State, 
                 dmvals:np.ndarray,
+                zvals:np.ndarray,
                 sdir:str=None, NFRB:int=None, 
                 nbins=None, iFRB:int=0,
                 dummy=False,
@@ -1146,6 +1186,7 @@ def load_survey(survey_name:str, state:parameters.State,
             e.g. CRAFT/FE
         state (parameters.State): Parameters for the state
         dmvals (np.ndarray): DM values
+        zvals (np.ndarray): z values
         sdir (str, optional): Path to survey files. Defaults to None.
         nbins (int, optional):  Sets number of bins for Beam analysis
             [was NBeams]
@@ -1199,6 +1240,7 @@ def load_survey(survey_name:str, state:parameters.State,
                     survey_name, 
                     os.path.join(sdir, dfile), 
                      dmvals,
+                     zvals,
                      NFRB=NFRB, iFRB=iFRB,
                      edir=edir, rand_DMG=rand_DMG)
     return srvy

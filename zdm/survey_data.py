@@ -98,7 +98,13 @@ class FRB(data_class.myDataClass):
                   })
     WIDTH: float = field( 
         default=0.1, 
-        metadata={'help': "Width of the event (intrinsic??)", 
+        metadata={'help': "Width of the event", 
+                  'unit': 'ms', 
+                  'Notation': '',
+                  })
+    TAU: float = field( 
+        default=-1, 
+        metadata={'help': "Scattering timescale of the event", 
                   'unit': 'ms', 
                   'Notation': '',
                   })
@@ -146,8 +152,14 @@ class Telescope(data_class.myDataClass):
                   'Notation': '',
                   })
     WMETHOD: int = field(
+        default=3, 
+        metadata={'help': "Code for width method. 0: ignore it (all 1ms), 1: intrinsic lognormal, 2: include scattering, 3: scat & z-dependence, 4: specific FRB", 
+                  'unit': '', 
+                  'Notation': '',
+                  })
+    WDATA: int = field(
         default=2, 
-        metadata={'help': "Method of calculating FRB widths; 0 ignore, 1 std, 2 includes scattering", 
+        metadata={'help': "What does the WIDTH column include? 0 intrinsic, 1: also scattering, 2: also DM smearing",
                   'unit': '', 
                   'Notation': '',
                   })

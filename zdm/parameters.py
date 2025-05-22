@@ -257,7 +257,7 @@ class WidthParams(data_class.myDataClass):
         default=5,
         metadata={"help": "Number of bins for FRB width distribution", "unit": ""},
     )
-    Wscale: int = field(
+    Wscale: float = field(
         default=3.5,
         metadata={"help": "Log-scaling of bins for width distribution", "unit": ""},
     )

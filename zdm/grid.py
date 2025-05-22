@@ -19,7 +19,7 @@ class Grid:
     It also assumes a linear uniform grid.
     """
 
-    def __init__(self, survey, state, zDMgrid, zvals, dmvals, smear_mask, wdist, prev_grid=None):
+    def __init__(self, survey, state, zDMgrid, zvals, dmvals, smear_mask, wdist=None, prev_grid=None):
         """
         Class constructor.
 
@@ -78,18 +78,18 @@ class Grid:
             self.smear = prev_grid.smear.copy()
             self.smear_grid = prev_grid.smear_grid.copy()
             
-        if wdist:
-            efficiencies = survey.efficiencies  # two dimensions
+        if wdist is not None:
+            efficiencies = survey.efficiencies  # two OR three dimensions
             weights = survey.wplist
         else:
-            efficiencies = survey.mean_efficiencies
+            # if this is the case, why calc thresholds again below?
+            efficiencies = survey.mean_efficiencies # one dimension
             weights = None
             self.calc_thresholds(survey.meta["THRESH"], efficiencies, weights=weights)
             efficiencies=survey.mean_efficiencies
-            weights=None
+        
         # Warning -- THRESH could be different for each FRB, but we don't treat it that way
         thresh = survey.meta["THRESH"]
-        # was np.median(survey.frbs['THRESH'])
         self.calc_thresholds(thresh,
                              efficiencies,
                              weights=weights)
@@ -356,6 +356,7 @@ class Grid:
             main_beam_b = np.log10(main_beam_b)
 
         for i, b in enumerate(main_beam_b):
+            # if eff_weights is 2D (i.e., z-dependent) then w is a vector of length NZ
             for j, w in enumerate(self.eff_weights):
                 # using log10 space conversion
                 if self.use_log10:
@@ -363,21 +364,24 @@ class Grid:
                 else:  # original
                     thresh = self.thresholds[j, :, :] / b
 
-                if j == 0:
-                    self.b_fractions[:, :, i] = (
+                # redundant - initialised to zero already!
+                #if j == 0:
+                #    self.b_fractions[:, :, i] = (
+                #        self.beam_o[i]
+                #        * w
+                #        * self.array_cum_lf(
+                #            thresh, Emin, Emax, self.state.energy.gamma, self.use_log10
+                #        )
+                #    )
+                #else:
+                # the below is to ensure this works when w is a vector of length nz
+                w = np.array(w)
+                
+                self.b_fractions[:, :, i] += (
                         self.beam_o[i]
-                        * w
-                        * self.array_cum_lf(
+                        * (self.array_cum_lf(
                             thresh, Emin, Emax, self.state.energy.gamma, self.use_log10
-                        )
-                    )
-                else:
-                    self.b_fractions[:, :, i] += (
-                        self.beam_o[i]
-                        * w
-                        * self.array_cum_lf(
-                            thresh, Emin, Emax, self.state.energy.gamma, self.use_log10
-                        )
+                        ).T * w.T).T
                     )
         # here, b-fractions are unweighted according to the value of b.
         self.fractions = np.sum(
@@ -418,7 +422,7 @@ class Grid:
 
         Args:
             F0 (float): base survey threshold
-            eff_table ([type]): table of efficiencies corresponding to DM-values
+            eff_table ([type]): table of efficiencies corresponding to DM-values. 1, 2, or 3 dimensions!
             bandwidth ([type], optional): [description]. Defaults to 1e9.
             nuObs ([float], optional): survey frequency (affects sensitivity via alpha - only for alpha method)
                 Defaults to 1.3e9.
@@ -440,9 +444,10 @@ class Grid:
             self.eff_weights = np.array([1])
             self.eff_table = np.array([eff_table])  # make it an extra dimension
         else:  # multiple FRB widths: dimensions nW x NDM
-            self.nthresh = eff_table.shape[0]
+            # check that the weights dimensions check out
+            self.nthresh = eff_table.shape[0] # number of width bins.
             if weights is not None:
-                if weights.size != self.nthresh:
+                if weights.shape[0] != self.nthresh:
                     raise ValueError(
                         "Dimension of weights must equal first dimension of efficiency table"
                     )
@@ -450,10 +455,15 @@ class Grid:
                 raise ValueError(
                     "For a multidimensional efficiency table, please set relative weights"
                 )
-            self.eff_weights = weights / np.sum(weights)  # normalises this!
+            # I have removed weight normalisation here. In theory, normalisation to <1 is
+            # a feature, not a bug, representing more/less scattering moving into the
+            # observable range
             self.eff_table = eff_table
+            self.eff_weights = weights
+        
+        # now two or three dimensions
         Eff_thresh = F0 / self.eff_table
-
+        
         self.EF(self.state.energy.alpha, bandwidth)  # sets FtoE values - could have been done *WAY* earlier
 
         self.thresholds = np.zeros([self.nthresh, self.zvals.size, self.dmvals.size])
@@ -464,8 +474,12 @@ class Grid:
         # FRB width (nthresh) and DM.
         # We loop over nthesh and generate a NDM x Nz array for each
         for i in np.arange(self.nthresh):
-            self.thresholds[i,:,:] = np.outer(self.FtoE, Eff_thresh[i,:])
-            
+            if self.eff_table.ndim == 2:
+                self.thresholds[i,:,:] = np.outer(self.FtoE, Eff_thresh[i,:])
+            else:
+                self.thresholds[i,:,:] =  ((Eff_thresh[i,:,:]).T * self.FtoE).T
+        
+        
     def smear_dm(self, smear:np.ndarray):  # ,mean:float,sigma:float):
         """ Smears DM using the supplied array.
         Example use: DMX contribution
@@ -581,6 +595,9 @@ class Grid:
         nw = self.eff_weights.size
         nb = self.beam_b.size
         
+        if self.eff_weights.ndim > 1:
+            raise ValueError("MC generation from z-dependent widths not currently enabled")
+        
         # holds array of probabilities in w,b space
         pwb = np.zeros([nw * nb])
         rates = []
@@ -672,6 +689,8 @@ class Grid:
         
         # grid of beam values, weights
         nw = self.eff_weights.size
+        if self.eff_weights.ndim > 1:
+            raise ValueError("MC generation from z-dependent widths not currently enabled")
         nb = self.beam_b.size
         
         if not self.MCinit:
