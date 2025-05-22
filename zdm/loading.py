@@ -35,8 +35,8 @@ def set_state(alpha_method=1, cosmo=Planck18):
     vparams['width'] = {}
     vparams['width']['Wlogmean'] = 1.70267
     vparams['width']['Wlogsigma'] = 0.899148
-    vparams['width']['Wbins'] = 10
-    vparams['width']['Wscale'] = 2
+    vparams['width']['WNbins'] = 10
+    #vparams['width']['Wscale'] = 2
     vparams['width']['Wthresh'] = 0.5
     #vparams['width']['Wmethod'] = 2
     
@@ -181,7 +181,8 @@ def surveys_and_grids(init_state=None, alpha_method=1,
                       NFRB=None, repeaters=False,
                       sdir=None, edir=None,
                       rand_DMG=False, discard_empty=False,
-                      state_dict=None): 
+                      state_dict=None,
+                      survey_dict=None,verbose=False): 
     """ Load up a survey and grid for a real dataset
 
     Args:
@@ -204,7 +205,7 @@ def surveys_and_grids(init_state=None, alpha_method=1,
             If true, randomise the galactic DM - for MCMC studies
         discard_empty (bool, optional):
             If true, does not calculate empty surveys (mostly for after latitude cuts)
-
+        survey_dict (dict,None): list of survey metadata and values to apply
     Raises:
         IOError: [description]
 
@@ -241,7 +242,7 @@ def surveys_and_grids(init_state=None, alpha_method=1,
         # print(f"Initializing {survey_name}")
         s = survey.load_survey(survey_name, state, dmvals, zvals,
                                NFRB=NFRB, sdir=sdir, edir=edir, 
-                               rand_DMG=rand_DMG)
+                               rand_DMG=rand_DMG,survey_dict=survey_dict)
         
         if discard_empty == False or s.NFRB != 0:
             # Check necessary parameters exist if considering repeaters
@@ -252,12 +253,14 @@ def surveys_and_grids(init_state=None, alpha_method=1,
         else:
             print("Skipping empty survey " + s.name)
         
-    print("Initialised surveys")
+    if verbose:
+        print("Initialised surveys")
 
     # generates zdm grid
     grids = misc_functions.initialise_grids(
         surveys, zDMgrid, zvals, dmvals, state, wdist=True, repeaters=repeaters)
-    print("Initialised grids")
+    if verbose:
+        print("Initialised grids")
 
     # Return Survey and Grid
     return surveys, grids

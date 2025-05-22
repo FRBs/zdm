@@ -253,13 +253,17 @@ class WidthParams(data_class.myDataClass):
         },
     )
 
-    Wbins: int = field(
+    WNbins: int = field(
         default=5,
         metadata={"help": "Number of bins for FRB width distribution", "unit": ""},
     )
-    Wscale: float = field(
-        default=3.5,
-        metadata={"help": "Log-scaling of bins for width distribution", "unit": ""},
+    WMin: int = field(
+        default=0.1,
+        metadata={"help": "Minimum scattering value to model", "unit": "ms"},
+    )
+    WMax: int = field(
+        default=100,
+        metadata={"help": "Maximum scattering value to model", "unit": "ms"},
     )
 
 

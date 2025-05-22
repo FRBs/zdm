@@ -12,6 +12,7 @@ from zdm import cosmology as cos
 from scipy.stats import poisson
 import scipy.stats as st
 from zdm import repeat_grid as zdm_repeat_grid
+
 # internal counter
 NCF=0
 
@@ -347,14 +348,21 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=True,Pn=False,pN
                     rs[j,i] = np.sum(grid.rates[j,iweights[i]] * dm_weights[i]) / np.sum(dm_weights[i])
                     
         # this has shape nz,nFRB - FRBs could come from any z-value
-        zpsnr=np.zeros(Eths.shape[1:])
+        nw,nz,nfrb = Eths.shape
+        zpsnr=np.zeros([nz,nfrb])
+        # numpy flattens this to the order of [z0frb0,z0f1,z0f2,...,z1f0,...]
         zpsnr = zpsnr.flatten()
+        
+        if grid.eff_weights.ndim ==2:
+            zwidths = True
+        else:
+            zwidths = False
         
         for i,b in enumerate(survey.beam_b):
             #iterate over the grid of weights
             bEths=Eths/b #this is the only bit that depends on j, but OK also!
             #now wbEths is the same 2D grid
-            #wbEths=bEths #this is the only bit that depends on j, but OK also!
+            # bEobs has dimensions Nwidths * Nz * NFRB
             bEobs=bEths*survey.Ss[nozlist] #should correctly multiply the last dimensions
             for j,w in enumerate(grid.eff_weights):
                 differential = grid.array_diff_lf(bEobs[j,:,:],Emin,Emax,gamma) * bEths[j,:,:]
@@ -362,12 +370,19 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=True,Pn=False,pN
                 
                 # check for zero probabilities
                 OK = np.where(cumulative.flatten()>0)[0]
-                zpsnr[OK] += (differential.flatten()[OK]/cumulative.flatten()[OK])*survey.beam_o[i]*w
+                if zwidths:
+                    usew = np.repeat(w,nfrb)[OK]
+                else:
+                    usew = w
+                
+                zpsnr[OK] += (differential.flatten()[OK]/cumulative.flatten()[OK])*survey.beam_o[i]*usew
         
         # normalise by the beam and FRB width values
-        NORM = np.sum(survey.beam_o) * np.sum(grid.eff_weights)
-        zpsnr /= NORM
-        zpsnr = zpsnr.reshape(Eths.shape[1:])
+        # this may be a scalar or have dimension NZ
+        NORM = np.sum(survey.beam_o) * np.sum(grid.eff_weights,axis=0)
+        
+        zpsnr = zpsnr.reshape([nz,nfrb])
+        zpsnr = (zpsnr.T/NORM).T # T is there for when NORM has dimensions NZ, and zpsnr has dimensions nz nfrb
         
         # perform the weighting over the redshift axis
         rnorms = np.sum(rs,axis=0)
@@ -492,8 +507,7 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=True,Pn=False,pN
         plt.tight_layout()
         plt.savefig('Plots/1d_dm_fit.pdf')
         plt.close()
-
-    print(survey.name, "1D list:", lllist)
+    
     if dolist==0:
         return llsum
     elif dolist==1:
@@ -752,14 +766,22 @@ def calc_likelihoods_2D(grid,survey,doplot=False,norm=True,psnr=True,printit=Fal
         Eths += grid.thresholds[:,izs2,idmobs1]*dkdmobs1*dkzs2
         Eths += grid.thresholds[:,izs1,idmobs2]*dkdmobs2*dkzs1
         Eths += grid.thresholds[:,izs2,idmobs2]*dkdmobs2*dkzs2
-
+        
         FtoE = grid.FtoE[izs1]*dkzs1
         FtoE += grid.FtoE[izs2]*dkzs2
         
         # now do this in one go
         # We integrate p(snr|b,w) p(b,w) db dw.
         # Eths.shape[i] is the number of FRBs: length of izs1
-        psnr=np.zeros(Eths.shape[1])
+        # this has shape nz,nFRB - FRBs could come from any z-value
+        nw,nfrb = Eths.shape
+        psnr=np.zeros([nfrb])
+        
+        if grid.eff_weights.ndim ==2:
+            zwidths = True
+            usews = np.zeros([nfrb])
+        else:
+            zwidths = False
         
         for i,b in enumerate(survey.beam_b):
             bEths=Eths/b # array of shape NFRB, 1/b
@@ -772,9 +794,23 @@ def calc_likelihoods_2D(grid,survey,doplot=False,norm=True,psnr=True,printit=Fal
                 temp2=grid.array_cum_lf(bEths[j,:],Emin,Emax,gamma) # * FtoE #one dim in beamshape, one dim in FRB
                 cumulative = temp2.T #*bEths[j,:] #multiplies by beam factors and weight
                 
-                psnr += (differential/cumulative)*survey.beam_o[i]*w
-        
-        NORM = np.sum(grid.eff_weights) * np.sum(survey.beam_o)
+                # protection against zeroes
+                OK = np.where(cumulative > 0.)
+                
+                if zwidths:
+                    # a function of redshift
+                    usew = w[izs1]*dkzs1 + w[izs2]*dkzs2
+                    usews += usew
+                    usew = usew[OK]
+                else:
+                    usew = w # just a scalar quantity
+                
+                contribution = (differential[OK]/cumulative[OK])*survey.beam_o[i]*usew
+                psnr[OK] += contribution
+        if zwidths:
+            NORM = usews * np.sum(survey.beam_o) # vector of length NFRB
+        else:
+            NORM = np.sum(grid.eff_weights) * np.sum(survey.beam_o)
         psnr /= NORM
         
         # keeps individual FRB values
