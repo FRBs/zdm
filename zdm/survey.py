@@ -480,7 +480,6 @@ class Survey:
                 default_value = self.meta[field.name]
             else:
                 default_value = getattr(default_frb, field.name)
-            
             # now checks for missing data, fills with the default value
             if field.name in frb_tbl.columns:
                 

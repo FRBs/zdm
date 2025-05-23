@@ -81,6 +81,9 @@ class Grid:
         if wdist is not None:
             efficiencies = survey.efficiencies  # two OR three dimensions
             weights = survey.wplist
+            # Warning -- THRESH could be different for each FRB, but we don't treat it that way
+            self.calc_thresholds(survey.meta["THRESH"],
+                             efficiencies,weights=weights)
         else:
             # if this is the case, why calc thresholds again below?
             efficiencies = survey.mean_efficiencies # one dimension
@@ -88,11 +91,6 @@ class Grid:
             self.calc_thresholds(survey.meta["THRESH"], efficiencies, weights=weights)
             efficiencies=survey.mean_efficiencies
         
-        # Warning -- THRESH could be different for each FRB, but we don't treat it that way
-        thresh = survey.meta["THRESH"]
-        self.calc_thresholds(thresh,
-                             efficiencies,
-                             weights=weights)
         # Calculate
         self.calc_pdv()
         self.set_evolution()  # sets star-formation rate scaling with z - here, no evoltion...

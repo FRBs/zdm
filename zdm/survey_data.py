@@ -103,7 +103,7 @@ class FRB(data_class.myDataClass):
                   'Notation': '',
                   })
     TAU: float = field( 
-        default=-1, 
+        default=-1., 
         metadata={'help': "Scattering timescale of the event", 
                   'unit': 'ms', 
                   'Notation': '',
