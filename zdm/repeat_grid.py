@@ -12,9 +12,6 @@ Input:
         - Rmax: Maximum repetition rate of repeaters
         - Rgamma: *Differential* number of repeaters: dN/dR ~ R^Rgamma
 
-
-
-
 Some notes regarding time dilation:
     
     #1: dVdtau
@@ -52,14 +49,19 @@ import time
 
 # NZ is meant to toggle between calculating nonzero elements or not
 # In theory, if False, it tries to perform calculations
-# where there is no flux
-# Currenty, it seems like setting it to False causes problems
+# where there is no flux. But that also saves calculation time
+# in determining where this is no flux, and re-arranging arrays
+# accordingly. Currently, it seems like setting it to False
+# causes problems. In future, fix, and investigate the time 
+# saved.
 NZ=True
 
 # These constants represent thresholds below which we assume the chance
-# to produce repetition is identically zero
+# to produce repetition is identically zero, for speedup purposes, and
+# to avoid numerical error in calculating p(reps) = 1 - p(1) - p(0)
 LSRZ = -10. #Was causing problems at merely -6
 SET_REP_ZERO=10**LSRZ # forces p(n=0) bursts to be unity when a maximally repeating FRB has SET_REP_ZERO expected events or less
+
 # the above is crazy, the problem is it should zet p_zero + p_single to be unity, i.e. chance of double to be zero
 # but how do we do this? presumably it's the total minus psingle?
 #LZRZ = np.log10(SET_REP_ZERO)
@@ -170,6 +172,7 @@ class repeat_Grid(grid.Grid):
         else:
             self.use_sfr = self.sfr
         
+        # this is the calculation that initiates everything. It is a poor name choice
         self.calc_Rthresh(Exact=Exact,MC=MC,doplots=doplots)
 
     def update(self, vparams: dict, ALL=False, prev_grid=None):
@@ -330,7 +333,6 @@ class repeat_Grid(grid.Grid):
         Old defines which parameters (Rmin, Rmax, gamma) are being redone
         
         """
-        
         
         # calculates rate corresponding to Pthresh
         # P = 1.-(1+R) * np.exp(-R)
@@ -1077,18 +1079,27 @@ class repeat_Grid(grid.Grid):
         
         We also need to account for the rate scaling if it exists.
         """
+        Rmult=0 # initiates the variable. It's actually going to be NZ x NDM
+        
         # calculates Rmult over a range of burst widths and probabilities
-        #print("Calculating Rmult using ",beam_b)
         for iw,w in enumerate(self.eff_weights):
             # we want to calculate for each point an Rmult such that
             # Rmult_final = \sum wi Rmulti
-            # does this make sense? Effectively its the sum of rates. Well yes it does! AWESOME!
+            # does this make sense? Effectively it's the sum of rates. Well yes it does! AWESOME!
             # numerator for Rmult for this width
-            #Note: grid.thresholds already will include effect of alpha
-            if iw==0:
-                Rmult = w*self.array_cum_lf(self.thresholds[iw,:,:]/beam_b,self.Emin,self.Emax,self.gamma)
-            else:
+            # Note: grid.thresholds already will include effect of alpha
+            # The dimensions of self.thresholds is NW x NZ x NDM, so self.thresholds[iw,:,:] is NZ x NDM
+            #if iw==0:
+            #    Rmult = w*self.array_cum_lf(self.thresholds[iw,:,:]/beam_b,self.Emin,self.Emax,self.gamma)
+            #else:
+            if self.eff_table.ndim == 2:
+                # w is a scalar
                 Rmult += w*self.array_cum_lf(self.thresholds[iw,:,:]/beam_b,self.Emin,self.Emax,self.gamma)
+            else:
+                # w is a vector of length NZ
+                Rmult += (self.array_cum_lf(self.thresholds[iw,:,:]/beam_b,self.Emin,self.Emax,self.gamma).T*w).T
+        
+        # normalisation
         Rmult /= self.vector_cum_lf(self.state.rep.RE0,self.Emin,self.Emax,self.gamma)
         
         # calculates the expectation value for a single pointing
