@@ -361,17 +361,7 @@ class Grid:
                     thresh = new_thresh[j, :, :] - b
                 else:  # original
                     thresh = self.thresholds[j, :, :] / b
-
-                # redundant - initialised to zero already!
-                #if j == 0:
-                #    self.b_fractions[:, :, i] = (
-                #        self.beam_o[i]
-                #        * w
-                #        * self.array_cum_lf(
-                #            thresh, Emin, Emax, self.state.energy.gamma, self.use_log10
-                #        )
-                #    )
-                #else:
+                
                 # the below is to ensure this works when w is a vector of length nz
                 w = np.array(w)
                 

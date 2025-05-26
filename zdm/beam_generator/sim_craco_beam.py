@@ -254,7 +254,7 @@ def get_craco_allbeams(
         np.save(savefname, beamsresponse)
         logger.info(f"save data to {savefname}...")
 
-if __name__ == "__main__":
+def main():
     from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
     parser = ArgumentParser(description="simulate craco response", formatter_class=ArgumentDefaultsHelpFormatter)
     parser.add_argument("-fp", "--footprint", help="askap beam footprint", type=str, default="square")
@@ -287,4 +287,5 @@ if __name__ == "__main__":
         hist_craco_beams(footprint, pitch, freq, gsize, gpix,plot=True)
 
 
+main()
         

@@ -13,7 +13,7 @@ contributions using zDM to set priors for apparent magnitudes.
 WARNING2: To do this properly also requires inputting the posterior POx
 for host galaxies into zDM! This simulation does not do that either.
 
-
+WARNING3: this program takes O~1 hr to run
 """
 
 
@@ -33,6 +33,7 @@ import utilities as ute
 import astropath.priors as pathpriors
 from scipy.optimize import minimize
 
+import ics_frbs as ics
 
 def main():
     """
@@ -43,15 +44,7 @@ def main():
     
     ######### List of all ICS FRBs for which we can run PATH #######
     # hard-coded list of FRBs with PATH data in ice paper
-    frblist=['FRB20180924B','FRB20181112A','FRB20190102C','FRB20190608B',
-        'FRB20190611B','FRB20190711A','FRB20190714A','FRB20191001A',
-        'FRB20191228A','FRB20200430A','FRB20200906A','FRB20210117A',
-        'FRB20210320C','FRB20210807D','FRB20211127I','FRB20211203C',
-        'FRB20211212A','FRB20220105A','FRB20220501C',
-        'FRB20220610A','FRB20220725A','FRB20220918A',
-        'FRB20221106A','FRB20230526A','FRB20230708A', 
-        'FRB20230731A','FRB20230902A','FRB20231226A','FRB20240201A',
-        'FRB20240210A','FRB20240304A','FRB20240310A']
+    frblist=ics.frblist
     
     # Initlisation of zDM grid
     # Eventually, this should be part of the loop, i.e. host IDs should
