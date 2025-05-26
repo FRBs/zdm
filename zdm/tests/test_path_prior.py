@@ -50,7 +50,7 @@ def test_path_priors():
         
         # determines if this FRB was seen by the survey, and
         # if so, what its DMEG is
-        imatch = matchFRB(frb,s)
+        imatch = opt.matchFRB(frb,s)
         if imatch is None:
             raise ValueError("Could not find ",frb," in survey")
             # should be in this file
@@ -75,38 +75,4 @@ def test_path_priors():
         if not OK:
             raise ValueError("Some elements of magnitude priors are not finite")
 
-def simplify_name(TNSname):
-    """
-    Simplifies an FRB name to basics
-    """
-    # reduces all FRBs to six integers
-    
-    if TNSname[0:3] == "FRB":
-        TNSname = TNSname[3:]
-    
-    if len(TNSname) == 9:
-        name = TNSname[2:-1]
-    elif len(TNSname) == 8:
-        name = TNSname[2:]
-    elif len(TNSname) == 7:
-        name = TNSname[:-1]
-    elif len(TNSname) == 6:
-        name = TNSname
-    else:
-        print("Do not know how to process ",TNSname)
-    return name
-
-def matchFRB(TNSname,survey):
-    """
-    Gets the FRB id from the survey list
-    Returns None if not in the survey
-    """
-    
-    name = simplify_name(TNSname)
-    match = None
-    for i,frb in enumerate(survey.frbs["TNS"]):
-        if name == simplify_name(frb):
-            match = i
-            break
-    return match
-
+test_path_priors()

@@ -36,7 +36,7 @@ class Survey:
     def __init__(self, state, survey_name:str, 
                  filename:str, 
                  dmvals:np.ndarray,
-                 zvals:np.ndarray,
+                 zvals:np.ndarray=None,
                  NFRB:int=None, 
                  iFRB:int=0,
                  edir=None,
@@ -800,9 +800,9 @@ def calc_relative_sensitivity(DM_frb,DM,w,fbar,t_res,nu_res,Nchan=336,max_idt=No
                 NOTE: Quadrature_s and Sammons_s should be input to this function as
                         just Quadrature and Sammons respectively
         dsmear: subtract DM smearing from measured width to calculate intrinsic
-        edir [string]: directory containing efficiency files to be loaded
-        max_iw [int]: maximum integer width of the search
-        maxmeth [int]:
+        edir [string, optional]: directory containing efficiency files to be loaded
+        max_iw [int, optional]: maximum integer width of the search
+        maxmeth [int, optional]:
             0: ignore maximum width
             1: truncate sensitivity at maximum width
             2: scale sensitivity as 1/w at maximum width

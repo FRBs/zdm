@@ -29,11 +29,9 @@ from zdm import cosmology as cos
 from zdm import parameters
 from zdm import loading
 
-import utilities as ute
 import astropath.priors as pathpriors
 from scipy.optimize import minimize
 
-import ics_frbs as ics
 
 def main():
     """
@@ -44,7 +42,7 @@ def main():
     
     ######### List of all ICS FRBs for which we can run PATH #######
     # hard-coded list of FRBs with PATH data in ice paper
-    frblist=ics.frblist
+    frblist=opt.frblist
     
     # Initlisation of zDM grid
     # Eventually, this should be part of the loop, i.e. host IDs should
@@ -292,7 +290,7 @@ def calc_path_priors(frblist,ss,gs,model,verbose=True,usemodel=True):
         # determines if this FRB was seen by the survey, and
         # if so, what its DMEG is
         for j,s in enumerate(ss):
-            imatch = ute.matchFRB(frb,s)
+            imatch = opt.matchFRB(frb,s)
             if imatch is not None:
                 # this is the survey to be used
                 g=gs[j]
@@ -313,7 +311,7 @@ def calc_path_priors(frblist,ss,gs,model,verbose=True,usemodel=True):
         bad = np.where(AppMags > mag_limit)[0]
         MagPriors[bad] = 0.
         
-        P_O,P_Ox,P_Ux,ObsMags = ute.run_path(frb,model,usemodel=usemodel,PU = PU)
+        P_O,P_Ox,P_Ux,ObsMags = opt.run_path(frb,model,usemodel=usemodel,PU = PU)
         
         ObsMags = np.array(ObsMags)
         

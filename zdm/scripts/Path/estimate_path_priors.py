@@ -18,17 +18,15 @@ from zdm import cosmology as cos
 from zdm import parameters
 from zdm import loading
 
-import utilities as ute
 import astropath.priors as pathpriors
 
-import ics_frbs as ics
 
 def calc_path_priors():
     """
     Loops over all ICS FRBs
     """
     
-    frblist = ics.frblist
+    frblist = opt.frblist
     
     NFRB = len(frblist)
     
@@ -63,7 +61,7 @@ def calc_path_priors():
         
         # determines if this FRB was seen by the survey, and
         # if so, what its DMEG is
-        imatch = ute.matchFRB(frb,s)
+        imatch = opt.matchFRB(frb,s)
         if imatch is None:
             print("Could not find ",frb," in survey")
             continue
@@ -71,11 +69,11 @@ def calc_path_priors():
         DMEG = s.DMEGs[imatch]
         
         # original calculation
-        P_O1,P_Ox1,P_Ux1,mags1 = ute.run_path(frb,model,usemodel=False,PU=0.1)
+        P_O1,P_Ox1,P_Ux1,mags1 = opt.run_path(frb,model,usemodel=False,PU=0.1)
         
         model.init_path_raw_prior_Oi(DMEG,g)
         PU = model.estimate_unseen_prior(mag_limit=26) # might not be correct
-        P_O2,P_Ox2,P_Ux2,mags2 = ute.run_path(frb,model,usemodel=True,PU = PU)
+        P_O2,P_Ox2,P_Ux2,mags2 = opt.run_path(frb,model,usemodel=True,PU = PU)
         
         if False:
             # compares outcomes
