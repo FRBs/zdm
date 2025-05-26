@@ -388,7 +388,7 @@ class Survey:
             self.nDr = self.nD
             self.zreps = self.zlist
             self.nozreps = self.nozlist
-        
+            
         # Case of some singles and some repeaters
         else:
             if self.nD == 1:
