@@ -2,7 +2,6 @@
 Script testing the use of zDM to generate priors for
 host galaxy magnitudes.
 
-
 """
 
 #standard Python imports

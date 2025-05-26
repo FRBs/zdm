@@ -15,13 +15,10 @@ from matplotlib import pyplot as plt
 from zdm import cosmology as cos
 from zdm import optical_params as op
 from scipy.interpolate import CubicSpline
-from frb.frb import FRB
 import os
 from importlib import resources
 import pandas
 
-from astropath.priors import load_std_priors
-from astropath.path  import PATH
 
 class host_model:
     """
@@ -627,6 +624,10 @@ def run_path(name,model,PU=0.1,usemodel = False, sort = False):
     absolute [bool]: if True, treats rel_error as an absolute value
         in arcseconds
     """
+    from frb.frb import FRB
+    from astropath.priors import load_std_priors
+    from astropath.path import PATH
+    
     ######### Loads FRB, and modifes properties #########
     my_frb = FRB.by_name(name)
     
@@ -711,6 +712,11 @@ def plot_frb(name,ralist,declist,plist,opfile):
     clist: list of astropy coordinates
     plist: list of p(O|x) for candidates hosts
     """
+    
+    from frb.frb import FRB
+    from astropath.priors import load_std_priors
+    from astropath.path import PATH
+    
     ######### Loads FRB, and modifes properties #########
     my_frb = FRB.by_name(name)
     
