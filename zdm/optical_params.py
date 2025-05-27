@@ -11,13 +11,13 @@ class Hosts(data_class.myDataClass):
     Absmin: float = field( 
         default=-30, 
         metadata={'help': "Minimum host absolute magnitude", 
-                  'unit': 'L*', 
+                  'unit': 'M_r^{min}', 
                   'Notation': '',
                   })
     Absmax: float = field( 
         default=0., 
         metadata={'help': "Maximum host absolute magnitude", 
-                  'unit': 'L*', 
+                  'unit': 'M_r^{max}', 
                   'Notation': '',
                   })
     NAbsBins: int = field( 
@@ -35,13 +35,13 @@ class Hosts(data_class.myDataClass):
     Appmin: float = field( 
         default=10, 
         metadata={'help': "Minimum host apparent magnitude", 
-                  'unit': 'L*', 
+                  'unit': 'm_r^{min}', 
                   'Notation': '',
                   })
     Appmax: float = field( 
         default=35, 
         metadata={'help': "Maximum host apparent magnitude", 
-                  'unit': 'L*', 
+                  'unit': 'm_r^{max}', 
                   'Notation': '',
                   })
     NAppBins: int = field( 
@@ -52,19 +52,19 @@ class Hosts(data_class.myDataClass):
                   })
     AbsPriorMeth: int = field( 
         default=0, 
-        metadata={'help': "Model for abs mag prior and function description",
+        metadata={'help': "Model for abs mag prior and function description. 0: uniform distribution. Others to be implemented.",
                   'unit': '', 
                   'Notation': '',
                   })
     AppModelID: int = field( 
         default=0, 
-        metadata={'help': "Model for converting to apparent magnitudes",
+        metadata={'help': "Model for converting absolute to apparent magnitudes. 0: no k-correction. Others to be implemented.",
                   'unit': '', 
                   'Notation': '',
                   })
     AbsModelID: int = field( 
         default=0, 
-        metadata={'help': "Model for describing absolute magnitudes",
+        metadata={'help': "Model for describing absolute magnitudes. 0: Simple histogram of absolute magnitudes. 1: spline interpolation of histogram.",
                   'unit': '', 
                   'Notation': '',
                   })

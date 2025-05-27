@@ -64,8 +64,9 @@ class host_model:
         Class constructor
         
         Args:
-            model_type(int): the method of modelling the host
-            args: list of args specific to that model
+            opstate (class: Hosts, optional): class defining parameters
+                of optical state model
+            verbose (bool, optional): to be verbose y/n
         
         """
         if opstate is None:
@@ -110,18 +111,16 @@ class host_model:
         """
         Initialises prior on absolute magnitude of galaxies according to the method.
         
-        Args:
-            method [int]: method for initialising the prior
-                0: uniform prior in log space of absolute magnitude
-                1: distribution of galaxy luminosities from XXXX
         """
         
         if self.opstate.AbsPriorMeth==0:
+            # uniform prior in log space of absolute magnitude
             Absprior = np.full([self.ModelNBins],1./self.NAbsBins)
         else:
+            # other methods to be added as required
             raise ValueError("Luminosity prior method ",self.opstate.AbsPriorMeth," not implemented")
         
-        # checks normalisation
+        # enforces normalisation of the prior to unity
         Absprior /= np.sum(Absprior)
         self.AbsPrior = Absprior
         
@@ -137,8 +136,9 @@ class host_model:
     def init_app_bins(self):
         """
         Initialises bins in apparent magnitude
-        It uses these to calculate priors for any given
-        host galaxy magnitude
+        It uses these to calculate priors for any given host galaxy magnitude.
+        This is a very simple set of uniformly log-spaced bins in magnitude space,
+        and linear interpolation is used between them.
         """
         
         self.Appmin = self.opstate.Appmin
@@ -154,6 +154,9 @@ class host_model:
     def init_abs_bins(self):
         """
         Initialises internal array of absolute magnitudes
+        This is a simple set of uniformly log-spaced bins in terms
+        of absolute magnitude, which the absolute magnitude model gets
+        projected onto
         """  
         # shortcuts
         Absmin = self.opstate.Absmin
@@ -177,7 +180,9 @@ class host_model:
     def init_model_bins(self):
         """
         Initialises bins for the simple model of an absolute
-        magnitude prior.
+        magnitude prior. This is much sparser than the app or
+        abs bins, since these model bins correspond to 
+        parameters which may get adjusted by e.g. an MCMC
         
         The base unit here is assumed to be absolute r-band
         magnitude M, but in principle this works for whatever\
@@ -207,7 +212,11 @@ class host_model:
         to convert absolute to apparent magnitudes is fixed
         
         It is not set automatically however, and needs to be called
-        with a set of z values.
+        with a set of z values. This is all for speedup purposes.
+        
+        Args:
+            zvals (np.ndarray, float): array of redshifts over which
+                to map absolute to apparent magnitudes.
         """
         
         # records that this has been initialised
@@ -224,6 +233,11 @@ class host_model:
         """
         Initialises the array mapping redshifts and absolute magnitudes
         to redshift and apparent magnitude
+        
+        Calculates the internal maghist array, of size self.NAppBins X self.NZ
+        
+        No return value.
+            
         """
         
         # for current model, calculate weighted histogram of apparent magnitude
@@ -238,7 +252,6 @@ class host_model:
             # # NOTE: these should NOT be re-normalised, since the normalisation reflects
             # true magnitudes which fall off the apparent magnitude histogram.
             maghist[:,i] = hist
-            
             
         self.maghist = maghist
         
@@ -309,23 +322,25 @@ class host_model:
             Hence, the correct normalisation is found by summing
             the visible magnitudes, and subtracting them from unity. 
         
+        args:
+            mag_limit (float): maximum observable magnitude of host galaxies
+        
+        returns:
+            PU (float): probability PU of true hist being unseen in the optical
+                            image.
+        
         """
         
-        visible = np.where(self.AppMags < mag_limit)[0]
+        invisible = np.where(self.AppMags > mag_limit)[0]
         
-        PSeen = np.sum(self.priors[visible])
-        PU = 1.-PSeen
+        PU = np.sum(self.priors[invisible])
+        
         return PU
     
     def path_raw_prior_Oi(self,mags,ang_sizes,Sigma_ms):
         """
         Function to pass to astropath module
         for calculating a raw FRB prior.
-        
-        Args:
-            mags: tuple of host galaxy r-band magnitude
-            ang_sizes: tuple of host galaxy angular size
-            Sigma_ms: tuple of galaxy densities on the sky
         
         
         NOTE: as of all recent PATH iterations, the galaxy angular
@@ -338,6 +353,15 @@ class host_model:
             must be called. This is because the full prior requires a zDM
             grid and an FRB DM, yet this cannot be passed to raw_prior_Oi
             within PATH.
+        
+        Args:
+            mags (tuple, float): host galaxy r-band magnitudes
+            ang_sizes (tuple, float): host galaxy angular sizes (arcsec I believe)
+            Sigma_ms (tuple, float): galaxy densities on the sky 
+        
+        Returns:
+            Ois (tuple): priors on host galaxy magnitdues mags
+        
         """
         
         ngals = len(mags)
@@ -373,12 +397,19 @@ class host_model:
         This performs a function very similar to
         "get_posterior" except that it expicitly
         only operates on a single DM, and saves the
-        information intrnally so that
+        information internally so that
         path_raw_prior_Oi can be called for numerous
         host galaxy candidates.
         
-        It returns the priors distribution
+        It returns the priors distribution.
         
+        Args:
+            DM [float]: dispersion measure of an FRB (pc cm-3)
+            grid (class grid): initialised grid object from which
+                                to calculate priors
+        
+        Returns:
+            priors (float): vector of priors on host galaxy apparent magnitude
         """
         
         # we start by getting the posterior distribution p(z)
@@ -402,8 +433,9 @@ class host_model:
         a given redshift distribution.
         
         Args:
-            zlist: list of redshifts
-            pz: list of probabilities of the FRB occurring at each of those redshifts
+            zlist (np.ndarray, float): array of redshifts
+            pz (np.ndarray, float): array of probabilities of the FRB
+                            occurring at each of those redshifts
         
         # returns probability-weighted magnitude distribution, as a function of
         # self.AppBins
@@ -427,9 +459,18 @@ class host_model:
     
     def get_posterior(self, grid, DM):
         """
-        Returns posterior redshift distributiuon for a given grid and DM
-        magnitude distribution for FRBs of DM given
-        a grid object
+        Returns posterior redshift distributiuon for a given grid, and DM
+        magnitude distribution, for FRBs of DM given a grid object.
+        Note: this calculates a prior for PATH, but is a posterior
+            from zDM's point of view.
+        
+        Args:
+            grid (class grid object): grid object defining p(z,DM)
+            DM (float, np.ndarray OR scalar): FRB DM(s)
+        
+        Returns:
+            papps (np.ndarray, floats): probability distribution of apparent magnitudes given DM
+            pz  (np.ndarray, floats): probability distribution of redshift given DM
         """
         # Step 1: get prior on z
         pz = get_pz_prior(grid,DM)
@@ -437,34 +478,40 @@ class host_model:
         ### STEP 2: get apparent magnitude distribution ###
         if hasattr(DM,"__len__"):
             papps = np.dot(self.maghist,pz)
-            
-            #print("Shaps of papps is ",papps.shape,self.maghist.shape,pz.shape)
-            #for i,z in enumerate(DM):
-            #    print(DM[i],np.sum(pz[:,i]),np.sum(self.maghist[:,0]))
         else:
             papps = self.maghist*pz
-        #exit()
+        
         
         return papps,pz
 
 def get_pz_prior(grid, DM):
     """
     Returns posterior redshift distributiuon for a given grid and DM
-    magnitude distribution for FRBs of DM given
-    a grid object
+    magnitude distribution for FRBs of DM given a grid object
+    
+    Args:
+        grid (class grid object): grid object modelling p(z,DM)
+        DM (float or np.ndarray of floats): FRB dispersion measure, pc cm^-3
+    
+    Returns:
+        pz (np.ndarray): probability distribution in redshift space
     """
     
-    ### STEP 1: get PZ distribution ###
-    # the below should work for vectors
+    ### get PZ distribution ###
+    # Get the coefficients for linear interpolation between DM bins
+    # of the grid
     dmvals = grid.dmvals
     ddm = dmvals[1]-dmvals[0]
+    # get the grid DM values that this DM site between
     idm1 = (np.floor(DM/ddm)).astype('int')
     idm2 = idm1+1
     dm1 = dmvals[idm1]
     dm2 = dmvals[idm2]
+    # get the coefficients of dm1 and dm2
     kdm2 = (DM - dm1)/ddm
     kdm1 = 1.-kdm2
     
+    # calculate p(z) based on interpolating grid.rates
     pz = kdm1 * grid.rates[:,idm1] + kdm2 * grid.rates[:,idm2]
     pz = pz/np.sum(pz,axis=0)
     return pz
@@ -473,7 +520,7 @@ def SimpleApparentMags(Abs,zs):
     """
     Function to convert galaxy absolue to apparent magnitudes.
     
-    Nomically, magnitudes are r-band magnitudes, but this function
+    Nominally, magnitudes are r-band magnitudes, but this function
     is so simple it doesn't matter.
     
     Just applies a distance correction - no k-correction.
@@ -483,7 +530,8 @@ def SimpleApparentMags(Abs,zs):
         zs (float or array of floats): redshifts of galaxies
     
     Returns:
-        NL x NZ array of magnitudes
+        ApparentMags: NAbs x NZ array of magnitudes, where these
+                        are the dimensions of the inputs
     """
     
     # calculates luminosity distances (Mpc)
@@ -502,7 +550,6 @@ def SimpleApparentMags(Abs,zs):
         # this also ensures that the dimensions are as expected
         
         ApparentMags = Abs + dMag
-        return ApparentMags
     else:
         # Convert to multiplication so we can use
         # numpy.outer
@@ -510,7 +557,7 @@ def SimpleApparentMags(Abs,zs):
         temp2 = 10**dMag
         ApparentMags = np.outer(temp1,temp2)
         ApparentMags = np.log10(ApparentMags)
-        return ApparentMags
+    return ApparentMags
     
 
 def p_unseen_Marnoch(zvals,plot=False):
