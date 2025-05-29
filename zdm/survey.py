@@ -457,7 +457,7 @@ class Survey:
                 default_value = getattr(default_frb, field.name)
                 frb_tbl[field.name] = default_value
                 print("WARNING: no ",field.name," found in survey",
-                    "replcing with default value of ",default_value)
+                    "repalcing with default value of ",default_value)
         
         self.frbs = frb_tbl.to_pandas()
         

@@ -54,6 +54,7 @@ def main():
     parser.add_argument('--edir', default=None, type=str, help="Directory containing efficiency files")
     parser.add_argument('--outdir', default="", type=str, help="Output directory")
     parser.add_argument('--Pn', default=False, action='store_true', help="Include Pn")
+    parser.add_argument('--no_psnr', default=True, action='store_false', help="Exclude psnr")
     parser.add_argument('--pNreps', default=False, action='store_true', help="Include pNreps")
     parser.add_argument('--rand', default=False, action='store_true', help="Randomise DMG within uncertainty")
     parser.add_argument('--log_halo', default=False, action='store_true', help="Give a log prior on the halo instead of linear")
@@ -112,7 +113,7 @@ def main():
 
     MCMC.mcmc_runner(MCMC.calc_log_posterior, os.path.join(args.outdir, args.opfile), state, params, surveys, 
                         grid_params, nwalkers=args.walkers, nsteps=args.steps, nthreads=args.nthreads, Pn=args.Pn, pNreps=args.pNreps, 
-                        log_halo=args.log_halo, lin_host=args.lin_host)
+                        psnr=(not args.no_psnr),log_halo=args.log_halo, lin_host=args.lin_host)
 
 #==============================================================================
 
