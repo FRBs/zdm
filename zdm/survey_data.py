@@ -98,7 +98,13 @@ class FRB(data_class.myDataClass):
                   })
     WIDTH: float = field( 
         default=0.1, 
-        metadata={'help': "Width of the event (intrinsic??)", 
+        metadata={'help': "Width of the event", 
+                  'unit': 'ms', 
+                  'Notation': '',
+                  })
+    TAU: float = field( 
+        default=-1., 
+        metadata={'help': "Scattering timescale of the event", 
                   'unit': 'ms', 
                   'Notation': '',
                   })
@@ -147,7 +153,13 @@ class Telescope(data_class.myDataClass):
                   })
     WMETHOD: int = field(
         default=2, 
-        metadata={'help': "Method of calculating FRB widths; 0 ignore, 1 std, 2 includes scattering", 
+        metadata={'help': "Code for width method. 0: ignore it (all 1ms), 1: intrinsic lognormal, 2: include scattering, 3: scat & z-dependence, 4: specific FRB", 
+                  'unit': '', 
+                  'Notation': '',
+                  })
+    WDATA: int = field(
+        default=2, 
+        metadata={'help': "What does the WIDTH column include? 0 intrinsic, 1: also scattering, 2: also DM smearing",
                   'unit': '', 
                   'Notation': '',
                   })
@@ -254,6 +266,18 @@ class Observing(data_class.myDataClass):
     MAX_IDT: int = field(
         default=None,
         metadata={'help': "Maximum number of time samples seaarched (4096 for CRAFT ICS)",
+                  'unit': '',
+                  'Notation': '',
+                  })
+    MAX_IW: int = field(
+        default=None,
+        metadata={'help': "Maximum width of FRB search in units of tres (12 for CRAFT ICS)",
+                  'unit': '',
+                  'Notation': '',
+                  })
+    MAXWMETH: int = field(
+        default=0,
+        metadata={'help': "Method for treating FRBs with width > max width. 0: do nothing, 1: ignore them, 2: reduce sensitivity to 1/w",
                   'unit': '',
                   'Notation': '',
                   })

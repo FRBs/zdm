@@ -12,6 +12,7 @@ from zdm import cosmology as cos
 from scipy.stats import poisson
 import scipy.stats as st
 from zdm import repeat_grid as zdm_repeat_grid
+
 # internal counter
 NCF=0
 
@@ -257,12 +258,6 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=True,Pn=False,pN
         #pdm /= global_norm
     else:
         log_global_norm=0
-
-    #ddm=dmvals[1]-dmvals[0]
-    #kdms=DMobs/ddm
-    #idms1=kdms.astype('int')
-    #idms2=idms1+1
-    #dkdms=kdms-idms1
     
     idms1,idms2,dkdms1,dkdms2 = grid.get_dm_coeffs(DMobs)
 
@@ -307,7 +302,7 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=True,Pn=False,pN
         expected *= C
 
         Pn=Poisson_p(observed,expected)
-        print(observed, expected, grid.Rc)
+        
         if Pn==0:
             Nll=-1e10
             if dolist==0:
@@ -353,29 +348,86 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=True,Pn=False,pN
                     rs[j,i] = np.sum(grid.rates[j,iweights[i]] * dm_weights[i]) / np.sum(dm_weights[i])
                     
         # this has shape nz,nFRB - FRBs could come from any z-value
-        zpsnr=np.zeros(Eths.shape[1:])
-        zpsnr = zpsnr.flatten()
+        nw,nz,nfrb = Eths.shape
+        zpsnr=np.zeros([nz,nfrb])
+        # numpy flattens this to the order of [z0frb0,z0f1,z0f2,...,z1f0,...]
+        # zpsnr = zpsnr.flatten()
+        
+        if grid.eff_weights.ndim ==2:
+            zwidths = True
+        else:
+            zwidths = False
+        
+        # this variable keeps the normalisation of sums over p(b,w) as a function of z
+        pbw_norm = 0
+        
+        if doplot:
+            # this will produce a plot of the p(SNR) given a particular width bin
+            # for a range of beam values as a function of z for the zeroeth FRB
+            plt.figure()
+            ax1 = plt.gca()
+            plt.xlabel("$z$")
+            plt.ylabel("p(snr | b,w,z)")
+            
+            # this will produce a plot of p(z) for all beam values at an
+            # arbitrary w-bin
+            plt.figure()
+            ax2 = plt.gca()
+            plt.xlabel("$z$")
+            plt.ylabel("p(b,w|z)")
         
         for i,b in enumerate(survey.beam_b):
             #iterate over the grid of weights
             bEths=Eths/b #this is the only bit that depends on j, but OK also!
             #now wbEths is the same 2D grid
-            #wbEths=bEths #this is the only bit that depends on j, but OK also!
+            # bEobs has dimensions Nwidths * Nz * NFRB
             bEobs=bEths*survey.Ss[nozlist] #should correctly multiply the last dimensions
             for j,w in enumerate(grid.eff_weights):
+                # p(SNR | b,w,DM,z) is given by differential/cumulative
+                # however, p(b,w|DM,z) is given by cumulative*w*Omegab / \sum_w,b cumulative*w*Omegab
+                # hence, the factor of cumulative cancels when calculating p(SNR,w,b), which is what we do here
                 differential = grid.array_diff_lf(bEobs[j,:,:],Emin,Emax,gamma) * bEths[j,:,:]
                 cumulative=grid.array_cum_lf(bEobs[j,:,:],Emin,Emax,gamma)
                 
-                # check for zero probabilities
-                OK = np.where(cumulative.flatten()>0)[0]
-                zpsnr[OK] += (differential.flatten()[OK]/cumulative.flatten()[OK])*survey.beam_o[i]*w
+                if zwidths:
+                    usew = np.repeat(w,nfrb).reshape([nz,nfrb]) # need to reshape this
+                else:
+                    usew = w
+                
+                # this keeps track of the \sum_w,b cumulative*w*Omegab
+                dpbw = survey.beam_o[i]*usew*cumulative
+                pbw_norm += dpbw
+                zpsnr += differential*survey.beam_o[i]*usew
+                
+                if doplot and j==5:
+                    #arbitrrily plots for FRB iFRB
+                    iFRB=0
+                    # chooses an arbitrary width to plot at for j=5
+                    ax1.plot(grid.zvals,(differential/cumulative)[:,iFRB],label="b_"+str(b)[0:4]+"_w_"+str(j))
+                    ax2.plot(grid.zvals,dpbw[:,iFRB],label="b_"+str(b)[0:4]+"_w_"+str(j))
         
+        if doplot:
+            plt.sca(ax1)
+            plt.yscale('log')
+            plt.tight_layout()
+            plt.legend(fontsize=6)
+            plt.savefig("FRB1_psnr_given_bw.png")
+            plt.close()
+            
+            plt.sca(ax2)
+            plt.tight_layout()
+            plt.legend(fontsize=6)
+            plt.savefig("FRB1_pbw_given_z.png")
+            plt.close()
+              
         # normalise by the beam and FRB width values
-        NORM = np.sum(survey.beam_o) * np.sum(grid.eff_weights)
-        zpsnr /= NORM
-        zpsnr = zpsnr.reshape(Eths.shape[1:])
+        #This ensures that regions with zero probability don't produce nans due to 0/0
+        OK = np.where(pbw_norm.flatten() > 0.)
+        zpsnr = zpsnr.flatten()
+        zpsnr[OK] /= pbw_norm.flatten()[OK]
+        zpsnr = zpsnr.reshape([nz,nfrb])
         
-        # perform the weighting over the redshift axis
+        # perform the weighting over the redshift axis, i.e. to multiply by p(z|DM) and normalise \int p(z|DM) dz = 1
         rnorms = np.sum(rs,axis=0)
         zpsnr *= rs
         psnr = np.sum(zpsnr,axis=0) / rnorms
@@ -398,12 +450,6 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=True,Pn=False,pN
         llsum += snrll
         
         if doplot:
-            fig1=plt.figure()
-            plt.xlabel('z')
-            plt.ylabel('p(SNR | DM,z)p(z)')
-            #plt.xlim(0,1)
-            tm=0.
-            plt.yscale('log')
             
             fig4=plt.figure()
             plt.xlabel('z')
@@ -417,11 +463,7 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=True,Pn=False,pN
             #plt.xlim(0,1)
             plt.yscale('log')
             
-            fig3=plt.figure()
-            plt.xlabel('z')
-            plt.ylabel('p(z)')
-            
-            tm1=np.max(psnr)
+            tm4=np.max(zpsnr)
             tm2=np.max(rs)
             for j in np.arange(survey.Ss.size):
                 linestyle='-'
@@ -432,25 +474,12 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=True,Pn=False,pN
                 if j>=3*survey.Ss.size/4:
                     linestyle='-.'
                 
-                plt.figure(fig1.number)
-                plt.plot(zvals,psnr[:,j],label=str(int(DMobs[j])),linestyle=linestyle,linewidth=1)
-                
                 plt.figure(fig4.number)
                 plt.plot(zvals,rs[:,j],label=str(int(DMobs[j])),linestyle=linestyle,linewidth=2)
                 
                 plt.figure(fig2.number)
                 plt.plot(zvals,zpsnr[:,j],label=str(int(DMobs[j])),linestyle=linestyle)
                 
-                plt.figure(fig3.number)
-                plt.plot(zvals,sgV[:,j],label=str(int(DMobs[j])),linestyle=linestyle)
-                
-            fig1.legend(ncol=2,loc='upper right',fontsize=8)
-            fig1.tight_layout()
-            plt.figure(fig1.number)
-            plt.ylim(tm1/1e5,tm1)
-            fig1.savefig('TEMP_p_psnr.pdf')
-            plt.close(fig1.number)
-            
             fig4.legend(ncol=2,loc='upper right',fontsize=8)
             fig4.tight_layout()
             plt.figure(fig4.number)
@@ -460,13 +489,9 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=True,Pn=False,pN
             
             fig2.legend(ncol=2,loc='upper right',fontsize=8)
             fig2.tight_layout()
+            plt.ylim(tm4/1e5,tm4)
             fig2.savefig('TEMP_p_zpsnr.pdf')
             plt.close(fig2.number)
-            
-            fig3.legend(ncol=2,loc='upper right',fontsize=8)
-            fig3.tight_layout()
-            fig3.savefig('TEMP_p_sgV.pdf')
-            plt.close(fig3.number)
             
             print("Total snr probabilities")
             for i,p in enumerate(psnr):
@@ -498,8 +523,7 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=True,Pn=False,pN
         plt.tight_layout()
         plt.savefig('Plots/1d_dm_fit.pdf')
         plt.close()
-
-    print(survey.name, "1D list:", lllist)
+    
     if dolist==0:
         return llsum
     elif dolist==1:
@@ -710,7 +734,7 @@ def calc_likelihoods_2D(grid,survey,doplot=False,norm=True,psnr=True,printit=Fal
         plt.xlabel('DM')
         plt.ylabel('p(DM)')
         plt.tight_layout()
-        plt.savefig('Plots/1d_dm_fit.pdf')
+        plt.savefig('1d_dm_fit.pdf')
         plt.close()
     
     ###### Calculates p(E | z,DM) ########
@@ -758,15 +782,25 @@ def calc_likelihoods_2D(grid,survey,doplot=False,norm=True,psnr=True,printit=Fal
         Eths += grid.thresholds[:,izs2,idmobs1]*dkdmobs1*dkzs2
         Eths += grid.thresholds[:,izs1,idmobs2]*dkdmobs2*dkzs1
         Eths += grid.thresholds[:,izs2,idmobs2]*dkdmobs2*dkzs2
-
+        
         FtoE = grid.FtoE[izs1]*dkzs1
         FtoE += grid.FtoE[izs2]*dkzs2
         
         # now do this in one go
         # We integrate p(snr|b,w) p(b,w) db dw.
         # Eths.shape[i] is the number of FRBs: length of izs1
-        psnr=np.zeros(Eths.shape[1])
+        # this has shape nz,nFRB - FRBs could come from any z-value
+        nw,nfrb = Eths.shape
+        psnr=np.zeros([nfrb])
         
+        if grid.eff_weights.ndim ==2:
+            zwidths = True
+            usews = np.zeros([nfrb])
+        else:
+            zwidths = False
+        
+        # initialised to hold w-b normalisations
+        pbw_norm = 0.
         for i,b in enumerate(survey.beam_b):
             bEths=Eths/b # array of shape NFRB, 1/b
             bEobs=bEths*survey.Ss[zlist]
@@ -778,10 +812,38 @@ def calc_likelihoods_2D(grid,survey,doplot=False,norm=True,psnr=True,printit=Fal
                 temp2=grid.array_cum_lf(bEths[j,:],Emin,Emax,gamma) # * FtoE #one dim in beamshape, one dim in FRB
                 cumulative = temp2.T #*bEths[j,:] #multiplies by beam factors and weight
                 
-                psnr += (differential/cumulative)*survey.beam_o[i]*w
+                if zwidths:
+                    # a function of redshift
+                    usew = w[izs1]*dkzs1 + w[izs2]*dkzs2
+                    usews += usew
+                    usew = usew
+                else:
+                    usew = w # just a scalar quantity
+                
+                # the product here is p(SNR|DM,z) = p(SNR|b,w,DM,z) * p(b,w|DM,z)
+                # p(SNR|b,w,DM,z) = differential/cumulative
+                # p(b,w|DM,z) = survey.beam_o[i]*usew * cumulative / sum(survey.beam_o[i]*usew * cumulative)
+                # hence, the "cumulative" part cancels
+                
+                dpbw = survey.beam_o[i]*usew*cumulative
+                pbw_norm += dpbw
+                
+                psnr += differential*survey.beam_o[i]*usew
         
-        NORM = np.sum(grid.eff_weights) * np.sum(survey.beam_o)
-        psnr /= NORM
+        OK = np.where(pbw_norm > 0.)[0]
+        psnr[OK] /= pbw_norm[OK]
+        
+        if doplot:
+            plt.figure()
+            plt.xlabel("$s ( \\equiv {\\rm SNR}/{\\rm SNR_{\\rm th}})$")
+            plt.ylabel("p(s)")
+            plt.scatter(survey.Ss[zlist],psnr,c=Zobs)
+            cbar = plt.colorbar()
+            cbar.set_label('z')
+            plt.tight_layout()
+            plt.savefig("2D_ps.png")
+            plt.close()
+            
         
         # keeps individual FRB values
         if dolist==2:
@@ -820,7 +882,7 @@ def calc_likelihoods_2D(grid,survey,doplot=False,norm=True,psnr=True,printit=Fal
             f"wzterm={np.sum(np.log10(psnr)):0.2f}," \
             f"comb={np.sum(np.log10(psnr*pvals)):0.2f}")
     
-    # print(survey.name, "2D list:", lllist)
+    
     if dolist==0:
         return llsum
     elif dolist==1:

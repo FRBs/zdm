@@ -253,13 +253,17 @@ class WidthParams(data_class.myDataClass):
         },
     )
 
-    Wbins: int = field(
+    WNbins: int = field(
         default=5,
         metadata={"help": "Number of bins for FRB width distribution", "unit": ""},
     )
-    Wscale: int = field(
-        default=3.5,
-        metadata={"help": "Log-scaling of bins for width distribution", "unit": ""},
+    WMin: int = field(
+        default=0.1,
+        metadata={"help": "Minimum scattering value to model", "unit": "ms"},
+    )
+    WMax: int = field(
+        default=100,
+        metadata={"help": "Maximum scattering value to model", "unit": "ms"},
     )
 
 
@@ -282,6 +286,14 @@ class ScatParams(data_class.myDataClass):
             "Notation": "\log \sigma_{s}",
         },
     )
+    Smaxsigma: float = field(
+        default=3.,
+        metadata={
+            "help": " Multiple of the Slogsigma out to which to model the width distribution ",
+            "unit": "",
+            "Notation": "N_{\sigma_{s}}",
+        },
+    )
     Sfnorm: float = field(
         default=600,
         metadata={
@@ -296,6 +308,14 @@ class ScatParams(data_class.myDataClass):
             "help": "Power-law scaling with frequency, nu^lambda",
             "unit": "",
             "Notation": "\lambda",
+        },
+    )
+    ScatDist: int = field(
+        default=2,
+        metadata={
+            "help": "Method for describing scattering distribution. 0 log uniform, 1 is lognormal, 2 upper lognormal",
+            "unit": "",
+            "Notation": "",
         },
     )
 
