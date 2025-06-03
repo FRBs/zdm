@@ -214,7 +214,10 @@ def surveys_and_grids(init_state=None, alpha_method=1,
     """
     # Init state
     if init_state is None:
-        state = set_state(alpha_method=alpha_method)
+        # we should be using defaults... by default!
+        # if a user wants something else, they can pass it here
+        #state = set_state(alpha_method=alpha_method)
+        state = parameters.State()
     else:
         state = init_state
     if state_dict is not None:

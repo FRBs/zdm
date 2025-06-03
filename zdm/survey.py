@@ -59,12 +59,13 @@ class Survey:
                             values in the survey file
         """
         # Proceed
+        self.state = state
         self.name = survey_name
         self.dmvals = dmvals
         self.zvals = zvals
         self.NDM = dmvals.size
         self.NZ = zvals.size
-        
+        self.edir = edir
         # Load up
         self.process_survey_file(filename, NFRB, iFRB, min_lat=state.analysis.min_lat,
                         dmg_cut=state.analysis.DMG_cut,survey_dict = survey_dict)
@@ -84,7 +85,7 @@ class Survey:
         # This is required when mixing CHIME and non-CHIME FRBs
         beam_method = self.meta['BMETHOD']
         beam_thresh = self.meta['BTHRESH']
-        width_bias = self.meta['WBIAS']
+        #width_bias = self.meta['WBIAS']
         
         self.init_beam(
                        method=beam_method, 
@@ -94,26 +95,166 @@ class Survey:
         # Efficiency: width_method passed through "self" here
         # Determines if the model is redshift dependent
         
-        if self.meta['WMETHOD'] != 3:
-            pwidths,pprobs=make_widths(self, state)
-            _ = self.get_efficiency_from_wlist(pwidths,pprobs,
-                                        model=width_bias, edir=edir, iz=None) 
+        ##### need to fix this up by re-organising higher-level routines!!! #####
+        
+        self.init_widths()
+        
+        self.calc_max_dm()
+        
+    def init_widths(self):
+        """
+        Performs initialisation of width and scattering distributions
+        
+        """
+        # copies over Width bin information
+        self.NWbins = self.state.width.WNbins
+        self.WMin = self.state.width.WMin
+        self.WMax = self.state.width.WMax
+        self.thresh = self.state.width.Wthresh
+        self.wlogmean = self.state.width.Wlogmean
+        self.wlogsigma = self.state.width.Wlogsigma
+        self.width_method = self.meta["WMETHOD"]
+        self.NInternalBins=self.state.width.WNInternalBins
+        
+        # records scattering information, scaling
+        # according to frequency
+        self.slogmean=self.state.scat.Slogmean \
+                    + self.state.scat.Sfpower*np.log(
+                        self.meta['FBAR']/self.state.scat.Sfnorm
+                        )
+        self.slogsigma=self.state.scat.Slogsigma
+        self.maxsigma=self.state.scat.Smaxsigma
+        self.scatdist=self.state.scat.ScatDist
+        
+        # sets internal functions
+        WF = self.state.width.WidthFunction
+        if WF ==0:
+            self.WidthFunction = constant
+        elif WF == 1:
+            self.WidthFunction = lognormal
+        elif WF == 2:
+            self.WidthFunction = halflognormal
         else:
+            raise ValueError("state parameter scat.WidthFunction ",WF," not implemented, use 0-2 only")
+        
+        SF = self.state.scat.ScatFunction
+        if SF ==0:
+            self.ScatFunction = constant
+        elif SF == 1:
+            self.ScatFunction = lognormal
+        elif SF == 2:
+            self.ScatFunction = halflognormal
+        else:
+            raise ValueError("state parameter scat.ScatFunction ",SF," not implemented, use 0-2 only")
+        
+        # sets n width bins equal to zero for this survey
+        if self.meta['WMETHOD'] == 0 or self.meta['WMETHOD'] == 4:
+            self.NWbins = 1
+        
+        ###### calculate width bins. We fix these here ######
+        # Unless w and tau are explicitly being fit, it is not actually necessary
+        # to have constant bin values over z a d DM
+        # ensures the first bin begins at 0
+        wbins = np.zeros([self.NWbins+1])
+        if self.NWbins > 1:
+            wbins[1:] = np.logspace(np.log10(self.WMin),np.log10(self.WMax),self.NWbins)
+            dw = np.log10(wbins[2]/wbins[1])
+            wlist = np.logspace(np.log10(self.WMin)-dw,np.log10(self.WMax)-dw,self.NWbins)
+        else:
+            wbins[0] = np.log10(self.WMin)
+            wbins[1] = np.log10(self.WMax)
+            wlist = np.array([(self.WMax*self.WMin)**0.5])
+        self.wbins=wbins
+        self.wlist=wlist
+        
+        ####### generates internal width values of numerical calculation purposes #####
+        minval = np.min([self.wlogmean - self.maxsigma*self.wlogsigma,
+                        self.slogmean - self.maxsigma*self.slogsigma,
+                        np.log(self.WMin)])
+        maxval = np.log(self.WMax)
+        # I haven't decided yet where to put the value of 1000 internal bins
+        # in terms of parameters.
+        self.internal_logwvals = np.linspace(minval,maxval,self.NInternalBins)
+        
+        # initialise probability bins
+        if self.meta['WMETHOD'] == 3 or self.meta['WMETHOD'] == 5:
             # evaluate efficiencies at each redshift
-            self.NWbins = state.width.WNbins
             self.efficiencies = np.zeros([self.NWbins,self.NZ,self.NDM])
             self.wplist = np.zeros([self.NWbins,self.NZ])
-            self.wlist = np.zeros([self.NWbins,self.NZ])
             self.DMlist = np.zeros([self.NZ,self.NDM])
             self.mean_efficiencies = np.zeros([self.NZ,self.NDM])
             
             # we have a z-dependent scattering and width model
             for iz,z in enumerate(self.zvals):
-                pwidths,pprobs=make_widths(self, state, z=z)
-                _ = self.get_efficiency_from_wlist(pwidths,pprobs,
-                                        model=width_bias, edir=edir,iz=iz)
-        self.calc_max_dm()
-
+                self.make_widths(iz)
+                _ = self.get_efficiency_from_wlist(self.wlist,self.wplist[:,iz],
+                                        model=self.meta['WBIAS'], edir=self.edir, iz=iz)
+        else:
+            self.wplist = np.zeros([self.NWbins])
+            self.make_widths()
+            _ = self.get_efficiency_from_wlist(self.wlist,self.wplist,
+                                        model=self.meta['WBIAS'], edir=self.edir, iz=None) 
+    
+    def make_widths(self,iz=None):
+        """
+        Used to be an exterior method, now interior
+        """
+        
+        if self.meta['WMETHOD'] == 0:
+            # do not take a distribution, just use 1ms for everything
+            # this is done for tests, for complex surveys such as CHIME,
+            # or for estimating the properties of a single FRB
+            self.wlist[0] = 1.
+            self.wplist[0] = 1.
+        elif self.meta['WMETHOD'] == 1:
+            # take intrinsic width function only
+            for i in np.arange(self.NWbins):
+                norm=(2.*np.pi)**-0.5/self.wlogsigma
+                args=(self.wlogmean,self.wlogsigma,norm)
+                weight,err=quad(self.WidthFunction,
+                            np.log(self.wbins[i]),np.log(self.wbins[i+1]),args=args)
+                #weight,err = quad(self.width_function,np.log(bins[i]),np.log(bins[i+1]),args=args)
+                self.wplist[i]=weight
+        elif self.meta['WMETHOD'] == 2 or self.meta['WMETHOD'] == 3:
+            # include scattering distribution. 3 means include z-dependence
+            #gets cumulative hist and bin edges
+            
+            if iz is not None:
+                z = self.zvals[iz]
+            else:
+               z=0.
+            
+            # performs z-scaling (does nothing when z=0.)
+            wlogmean = self.wlogmean + np.log(1+z)
+            wlogsigma = self.wlogsigma
+            slogmean = self.slogmean - 3.*np.log(1+z)
+            slogsigma = self.slogsigma
+            #dist,cdist,cbins=geometric_lognormals2(wlogmean,
+            #                   self.wlogsigma,slogmean,self.slogsigma,Nsigma=self.maxsigma,
+            #                   ScatDist=self.scatdist,bins=self.wbins)
+            
+            WidthArgs = (wlogmean,wlogsigma)
+            ScatArgs = (slogmean,slogsigma)
+            
+            dist = geometric_lognormals3(self.WidthFunction, WidthArgs, self.ScatFunction, ScatArgs,
+                        self.internal_logwvals, self.wbins)
+            
+            if iz is not None:
+                self.wplist[:,iz] = dist
+            else:
+                self.wplist[:] = dist
+            
+        elif self.meta['WMETHOD'] == 4:
+            # use specific width of FRB. This requires there to be only a single FRB in the survey
+            if s.meta['NFRB'] != 1:
+                raise ValueError("If width method in make_widths is 3 only one FRB should be specified in the survey but ", str(s.meta['NFRB']), " FRBs were specified")
+            else:
+                self.wplist[0] = 1.
+                self.wlist[0] = s.frbs['WIDTH'][0]
+        else:
+            raise ValueError("Width method in make_widths must be 0, 1 or 2, not ",width_method)
+        
+        
     def init_repeaters(self):
         """
         Checks to see if this is a repeater survey and if so ensures all the
@@ -749,15 +890,11 @@ class Survey:
         
         if iz is None:
             self.efficiencies=efficiencies
-            self.wplist=plist
-            self.wlist=wlist
             self.DMlist=DMlist
             mean_efficiencies=np.mean(efficiencies,axis=0)
             self.mean_efficiencies=mean_efficiencies #be careful here!!! This may not be what we want!
         else:
             self.efficiencies[:,iz,:]=efficiencies
-            self.wplist[:,iz]=plist
-            self.wlist[:,iz]=wlist
             self.DMlist[iz,:]=DMlist
             mean_efficiencies=np.mean(efficiencies,axis=0)
             self.mean_efficiencies[iz,:]=mean_efficiencies #be careful here!!! This may not be what we want!
@@ -881,6 +1018,168 @@ def calc_relative_sensitivity(DM_frb,DM,w,fbar,t_res,nu_res,Nchan=336,max_idt=No
         sensitivity = np.interp(DM, sensitivity_array[0,:], sensitivity_array[1,:], right=1e-2)
 
     return sensitivity
+
+
+
+def load_survey(survey_name:str, state:parameters.State, 
+                dmvals:np.ndarray,
+                zvals:np.ndarray,
+                sdir:str=None, NFRB:int=None, 
+                nbins=None, iFRB:int=0,
+                dummy=False,
+                edir=None,
+                rand_DMG=False,
+                survey_dict = None,
+                verbose=False):
+    """Load a survey
+
+    Args:
+        survey_name (str): Name of the survey
+            e.g. CRAFT/FE
+        state (parameters.State): Parameters for the state
+        dmvals (np.ndarray): DM values
+        zvals (np.ndarray): z values
+        sdir (str, optional): Path to survey files. Defaults to None.
+        nbins (int, optional):  Sets number of bins for Beam analysis
+            [was NBeams]
+        NFRB (int, optional): Cut the total survey down to a random
+            subset [useful for testing]
+        iFRB (int, optional): Start grabbing FRBs at this index
+            Mainly used for Monte Carlo analysis
+            Requires that NFRB be set
+        dummy (bool,optional)
+            Skip many initialisation steps: used only when loading
+            survey parameters for conversion to the new survey format
+        survey_dict (dict, optional): dictionary of survey metadata to 
+            over-ride values in file
+        verbose (bool): print output
+    Raises:
+        IOError: [description]
+
+    Returns:
+        Survey: instance of the class
+    """
+    
+    if verbose:
+        print(f"Loading survey: {survey_name}")
+
+    if sdir is None:
+        sdir = os.path.join(
+            resource_filename('zdm', 'data'), 'Surveys')
+
+    # Hard code real surveys
+    if survey_name == 'CRAFT/FE':
+        dfile = 'CRAFT_class_I_and_II'
+    elif survey_name == 'CRAFT/ICS':
+        dfile = 'CRAFT_ICS'
+    elif survey_name == 'CRAFT/ICS892':
+        dfile = 'CRAFT_ICS_892'
+    elif survey_name == 'CRAFT/ICS1632':
+        dfile = 'CRAFT_ICS_1632'
+
+    elif survey_name == 'PKS/Mb':
+        dfile = 'parkes_mb_class_I_and_II'
+    elif 'private' in survey_name: 
+        dfile = survey_name
+    else:
+        dfile = survey_name
+    
+    # allows a user to input the .ecsv themselves
+    if dfile[-6:] != ".ecsv":
+        dfile += '.ecsv'
+
+    print(f"Loading survey: {survey_name} from {dfile}")
+
+    # Do it
+    srvy = Survey(state, 
+                    survey_name, 
+                    os.path.join(sdir, dfile), 
+                     dmvals,
+                     zvals,
+                     NFRB=NFRB, iFRB=iFRB,
+                     edir=edir, rand_DMG=rand_DMG,
+                     survey_dict = survey_dict)
+    return srvy
+
+def vet_frb_table(frb_tbl:pandas.DataFrame,
+                  mandatory:bool=False,
+                  fill:bool=False):
+    """
+    This should not be necessary anymore, since
+    all required FRB data should be populated with
+    default values. However, it's great as a check. If
+    this complains, it means we have a bug in the
+    replacement with default value procedure.
+    """
+    frb_data = survey_data.FRB()
+    # Loop on the standard fields
+    for field in frb_data.__dataclass_fields__.keys():
+        if field in frb_tbl.keys():
+            not_none = frb_tbl[field].values != None
+            if np.any(not_none):
+                idx0 = np.where(not_none)[0][0]
+                assert isinstance(
+                    frb_tbl.iloc[idx0][field], 
+                    frb_data.__dataclass_fields__[field].type), \
+                        f'Bad data type for {field}'
+        elif mandatory:
+            raise ValueError(f'{field} is missing in your table!')
+        elif fill:
+            frb_tbl[field] = None
+
+############ We now define some width/scattering functions ############
+# These all return p(w) dlogw, and must take as arguments np.log(widths)
+
+def geometric_lognormals3(width_function, width_args, scat_function, scat_args,
+                        internal_logvals, bins):
+    '''
+    Numerically evaluates the resulting distribution of y=\sqrt{x1^2+x2^2},
+    where x1 is the width distribution, and x2 is the scattering distribution.
+    
+    Args:
+        width_function (float function(float,args)): function to call giving p(logw) dlogw
+        width_args (*list): arguments to pass to width function
+        scat_function  (float function(float,args)): function to call giving p(logtau) dlogtau
+        scat_args (*list): arguments to pass to scattering function
+        internal_vals (np.ndarray): numpy array of length NIbins giving internal
+                    values of log dw to use for internal calculation purposes.
+        bins (np.ndarray([NBINS+1],dtype='float')): bin edges for final width distribution
+    
+    Returns:
+        hist: histogram of probability within bins
+        chist: cumulative histogram of probability within bins
+        bins: bin edges for histogram
+    
+    '''
+    
+    #draw from both distributions
+    np.random.seed(1234)
+    
+    # these need to be normalised by the internal bin width
+    logbinwidth = internal_logvals[-1] - internal_logvals[-2]
+    
+    pw = width_function(internal_logvals, *width_args)*logbinwidth
+    ptau = scat_function(internal_logvals, *scat_args)*logbinwidth
+    
+    # adds extra bits onto the lowest bin. Assumes exp(-20) is small enough!
+    lowest = internal_logvals[0] - logbinwidth/2.
+    extrapw,err = quad(width_function,lowest-10,lowest,args=width_args)
+    extraptau,err = quad(scat_function,lowest-10,lowest,args=scat_args)
+    pw[0] += extrapw 
+    ptau[0] += extraptau
+    
+    linvals = np.exp(internal_logvals)
+    
+    # calculate widths - all done in linear domain
+    Nbins = bins.size-1
+    hist = np.zeros([Nbins])
+    for i,x1 in enumerate(linvals):
+        totalwidths = (x1**2 + linvals**2)**0.5
+        probs = pw[i]*ptau
+        h,b = np.histogram(totalwidths,bins=bins,weights=probs)
+        hist += h
+    
+    return hist
 
 def geometric_lognormals2(lmu1,ls1,lmu2,ls2,bins=None,
                          Ndivs=100,Nsigma=3.,plot=False,Nbins=101,
@@ -1023,34 +1322,7 @@ def geometric_lognormals(lmu1,ls1,lmu2,ls2,bins=None,
     #hist = hist/Nrand
     return hist,chist,bins
 
-def halflognormal(logmean,logsigma,minw,maxw,nbins):
-    """
-    Generates a parameterised half-lognormal distribution.
-    This acts as a lognormal in the lower half, but
-    keeps a constant per-log-bin width in the upper half
-    """
-    
-    logmin = np.log(minw)
-    logmax = np.log(maxw)
-    logbins = np.linspace(logmin,logmax,nbins+1)
-    dlogbin = (logmax - logmin)/nbins
-    logbinmean = logbins[:-1] + dlogbin/2.
-    
-    probs = np.zeros([nbins])
-    
-    # gets weighting in smaller bins
-    args=[logmin,logmax,1.]
-    for i in np.arange(nbins):
-        weight,err=quad(pcosmic.loglognormal_dlog,logbins[i],logbins[i+1],args=args)
-        probs[i] = weight
-        if logbins[i+1] > logmean:
-            break
-    # fills up remaining bins with the peak value
-    probs[i+1:] = probs[i]
-    # normalisation
-    probs /= np.sum(pobs)
-    return probs
-        
+
 def make_widths(s:Survey,state,z=0.):
     """
     This method takes a distribution of intrinsic FRB widths 
@@ -1078,8 +1350,8 @@ def make_widths(s:Survey,state,z=0.):
     wlogmean=state.width.Wlogmean
     wlogsigma=state.width.Wlogsigma
     width_method = s.meta["WMETHOD"]
-    wmin = state.width.WMin
-    wmax = state.width.WMax
+    WMin = state.width.WMin
+    WMax = state.width.WMax
     
     slogmean=state.scat.Slogmean
     slogsigma=state.scat.Slogsigma
@@ -1115,12 +1387,12 @@ def make_widths(s:Survey,state,z=0.):
     
     if width_method == 1 or width_method==2 or width_method==3:
         bins = np.zeros([nbins+1])
-        logwmin = np.log10(wmin)
-        logwmax = np.log10(wmax)
-        dbin = (logwmax - logwmin)/(nbins-1.)
-        # bins ignore wmax - scale takes precedent
-        bins[1:] = np.logspace(logwmin,logwmax, nbins)
-        widths = 10**(dbin * (np.arange(nbins)-0.5) + logwmin)
+        logWMin = np.log10(WMin)
+        logWMax = np.log10(WMax)
+        dbin = (logWMax - logWMin)/(nbins-1.)
+        # bins ignore WMax - scale takes precedent
+        bins[1:] = np.logspace(logWMin,logWMax, nbins)
+        widths = 10**(dbin * (np.arange(nbins)-0.5) + logWMin)
         bins[0] = 1.e-10 # a very tiny value to avoid bad things in log space
         
     if width_method==0:
@@ -1132,17 +1404,13 @@ def make_widths(s:Survey,state,z=0.):
     elif width_method==1:
         # take intrinsic lognormal width distribution only
         # normalisation of a log-normal
-        norm=(2.*np.pi)**-0.5/wlogsigma
-        args=(wlogmean,wlogsigma,norm)
+        args=(wlogmean,wlogsigma)
         weights = np.zeros([nbins])
         for i in np.arange(nbins):
             weight,err=quad(pcosmic.loglognormal_dlog,np.log(bins[i]),np.log(bins[i+1]),args=args)
-            #width=(wmin*wmax)**0.5
+            #width=(WMin*WMax)**0.5
             #widths.append(width)
-            weights[i] = weight #.append(weight)
-            #wsum += weight
-            #wmin = wmax
-            #wmax *= scale
+            weights[i] = weight
     elif width_method==2 or width_method==3:
         # include scattering distribution. 3 means include z-dependence
         # scale scattering time according to frequency in logspace
@@ -1180,108 +1448,63 @@ def make_widths(s:Survey,state,z=0.):
     return widths,weights
 
 
-def load_survey(survey_name:str, state:parameters.State, 
-                dmvals:np.ndarray,
-                zvals:np.ndarray,
-                sdir:str=None, NFRB:int=None, 
-                nbins=None, iFRB:int=0,
-                dummy=False,
-                edir=None,
-                rand_DMG=False,
-                survey_dict = None,
-                verbose=False):
-    """Load a survey
 
+def lognormal(logw, *args):
+    """
+    Lognormal probability distribution
+    
     Args:
-        survey_name (str): Name of the survey
-            e.g. CRAFT/FE
-        state (parameters.State): Parameters for the state
-        dmvals (np.ndarray): DM values
-        zvals (np.ndarray): z values
-        sdir (str, optional): Path to survey files. Defaults to None.
-        nbins (int, optional):  Sets number of bins for Beam analysis
-            [was NBeams]
-        NFRB (int, optional): Cut the total survey down to a random
-            subset [useful for testing]
-        iFRB (int, optional): Start grabbing FRBs at this index
-            Mainly used for Monte Carlo analysis
-            Requires that NFRB be set
-        dummy (bool,optional)
-            Skip many initialisation steps: used only when loading
-            survey parameters for conversion to the new survey format
-        survey_dict (dict, optional): dictionary of survey metadata to 
-            over-ride values in file
-        verbose (bool): print output
-    Raises:
-        IOError: [description]
-
+        logw: natural log of widths
+        args: vector of [logmean,logsigma] mean and std dev
+    
     Returns:
-        Survey: instance of the class
+        result: p(logw) d logw
     """
+    logmean = args[0]
+    logsigma = args[1]
+    norm = (2.*np.pi)**-0.5/logsigma
+    result = norm * np.exp(-0.5 * ((logw - logmean) / logsigma) ** 2)
+    return result
     
-    if verbose:
-        print(f"Loading survey: {survey_name}")
-
-    if sdir is None:
-        sdir = os.path.join(
-            resource_filename('zdm', 'data'), 'Surveys')
-
-    # Hard code real surveys
-    if survey_name == 'CRAFT/FE':
-        dfile = 'CRAFT_class_I_and_II'
-    elif survey_name == 'CRAFT/ICS':
-        dfile = 'CRAFT_ICS'
-    elif survey_name == 'CRAFT/ICS892':
-        dfile = 'CRAFT_ICS_892'
-    elif survey_name == 'CRAFT/ICS1632':
-        dfile = 'CRAFT_ICS_1632'
-
-    elif survey_name == 'PKS/Mb':
-        dfile = 'parkes_mb_class_I_and_II'
-    elif 'private' in survey_name: 
-        dfile = survey_name
-    else:
-        dfile = survey_name
+def halflognormal(logw, *args):#logmean,logsigma,minw,maxw,nbins):
+    """
+    Generates a parameterised half-lognormal distribution.
+    This acts as a lognormal in the lower half, but
+    keeps a constant per-log-bin width in the upper half
     
-    # allows a user to input the .ecsv themselves
-    if dfile[-6:] != ".ecsv":
-        dfile += '.ecsv'
-
-    print(f"Loading survey: {survey_name} from {dfile}")
-
-    # Do it
-    srvy = Survey(state, 
-                    survey_name, 
-                    os.path.join(sdir, dfile), 
-                     dmvals,
-                     zvals,
-                     NFRB=NFRB, iFRB=iFRB,
-                     edir=edir, rand_DMG=rand_DMG,
-                     survey_dict = survey_dict)
-    return srvy
-
-def vet_frb_table(frb_tbl:pandas.DataFrame,
-                  mandatory:bool=False,
-                  fill:bool=False):
+    Args:
+        logw: natural log of widths
+        args: vector of [logmean,logsigma] mean and std dev
+    
+    Returns:
+        result: p(logw) d logw
     """
-    This should not be necessary anymore, since
-    all required FRB data should be populated with
-    default values. However, it's great as a check. If
-    this complains, it means we have a bug in the
-    replacement with default value procedure.
+    logmean = args[0]
+    logsigma = args[1]
+    norm = (2.*np.pi)**-0.5/logsigma
+    
+    large = np.where(logw > logmean)
+    
+    modlogw = logw
+    modlogw[large] = logmean # subs mean value in for values larger than the mean
+    result = lognormal(modlogw,args)
+    return result
+
+def constant(logw,*args):
     """
-    frb_data = survey_data.FRB()
-    # Loop on the standard fields
-    for field in frb_data.__dataclass_fields__.keys():
-        if field in frb_tbl.keys():
-            not_none = frb_tbl[field].values != None
-            if np.any(not_none):
-                idx0 = np.where(not_none)[0][0]
-                assert isinstance(
-                    frb_tbl.iloc[idx0][field], 
-                    frb_data.__dataclass_fields__[field].type), \
-                        f'Bad data type for {field}'
-        elif mandatory:
-            raise ValueError(f'{field} is missing in your table!')
-        elif fill:
-            frb_tbl[field] = None
+    Dummy function that returns a constant of unity.
+    NOTE: to include 1+z scaling here, one will need to
+    reduce the minimum width argument with z. Feature
+    to be added. Maybe have args also contain min and max values?
+    
+    Args:
+        logw: natural log of widths
+        args: vector of [logmean,logsigma] mean and std dev
+    
+    Returns:
+        result: p(logw) d logw
+    """
+    nvals = logw.size
+    result = np.fill([nvals],1.)
+    return result
+        

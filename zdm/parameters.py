@@ -228,6 +228,14 @@ class IGMParams(data_class.myDataClass):
 # FRB intrinsic width parameters
 @dataclass
 class WidthParams(data_class.myDataClass):
+    WidthFunction: int = field(
+        default=1,
+        metadata={
+            "help": "ID of function to describe width distribution. 0: log-constant, 1:log-normal",
+            "unit": "",
+            "Notation": "",
+        },
+    )
     Wlogmean: float = field(
         default=1.70267,
         metadata={
@@ -254,15 +262,23 @@ class WidthParams(data_class.myDataClass):
     )
 
     WNbins: int = field(
-        default=5,
+        default=8,
         metadata={"help": "Number of bins for FRB width distribution", "unit": ""},
+    )
+    WNInternalBins: int = field(
+        default=1000,
+        metadata={
+            "help": "Number of internal bins to use for calculation purposes in numerical estimates of the width distribution",
+            "unit": "",
+            "Notation": "",
+        },
     )
     WMin: int = field(
         default=0.1,
         metadata={"help": "Minimum scattering value to model", "unit": "ms"},
     )
     WMax: int = field(
-        default=100,
+        default=1000,
         metadata={"help": "Maximum scattering value to model", "unit": "ms"},
     )
 
@@ -270,6 +286,14 @@ class WidthParams(data_class.myDataClass):
 # FRB intrinsic scattering parameters
 @dataclass
 class ScatParams(data_class.myDataClass):
+    ScatFunction: int = field(
+        default=1,
+        metadata={
+            "help": "Which scattering function to use. 0: log-constant. 1: lognormal. 2: half log-normal",
+            "unit": "",
+            "Notation": "",
+        },
+    )
     Slogmean: float = field(
         default=0.7,
         metadata={

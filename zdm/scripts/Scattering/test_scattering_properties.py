@@ -43,7 +43,7 @@ def main():
     # make this into a list to initialise multiple surveys art once
     names = [survey_name]
     
-    repeaters=True
+    repeaters=False
     # sets plotting limits
     zmax = 2.
     dmmax = 2000
@@ -78,23 +78,34 @@ def main():
         llsum = it.calc_likelihoods_2D(g,s,pNreps=False)
         print("For scattering method ",methnames[i],", 2D likelihoods are ",llsum)
         
+        if i==2:
+            # gets constant weights from plot
+            const_weights = s.wplist
+        
         # extracts weights from survey and plots as function of z
         if i==3:
-            weights = s.wplist
-            widths = s.wlist[:,0]
+            weights = s.wplist # 2D
+            widths = s.wlist # widths are now 1D, they don't vary
             nw,nz = weights.shape
             plt.figure()
             plt.xlabel('z')
             plt.ylabel('weight')
             for iw in np.arange(nw):
                 plt.plot(g.zvals,weights[iw,:],label="width = "+str(widths[iw])[0:5])
+                plt.plot([g.zvals[0],g.zvals[-1]],[const_weights[iw],const_weights[iw]],
+                        color=plt.gca().lines[-1].get_color(),linestyle=":")
             total = np.sum(weights,axis=0)
             plt.plot(g.zvals,total,label="total",color="black")
-            plt.yscale("log")
-            plt.legend()
+            plt.legend(fontsize=6)
             plt.tight_layout()
-            plt.savefig(opdir+"z_dependent_weights.png")
+            plt.savefig(opdir+"z_dependent_weights_lin.png")
+            
+            plt.yscale("log")
+            plt.tight_layout()
+            plt.savefig(opdir+"z_dependent_weights_log.png")
             plt.close()
+            
+            
             
         figures.plot_grid(
                 g.rates,
@@ -128,24 +139,33 @@ def main():
     plt.xlabel('z')
     plt.ylabel('p(z) [arb units]')
     plt.xlim(0,zmax)
-    plt.ylim(0,None)
+    ymax=0.
     for i,Method in enumerate(imethods):
+        themax = np.max(zdists[i])
+        if ymax < themax:
+            ymax = themax
         plt.plot(g.zvals,zdists[i],label=methnames[i])
+    plt.ylim(0,ymax)
     plt.legend()
     plt.tight_layout()
-    plt.savefig(opdir+"pdm_comparison.png",)
+    plt.savefig(opdir+"pz_comparison.png",)
     plt.close()
     
     plt.figure()
     plt.xlabel('DM')
     plt.xlim(0,dmmax)
-    plt.ylim(0,None)
     plt.ylabel('p(DM) [arb units]')
+    ymax = 0.
     for i,Method in enumerate(imethods):
+        themax = np.max(dmdists[i])
+        if ymax < themax:
+            ymax = themax
         plt.plot(g.dmvals,dmdists[i],label=methnames[i])
+    
+    plt.ylim(0,ymax)
     plt.legend()
     plt.tight_layout()
-    plt.savefig(opdir+"pz_comparison.png",)
+    plt.savefig(opdir+"pzdm_comparison.png",)
     plt.close()
     
     if not repeaters:
