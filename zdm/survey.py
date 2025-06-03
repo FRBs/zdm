@@ -236,7 +236,7 @@ class Survey:
             WidthArgs = (wlogmean,wlogsigma)
             ScatArgs = (slogmean,slogsigma)
             
-            dist = geometric_lognormals3(self.WidthFunction, WidthArgs, self.ScatFunction, ScatArgs,
+            dist = geometric_lognormals(self.WidthFunction, WidthArgs, self.ScatFunction, ScatArgs,
                         self.internal_logwvals, self.wbins)
             
             if iz is not None:
@@ -1130,7 +1130,7 @@ def vet_frb_table(frb_tbl:pandas.DataFrame,
 ############ We now define some width/scattering functions ############
 # These all return p(w) dlogw, and must take as arguments np.log(widths)
 
-def geometric_lognormals3(width_function, width_args, scat_function, scat_args,
+def geometric_lognormals(width_function, width_args, scat_function, scat_args,
                         internal_logvals, bins):
     '''
     Numerically evaluates the resulting distribution of y=\sqrt{x1^2+x2^2},
@@ -1147,8 +1147,6 @@ def geometric_lognormals3(width_function, width_args, scat_function, scat_args,
     
     Returns:
         hist: histogram of probability within bins
-        chist: cumulative histogram of probability within bins
-        bins: bin edges for histogram
     
     '''
     
@@ -1180,272 +1178,6 @@ def geometric_lognormals3(width_function, width_args, scat_function, scat_args,
         hist += h
     
     return hist
-
-def geometric_lognormals2(lmu1,ls1,lmu2,ls2,bins=None,
-                         Ndivs=100,Nsigma=3.,plot=False,Nbins=101,
-                         ScatDist=1):
-    '''
-    Numerically evaluates the resulting distribution of y=\sqrt{x1^2+x2^2},
-    where logx1~normal and logx2~normal with log-mean lmu and 
-    log-sigma ls.
-    This is typically used for two log-normals of intrinsic
-    FRB width and scattering time
-    
-    lmu1, ls1 (float, float): log mean and log-sigma of the first distribution
-    
-    lmu2, ls2 (float, float): log-mean and log-sigma of the second distribution
-    
-    bins (np.ndarray([NBINS+1],dtype='float')): bin edges for resulting plot.
-    
-    Returns:
-        hist: histogram of probability within bins
-        chist: cumulative histogram of probability within bins
-        bins: bin edges for histogram
-    
-    '''
-    
-    #draw from both distributions
-    np.random.seed(1234)
-    
-    xvals1 = np.linspace(lmu1-Nsigma*ls1,lmu1+Nsigma*ls1,Ndivs)
-    yvals1 = pcosmic.loglognormal_dlog(xvals1,lmu1,ls1,1.)
-    yvals1 /= np.sum(yvals1)
-    
-    # xvals in ln space
-    lnlog = np.log10(np.exp(1))
-    xvals2 = np.logspace(lnlog*(lmu2-Nsigma*ls2),lnlog*(lmu2+Nsigma*ls2),Ndivs)
-    if ScatDist == 0:
-        # log uniform
-        yvals2 = np.full([Ndivs],2./Ndivs)
-    elif ScatDist == 1:
-        # lognormal
-        yvals2 = pcosmic.loglognormal_dlog(xvals2,lmu2,ls2,2.)
-        yvals2 /= np.sum(yvals2)
-    elif ScatDist == 2:
-        # upper lognormal is flat
-        yvals2 = pcosmic.loglognormal_dlog(xvals2,lmu2,ls2,2.)
-        upper = np.where(xvals2 > lmu2)[0]
-        ymax = np.max(yvals2)
-        yvals2[upper] = ymax
-        yvals2 /= np.sum(yvals2)
-    
-    xvals1 = np.exp(xvals1)
-    xvals2 = np.exp(xvals2)
-    themin = np.min([np.min(xvals1),np.min(xvals2)])
-    themax = 2**0.5 * np.max([np.max(xvals1),np.max(xvals2)])
-    
-    if bins is None:
-        #bins=np.linspace(0,np.max(ys)/4.,Nbins)
-        delta=1e-3
-        # ensures the first bin begins at 0
-        bins=np.zeros([Nbins+1])
-        bins[1:]=np.logspace(np.log10(themin)-delta,np.log10(themax)+delta,Nbins)
-    else:
-        Nbins = len(bins)-1
-    
-    # calculate widths
-    hist = np.zeros([Nbins])
-    for i,x1 in enumerate(xvals1):
-        widths = (x1**2 + xvals2**2)**0.5
-        probs = yvals1[i]*yvals2
-        h,b = np.histogram(widths,bins=bins,weights=probs)
-        hist += h
-    
-    chist=np.zeros([Nbins+1])
-    chist[1:]=np.cumsum(hist)
-    # we do not want to renormalise, since the normalisation reflects the values
-    # which are too large
-    #hist /= chist[-1]
-    chist /= chist[-1]
-    
-    return hist,chist,bins
-
-def geometric_lognormals(lmu1,ls1,lmu2,ls2,bins=None,
-                         Nrand=10000,plot=False,Nbins=101):
-    '''
-    Numerically evaluates the resulting distribution of y=\sqrt{x1^2+x2^2},
-    where logx1~normal and logx2~normal with log-mean lmu and 
-    log-sigma ls.
-    This is typically used for two log-normals of intrinsic
-    FRB width and scattering time
-    
-    lmu1, ls1 (float, float): log mean and log-sigma of the first distribution
-    
-    lmu2, ls2 (float, float): log-mean and log-sigma of the second distribution
-    
-    bins (np.ndarray([NBINS+1],dtype='float')): bin edges for resulting plot.
-    
-    Returns:
-        hist: histogram of probability within bins
-        chist: cumulative histogram of probability within bins
-        bins: bin edges for histogram
-    
-    '''
-    
-    #draw from both distributions
-    np.random.seed(1234)
-    x1s=np.random.normal(lmu1,ls1,Nrand)
-    x2s=np.random.normal(lmu2,ls2,Nrand)
-    
-    ys=(np.exp(x1s*2)+np.exp(x2s*2))**0.5
-    
-    if bins is None:
-        #bins=np.linspace(0,np.max(ys)/4.,Nbins)
-        delta=1e-3
-        # ensures the first bin begins at 0
-        bins=np.zeros([Nbins+1])
-        bins[1:]=np.logspace(np.log10(np.min(ys))-delta,np.log10(np.max(ys))+delta,Nbins)
-    hist,bins=np.histogram(ys,bins=bins)
-    chist=np.zeros([Nbins+1])
-    chist[1:]=np.cumsum(hist)
-    chist /= chist[-1]
-    
-    if plot:
-        plt.figure()
-        plt.hist(ys,bins=bins)
-        plt.xlabel('$y, Y=\\sqrt{X_1^2+X_2^2}$')
-        plt.ylabel('$P(Y=y)$')
-        plt.tight_layout()
-        plt.savefig('adding_lognormals.pdf')
-        plt.close()
-        
-        lbins=np.linspace(-3.,5.,81)
-        plt.figure()
-        plt.xlabel('$log y, Y=\\sqrt{X_1^2+X_2^2}$')
-        plt.ylabel('$P(logY=logy)$')
-        plt.hist(np.log(ys),bins=lbins)
-        plt.savefig('log_adding_lognormals.pdf')
-        plt.close()
-    
-    # renomalises - total will be less than unity, assuming some large
-    # values fall off the largest bin
-    #hist = hist/Nrand
-    return hist,chist,bins
-
-
-def make_widths(s:Survey,state,z=0.):
-    """
-    This method takes a distribution of intrinsic FRB widths 
-    (lognormal, defined by wlogmean and wlogsigma), and returns 
-    a list of w_i, p(w_i), where the w_i are i=1...N values of 
-    width, and p(w_i) are statistical weights associated with each. 
-
-    The \sum_i p(w_i) should sum to unity always. Each w_i is used 
-    to calculate a separate efficiency table.
-    
-    Args:
-        s (Survey,required): instance of survey class
-        state (state class,required): instance of the state class
-        z (float): redshift at which this is being calculated
-    
-    Returns:
-        list: list of widths
-    """
-    # variables which can be over-ridden by a survey, but which
-    # appear by default in the parameter set
-    
-    # just extracting for now to get things straight
-    nbins=state.width.WNbins
-    thresh=state.width.Wthresh
-    wlogmean=state.width.Wlogmean
-    wlogsigma=state.width.Wlogsigma
-    width_method = s.meta["WMETHOD"]
-    WMin = state.width.WMin
-    WMax = state.width.WMax
-    
-    slogmean=state.scat.Slogmean
-    slogsigma=state.scat.Slogsigma
-    sfnorm=state.scat.Sfnorm
-    sfpower=state.scat.Sfpower
-    maxsigma=state.scat.Smaxsigma
-    scatdist=state.scat.ScatDist
-    
-    # adjusts these model values according to redshift
-    wlogmean += np.log(1.+z) # scales with (1+z)
-    slogmean -= 3.*np.log(1.+z) # scales with (1+z)^-3
-    
-    # constant of DM
-    k_DM=4.149 #ms GHz^2 pc^-1 cm^3
-    
-    tres=s.meta['TRES']
-    nu_res=s.meta['FRES']
-    fbar=s.meta['FBAR']
-    
-    ###### calculate a characteristic scaling pulse width ########
-    
-    # estimates this for a DM of 100
-    DM=100
-    
-    # total smearing factor within a channel
-    dm_smearing=2*(nu_res/1.e3)*k_DM*DM/(fbar/1e3)**3 #smearing factor of FRB in the band
-    wsum=0.
-    
-    ######## generate width distribution ######
-    # arrays to hold widths and weights
-    weights=[]
-    widths=[]
-    
-    if width_method == 1 or width_method==2 or width_method==3:
-        bins = np.zeros([nbins+1])
-        logWMin = np.log10(WMin)
-        logWMax = np.log10(WMax)
-        dbin = (logWMax - logWMin)/(nbins-1.)
-        # bins ignore WMax - scale takes precedent
-        bins[1:] = np.logspace(logWMin,logWMax, nbins)
-        widths = 10**(dbin * (np.arange(nbins)-0.5) + logWMin)
-        bins[0] = 1.e-10 # a very tiny value to avoid bad things in log space
-        
-    if width_method==0:
-        # do not take a distribution, just use 1ms for everything
-        # this is done for tests, for complex surveys such as CHIME,
-        # or for estimating the properties of a single FRB
-        weights.append(1.)
-        widths.append(np.exp(wlogmean))
-    elif width_method==1:
-        # take intrinsic lognormal width distribution only
-        # normalisation of a log-normal
-        args=(wlogmean,wlogsigma)
-        weights = np.zeros([nbins])
-        for i in np.arange(nbins):
-            weight,err=quad(pcosmic.loglognormal_dlog,np.log(bins[i]),np.log(bins[i+1]),args=args)
-            #width=(WMin*WMax)**0.5
-            #widths.append(width)
-            weights[i] = weight
-    elif width_method==2 or width_method==3:
-        # include scattering distribution. 3 means include z-dependence
-        # scale scattering time according to frequency in logspace
-        slogmean = slogmean + sfpower*np.log(fbar/sfnorm)
-        
-        # generates bins
-        
-        
-        #gets cumulative hist and bin edges
-        dist,cdist,cbins=geometric_lognormals2(wlogmean,
-                               wlogsigma,slogmean,slogsigma,Nsigma=maxsigma,
-                               ScatDist=scatdist,bins=bins)
-        weights = dist
-        
-    elif width_method==4:
-        # use specific width of FRB. This requires there to be only a single FRB in the survey
-        if s.meta['NFRB'] != 1:
-            raise ValueError("If width method in make_widths is 3 only one FRB should be specified in the survey but ", str(s.meta['NFRB']), " FRBs were specified")
-        else:
-            weights.append(1.)
-            widths.append(s.frbs['WIDTH'][0])
-    else:
-        raise ValueError("Width method in make_widths must be 0, 1 or 2, not ",width_method)
-    # check this is correct - we may wish to lose extra probability
-    # off the top, though never off the bottom
-    #weights[-1] += 1.-wsum #adds defecit here
-    weights=np.array(weights)
-    widths=np.array(widths)
-    # removes unneccesary bins
-    # cannot do this when considering z-dependent bins for consistency
-    #keep=np.where(weights>1e-4)[0]
-    #weights=weights[keep]
-    #widths=widths[keep]
-    
-    return widths,weights
 
 
 
