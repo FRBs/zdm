@@ -342,6 +342,14 @@ class ScatParams(data_class.myDataClass):
             "Notation": "",
         },
     )
+    Sbackproject: bool = field(
+        default=False,
+        metadata={
+            "help": "If TRUE, calculate internal arrays to estimate p(tau|w,DM,z)",
+            "unit": "",
+            "Notation": "",
+        },
+    )
 
 
 # FRB Energetics -- energy

@@ -125,6 +125,7 @@ class Survey:
         self.slogsigma=self.state.scat.Slogsigma
         self.maxsigma=self.state.scat.Smaxsigma
         self.scatdist=self.state.scat.ScatDist
+        self.backproject=self.state.scat.Sbackproject
         
         # sets internal functions
         WF = self.state.width.WidthFunction
@@ -177,12 +178,16 @@ class Survey:
         self.internal_logwvals = np.linspace(minval,maxval,self.NInternalBins)
         
         # initialise probability bins
-        if self.meta['WMETHOD'] == 3 or self.meta['WMETHOD'] == 5:
+        if self.meta['WMETHOD'] == 3:
             # evaluate efficiencies at each redshift
             self.efficiencies = np.zeros([self.NWbins,self.NZ,self.NDM])
             self.wplist = np.zeros([self.NWbins,self.NZ])
             self.DMlist = np.zeros([self.NZ,self.NDM])
             self.mean_efficiencies = np.zeros([self.NZ,self.NDM])
+            
+            if self.backproject:
+                self.pws = np.zeros([self.NZ,self.internal_logwvals.size,self.NWbins]) #[iz,:,:] = pw
+                self.ptaus = np.zeros([self.NZ,self.internal_logwvals.size,self.NWbins]) #[iz,:,:] = ptau
             
             # we have a z-dependent scattering and width model
             for iz,z in enumerate(self.zvals):
@@ -192,6 +197,9 @@ class Survey:
         else:
             self.wplist = np.zeros([self.NWbins])
             self.make_widths()
+            if self.backproject:
+                self.pws = np.zeros([self.internal_logwvals.size,self.NWbins]) #[iz,:,:] = pw
+                self.ptaus = np.zeros([self.internal_logwvals.size,self.NWbins]) #[iz,:,:] = ptau
             _ = self.get_efficiency_from_wlist(self.wlist,self.wplist,
                                         model=self.meta['WBIAS'], edir=self.edir, iz=None) 
     
@@ -229,20 +237,27 @@ class Survey:
             wlogsigma = self.wlogsigma
             slogmean = self.slogmean - 3.*np.log(1+z)
             slogsigma = self.slogsigma
-            #dist,cdist,cbins=geometric_lognormals2(wlogmean,
-            #                   self.wlogsigma,slogmean,self.slogsigma,Nsigma=self.maxsigma,
-            #                   ScatDist=self.scatdist,bins=self.wbins)
             
             WidthArgs = (wlogmean,wlogsigma)
             ScatArgs = (slogmean,slogsigma)
             
-            dist = geometric_lognormals(self.WidthFunction, WidthArgs, self.ScatFunction, ScatArgs,
-                        self.internal_logwvals, self.wbins)
+            if self.backproject:
+                dist,pw,ptau = quadrature_convolution(self.WidthFunction, WidthArgs, self.ScatFunction, ScatArgs,
+                        self.internal_logwvals, self.wbins,backproject=self.backproject)
+            else:
+                dist = quadrature_convolution(self.WidthFunction, WidthArgs, self.ScatFunction, ScatArgs,
+                        self.internal_logwvals, self.wbins,backproject=self.backproject)
             
             if iz is not None:
                 self.wplist[:,iz] = dist
+                if self.backproject:
+                    self.pws[iz,:,:] = pw
+                    self.ptaus[iz,:,:] = ptau
             else:
                 self.wplist[:] = dist
+                if self.backproject:
+                    self.pws=pw
+                    self.ptaus=ptau
             
         elif self.meta['WMETHOD'] == 4:
             # use specific width of FRB. This requires there to be only a single FRB in the survey
@@ -1130,8 +1145,8 @@ def vet_frb_table(frb_tbl:pandas.DataFrame,
 ############ We now define some width/scattering functions ############
 # These all return p(w) dlogw, and must take as arguments np.log(widths)
 
-def geometric_lognormals(width_function, width_args, scat_function, scat_args,
-                        internal_logvals, bins):
+def quadrature_convolution(width_function, width_args, scat_function, scat_args,
+                        internal_logvals, bins, backproject = False):
     '''
     Numerically evaluates the resulting distribution of y=\sqrt{x1^2+x2^2},
     where x1 is the width distribution, and x2 is the scattering distribution.
@@ -1144,9 +1159,12 @@ def geometric_lognormals(width_function, width_args, scat_function, scat_args,
         internal_vals (np.ndarray): numpy array of length NIbins giving internal
                     values of log dw to use for internal calculation purposes.
         bins (np.ndarray([NBINS+1],dtype='float')): bin edges for final width distribution
-    
+        backproject (bool, optional): if True, calculates p(tau|totalw) and p(w|totalw)
+                for this redshift, and returns additional values.
     Returns:
-        hist: histogram of probability within bins
+        hist (np.ndarray): histogram of probability within bins
+        wfracs (np.ndarray,only if backproject): p(tau|tw)
+        taufracs (np.ndarray,only if backproject): p(w|tw)
     
     '''
     
@@ -1177,7 +1195,33 @@ def geometric_lognormals(width_function, width_args, scat_function, scat_args,
         h,b = np.histogram(totalwidths,bins=bins,weights=probs)
         hist += h
     
-    return hist
+    # calculate p(w) and p(tau) for each w fior this z
+    if backproject:
+        # generate arrays to hold probabilities, so values of tau and
+        # w can be fit
+        wfracs = np.zeros([internal_logvals.size,Nbins])
+        taufracs = np.zeros([internal_logvals.size,Nbins])
+        
+        # maps the probabilities as a function of intrinsic
+        # width to generate a p(w|total_width) and p(tau|total_width)
+        # note that these are p(observed) values, i.e. after z-correction
+        for i,x1 in enumerate(linvals):
+            totalwidths = (x1**2 + linvals**2)**0.5
+            
+            probs = pw[i]*ptau
+            h,b = np.histogram(totalwidths,bins=bins,weights=probs)
+            wfracs[i,:] = h
+            
+            probs = ptau[i]*pw
+            h,b = np.histogram(totalwidths,bins=bins,weights=probs)
+            taufracs[i,:] = h
+        
+        # normalise probabilities for each intrinsic w
+        wfracs = (wfracs.T/np.sum(wfracs,axis=1)).T
+        taufracs = (taufracs.T/np.sum(taufracs,axis=1)).T
+        return hist,wfracs,taufracs
+    else:
+        return hist
 
 
 

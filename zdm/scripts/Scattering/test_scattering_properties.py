@@ -65,10 +65,14 @@ def main():
     for i,Method in enumerate(imethods):
         
         survey_dict = {"WMETHOD": Method}
+        state_dict = {}
+        state_dict["scat"] = {}
+        state_dict["scat"]["Sbackproject"] = True # turns on backprojection of tau and width for our model
+        
         # Write True if you want to do repeater grids - see "plot_repeaters.py" to make repeater plots
         surveys, grids = loading.surveys_and_grids(survey_names = names,\
                         repeaters=repeaters, sdir=sdir,nz=70,ndm=140,
-                        survey_dict = survey_dict)
+                        survey_dict = survey_dict, state_dict = state_dict)
         g=grids[0]
         s=surveys[0]
         
@@ -106,6 +110,49 @@ def main():
             plt.close()
             
             
+            # plots back-projected probabilities
+            plt.figure()
+            ax1 = plt.gca()
+            plt.figure()
+            ax2 = plt.gca()
+            
+            # gets zvalues correponding to 0.1,0.5,1,2
+            izs = []
+            for z in [ 0.1,0.5,1,2]:
+                # gets index of the above redshift values
+                iz = np.where(g.zvals>z)[0][0]
+                izs.append(iz)
+            styles=["-","--","-.",":"]
+            for iw in np.arange(s.NWbins):
+                label=str(s.wlist[iw])[0:5]
+                for j,iz in enumerate(izs):
+                    if j==0:
+                        ax1.plot(s.internal_logwvals,s.ptaus[iz,:,iw],label=label,
+                                linestyle = styles[j])
+                        ax2.plot(s.internal_logwvals,s.pws[iz,:,iw],label=label,
+                                linestyle = styles[j])
+                    else:
+                        ax1.plot(s.internal_logwvals,s.ptaus[iz,:,iw],label=label,
+                                linestyle = styles[j],color=plt.gca().lines[-1].get_color())
+                        ax2.plot(s.internal_logwvals,s.pws[iz,:,iw],label=label,
+                                linestyle = styles[j],color=plt.gca().lines[-1].get_color())
+                    label=None
+            plt.sca(ax1)
+            plt.xlabel("Natural log of scattering width (observed)")
+            plt.ylabel("Probability given total width and redshift")
+            plt.legend(fontsize=6)
+            plt.tight_layout()
+            plt.savefig(opdir+"z_dependent_ptau.png")
+            plt.close()
+            
+            
+            plt.sca(ax2)
+            plt.xlabel("Natural log of intrinsic width (observed)")
+            plt.ylabel("Probability given total width and redshift")
+            plt.legend(fontsize=6)
+            plt.tight_layout()
+            plt.savefig(opdir+"z_dependent_pw.png")
+            plt.close()
             
         figures.plot_grid(
                 g.rates,
