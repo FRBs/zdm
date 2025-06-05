@@ -64,7 +64,8 @@ class Survey:
         self.dmvals = dmvals
         self.zvals = zvals
         self.NDM = dmvals.size
-        self.NZ = zvals.size
+        if zvals is not None:
+            self.NZ = zvals.size
         self.edir = edir
         # Load up
         self.process_survey_file(filename, NFRB, iFRB, min_lat=state.analysis.min_lat,
@@ -114,6 +115,8 @@ class Survey:
         self.wlogmean = self.state.width.Wlogmean
         self.wlogsigma = self.state.width.Wlogsigma
         self.width_method = self.meta["WMETHOD"]
+        if self.width_method == 3 and self.zvals is None:
+            raise ValueError("Width method 3 requires z-values to be set")
         self.NInternalBins=self.state.width.WNInternalBins
         
         # records scattering information, scaling
@@ -1144,7 +1147,7 @@ def calc_relative_sensitivity(DM_frb,DM,w,fbar,t_res,nu_res,Nchan=336,max_idt=No
 
 def load_survey(survey_name:str, state:parameters.State, 
                 dmvals:np.ndarray,
-                zvals:np.ndarray,
+                zvals:np.ndarray=None,
                 sdir:str=None, NFRB:int=None, 
                 nbins=None, iFRB:int=0,
                 dummy=False,
@@ -1159,7 +1162,7 @@ def load_survey(survey_name:str, state:parameters.State,
             e.g. CRAFT/FE
         state (parameters.State): Parameters for the state
         dmvals (np.ndarray): DM values
-        zvals (np.ndarray): z values
+        zvals (np.ndarray,optional): z values
         sdir (str, optional): Path to survey files. Defaults to None.
         nbins (int, optional):  Sets number of bins for Beam analysis
             [was NBeams]
@@ -1216,7 +1219,7 @@ def load_survey(survey_name:str, state:parameters.State,
                     survey_name, 
                     os.path.join(sdir, dfile), 
                      dmvals,
-                     zvals,
+                     zvals=zvals,
                      NFRB=NFRB, iFRB=iFRB,
                      edir=edir, rand_DMG=rand_DMG,
                      survey_dict = survey_dict)

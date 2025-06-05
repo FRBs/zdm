@@ -92,17 +92,19 @@ def main():
     grid_params['ndm'] = 1400
     grid_params['nz'] = 500
     ddm = grid_params['dmmax'] / grid_params['ndm']
-    dmvals = (np.arange(grid_params['ndm']) + 1) * ddm
+    # it would be best to trial initialising a "get_zdm_grid" here to extract z and dm values
+    dmvals = (np.arange(grid_params['ndm']) + 0.5) * ddm
+    zvals = (np.arange(nz) + 0.5) * dz
     
     if args.files is not None:
         for survey_name in args.files:
-            s = survey.load_survey(survey_name, state, dmvals,
+            s = survey.load_survey(survey_name, state, dmvals, zvals=zvals,
                                 sdir=args.sdir, edir=args.edir, rand_DMG=args.rand)
             surveys[0].append(s)
     
     if args.rep_surveys is not None:
         for survey_name in args.rep_surveys:
-            s = survey.load_survey(survey_name, state, dmvals, 
+            s = survey.load_survey(survey_name, state, dmvals, zvals=zvals,
                                 sdir=args.sdir, edir=args.edir, rand_DMG=args.rand)
             surveys[1].append(s)
 
