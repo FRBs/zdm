@@ -244,19 +244,6 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=True,
         else:
             raise ValueError("No non-localised FRBs in this survey, cannot calculate 1D likelihoods")
     
-    if ptauw:
-        # checks which have OK tau values - in general, this is a subset
-        # ALSO: note that this only checks p(tau,iw | w)! It does NOT
-        # evaluate p(w)!!! Which is a pretty key thing...
-        noztaulist = []
-        for i,iz in enumerate(nozlist):
-            if iz in survey.OKTAU:
-                noztaulist.append(iz)
-        Wobs = survey.WIDTHs[noztaulist]
-        Tauobs = survey.TAUs[noztaulist]
-        Iwobs = survey.IWIDTHs[noztaulist]
-        ztDMobs=survey.DMEGs[noztaulist]
-    
     dmvals=grid.dmvals
     zvals=grid.zvals
 
@@ -307,8 +294,21 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=True,
     lllist=[llsum]
     
     ########### Calculation of p((Tau,w)) ##############
+    if ptauw:
+        # checks which have OK tau values - in general, this is a subset
+        # ALSO: note that this only checks p(tau,iw | w)! It does NOT
+        # evaluate p(w)!!! Which is a pretty key thing...
+        noztaulist = []
+        inoztaulist = []
+        for i,iz in enumerate(nozlist):
+            if iz in survey.OKTAU:
+                noztaulist.append(iz) # for direct indexing of survey
+                inoztaulist.append(i) # for getting a subset of zlist
+        Wobs = survey.WIDTHs[noztaulist]
+        Tauobs = survey.TAUs[noztaulist]
+        Iwobs = survey.IWIDTHs[noztaulist]
+        ztDMobs=survey.DMEGs[noztaulist]
     
-    if ptauw:# Gets linear interpolation coefficients.
         # This could all be precalculated within the survey.
         iws1,iws2,dkws1,dkws2 = survey.get_w_coeffs(Wobs) # total width in survey width bins
         itaus1,itaus2,dktaus1,dktaus2 = survey.get_internal_coeffs(Tauobs) # scattering time tau
@@ -341,21 +341,26 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=True,
             + survey.ptaus[:,itaus2,iws1]*dktaus1*dkws1 \
             + survey.ptaus[:,itaus2,iws2]*dktaus1*dkws2
         
-        pws = survey.pws[:,iis1,iws1]*dkis1*dkws1 \
+        piws = survey.pws[:,iis1,iws1]*dkis1*dkws1 \
             + survey.pws[:,iis1,iws2]*dkis1*dkws2 \
             + survey.pws[:,iis2,iws1]*dkis1*dkws1 \
             + survey.pws[:,iis2,iws2]*dkis1*dkws2
         
+        
         # we now multiply by the z-dependencies
         ptaus *= tomult
-        pws *= tomult
+        piws *= tomult
         
         # sum down the redshift axis to get sum p(tau,w|z)*p(z)
         ptaus = np.sum(ptaus,axis=0)
-        pws = np.sum(pws,axis=0)
-        ptwll = np.sum(np.log10(ptaus) + np.log10(pws))
-        llsum += ptwll
-        lllist.append(ptwll)
+        piws = np.sum(piws,axis=0)
+        
+        llptw = np.sum(np.log10(ptaus))
+        llpiw = np.sum(np.log10(piws))
+        llsum += llptw
+        llsum += llpiw
+        lllist.append(llptw)
+        lllist.append(llpiw)
         
     ############# Assesses total number of FRBs, P(N) #########
     # TODO: make the grid tell you the correct nromalisation
@@ -449,7 +454,10 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=True,
             ax2 = plt.gca()
             plt.xlabel("$z$")
             plt.ylabel("p(b,w|z)")
-        
+        if ptauw:
+            # hold array representing p(w)
+            dpbws = np.zeros([nw,nz,nfrb])
+            
         for i,b in enumerate(survey.beam_b):
             #iterate over the grid of weights
             bEths=Eths/b #this is the only bit that depends on j, but OK also!
@@ -473,6 +481,10 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=True,
                 pbw_norm += dpbw
                 zpsnr += differential*survey.beam_o[i]*usew
                 
+                if ptauw:
+                    # record probability of this w summed over all beams for each FRB
+                    dpbws[j,:,:] += dpbw
+                
                 if doplot and j==5:
                     #arbitrrily plots for FRB iFRB
                     iFRB=0
@@ -493,7 +505,23 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=True,
             plt.legend(fontsize=6)
             plt.savefig("FRB1_pbw_given_z.png")
             plt.close()
-              
+        
+        # calculate p(w)
+        if ptauw:
+            # we would like to calculate \int p(w|z) p(z) dz
+            # we begin by calculating p(w|z), below, by normalising for each z
+            # normalise over all w values for each z
+            dpbws /= np.sum(dpbws,axis=0)
+            temp = dpbws[iws1,:,inoztaulist]
+            temp *= tomult.T
+            pws = np.sum(temp,axis=1)
+            bad = np.where(pws == 0.)[0]
+            pws[bad] = 1.e-10 # prevents nans, but 
+            llpws = np.sum(np.log10(pws))
+            llsum += llpws
+            lllist.append(llpws)
+        
+        
         # normalise by the beam and FRB width values
         #This ensures that regions with zero probability don't produce nans due to 0/0
         OK = np.where(pbw_norm.flatten() > 0.)
@@ -693,21 +721,6 @@ def calc_likelihoods_2D(grid,survey,doplot=False,norm=True,psnr=True,printit=Fal
             zlist=survey.zlist
         else:
             raise ValueError("No nlocalised FRBs in this survey, cannot calculate 1D likelihoods")
-    
-    if ptauw:
-        # checks which have OK tau values - in general, this is a subset
-        # ALSO: note that this only checks p(tau,iw | w)! It does NOT
-        # evaluate p(w)!!! Which is a pretty key thing...
-        ztaulist = []
-        for i,iz in enumerate(zlist):
-            if iz in survey.OKTAU:
-                ztaulist.append(iz)
-        Wobs = survey.WIDTHs[ztaulist]
-        Tauobs = survey.TAUs[ztaulist]
-        Iwobs = survey.IWIDTHs[ztaulist]
-        ztDMobs=survey.DMEGs[ztaulist]
-        ztZobs=survey.Zs[ztaulist]
-    
     zvals=grid.zvals
     dmvals=grid.dmvals
     
@@ -838,6 +851,21 @@ def calc_likelihoods_2D(grid,survey,doplot=False,norm=True,psnr=True,printit=Fal
     
     ################ Calculates p(tau,w| total width) ###############
     if ptauw:
+        # checks which have OK tau values - in general, this is a subset
+        # ALSO: note that this only checks p(tau,iw | w)! It does NOT
+        # evaluate p(w)!!! Which is a pretty key thing...
+        ztaulist = []
+        iztaulist = []
+        for i,iz in enumerate(zlist):
+            if iz in survey.OKTAU:
+                ztaulist.append(iz) # for direct indexing of survey
+                iztaulist.append(i) # for getting a subset of zlist
+        Wobs = survey.WIDTHs[ztaulist]
+        Tauobs = survey.TAUs[ztaulist]
+        Iwobs = survey.IWIDTHs[ztaulist]
+        ztDMobs=survey.DMEGs[ztaulist]
+        ztZobs=survey.Zs[ztaulist]
+        
         # This could all be precalculated within the survey.
         iws1,iws2,dkws1,dkws2 = survey.get_w_coeffs(Wobs) # total width in survey width bins
         itaus1,itaus2,dktaus1,dktaus2 = survey.get_internal_coeffs(Tauobs) # scattering time tau
@@ -856,7 +884,7 @@ def calc_likelihoods_2D(grid,survey,doplot=False,norm=True,psnr=True,printit=Fal
             + survey.ptaus[ztizs2,itaus2,iws1]*ztdkzs2*dktaus2*dkws1 \
             + survey.ptaus[ztizs2,itaus2,iws2]*ztdkzs2*dktaus2*dkws2
         
-        pws = survey.pws[ztizs1,iis1,iws1]*ztdkzs1*dkis1*dkws1 \
+        piws = survey.pws[ztizs1,iis1,iws1]*ztdkzs1*dkis1*dkws1 \
             + survey.pws[ztizs1,iis1,iws2]*ztdkzs1*dkis1*dkws2 \
             + survey.pws[ztizs1,iis2,iws1]*ztdkzs1*dkis1*dkws1 \
             + survey.pws[ztizs1,iis2,iws2]*ztdkzs1*dkis1*dkws2 \
@@ -865,11 +893,15 @@ def calc_likelihoods_2D(grid,survey,doplot=False,norm=True,psnr=True,printit=Fal
             + survey.pws[ztizs2,iis2,iws1]*ztdkzs2*dkis2*dkws1 \
             + survey.pws[ztizs2,iis2,iws2]*ztdkzs2*dkis2*dkws2
         
-        ptwll = np.sum(np.log10(ptaus) + np.log10(pws))
-        llsum += ptwll
-        lllist.append(ptwll)
+        llptw = np.sum(np.log10(ptaus))
+        llpiw = np.sum(np.log10(piws))
+        llsum += llptw
+        llsum += llpiw
+        lllist.append(llptw)
+        lllist.append(llpiw)
+        
     
-    ###### Calculates p(E | z,DM) ########
+    ############ Calculates p(s | z,DM) #############
     # i.e. the probability of observing an FRB
     # with energy E given redshift and DM
     # this calculation ignores beam values
@@ -933,6 +965,11 @@ def calc_likelihoods_2D(grid,survey,doplot=False,norm=True,psnr=True,printit=Fal
         
         # initialised to hold w-b normalisations
         pbw_norm = 0.
+        
+        if ptauw:
+            # hold array representing p(w)
+            dpbws = np.zeros([nw,nfrb])
+            
         for i,b in enumerate(survey.beam_b):
             bEths=Eths/b # array of shape NFRB, 1/b
             bEobs=bEths*survey.Ss[zlist]
@@ -943,6 +980,7 @@ def calc_likelihoods_2D(grid,survey,doplot=False,norm=True,psnr=True,printit=Fal
                 
                 temp2=grid.array_cum_lf(bEths[j,:],Emin,Emax,gamma) # * FtoE #one dim in beamshape, one dim in FRB
                 cumulative = temp2.T #*bEths[j,:] #multiplies by beam factors and weight
+                
                 
                 if zwidths:
                     # a function of redshift
@@ -958,10 +996,27 @@ def calc_likelihoods_2D(grid,survey,doplot=False,norm=True,psnr=True,printit=Fal
                 # hence, the "cumulative" part cancels
                 
                 dpbw = survey.beam_o[i]*usew*cumulative
+                
+                if ptauw:
+                    # record probability of this w summed over all beams for each FRB
+                    dpbws[j,:] += dpbw
+                
                 pbw_norm += dpbw
                 
                 psnr += differential*survey.beam_o[i]*usew
         
+        # calculate p(w)
+        if ptauw:
+            # normalise over all w values
+            dpbws /= np.sum(dpbws,axis=0)
+            # calculate pws
+            pws = dpbws[iws1,iztaulist]*dkws1 + dpbws[iws2,iztaulist]*dkws2
+            bad = np.where(pws == 0.)[0]
+            pws[bad] = 1.e-10 # prevents nans, but 
+            llpws = np.sum(np.log10(pws))
+            llsum += llpws
+            lllist.append(llpws)
+            
         OK = np.where(pbw_norm > 0.)[0]
         psnr[OK] /= pbw_norm[OK]
         

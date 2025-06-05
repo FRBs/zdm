@@ -77,7 +77,7 @@ def main():
     # gets log-likelihoods including tau,w
     s=surveys[0]
     g=grids[0]
-    ll1 = it.calc_likelihoods_1D(g,s,Pn=True,pNreps=True,ptauw=False,dolist=0)
-    ll2 = it.calc_likelihoods_2D(g,s,Pn=True,pNreps=True,ptauw=False,dolist=0)
+    ll1 = it.calc_likelihoods_1D(g,s,Pn=True,pNreps=True,ptauw=True,dolist=0)
+    ll2 = it.calc_likelihoods_2D(g,s,Pn=True,pNreps=True,psnr=True,ptauw=True,dolist=0)
     print(ll1,ll2)
 main()
