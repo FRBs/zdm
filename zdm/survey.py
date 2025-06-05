@@ -416,9 +416,6 @@ class Survey:
         # convert to log-widths - the bins are in log10 space
         logwlist = np.log10(wlist)
         kws=(logwlist-np.log10(self.WMin))/self.dlogw +1.
-        print(wlist)
-        print(logwlist)
-        print(self.wbins)
         Bin0 = np.where(kws < 0.)[0]
         kws[Bin0] = 0.
         
