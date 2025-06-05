@@ -82,6 +82,31 @@ def galactic_to_j2000(l_deg, b_deg):
     return equatorial_coord.ra.degree, equatorial_coord.dec.degree
 
 
+def coord_string_to_deg(cstring,hr=False):
+    """
+    Converts a coordinate string in form of deg:min:sec to deg
+    
+    Args:
+        cstring (string): string of deg:min:sec
+        hr (optional): if True, assumes its hr:min:sec
+    
+    Returns:
+        deg (float): coordinate in degrees
+    """
+    parts = cstring.split(":")
+    if len(parts) == 3:
+        deg = float(parts[0]) + float(parts[1])/60. + float(parts[2])/3600.
+    elif len(parts) == 1:
+        deg = float(parts)
+    else:
+        raise ValueError("Do not know how to convert string ",cstring," to degrees")
+    
+    if hr:
+        deg *= 15. # accounts for hour to degree conversion
+    return deg
+    
+    
+
 def get_source_counts(grid, plot=None, Slabel=None):
     """
     Calculates the source-counts function for a given grid

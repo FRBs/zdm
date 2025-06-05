@@ -15,7 +15,6 @@ from zdm import loading
 from zdm import io
 from pkg_resources import resource_filename
 import numpy as np
-from zdm import survey
 from matplotlib import pyplot as plt
 
 import matplotlib
@@ -28,7 +27,7 @@ font = {'family' : 'Helvetica',
 matplotlib.rc('font', **font)
 
 def main():
-
+    
     # in case you wish to switch to another output directory
     opdir = "Plots/"
     if not os.path.exists(opdir):

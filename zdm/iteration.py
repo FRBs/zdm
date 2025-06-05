@@ -534,7 +534,8 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=True,Pn=False,pN
         return llsum,lllist,expected,[0.,0.,0.,0.]
     
 
-def calc_likelihoods_2D(grid,survey,doplot=False,norm=True,psnr=True,printit=False,Pn=False,pNreps=True,dolist=0,verbose=False,grid_type=0):
+def calc_likelihoods_2D(grid,survey,doplot=False,norm=True,psnr=True,printit=False,
+                Pn=False,pNreps=True,ptauw=False,dolist=0,verbose=False,grid_type=0):
     """ Calculates 2D likelihoods using observed DM,z values
     
     grid: the grid object calculated from survey
@@ -608,6 +609,19 @@ def calc_likelihoods_2D(grid,survey,doplot=False,norm=True,psnr=True,printit=Fal
             DMobs=survey.DMEGs[survey.zlist]
             Zobs=survey.Zs[survey.zlist]
             zlist=survey.zlist
+            if ptauw:
+                
+                # checks which have OK tau values
+                ztaulist = []
+                for i,iz in enumerate(survey.zlist):
+                    if iz in survey.OKTAU:
+                        ztaulist.append(iz)
+                Wobs = survey.WIDTHs[ztaulist]
+                Tauobs = survey.TAUs[ztaulist]
+                Iwobs = survey.IWIDTHs[ztaulist]
+                ztDMobs=survey.DMEGs[ztaulist]
+                ztZobs=survey.Zs[ztaulist]
+                
         else:
             raise ValueError("No nlocalised FRBs in this survey, cannot calculate 1D likelihoods")
         
@@ -627,6 +641,16 @@ def calc_likelihoods_2D(grid,survey,doplot=False,norm=True,psnr=True,printit=Fal
     
     idms1,idms2,dkdms1,dkdms2 = grid.get_dm_coeffs(DMobs)
     izs1,izs2,dkzs1,dkzs2 = grid.get_z_coeffs(Zobs)
+    
+    if ptauw:
+        # This could all be precalculated within the survey.
+        iws1,iws2,dkws1,dkws2 = survey.get_w_coeffs(Wobs) # total width in survey width bins
+        itaus1,itaus2,dktaus1,dktaus2 = survey.get_internal_coeffs(Tauobs) # scattering time tau
+        iis1,iis2,dkis1,dkis2 = survey.get_internal_coeffs(Iwobs) # intrinsic width
+        
+        ztidms1,ztidms2,ztdkdms1,ztdkdms2 = grid.get_dm_coeffs(ztDMobs)
+        ztizs1,ztizs2,ztdkzs1,ztdkzs2 = grid.get_z_coeffs(ztZobs)
+        
     
     # Calculate probability
     if grid.state.MW.sigmaDMG == 0.0 and grid.state.MW.sigmaHalo == 0.0:
@@ -736,6 +760,30 @@ def calc_likelihoods_2D(grid,survey,doplot=False,norm=True,psnr=True,printit=Fal
         plt.tight_layout()
         plt.savefig('1d_dm_fit.pdf')
         plt.close()
+    
+    ####### Calculates p(tau,w| total width) ####
+    if ptauw:
+        
+        ptaus = survey.ptaus[ztizs1,itaus1,iws1]*ztdkzs1*dktaus1*dkws1 \
+            + survey.ptaus[ztizs1,itaus1,iws2]*ztdkzs1*dktaus1*dkws2 \
+            + survey.ptaus[ztizs1,itaus2,iws1]*ztdkzs1*dktaus1*dkws1 \
+            + survey.ptaus[ztizs1,itaus2,iws2]*ztdkzs1*dktaus1*dkws2 \
+            + survey.ptaus[ztizs2,itaus1,iws1]*ztdkzs2*dktaus1*dkws1 \
+            + survey.ptaus[ztizs2,itaus1,iws2]*ztdkzs2*dktaus1*dkws2 \
+            + survey.ptaus[ztizs2,itaus2,iws1]*ztdkzs2*dktaus2*dkws1 \
+            + survey.ptaus[ztizs2,itaus2,iws2]*ztdkzs2*dktaus2*dkws2
+        pws = survey.pws[ztizs1,iis1,iws1]*ztdkzs1*dkis1*dkws1 \
+            + survey.pws[ztizs1,iis1,iws2]*ztdkzs1*dkis1*dkws2 \
+            + survey.pws[ztizs1,iis2,iws1]*ztdkzs1*dkis1*dkws1 \
+            + survey.pws[ztizs1,iis2,iws2]*ztdkzs1*dkis1*dkws2 \
+            + survey.pws[ztizs2,iis1,iws1]*ztdkzs2*dkis1*dkws1 \
+            + survey.pws[ztizs2,iis1,iws2]*ztdkzs2*dkis1*dkws2 \
+            + survey.pws[ztizs2,iis2,iws1]*ztdkzs2*dkis2*dkws1 \
+            + survey.pws[ztizs2,iis2,iws2]*ztdkzs2*dkis2*dkws2
+        
+        ptwll = np.sum(np.log10(ptaus) + np.log10(pws))
+        llsum += ptwll
+        lllist.append(ptwll)
     
     ###### Calculates p(E | z,DM) ########
     # i.e. the probability of observing an FRB
