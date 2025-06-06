@@ -22,6 +22,8 @@ from zdm import cosmology as cos
 from zdm import loading
 from zdm import MCMC
 from zdm import parameters
+from zdm import misc_functions as mf
+from pkg_resources import resource_filename
 
 import pickle
 import json
@@ -65,6 +67,7 @@ def main():
     if args.pfile is None or args.opfile is None:
         print("-p and -o flags are required")
         exit()
+    args.psnr = not args.no_psnr
 
     # Select from dictionary the necessary parameters to be changed        
     with open(args.pfile) as f:
@@ -78,32 +81,30 @@ def main():
 
     print("Config: ", mcmc_dict["config"])
 
-    if args.Pn:
-        print("Using Pn")
-    if args.log_halo:
-        print("Log prior on halo")
-    if args.lin_host:
-        print("Linear prior on host")
+    print('Pn:', args.Pn)
+    print('psnr:', args.psnr)
+    print('log_halo:', args.log_halo)
+    print('lin_host:', args.lin_host)
+
+    if args.rep_surveys is not None:
+        print('pNreps:', args.pNreps)
 
     # Initialise surveys
     surveys = [[], []]
 
-    grid_params = {}
-    grid_params['dmmax'] = 7000.0
-    grid_params['ndm'] = 1400
-    grid_params['nz'] = 500
-    ddm = grid_params['dmmax'] / grid_params['ndm']
-    dmvals = (np.arange(grid_params['ndm']) + 1) * ddm
+    zDMgrid, zvals, dmvals = mf.get_zdm_grid(
+                    state, new=True, plot=False, method='analytic', 
+                    datdir=resource_filename('zdm', 'GridData'))
     
     if args.files is not None:
         for survey_name in args.files:
-            s = survey.load_survey(survey_name, state, dmvals,
+            s = survey.load_survey(survey_name, state, dmvals, zvals,
                                 sdir=args.sdir, edir=args.edir, rand_DMG=args.rand)
             surveys[0].append(s)
     
     if args.rep_surveys is not None:
         for survey_name in args.rep_surveys:
-            s = survey.load_survey(survey_name, state, dmvals, 
+            s = survey.load_survey(survey_name, state, dmvals, zvals,
                                 sdir=args.sdir, edir=args.edir, rand_DMG=args.rand)
             surveys[1].append(s)
 
@@ -112,8 +113,8 @@ def main():
         os.mkdir(args.outdir)
 
     MCMC.mcmc_runner(MCMC.calc_log_posterior, os.path.join(args.outdir, args.opfile), state, params, surveys, 
-                        grid_params, nwalkers=args.walkers, nsteps=args.steps, nthreads=args.nthreads, Pn=args.Pn, pNreps=args.pNreps, 
-                        psnr=(not args.no_psnr),log_halo=args.log_halo, lin_host=args.lin_host)
+                        nwalkers=args.walkers, nsteps=args.steps, nthreads=args.nthreads, Pn=args.Pn, pNreps=args.pNreps, 
+                        psnr=args.psnr,log_halo=args.log_halo, lin_host=args.lin_host)
 
 #==============================================================================
 

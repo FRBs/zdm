@@ -31,7 +31,7 @@ from zdm import repeat_grid
 
 #==============================================================================
 
-def calc_log_posterior(param_vals, state, params, surveys_sep, grid_params, Pn=False, pNreps=True, psnr=True, log_halo=False, lin_host=False, ind_surveys=False):
+def calc_log_posterior(param_vals, state, params, surveys_sep, Pn=False, pNreps=True, psnr=True, log_halo=False, lin_host=False, ind_surveys=False):
     """
     Calculates the log posterior for a given set of parameters. Assumes uniform
     priors between the minimum and maximum values provided in 'params'.
@@ -96,25 +96,19 @@ def calc_log_posterior(param_vals, state, params, surveys_sep, grid_params, Pn=F
                     else:
                         DMhalo = param_dict['DMhalo']
                     s.init_DMEG(DMhalo)
-                    s.get_efficiency_from_wlist(s.DMlist,s.wlist,s.wplist,model=s.meta['WBIAS']) 
+                    s.init_widths(state)
 
             # Initialise grids
             grids = []
+            zDMgrid, zvals,dmvals = mf.get_zdm_grid(
+                state, new=True, plot=False, method='analytic', 
+                datdir=resource_filename('zdm', 'GridData'))
+            
             if len(surveys_sep[0]) != 0:
-                zDMgrid, zvals,dmvals = mf.get_zdm_grid(
-                    state, new=True, plot=False, method='analytic', 
-                    nz=grid_params['nz'], ndm=grid_params['ndm'], dmmax=grid_params['dmmax'],
-                    datdir=resource_filename('zdm', 'GridData'))
-
                 # generates zdm grid
                 grids += mf.initialise_grids(surveys_sep[0], zDMgrid, zvals, dmvals, state, wdist=True, repeaters=False)
             
             if len(surveys_sep[1]) != 0:
-                zDMgrid, zvals,dmvals = mf.get_zdm_grid(
-                    state, new=True, plot=False, method='analytic', 
-                    nz=grid_params['nz'], ndm=grid_params['ndm'], dmmax=grid_params['dmmax'],
-                    datdir=resource_filename('zdm', 'GridData'))
-
                 # generates zdm grid
                 grids += mf.initialise_grids(surveys_sep[1], zDMgrid, zvals, dmvals, state, wdist=True, repeaters=True)
 
@@ -153,7 +147,7 @@ def calc_log_posterior(param_vals, state, params, surveys_sep, grid_params, Pn=F
 
 #==============================================================================
 
-def mcmc_runner(logpf, outfile, state, params, surveys, grid_params, nwalkers=10, nsteps=100, nthreads=1, Pn=False, pNreps=True, psnr=True, log_halo=False, lin_host=False):
+def mcmc_runner(logpf, outfile, state, params, surveys, nwalkers=10, nsteps=100, nthreads=1, Pn=False, pNreps=True, psnr=True, log_halo=False, lin_host=False):
     """
     Handles the MCMC running.
 
@@ -192,7 +186,7 @@ def mcmc_runner(logpf, outfile, state, params, surveys, grid_params, nwalkers=10
     
     start = time.time()
     with mp.Pool() as pool:
-        sampler = emcee.EnsembleSampler(nwalkers, ndim, logpf, args=[state, params, surveys, grid_params, Pn, pNreps, psnr, log_halo, lin_host], backend=backend, pool=pool)
+        sampler = emcee.EnsembleSampler(nwalkers, ndim, logpf, args=[state, params, surveys, Pn, pNreps, psnr, log_halo, lin_host], backend=backend, pool=pool)
         sampler.run_mcmc(starting_guesses, nsteps, progress=True)
     end = time.time()
     print("Total time taken: " + str(end - start))

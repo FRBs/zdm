@@ -94,6 +94,16 @@ class Survey:
         # Efficiency: width_method passed through "self" here
         # Determines if the model is redshift dependent
         
+        self.init_widths(state, width_bias=width_bias, edir=edir)
+        self.calc_max_dm()
+
+    def init_widths(self, state, width_bias=None, edir=None):
+        """
+        Initialises the widths and efficiencies for the survey.
+        """
+        if width_bias is None:
+            width_bias = self.meta['WBIAS']
+
         if self.meta['WMETHOD'] != 3:
             pwidths,pprobs=make_widths(self, state)
             _ = self.get_efficiency_from_wlist(pwidths,pprobs,
@@ -112,7 +122,6 @@ class Survey:
                 pwidths,pprobs=make_widths(self, state, z=z)
                 _ = self.get_efficiency_from_wlist(pwidths,pprobs,
                                         model=width_bias, edir=edir,iz=iz)
-        self.calc_max_dm()
 
     def init_repeaters(self):
         """
