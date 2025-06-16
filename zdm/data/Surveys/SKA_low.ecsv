@@ -20,7 +20,7 @@
 # - {name: Z, datatype: float64}
 # meta: !!omap
 # - {survey_data: "{\n    \"observing\": {\n  \"NORM_FRB\": 1,\n  \"TOBS\": 1\n    },\n  \"telescope\": {\n      \
-#     \  \"DIAM\": 15,\n \"BMETHOD\": 0,\n \"NBEAMS\": 1,\n \"NBINS\": 10\n }\n}"}
+#     \  \"DIAM\": 40,\n \"BMETHOD\": 0,\n \"NBEAMS\": 1,\n \"NBINS\": 10\n }\n}"}
 # schema: astropy-2.0
 TNS BW DM DMG  FBAR FRES Gb Gl NREP SNR SNRTHRESH THRESH TRES WIDTH XDec XRA Z
-0  770 200 35.0 1284  0.1075  "" "" 1 10. 10.       0.2  0.069   1.0   ""   ""  0.276
+0  770 200 35.0 1284  0.0145  "" "" 1 10. 10.       0.2  0.069   1.0   ""   ""  0.276

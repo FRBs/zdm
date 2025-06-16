@@ -82,31 +82,34 @@ class Survey:
         self.init_DMEG(state.MW.DMhalo, state.MW.halo_method)
         # Zs
         self.init_zs() # This should be redone every time DMhalo is changed IF we use a flat cutoff on DMEG
+        
         # Allows survey metadata to over-ride parameter defaults if present.
         # This is required when mixing CHIME and non-CHIME FRBs
         beam_method = self.meta['BMETHOD']
         beam_thresh = self.meta['BTHRESH']
-        #width_bias = self.meta['WBIAS']
         
         self.init_beam(
                        method=beam_method, 
                        plot=False, 
                        thresh=beam_thresh) # tells the survey to use the beam file
         
-        # Efficiency: width_method passed through "self" here
-        # Determines if the model is redshift dependent
-        
-        ##### need to fix this up by re-organising higher-level routines!!! #####
-        
+        # initialise scattering/width and resulting efficiences
         self.init_widths()
         
         self.calc_max_dm()
         
-    def init_widths(self):
+    def init_widths(self,state=None):
         """
         Performs initialisation of width and scattering distributions
         
+        Args:
+            state (parameters.state object., optional): if set, assume
+                this state contains new scattering/width parameters
+        
         """
+        if state is not None:
+            self.state = state
+        
         # copies over Width bin information
         self.NWbins = self.state.width.WNbins
         self.WMin = self.state.width.WMin
@@ -199,17 +202,30 @@ class Survey:
             # we have a z-dependent scattering and width model
             for iz,z in enumerate(self.zvals):
                 self.make_widths(iz)
-                _ = self.get_efficiency_from_wlist(self.wlist,self.wplist[:,iz],
-                                        model=self.meta['WBIAS'], edir=self.edir, iz=iz)
+                #_ = self.get_efficiency_from_wlist(self.wlist,self.wplist[:,iz],
+                #                        model=self.meta['WBIAS'], edir=self.edir, iz=iz)
         else:
             self.wplist = np.zeros([self.NWbins])
             self.make_widths()
             if self.backproject:
                 self.pws = np.zeros([self.internal_logwvals.size,self.NWbins]) #[iz,:,:] = pw
                 self.ptaus = np.zeros([self.internal_logwvals.size,self.NWbins]) #[iz,:,:] = ptau
+            #_ = self.get_efficiency_from_wlist(self.wlist,self.wplist,
+            #                            model=self.meta['WBIAS'], edir=self.edir, iz=None) 
+        self.do_efficiencies()
+        
+    def do_efficiencies(self):
+        """
+        Function to handle calculation of efficiencies.
+        Allows this to be called externally, e.g. if DM halo model changes
+        """
+        if self.meta['WMETHOD'] == 3:
+            for iz,z in enumerate(self.zvals):
+                _ = self.get_efficiency_from_wlist(self.wlist,self.wplist[:,iz],
+                                        model=self.meta['WBIAS'], edir=self.edir, iz=iz)
+        else:
             _ = self.get_efficiency_from_wlist(self.wlist,self.wplist,
                                         model=self.meta['WBIAS'], edir=self.edir, iz=None) 
-    
     def make_widths(self,iz=None):
         """
         Used to be an exterior method, now interior
@@ -383,13 +399,13 @@ class Survey:
             dkws1 (float): coefficient for iws1
             dkws2 (float): coefficient for iws2
         """
+        
         # convert to log-widths - the bins are in log10 space
         logwlist = np.log10(wlist)
         dinternal = self.internal_logwvals[1]-self.internal_logwvals[0]
         kws=(logwlist-self.internal_logwvals[0])/dinternal
         Bin0 = np.where(kws < 0.)[0]
         kws[Bin0] = 0.
-        
         iws1=kws.astype('int')
         iws2=iws1+1
         dkws2=kws-iws1 # applies to izs2
@@ -406,6 +422,8 @@ class Survey:
     def get_w_coeffs(self,wlist):
         """
         Returns indices and coefficients for linear interpolation between width values
+        Bin edges run from [small~1e-10, self.WMin, self.WMin + self.dlowg, ..., self.Wmax]
+        We should use bin centres to determine which linear interpolations we sit between
         
         wlist: np.ndarray of observed widths
         
@@ -418,7 +436,7 @@ class Survey:
         
         # convert to log-widths - the bins are in log10 space
         logwlist = np.log10(wlist)
-        kws=(logwlist-np.log10(self.WMin))/self.dlogw +1.
+        kws=(logwlist-np.log10(self.WMin))/self.dlogw + 0.5
         Bin0 = np.where(kws < 0.)[0]
         kws[Bin0] = 0.
         
@@ -692,19 +710,15 @@ class Survey:
             DC = self.survey_data.params[key]
             self.meta[key] = getattr(self.survey_data[DC],key)
         
-        # over-rides survey data if applicable
-        if survey_dict is not None:
-            for key in survey_dict:
-                self.meta[key] = survey_dict[key]
-                
-         
         # Get default values from default frb data
         default_frb = survey_data.FRB()
         
         # we now populate missing fields with the default values
         for field in fields(default_frb):
             # checks to see if this is a field in metadata: if so, takes priority
-            if field.name in self.meta.keys():
+            if survey_dict is not None and field.name in survey_dict.keys():
+                default_vaue = survey_dict[field.name]
+            elif field.name in self.meta.keys():
                 default_value = self.meta[field.name]
             else:
                 default_value = getattr(default_frb, field.name)
@@ -716,7 +730,7 @@ class Survey:
                     if isinstance(val,np.ma.core.MaskedArray):
                         frb_tbl[field.name][i] = default_value
             else:
-                default_value = getattr(default_frb, field.name)
+                #default_value = getattr(default_frb, field.name)
                 frb_tbl[field.name] = default_value
                 print("WARNING: no ",field.name," found in survey",
                     "replcing with default value of ",default_value)
@@ -789,6 +803,11 @@ class Survey:
             self.meta['WIDTH'] = np.median(self.frbs['WIDTH'])
             self.meta['DMG'] = np.mean(self.frbs['DMG'])
         
+        # over-rides survey data if applicable
+        if survey_dict is not None:
+            for key in survey_dict:
+                self.meta[key] = survey_dict[key]
+        
         ### processes galactic contributions
         self.process_dmg()
         
@@ -809,13 +828,20 @@ class Survey:
         
         # calculates intrinsic widths
         # likely needs to modify this because TAU is is the 1/e timescale,
-        # w is the 90% width timescale. Hence, should subtract 2.3 times
-        # Perhaps include a code within each survey to govern this?
-        TEMP = self.frbs['WIDTH'].values**2 - self.frbs['TAU'].values**2
+        # For a Gaussian burst, SNR max at 1.4 sigma, w95 at 1.9 sigma
+        # For exponential, SNR max at 1.3 tau, w95 at 3 tau
+        # Hence, should multiply tau by 3/1.3, calculate new w95, then divide by 1.9/1.4 to get SNR max width
+        # Note that none of this is satisfactory - it is dependent on pulse shape and DM, neither
+        # of which we can account for here
+        tscale = 3./1.3
+        wscale = 1.4/1.9
+        TEMP = self.frbs['WIDTH'].values**2 - (tscale*self.frbs['TAU'].values)**2
         self.OKTAU = np.where(self.frbs['TAU'].values != -1.)[0] # code for non-existent
         toolow = np.where(TEMP <= 0.)
-        TEMP[toolow] = 0.01**2 # 10 microsecond width
-        self.IWIDTHs = TEMP**0.5
+        TEMP[toolow] = 0.01**2 # 10 microsecond width. Really could be anything up to tau
+        iwidths = wscale * TEMP**0.5 # scale to SNR max width assuming Gaussian shape
+        self.IWIDTHs = iwidths
+        self.WIDTHs *= wscale # scales to SNR maximising width assuming Gaussian shape
         self.TAUs = self.frbs['TAU'].values
 
         # sets the 'beam' values to unity by default
@@ -978,7 +1004,7 @@ class Survey:
         addGalacticDM:
             - True: this routine adds in contributions from the MW Halo and ISM, i.e.
                 it acts like DMlist is an extragalactic DM
-            - False: just used the supplied DMlist
+            - False: just use the supplied DMlist
         
         edir:
             - Directory where efficiency files are contained. Only relevant if specific FRB responses are used
@@ -1286,14 +1312,14 @@ def quadrature_convolution(width_function, width_args, scat_function, scat_args,
     pw = width_function(internal_logvals, *width_args)*logbinwidth
     ptau = scat_function(internal_logvals, *scat_args)*logbinwidth
     
-    # adds extra bits onto the lowest bin. Assumes exp(-20) is small enough!
+    # adds extra bits onto the lowest bin. Assumes exp(-10) is small enough!
     lowest = internal_logvals[0] - logbinwidth/2.
     extrapw,err = quad(width_function,lowest-10,lowest,args=width_args)
     extraptau,err = quad(scat_function,lowest-10,lowest,args=scat_args)
     pw[0] += extrapw 
     ptau[0] += extraptau
     
-    linvals = np.exp(internal_logvals)
+    linvals = 10**internal_logvals
     
     # calculate widths - all done in linear domain
     Nbins = bins.size-1
@@ -1314,6 +1340,8 @@ def quadrature_convolution(width_function, width_args, scat_function, scat_args,
         # maps the probabilities as a function of intrinsic
         # width to generate a p(w|total_width) and p(tau|total_width)
         # note that these are p(observed) values, i.e. after z-correction
+        # arrays have dimensions(Nw,Ntotal_width) so for each total
+        # width, we get the probability
         for i,x1 in enumerate(linvals):
             totalwidths = (x1**2 + linvals**2)**0.5
             
@@ -1325,9 +1353,43 @@ def quadrature_convolution(width_function, width_args, scat_function, scat_args,
             h,b = np.histogram(totalwidths,bins=bins,weights=probs)
             taufracs[i,:] = h
         
+        # we need p(tau|w). This means sum for a given w must be 1!
+        wnorm = np.sum(wfracs,axis=0)
+        # where is p(tau=0 for a given w?)
+        bad = np.where(wnorm == 0.)[0]
+        wfracs[:,bad] = 1./internal_logvals.size # if a particular width value has no iw, equalise probability over all iw
+        wnorm[bad] = 1.
+        
+        tnorm = np.sum(taufracs,axis=0)
+        bad = np.where(tnorm == 0.)[0]
+        taufracs[:,bad] = 1./internal_logvals.size # if a particular width value has no possible tau, equalise probability over all tau
+        tnorm[bad] = 1.
+        
         # normalise probabilities for each intrinsic w
-        wfracs = (wfracs.T/np.sum(wfracs,axis=1)).T
-        taufracs = (taufracs.T/np.sum(taufracs,axis=1)).T
+        #wfracs = (wfracs.T/wnorm).T
+        #taufracs = (taufracs.T/tnorm).T
+        wfracs = wfracs/wnorm
+        taufracs = taufracs/tnorm
+        
+        # plot some examples. This code is kept here for internal analysis purposes
+        if False:
+            plt.figure()
+            plt.plot(internal_logvals,ptau,label="Intrinsic p(tau)")
+            plt.plot(internal_logvals,pw,label="Intrinsic p(w)")
+            for ib in np.arange(Nbins):
+                plt.plot(internal_logvals,taufracs[:,ib],label="width "+str(ib))
+                plt.plot(np.log10([bins[ib],bins[ib]]),[0,1],linestyle=":",color=plt.gca().lines[-1].get_color())
+                plt.plot(np.log10([bins[ib+1],bins[ib+1]]),[0,1],linestyle=":",color=plt.gca().lines[-1].get_color())
+            plt.yscale("log")
+            #plt.xscale("log")
+            plt.xlabel("log10 Tau [ms]")
+            plt.ylabel("p(tau |w)")
+            plt.legend()
+            plt.tight_layout()
+            plt.show()
+            plt.close()
+            # exit now, to prevent very many such plots being generated
+            exit()
         return hist,wfracs,taufracs
     else:
         return hist
@@ -1336,7 +1398,9 @@ def quadrature_convolution(width_function, width_args, scat_function, scat_args,
 
 def lognormal(log10w, *args):
     """
-    Lognormal probability distribution
+    Lognormal probability distribution. Note that the x values and args
+    could theoretically be in natural log (or other) space, 
+    including linear.
     
     Args:
         log10w: log base 10 of widths
@@ -1367,12 +1431,17 @@ def halflognormal(log10w, *args):#logmean,logsigma,minw,maxw,nbins):
     logmean = args[0]
     logsigma = args[1]
     norm = (2.*np.pi)**-0.5/logsigma
-    
-    large = np.where(log10w > logmean)
-    
-    modlogw = log10w
-    modlogw[large] = logmean # subs mean value in for values larger than the mean
-    result = lognormal(modlogw,args)
+    if hasattr(log10w,"__len__"):
+        large = np.where(log10w > logmean)[0]
+        
+        modlogw = np.copy(log10w) # ensures we don't change the original values
+        modlogw[large] = logmean # subs mean value in for values larger than the mean
+    else:
+        if log10w > logmean:
+            modlogw = logmean
+        else:
+            modlogw = log10w
+    result = lognormal(modlogw,logmean,logsigma)
     return result
 
 def constant(log10w,*args):

@@ -146,8 +146,8 @@ class Telescope(data_class.myDataClass):
                   'Notation': '',
                   })
     NBINS: int = field(
-        default=0, 
-        metadata={'help': "Number of bins for width analysis", 
+        default=5, 
+        metadata={'help': "Number of bins for beam analysis", 
                   'unit': '', 
                   'Notation': '',
                   })

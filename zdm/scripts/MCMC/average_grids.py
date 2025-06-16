@@ -61,7 +61,8 @@ def main():
     # Set up state
     state = parameters.State()
     state.set_astropy_cosmo(Planck18)
-    state.update_params(config)
+    if config is not None:
+        state.update_params(config)
     
     # We explicitly load this to allow the "average grids" routine
     # to more speedily calculate many grids
@@ -221,6 +222,7 @@ def get_samples(args):
     # If there is no .out file, then the parameters must be specified manually
     else:
         params = ["sfr_n", "alpha", "lmean", "lsigma", "lEmax", "lEmin", "gamma", "H0"]
+        config = None
 
     return sample, params, config
 

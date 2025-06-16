@@ -155,7 +155,6 @@ class RepeatParams(data_class.myDataClass):
                   'Notation': '$E_R$',
                   })
                   
-
 # Galactic parameters
 @dataclass
 class MWParams(data_class.myDataClass):
@@ -260,9 +259,8 @@ class WidthParams(data_class.myDataClass):
             "Notation": "w_{\\rm min}",
         },
     )
-
     WNbins: int = field(
-        default=8,
+        default=11,
         metadata={"help": "Number of bins for FRB width distribution", "unit": ""},
     )
     WNInternalBins: int = field(
@@ -275,11 +273,11 @@ class WidthParams(data_class.myDataClass):
     )
     WMin: int = field(
         default=0.1,
-        metadata={"help": "Minimum scattering value to model", "unit": "ms"},
+        metadata={"help": "Minimum width value to model", "unit": "ms"},
     )
     WMax: int = field(
         default=1000,
-        metadata={"help": "Maximum scattering value to model", "unit": "ms"},
+        metadata={"help": "Maximum width value to model", "unit": "ms"},
     )
 
 

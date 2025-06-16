@@ -113,7 +113,7 @@ def maximise_likelihood(grid,survey):
     return results
 
 
-def get_log_likelihood(grid, s, norm=True, psnr=True, Pn=False, pNreps=True):
+def get_log_likelihood(grid, s, norm=True, psnr=True, Pn=False, pNreps=True, ptauw=False):
     """
     Returns the likelihood for the grid given the survey.
 
@@ -123,6 +123,7 @@ def get_log_likelihood(grid, s, norm=True, psnr=True, Pn=False, pNreps=True):
         norm    =   Normalise
         psnr    =   Include psnr in likelihood
         Pn      =   Include Pn in likelihood
+        ptauw   =   Include p(tau,width)
     
     Outputs:
         llsum   =   Total loglikelihood for the grid
@@ -131,15 +132,19 @@ def get_log_likelihood(grid, s, norm=True, psnr=True, Pn=False, pNreps=True):
     if isinstance(grid, zdm_repeat_grid.repeat_Grid):
         # Repeaters
         if s.nDr==1:
-            llsum1, lllist, expected = calc_likelihoods_1D(grid, s, norm=norm, psnr=psnr, dolist=1, grid_type=1, Pn=Pn, pNreps=pNreps)
+            llsum1, lllist, expected = calc_likelihoods_1D(grid, s, norm=norm, psnr=psnr,
+                            dolist=1, grid_type=1, Pn=Pn, pNreps=pNreps, ptauw=ptauw)
             llsum = llsum1
             # print(s.name, "repeaters:", lllist)
         elif s.nDr==2:
-            llsum1, lllist, expected = calc_likelihoods_2D(grid, s, norm=norm, psnr=psnr, dolist=1, grid_type=1, Pn=Pn, pNreps=pNreps)
+            llsum1, lllist, expected = calc_likelihoods_2D(grid, s, norm=norm, psnr=psnr,
+                            dolist=1, grid_type=1, Pn=Pn, pNreps=pNreps, ptauw=ptauw)
             llsum = llsum1
         elif s.nDr==3:
-            llsum1, lllist1, expected1 = calc_likelihoods_1D(grid, s, norm=norm, psnr=psnr, dolist=1, grid_type=1, Pn=Pn, pNreps=pNreps)
-            llsum2, lllist2, expected2 = calc_likelihoods_2D(grid, s, norm=norm, psnr=psnr, dolist=1, grid_type=1, Pn=False, pNreps=False)
+            llsum1, lllist1, expected1 = calc_likelihoods_1D(grid, s, norm=norm, psnr=psnr,
+                                        dolist=1, grid_type=1, Pn=Pn, pNreps=pNreps, ptauw=ptauw)
+            llsum2, lllist2, expected2 = calc_likelihoods_2D(grid, s, norm=norm, psnr=psnr,
+                                        dolist=1, grid_type=1, Pn=False, pNreps=False, ptauw=ptauw)
             llsum = llsum1 + llsum2
         else:
             print("Implementation is only completed for nD 1-3.")
@@ -147,29 +152,37 @@ def get_log_likelihood(grid, s, norm=True, psnr=True, Pn=False, pNreps=True):
 
         # Singles
         if s.nDs==1:
-            llsum1, lllist, expected = calc_likelihoods_1D(grid, s, norm=norm, psnr=psnr, dolist=1, grid_type=2, Pn=Pn)
+            llsum1, lllist, expected = calc_likelihoods_1D(grid, s, norm=norm, psnr=psnr,
+                                                dolist=1, grid_type=2, Pn=Pn, ptauw=ptauw)
             llsum += llsum1
             # print(s.name, "singles:", lllist)
         elif s.nDs==2:
-            llsum1, lllist, expected = calc_likelihoods_2D(grid, s, norm=norm, psnr=psnr, dolist=1, grid_type=2, Pn=Pn)
+            llsum1, lllist, expected = calc_likelihoods_2D(grid, s, norm=norm, psnr=psnr,
+                                                dolist=1, grid_type=2, Pn=Pn, ptauw=ptauw)
             llsum += llsum1
         elif s.nDs==3:
-            llsum1, lllist1, expected1 = calc_likelihoods_1D(grid, s, norm=norm, psnr=psnr, dolist=1, grid_type=2, Pn=Pn)
-            llsum2, lllist2, expected2 = calc_likelihoods_2D(grid, s, norm=norm, psnr=psnr, dolist=1, grid_type=2, Pn=False)
+            llsum1, lllist1, expected1 = calc_likelihoods_1D(grid, s, norm=norm, psnr=psnr,
+                                                    dolist=1, grid_type=2, Pn=Pn, ptauw=ptauw)
+            llsum2, lllist2, expected2 = calc_likelihoods_2D(grid, s, norm=norm, psnr=psnr,
+                                                    dolist=1, grid_type=2, Pn=False, ptauw=ptauw)
             llsum = llsum + llsum1 + llsum2
         else:
             print("Implementation is only completed for nD 1-3.")
             exit()
     else:
         if s.nD==1:
-            llsum1, lllist, expected = calc_likelihoods_1D(grid, s, norm=norm, psnr=psnr, dolist=1, Pn=Pn)
+            llsum1, lllist, expected = calc_likelihoods_1D(grid, s, norm=norm, psnr=psnr,
+                                                            dolist=1, Pn=Pn, ptauw=ptauw)
             llsum = llsum1
         elif s.nD==2:
-            llsum1, lllist, expected = calc_likelihoods_2D(grid, s, norm=norm, psnr=psnr, dolist=1, Pn=Pn)
+            llsum1, lllist, expected = calc_likelihoods_2D(grid, s, norm=norm, psnr=psnr,
+                                                            dolist=1, Pn=Pn, ptauw=ptauw)
             llsum = llsum1
         elif s.nD==3:
-            llsum1, lllist1, expected1 = calc_likelihoods_1D(grid, s, norm=norm, psnr=psnr, dolist=1, Pn=Pn)
-            llsum2, lllist2, expected2 = calc_likelihoods_2D(grid, s, norm=norm, psnr=psnr, dolist=1, Pn=False)
+            llsum1, lllist1, expected1 = calc_likelihoods_1D(grid, s, norm=norm, psnr=psnr,
+                                                                    dolist=1, Pn=Pn, ptauw=ptauw)
+            llsum2, lllist2, expected2 = calc_likelihoods_2D(grid, s, norm=norm, psnr=psnr,
+                                                                    dolist=1, Pn=False, ptauw=ptauw)
             llsum = llsum1 + llsum2
         else:
             print("Implementation is only completed for nD 1-3.")
@@ -336,16 +349,28 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=True,
             tomult /= np.sum(tomult,axis=0)
         
         # vectors below are [nz,NFRB] in length
-        ptaus = survey.ptaus[:,itaus1,iws1]*dktaus1*dkws1\
-            + survey.ptaus[:,itaus1,iws2]*dktaus1*dkws2 \
-            + survey.ptaus[:,itaus2,iws1]*dktaus1*dkws1 \
-            + survey.ptaus[:,itaus2,iws2]*dktaus1*dkws2
-        
         piws = survey.pws[:,iis1,iws1]*dkis1*dkws1 \
             + survey.pws[:,iis1,iws2]*dkis1*dkws2 \
             + survey.pws[:,iis2,iws1]*dkis1*dkws1 \
             + survey.pws[:,iis2,iws2]*dkis1*dkws2
         
+        ptaus = survey.ptaus[:,itaus1,iws1]*dktaus1*dkws1\
+            + survey.ptaus[:,itaus1,iws2]*dktaus1*dkws2 \
+            + survey.ptaus[:,itaus2,iws1]*dktaus1*dkws1 \
+            + survey.ptaus[:,itaus2,iws2]*dktaus1*dkws2
+        
+        if False:
+            plt.figure()
+            plt.xlabel("z")
+            plt.ylabel("ptau")
+            plt.yscale("log")
+            NFRB = len(Tauobs)
+            for i in np.arange(NFRB):
+                plt.plot(zvals,ptaus[:,i],label=str(Tauobs[i])[0:4]+", "+str(Iwobs[i])[0:4]+", "+str(Wobs[i])[0:4])
+            plt.text(1,0.05,str(10**survey.slogmean)[0:5]+" "+str(survey.slogsigma)[0:5])
+            plt.legend()
+            plt.show()
+            exit()
         
         # we now multiply by the z-dependencies
         ptaus *= tomult
@@ -355,10 +380,17 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=True,
         ptaus = np.sum(ptaus,axis=0)
         piws = np.sum(piws,axis=0)
         
+        bad1 = np.where(piws==0)
+        bad2 = np.where(ptaus==0)
+        piws[bad1] = 1e-10
+        ptaus[bad2] = 1e-10
+        
         llptw = np.sum(np.log10(ptaus))
         llpiw = np.sum(np.log10(piws))
         llsum += llptw
         llsum += llpiw
+        
+        
         lllist.append(llptw)
         lllist.append(llpiw)
         
@@ -511,12 +543,14 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=True,
             # we would like to calculate \int p(w|z) p(z) dz
             # we begin by calculating p(w|z), below, by normalising for each z
             # normalise over all w values for each z
+            # Q: should we calculate p(w|b,z) then multiply by p(b,w)?
             dpbws /= np.sum(dpbws,axis=0)
             temp = dpbws[iws1,:,inoztaulist]
+            # tomult is p(z)
             temp *= tomult.T
             pws = np.sum(temp,axis=1)
             bad = np.where(pws == 0.)[0]
-            pws[bad] = 1.e-10 # prevents nans, but 
+            pws[bad] = 1.e-10 # prevents nans, but penalty is a bit arbitrary.
             llpws = np.sum(np.log10(pws))
             llsum += llpws
             lllist.append(llpws)
@@ -826,8 +860,9 @@ def calc_likelihoods_2D(grid,survey,doplot=False,norm=True,psnr=True,printit=Fal
         Pn=Poisson_p(observed,expected)
         if Pn==0:
             Pll=-1e10
-            if dolist==0:
-                return Pll
+            # otherwise 1e-10 might be better than the actual total ll!
+            #if dolist==0:
+            #    return Pll
         else:
             Pll=np.log10(Pn)
         lllist.append(Pll)
@@ -874,16 +909,6 @@ def calc_likelihoods_2D(grid,survey,doplot=False,norm=True,psnr=True,printit=Fal
         #ztidms1,ztidms2,ztdkdms1,ztdkdms2 = grid.get_dm_coeffs(ztDMobs)
         ztizs1,ztizs2,ztdkzs1,ztdkzs2 = grid.get_z_coeffs(ztZobs)
         
-    
-        ptaus = survey.ptaus[ztizs1,itaus1,iws1]*ztdkzs1*dktaus1*dkws1 \
-            + survey.ptaus[ztizs1,itaus1,iws2]*ztdkzs1*dktaus1*dkws2 \
-            + survey.ptaus[ztizs1,itaus2,iws1]*ztdkzs1*dktaus1*dkws1 \
-            + survey.ptaus[ztizs1,itaus2,iws2]*ztdkzs1*dktaus1*dkws2 \
-            + survey.ptaus[ztizs2,itaus1,iws1]*ztdkzs2*dktaus1*dkws1 \
-            + survey.ptaus[ztizs2,itaus1,iws2]*ztdkzs2*dktaus1*dkws2 \
-            + survey.ptaus[ztizs2,itaus2,iws1]*ztdkzs2*dktaus2*dkws1 \
-            + survey.ptaus[ztizs2,itaus2,iws2]*ztdkzs2*dktaus2*dkws2
-        
         piws = survey.pws[ztizs1,iis1,iws1]*ztdkzs1*dkis1*dkws1 \
             + survey.pws[ztizs1,iis1,iws2]*ztdkzs1*dkis1*dkws2 \
             + survey.pws[ztizs1,iis2,iws1]*ztdkzs1*dkis1*dkws1 \
@@ -893,12 +918,26 @@ def calc_likelihoods_2D(grid,survey,doplot=False,norm=True,psnr=True,printit=Fal
             + survey.pws[ztizs2,iis2,iws1]*ztdkzs2*dkis2*dkws1 \
             + survey.pws[ztizs2,iis2,iws2]*ztdkzs2*dkis2*dkws2
         
-        llptw = np.sum(np.log10(ptaus))
+        ptaus = survey.ptaus[ztizs1,itaus1,iws1]*ztdkzs1*dktaus1*dkws1 \
+            + survey.ptaus[ztizs1,itaus1,iws2]*ztdkzs1*dktaus1*dkws2 \
+            + survey.ptaus[ztizs1,itaus2,iws1]*ztdkzs1*dktaus1*dkws1 \
+            + survey.ptaus[ztizs1,itaus2,iws2]*ztdkzs1*dktaus1*dkws2 \
+            + survey.ptaus[ztizs2,itaus1,iws1]*ztdkzs2*dktaus1*dkws1 \
+            + survey.ptaus[ztizs2,itaus1,iws2]*ztdkzs2*dktaus1*dkws2 \
+            + survey.ptaus[ztizs2,itaus2,iws1]*ztdkzs2*dktaus2*dkws1 \
+            + survey.ptaus[ztizs2,itaus2,iws2]*ztdkzs2*dktaus2*dkws2
+        
+        # safegaudr zero probabilities
+        bad1 = np.where(piws==0)[0]
+        bad2 = np.where(ptaus==0)[0]
+        piws[bad1] = 1e-10
+        ptaus[bad2] = 1e-10
         llpiw = np.sum(np.log10(piws))
-        llsum += llptw
+        llptw = np.sum(np.log10(ptaus))
         llsum += llpiw
-        lllist.append(llptw)
+        llsum += llptw
         lllist.append(llpiw)
+        lllist.append(llptw)
         
     
     ############ Calculates p(s | z,DM) #############
@@ -1013,6 +1052,7 @@ def calc_likelihoods_2D(grid,survey,doplot=False,norm=True,psnr=True,printit=Fal
             pws = dpbws[iws1,iztaulist]*dkws1 + dpbws[iws2,iztaulist]*dkws2
             bad = np.where(pws == 0.)[0]
             pws[bad] = 1.e-10 # prevents nans, but 
+            
             llpws = np.sum(np.log10(pws))
             llsum += llpws
             lllist.append(llpws)
@@ -1068,7 +1108,6 @@ def calc_likelihoods_2D(grid,survey,doplot=False,norm=True,psnr=True,printit=Fal
             f"pvterm={np.sum(np.log10(pvals)):0.2f}," \
             f"wzterm={np.sum(np.log10(psnr)):0.2f}," \
             f"comb={np.sum(np.log10(psnr*pvals)):0.2f}")
-    
     
     if dolist==0:
         return llsum
