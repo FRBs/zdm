@@ -137,9 +137,9 @@ def generate_sensitivity_plot(infile,state,zDMgrid, zvals, dmvals, label, freq, 
     
     np.save("sysplotdir/zvals.npy",zvals)
     np.save("sysplotdir/dmvals.npy",dmvals)
-    exit()
+    
     #load=True
-    load=True
+    load=False
     
     verbose=True
     for i in range(samples.shape[0]):
@@ -161,15 +161,16 @@ def generate_sensitivity_plot(infile,state,zDMgrid, zvals, dmvals, label, freq, 
         mask = pcosmic.get_dm_mask(dmvals, (state.host.lmean, state.host.lsigma), zvals, plot=False)
         
         # normalise number of FRBs to the CRAFT Fly's Eye survey
-        s = survey.load_survey(survey_name, state, dmvals, zvals=zvals)
+        s = survey.load_survey("CRAFT_class_I_and_II", state, dmvals, zvals=zvals)
         g = zdm_grid.Grid(s, copy.deepcopy(state), zDMgrid, zvals, dmvals, mask, wdist=True)
         # we expect np.sum(g.rates)*s.TOBS * C = s.NORM_FRB
         norm = s.NORM_FRB/(s.TOBS*np.sum(g.rates))
         
+        print("norm is ",norm,s.NORM_FRB,s.TOBS)
         s = survey.load_survey(survey_name, state, dmvals, zvals=zvals, survey_dict=survey_dict)
         
         g = zdm_grid.Grid(s, copy.deepcopy(state), zDMgrid, zvals, dmvals, mask, wdist=True)
-        scale = TOBS[i] * norm
+        scale = TOBS[ibest] * norm
         
         if verbose:
             print("Finished iteration ",i," norm is ",norm)
@@ -231,10 +232,11 @@ def get_samples(infile,nsets):
     # Read in the MCMC results without the burnin
     #infile = os.path.join(args.directory, args.infile)
     reader = emcee.backends.HDFBackend(infile)
-    sample = reader.get_chain(discard=50, flat=True)
+    sample = reader.get_chain(discard=500, flat=True)
 
     # Thin the results
     step = len(sample) // nsets
+    
     sample = sample[::step,:]
 
     # Get the corresponding parameters

@@ -387,9 +387,14 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=True,
         
         llptw = np.sum(np.log10(ptaus))
         llpiw = np.sum(np.log10(piws))
-        llsum += llptw
-        llsum += llpiw
         
+        # while we calculate llpiw, we don't add it to the sum
+        # this is because w and tau are not independent!
+        # p(iw|tau,w) = \delta(iw-(w**2 - tau**2)**0.5)
+        # However, numerical differences will affect this
+        # hence, we add half of eavh value here
+        llsum += 0.5*llpiw
+        llsum += 0.5*llptw
         
         lllist.append(llptw)
         lllist.append(llpiw)
@@ -934,8 +939,13 @@ def calc_likelihoods_2D(grid,survey,doplot=False,norm=True,psnr=True,printit=Fal
         ptaus[bad2] = 1e-10
         llpiw = np.sum(np.log10(piws))
         llptw = np.sum(np.log10(ptaus))
-        llsum += llpiw
-        llsum += llptw
+        # while we calculate llpiw, we don't add it to the sum
+        # this is because w and tau are not independent!
+        # p(iw|tau,w) = \delta(iw-(w**2 - tau**2)**0.5)
+        # However, numerical differences will affect this
+        # Hence, we ad half of each value
+        llsum += 0.5*llpiw
+        llsum += 0.5*llptw
         lllist.append(llpiw)
         lllist.append(llptw)
         

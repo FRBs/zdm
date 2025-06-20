@@ -714,3 +714,29 @@ def ticks_pgrid(vals, everyn=5, fmt=None, these_vals=None):
     # Return
     return tvals, ticks
 
+
+def gen_cdf_hist(origx):
+    """
+    Args:
+        origx (np.ndarray): x values of the data
+    
+    Returns:
+        xvals (np.ndarray): x values of cdf plot
+        yvals (np.ndarray): y values of cdf plot
+    """
+    
+    xs = np.sort(origx)
+    
+    N = xs.size
+    newN = 2*N
+    xvals = np.zeros([newN])
+    yvals = np.zeros([newN])
+    
+    for i,x in enumerate(xs):
+        xvals[2*i] = x
+        xvals[2*i+1] = x
+        
+        yvals[2*i] = i/N
+        yvals[2*i+1] = (i+1)/N
+    return xvals,yvals
+    

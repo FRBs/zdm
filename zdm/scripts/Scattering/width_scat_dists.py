@@ -20,6 +20,7 @@ from zdm import figures
 from zdm import parameters
 from zdm import survey
 from zdm import pcosmic
+from zdm import misc_functions as mf
 from zdm import iteration as it
 from zdm import loading
 from zdm import io
@@ -83,46 +84,19 @@ def main():
     ################ Generates some plots ################
     
     # extracts the p(W) distribution
-    Nw,Nwz,Nwdm = g.get_pw_dist()
-    
-    # gets the actual values of width
-    ws = s.wlist
-    
-    if s.wplist.ndim > 1:
-        # plist is z-dependent
-        # get expected distribution at z=0
-        wplist = s.wplist[:,0]
-    else:
-        wplist = s.wplist
-    
-    # generates some plots!!!
-    # these need to be normalised by the internal bin width
-    logbinwidth = s.internal_logwvals[-1] - s.internal_logwvals[-2]
+    Rw,Rtau,Nw,Nwz,Nwdm = mf.get_width_stats(s,g)
     
     # values at z=0
     WidthArgs = (s.wlogmean,s.wlogsigma)
     ScatArgs = (s.slogmean,s.slogsigma)
+    
+    # these need to be normalised by the internal bin width
+    logbinwidth = s.internal_logwvals[-1] - s.internal_logwvals[-2]
+    
     pw = s.WidthFunction(s.internal_logwvals, *WidthArgs)*s.dlogw #/logbinwidth
     ptau = s.ScatFunction(s.internal_logwvals, *ScatArgs)*s.dlogw #/logbinwidth
     
-    # these two arrays hold p(tau) and p(iw) values with dimensions:
-    # z, internal tau values, iwidth
-    # the normalisation is such that the sum over internal widths is unity
-    # that is, for a given tau, what is p(w). NOT for a given w, what is ptau!
-    # this is all a function of z
-    
-    Rtau = np.zeros([s.internal_logwvals.size])
-    Rw = np.zeros([s.internal_logwvals.size])
-    # calculates ptauw
-    for i,t in enumerate(s.internal_logwvals):
-        ptz = s.ptaus[:,i,:] # this is p(tau) given z and w
-        Rtz = ptz * Nwz.T
-        Rtau[i] = np.sum(Rtz)
-        
-        pwz = s.pws[:,i,:] # this is p(tau) given z and w
-        Rwz = pwz * Nwz.T
-        Rw[i] = np.sum(Rwz)
-        
+    ws = s.wlist
     
     norm=True
     if norm:
@@ -131,7 +105,7 @@ def main():
         # width in units of dlogw
         
         # n1,n2 are probability "per bin". hence, to convert to a p(w) dlogw, we diving by the bin width in logw
-        n1 = np.sum(wplist) * s.dlogw # n1 is probability within the bin. n3-6 are probability dlogp
+        n1 = np.sum(s.wplist) * s.dlogw # n1 is probability within the bin. n3-6 are probability dlogp
         n2 = np.sum(Nw) * s.dlogw
         
         n3 = np.sum(ptau) * logbinwidth
@@ -154,7 +128,7 @@ def main():
     plt.ylim(1e-2,1)
     plt.xlim(1e-2,1e2)
     
-    plt.plot(ws,wplist/n1,label="Total width (z=0)",linestyle="-")
+    plt.plot(ws,s.wplist/n1,label="Total width (z=0)",linestyle="-")
     plt.plot(ws,Nw/n2,label="Detected total",linestyle=":",color=plt.gca().lines[-1].get_color())
     
     plt.plot(10**s.internal_logwvals,ptau/n3,label="Scattering (z=0)",linestyle="-")
@@ -177,7 +151,7 @@ def main():
     plt.xscale("log")
     plt.yscale("log")
     plt.ylim(1e-3,None)
-    plt.plot(ws,wplist/np.sum(wplist),label="Intrinsic width",color="black")
+    plt.plot(ws,s.wplist/np.sum(s.wplist),label="Intrinsic width",color="black")
     plt.plot(ws,Nw/np.sum(Nw),label="Detected FRBs",linestyle="--")
     plt.plot(ws,Nwz[:,4]/np.sum(Nwz[:,4]),label="    (z=0.25)",linestyle="--")
     plt.plot(ws,Nwz[:,18]/np.sum(Nwz[:,18]),label="    (z=1.25)",linestyle=":")
@@ -188,13 +162,13 @@ def main():
     plt.savefig(opdir+"pw_zdep.png")
     plt.close()
     
-    #### Plot 2: DM dependence #####
+    #### Plot 3: DM dependence #####
     
     plt.figure()
     plt.xscale("log")
     plt.yscale("log")
     plt.ylim(1e-3,None)
-    plt.plot(ws,wplist/np.sum(wplist),label="Intrinsic width",color="black")
+    plt.plot(ws,s.wplist/np.sum(s.wplist),label="Intrinsic width",color="black")
     plt.plot(ws,Nw/np.sum(Nw),label="Detected FRBs",linestyle="--")
     plt.plot(ws,Nwdm[:,3]/np.sum(Nwdm[:,3]),label="    (DM=125)",linestyle="--")
     plt.plot(ws,Nwdm[:,21]/np.sum(Nwdm[:,21]),label="    (DM=1025)",linestyle=":")
@@ -204,5 +178,5 @@ def main():
     plt.tight_layout()
     plt.savefig(opdir+"pw_dmdep.png")
     plt.close()
-    
+
 main()

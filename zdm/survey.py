@@ -827,21 +827,16 @@ class Survey:
         self.NORM_FRB=self.meta['NORM_FRB']
         
         # calculates intrinsic widths
-        # likely needs to modify this because TAU is is the 1/e timescale,
-        # For a Gaussian burst, SNR max at 1.4 sigma, w95 at 1.9 sigma
-        # For exponential, SNR max at 1.3 tau, w95 at 3 tau
-        # Hence, should multiply tau by 3/1.3, calculate new w95, then divide by 1.9/1.4 to get SNR max width
-        # Note that none of this is satisfactory - it is dependent on pulse shape and DM, neither
-        # of which we can account for here
-        tscale = 3./1.3
-        wscale = 1.4/1.9
+        # Uses the model of James et al 2025
+        # assumes we have S/N maximising widths
+        tscale = 2. # scale scattering time to total width at +- 1 sigma
+        
         TEMP = self.frbs['WIDTH'].values**2 - (tscale*self.frbs['TAU'].values)**2
         self.OKTAU = np.where(self.frbs['TAU'].values != -1.)[0] # code for non-existent
         toolow = np.where(TEMP <= 0.)
         TEMP[toolow] = 0.01**2 # 10 microsecond width. Really could be anything up to tau
-        iwidths = wscale * TEMP**0.5 # scale to SNR max width assuming Gaussian shape
+        iwidths = TEMP**0.5 # scale to SNR max width assuming Gaussian shape
         self.IWIDTHs = iwidths
-        self.WIDTHs *= wscale # scales to SNR maximising width assuming Gaussian shape
         self.TAUs = self.frbs['TAU'].values
 
         # sets the 'beam' values to unity by default
@@ -1112,7 +1107,7 @@ def calc_relative_sensitivity(DM_frb,DM,w,fbar,t_res,nu_res,Nchan=336,max_idt=No
 
     # calculates relative sensitivity to bursts as a function of DM
     # Check for Quadrature and Sammons
-    elif model == 'Quadrature' or model == 'Sammons':
+    elif model == 'Quadrature' or model == 'Sammons' or model=="StdDev":
         # constant of DM
         k_DM=4.149 #ms GHz^2 pc^-1 cm^3
         
@@ -1134,11 +1129,15 @@ def calc_relative_sensitivity(DM_frb,DM,w,fbar,t_res,nu_res,Nchan=336,max_idt=No
             # w represents the intrinsic width
             uw=w
         
-        totalw = (uw**2 + dm_smearing**2 + t_res**2)**0.5
-        
+        if model == "StdDev":
+            totalw = (uw**2 + dm_smearing**2/3. + t_res**2/3.)**0.5
+            nosmearw = (uw**2 + t_res**2/3.)**0.5
+        else:
+            totalw = (uw**2 + dm_smearing**2 + t_res**2)**0.5
+            nosmearw = (uw**2 + t_res**2)**0.5
         
         # calculates relative sensitivity to bursts as a function of DM
-        if model=='Quadrature':
+        if model=='Quadrature' or model=="StdDev":
             sensitivity=totalw**-0.5
         elif model=='Sammons':
             sensitivity=0.75*(0.93*dm_smearing + uw + 0.35*t_res)**-0.5
@@ -1146,10 +1145,22 @@ def calc_relative_sensitivity(DM_frb,DM,w,fbar,t_res,nu_res,Nchan=336,max_idt=No
         # implements max integer width cut.
         if max_meth != 0 and max_iw is not None:
             max_w = t_res*(max_iw+0.5)
-            toolong = np.where(totalw > max_w)[0]
-            if max_meth == 1:
+            
+            if max_meth == 1 or max_meth == 2:
+                # NOTE: for CRAFT, dm smearing already accounted for prior to width search
+                # this means that the smearing cut is DM independent
+                if nosmearw > max_w:
+                    toolong = np.arange(dm_smearing.size)
+                else:
+                    toolong = []
+                #toolong = np.where(nosmearw > max_w)[0]
+            elif max_meth == 3 or max_meth == 4:
+                # NOTE: for CRAFT, dm smearing already accounted for prior to width search
+                toolong = np.where(totalw > max_w)[0]
+                
+            if max_meth == 1 or max_meth == 3:
                 sensitivity[toolong] = MIN_THRESH # something close to zero
-            elif max_meth == 2:
+            elif max_meth == 2 or max_meth == 4:
                 # we have already reduced it by \sqrt{t}
                 # we thus add a further sqrt{t} factor
                 sensitivity[toolong] *= (max_w / totalw[toolong])**0.5
@@ -1330,7 +1341,7 @@ def quadrature_convolution(width_function, width_args, scat_function, scat_args,
         h,b = np.histogram(totalwidths,bins=bins,weights=probs)
         hist += h
     
-    # calculate p(w) and p(tau) for each w fior this z
+    # calculate p(w) and p(tau) for each w for this z
     if backproject:
         # generate arrays to hold probabilities, so values of tau and
         # w can be fit
@@ -1372,14 +1383,16 @@ def quadrature_convolution(width_function, width_args, scat_function, scat_args,
         taufracs = taufracs/tnorm
         
         # plot some examples. This code is kept here for internal analysis purposes
-        if False:
+        if True:
             plt.figure()
             plt.plot(internal_logvals,ptau,label="Intrinsic p(tau)")
             plt.plot(internal_logvals,pw,label="Intrinsic p(w)")
             for ib in np.arange(Nbins):
-                plt.plot(internal_logvals,taufracs[:,ib],label="width "+str(ib))
+                plt.plot(internal_logvals,taufracs[:,ib],label="p(tau) width "+str(ib))
+                plt.plot(internal_logvals,wfracs[:,ib],label="p(w) width "+str(ib))
                 plt.plot(np.log10([bins[ib],bins[ib]]),[0,1],linestyle=":",color=plt.gca().lines[-1].get_color())
                 plt.plot(np.log10([bins[ib+1],bins[ib+1]]),[0,1],linestyle=":",color=plt.gca().lines[-1].get_color())
+                break
             plt.yscale("log")
             #plt.xscale("log")
             plt.xlabel("log10 Tau [ms]")
@@ -1390,6 +1403,7 @@ def quadrature_convolution(width_function, width_args, scat_function, scat_args,
             plt.close()
             # exit now, to prevent very many such plots being generated
             exit()
+        
         return hist,wfracs,taufracs
     else:
         return hist

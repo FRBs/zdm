@@ -53,24 +53,9 @@ if half:
     # this name gets added to all produced plots
     prefix="MCMC_Plots/halflognormal_"
 else:
-    filenames = ['MCMC_outputs/v2_mcmc_lognormal','MCMC_outputs/v3_mcmc_lognormal']
-    # this name gets added to all produced plots
-    prefix="MCMC_Plots/lognormal_" # 100x100 zDM points
     
-    filenames = ['MCMC_outputs/v4_mcmc_lognormal'] # 300 x 300 zdm points
-    prefix = "MCMC_Plots/v4lognormal_"
-    
-    filenames = ['MCMC_outputs/v5_mcmc_lognormal'] # 15 beam values
-    prefix = "MCMC_Plots/v5lognormal_"
-    
-    filenames = ['MCMC_outputs/v6_mcmc_lognormal'] # 15 beam values
-    prefix = "MCMC_Plots/v6lognormal_"
-    
-    filenames = ['MCMC_outputs/v7_mcmc_lognormal'] #turn off p(w)
-    prefix = "MCMC_Plots/v7lognormal_"
-    
-    filenames = ['MCMC_outputs/v8_mcmc_lognormal'] # turn off p(scat|w)
-    prefix = "MCMC_Plots/v8lognormal_"
+    filenames = ['MCMC_outputs/mcmc_lognormal_v1'] # turn off p(scat|w)
+    prefix = "MCMC_Plots/lognormal_v1"
 
 samples = []
 

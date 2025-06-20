@@ -164,8 +164,8 @@ class Telescope(data_class.myDataClass):
                   'Notation': '',
                   })
     WBIAS: str = field(
-        default="Quadrature", 
-        metadata={'help': "Method to calculate width bias", 
+        default="StdDev", 
+        metadata={'help': "Method to calculate width bias. Quadrature, Sammons, or StdDev", 
                   'unit': '', 
                   'Notation': '',
                   })

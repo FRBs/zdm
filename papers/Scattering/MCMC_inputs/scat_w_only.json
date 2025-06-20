@@ -15,7 +15,8 @@
         "alpha": 1.5,
         "WNbins": 33,
         "WNInternalBins": 1000,
-        "ScatFunction": 1
+        "ScatFunction": 1,
+        "Sfnorm": 1000
     },
     "Wlogmean": {
         "DC": "width",

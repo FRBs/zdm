@@ -28,6 +28,53 @@ from zdm import pcosmic
 from zdm import parameters
 
 
+
+def get_width_stats(s,g):
+    """
+    gets the probability of detecting tau or w for
+    a given survey and grid
+    
+    Args:
+        s: survey
+        g: correspondiong grid object
+    
+    Returns:
+        Rw (np.ndarray): Rate (per day) of detecting intrinsic width w
+        Rtau (np.ndarray): Rate (per day) of detecting scattering time tau
+        Nw (np.ndarray): Total number of FRBs as a function of total width
+        Nwz (np.ndarray): Number of FRBs as a function of total width and redshift
+        Nwdm (np.ndarray): Number of FRBs as a function of total width and DM
+    """
+    
+    # extracts the p(W) distribution
+    Nw,Nwz,Nwdm = g.get_pw_dist()
+    
+    if s.wplist.ndim > 1:
+        # plist is z-dependent
+        # get expected distribution at z=0
+        wplist = s.wplist[:,0]
+    else:
+        wplist = s.wplist
+    
+    # these two arrays hold p(tau) and p(iw) values with dimensions:
+    # z, internal tau values, iwidth
+    # the normalisation is such that the sum over internal widths is unity
+    # that is, for a given tau, what is p(w). NOT for a given w, what is ptau!
+    # this is all a function of z
+    
+    Rtau = np.zeros([s.internal_logwvals.size])
+    Rw = np.zeros([s.internal_logwvals.size])
+    # calculates ptauw
+    for i,t in enumerate(s.internal_logwvals):
+        ptz = s.ptaus[:,i,:] # this is p(tau) given z and w
+        Rtz = ptz * Nwz.T
+        Rtau[i] = np.sum(Rtz)
+        
+        pwz = s.pws[:,i,:] # this is p(tau) given z and w
+        Rwz = pwz * Nwz.T
+        Rw[i] = np.sum(Rwz)
+    return Rw,Rtau,Nw,Nwz,Nwdm
+
 def j2000_to_galactic(ra_deg, dec_deg):
     """
     Convert Galactic coordinates to Equatorial J2000 coordinates.

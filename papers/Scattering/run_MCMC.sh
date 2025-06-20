@@ -2,14 +2,16 @@
 
 # script to run MCMC for CRAFT width parameters
 
+####### TESTING #######
+
 #files="CRAFT_ICS_892 CRAFT_ICS_1300 CRAFT_ICS_1632"
 
 # use this for a halflognormal distribution
 #opfile="v3_mcmc_halflognormal"
 #pfile="MCMC_inputs/scat_w_only_halflog.json"
 # use this for a lognormal distribution
-opfile="v6_mcmc_lognormal" # v4 is done with 300x300 nz ndm bins
-pfile="MCMC_inputs/scat_w_only.json"
+#opfile="v6_mcmc_lognormal" # v4 is done with 300x300 nz ndm bins
+#pfile="MCMC_inputs/scat_w_only.json"
 
 # LOG
 # files="CRAFT_ICS_892 CRAFT_ICS_1300 CRAFT_ICS_1632"
@@ -25,20 +27,25 @@ pfile="MCMC_inputs/scat_w_only.json"
 #opfile="v6_mcmc_lognormal"
 
 # for v7 - only one survey. Faster!  Turns off the P(w) function
-files="modCRAFT_ICS_1300"
-opfile="MCMC_outputs/v7_mcmc_lognormal"
+#files="modCRAFT_ICS_1300"
+#opfile="MCMC_outputs/v7_mcmc_lognormal"
 
 # for v8 - turns off the Pscat | w function. (in p(2D) only)
 #files="modCRAFT_ICS_1300" # takes away 1D as well, only 2D
 #opfile="v8_mcmc_lognormal"
 
 # for v8 - has 1000 internal bins in width, and 33 evaluation bins
-files="modCRAFT_ICS_1300" # takes away 1D as well, only 2D
-opfile="MCMC_outputs/v9_mcmc_lognormal"
+#files="modCRAFT_ICS_1300" # takes away 1D as well, only 2D
+#opfile="MCMC_outputs/v9_mcmc_lognormal"
 
+
+####### ACTUAL RUN #######
+pfile="MCMC_inputs/scat_w_only.json"
+files="CRAFT_ICS_892 CRAFT_ICS_1300 CRAFT_ICS_1632"
+opfile="MCMC_outputs/mcmc_lognormal_v1"
 Pn=False
 ptauw=True
-steps=1000
+steps=2000
 walkers=14
 
 Nz=100
