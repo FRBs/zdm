@@ -11,7 +11,6 @@ import scipy as sp
 
 import matplotlib.pyplot as plt
 import matplotlib
-import cmasher as cmr
 
 from frb import dlas
 from frb.dm import igm
@@ -2034,7 +2033,8 @@ def plot_grid_2(
                     markeredgewidth=plt_dicts[i+1]['markeredgewidth'], color=cont_colours[i+1],label=othernames[i+1])
                     handles.append(h)
             if othernames is not None:
-                plt.legend(handles=handles,loc="lower right")
+                pass
+                #plt.legend(handles=handles,loc="lower right")
     
     
     ###### gets decent axis labels, down to 1 decimal place #######
@@ -2108,10 +2108,10 @@ def plot_grid_2(
         for i in np.arange(nc):
             j = int(nc - i - 1)
             plt.plot(np.arange(nz), carray[j, :], label=str(conts[j]), color="white")
-        l = plt.legend(loc="upper left", fontsize=8)
+        #l = plt.legend(loc="upper left", fontsize=8)
         # l=plt.legend(bbox_to_anchor=(0.2, 0.8),fontsize=8)
-        for text in l.get_texts():
-            text.set_color("white")
+        #for text in l.get_texts():
+        #    text.set_color("white")
 
     if Macquart is not None:
         # Note this is the Median for the lognormal, not the mean

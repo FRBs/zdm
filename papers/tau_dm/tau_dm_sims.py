@@ -90,15 +90,16 @@ def creategrid():
             project=False,
             zmax=2.5,DMmax=3000,cmap="Oranges",Aconts=[0.01,0.1,0.5])#,
     #            pdmgz=[0.05,0.5,0.95])
+    jajsadf
 
     return grids[0]
     
-creategrid()
-lkajds
+
 
 def create_frbs(NMC):
     # get the grid
     g = creategrid()
+    adasdfd
 
     # create DM_EG by sampling the grid
     frbs = g.GenMCSample(NMC)
@@ -109,11 +110,12 @@ def create_frbs(NMC):
     #bs = frbs[:,2]
     #ws = frbs[:,4]
 
+
     # create NMC  DM host and corresponding tau via the MW_PSR relation  (at the host frame)
     dm_hosts = 10**np.random.normal(loc=1.8, scale=0.6, size=NMC)
     tau_host = 10**np.random.normal(loc=np.log10(1.9e-7 * nu**-4 * dm_hosts**1.5 * (1 + 3.55e-5*dm_hosts**3)), scale=0.76) # ms
 
-    
+    """
     # Create a log-log plot of dm_host and tau_host
     plt.figure(figsize=(8, 6))
     plt.loglog(dm_hosts, tau_host, 'o', markersize=5, alpha=0.7)
@@ -133,6 +135,7 @@ def create_frbs(NMC):
     plt.show()
     #plt.savefig('./dm_host_tau_host.png', dpi=300)
     jasd
+    """
 
 
     # this was tau intrinsic but what we would observe would be x3 more scattering due to plane waves and 1/(1+z)^3 due to redshift dimming
@@ -174,6 +177,91 @@ def create_frbs(NMC):
     # save the results
     np.savez('tau_dm_sims_craco1300.npz', dm_host_est=dm_host_estimated, tau_host=tau_host, zs=zs, DMcos_macquart=DMcos_macquart, dm_frb=dm_frb, dm_MW=dm_MW,DMcos=DMcos, snrs=snrs, dm_hosts=dm_hosts)
 
+def create_frbs_c22(NMC):
+    # get the grid
+    g = creategrid()
+
+    # create DM_EG by sampling the grid
+    frbs = g.GenMCSample(NMC)
+    frbs = np.array(frbs)
+    zs = frbs[:,0]
+    DMcos = frbs[:,1]
+    snrs = frbs[:,3]
+    #bs = frbs[:,2]
+    #ws = frbs[:,4]
+
+
+    # create NMC  DM host and corresponding tau via the ocker +22  relation  (at the host frame)
+    dm_hosts = 10**np.random.normal(loc=1.8, scale=0.6, size=NMC)
+    afg = np.random.uniform(0.01, 10, NMC)
+    tau_host = 48.*1e-3 * afg * dm_hosts**2 /1000.    # ms
+
+    """
+    # Create a log-log plot of dm_host and tau_host
+    plt.figure(figsize=(8, 6))
+    plt.loglog(dm_hosts, tau_host, 'o', markersize=5, alpha=0.7)
+    # Plot the theoretical line for comparison
+    dm_line = np.logspace(0, 4, 100)
+    tau_line = 1.9e-7 * dm_line**1.5 * (1 + 3.55e-5 * dm_line**3)
+    tau_up = 10**(np.log10(1.9e-7 * dm_line**1.5 * (1 + 3.55e-5 * dm_line**3)) + 0.76)
+    tau_dw = 10**(np.log10(1.9e-7 * dm_line**1.5 * (1 + 3.55e-5 * dm_line**3)) - 0.76)
+    plt.loglog(dm_line, tau_line, '-', color='k')
+    plt.loglog(dm_line, tau_up, '--', color='k')
+    plt.loglog(dm_line, tau_dw, '--', color='k')
+    plt.xlabel('DM Host (pc cm$^{-3}$)', fontsize=12)
+    plt.ylabel('$\\tau$ Host (ms)', fontsize=12)
+    #plt.title('Log-Log Plot of DM Host vs Tau Host', fontsize=14)
+    plt.grid(True, which="both", linestyle='--', linewidth=0.5)
+    #plt.legend()
+    plt.show()
+    #plt.savefig('./dm_host_tau_host.png', dpi=300)
+    jasd
+    """
+
+
+    # this was tau intrinsic but what we would observe would be x3 more scattering due to plane waves and 1/(1+z)^3 due to redshift dimming
+    #tau_host =  tau_host *3 / (1 + zs)**3 # ms
+
+    # DM MW
+    dm_MW = np.random.normal(loc=mean_DM_MW,scale=disp_DM_MW, size=NMC)
+    dm_MW[np.where(dm_MW < 10.)[0]] = 20. # pc cm^-3
+
+    # DM smearing
+    DM_smear = 8.3 * bandwidth * (dm_hosts/(1+zs)+DMcos+ dm_MW) * nu**-3.0 *1e-3 # ms
+
+    # true SNR accounting for observational biases   
+    true_snr = snrs * ((t_samp**2 + DM_smear**2)/(t_samp**2 + DM_smear**2 + (tau_host*3./(1.+zs)**3.)**2))**0.25
+    #print (f"True SNR: {true_snr}")
+    #print (f"snrs: {snrs}")
+
+
+    # select only those that are above the SNR threshold
+    #observable = np.where(true_snr > snr_thresh)[0]
+    #print (f"Number of observable FRBs: {len(observable)}")
+    # select the corresponding DM host and tau host
+    snrs = true_snr
+    #DMcos = DMcos[observable]
+    #zs = zs[observable]
+    #tau_host = tau_host[observable]
+    #dm_hosts = dm_hosts[observable]
+    #dm_MW = dm_MW[observable]
+
+    # total DM 
+    dm_frb = DMcos + dm_hosts/(1+zs) + dm_MW   
+
+
+    arra =np.load('dm_Mcquart.npz')
+    dm_Mcq = arra['dm']
+    z = arra['z']
+
+    # DMcosmic from Macquart et al. 2020
+    DMcos_macquart = np.interp(zs, z, dm_Mcq) # pc cm^-3
+
+    # estimated DM host
+    dm_host_estimated = dm_frb - DMcos_macquart - mean_DM_MW
+
+    # save the results
+    np.savez('tau_dm_sims_craco1300_c22.npz', dm_host_est=dm_host_estimated, tau_host=tau_host, zs=zs, DMcos_macquart=DMcos_macquart, dm_frb=dm_frb, dm_MW=dm_MW,DMcos=DMcos, snrs=snrs, dm_hosts=dm_hosts)
 
 
 def redshift_estimate(dm_total):
@@ -230,7 +318,7 @@ def plot_dm_tau(snr_th, nobj=None, redshift=False):
     dm_host_estimated, tau_host, zs, DMcos_macquart, dm_frb, dm_MW, DMcos, snrs, dm_hosts_sampled = load_data(file_path)
     # Filter the data based on the SNR threshold
     dm_host_estimated = dm_host_estimated[np.where(snrs > snr_th)]
-    tau_host = tau_host[np.where(snrs > snr_th)]
+    tau_host = tau_host[np.where(snrs > snr_th)]         
     dm_frb = dm_frb[np.where(snrs > snr_th)]
     zs = zs[np.where(snrs > snr_th)]
 
@@ -285,27 +373,29 @@ def plot_dm_tau(snr_th, nobj=None, redshift=False):
         plt.errorbar(dm_med, tau_med, xerr=[np.abs(dm_med - dm_l), np.abs(dm_u - dm_med)], yerr=[tau_med - tau_l, tau_u - tau_med], fmt='.', markersize=5, alpha=0.7, label='${\\rm SNR}>$'+str(snr_th))
 
     else:
-        plt.plot(dm_host_estimated*(1.+zs), tau_host, '.', markersize=5, alpha=0.7, label='${\\rm SNR}>$'+str(snr_th))
+        plt.plot(dm_host_estimated*(1.+zs), tau_host, '.', markersize=10, alpha=0.7, label='${\\rm SNR}>$'+str(snr_th))
 
-    plt.xscale('log')
+    #plt.xscale('log')
     plt.yscale('log')
     # Plot the theoretical line for comparison
     dm_line = np.logspace(0, 4, 100)
     tau_line = 1.9e-7 * dm_line**1.5 * (1 + 3.55e-5 * dm_line**3)
     tau_up = 10**(np.log10(1.9e-7 * dm_line**1.5 * (1 + 3.55e-5 * dm_line**3)) + 0.76)
     tau_dw = 10**(np.log10(1.9e-7 * dm_line**1.5 * (1 + 3.55e-5 * dm_line**3)) - 0.76)
-    plt.loglog(dm_line, tau_line, '-', color='k', label='$\\tau$(DM) Cordes et al. 2022')
-    plt.loglog(dm_line, tau_up, '--', color='k', label='$\\sigma_{\\log\\tau}$')
-    plt.loglog(dm_line, tau_dw, '--', color='k')
-    plt.xlabel('DM$_{\\rm host}$ (pc cm$^{-3}$)', fontsize=16)
-    plt.ylabel('$\\tau_{\\rm host}$ (ms) at 1 GHz', fontsize=16)
-    plt.xlim(2, 5000)
+    #plt.loglog(dm_line, tau_line, '-', color='k') #, label='$\\tau$(DM) Cordes et al. 2022')
+    #plt.loglog(dm_line, tau_up, '--', color='k') #, label='$\\sigma_{\\log\\tau}$')
+    #plt.loglog(dm_line, tau_dw, '--', color='k')
+    plt.xlabel('DM$_{\\rm host}$ (pc cm$^{-3}$)', fontsize=18)
+    plt.ylabel('$\\tau_{\\rm host}$ (ms) at 1 GHz', fontsize=18)
+    #plt.xlim(2, 5000)
     plt.ylim(1e-7, 1e5)
     #plt.title('Log-Log Plot of DM Host vs Tau Host', fontsize=14)
     plt.grid(True, which="both", linestyle='--', linewidth=0.5)
-    plt.legend(fontsize=16)
+    plt.xticks(fontsize=17)
+    plt.yticks(fontsize=17)
+    plt.legend(fontsize=17)
     plt.tight_layout()
-    plt.savefig('./dm_host_est_tau_host_'+str(snr_th)+'_100.png' , dpi=300)
+    #plt.savefig('./dm_host_est_tau_host_'+str(snr_th)+'_100_c22.png' , dpi=300)
     plt.show()
 
 
@@ -373,7 +463,7 @@ def cum_tau_plot(snr_th, nobj=None):
 
     # Create the cumulative distribution plot
     plt.figure(figsize=(8, 6))
-    plt.hist(tau_host, bins=np.logspace(np.log10(1e-7), np.log10(1e7), 100), cumulative=True, color='blue', alpha=0.5, density=True)   
+    plt.hist(tau_host, bins=np.logspace(np.log10(1e-7), np.log10(1e7), 100), cumulative=True, color='blue', alpha=0.5, density=True, label='${\\rm SNR}>$'+str(snr_th))   
     #plt.plot(cum_tau,  color='blue', alpha=0.5)
     plt.xlabel('$\\tau$ Host (ms)', fontsize=12)
     plt.ylabel('Cumulative Count', fontsize=12)
@@ -383,11 +473,39 @@ def cum_tau_plot(snr_th, nobj=None):
     #plt.ylim(0, 1)
     plt.xscale('log')
     #plt.yscale('log')
-
+    plt.tight_layout()
+    plt.legend(fontsize=16)
     #plt.savefig('./cum_tau_plot_'+str(snr_th)+'.png', dpi=300)
     plt.show()
 
+def plot_hist(mean_dm, out, snr_th, nobj):
+    plt.figure(figsize=(8, 6))
+    plt.hist2d(mean_dm, out, bins=(50, 50), cmap='Blues', cmin=1, norm=plt.matplotlib.colors.LogNorm())
+    plt.colorbar(label='Counts', )
+   
+    plt.ylabel('$r_{xy}$', fontsize=18)
+    plt.xlabel('DM$_{\\rm host}$ (pc cm$^{-3}$', fontsize=18)
+    plt.grid(True, linestyle='--', linewidth=0.5)
+    plt.xscale('linear')
+    plt.yscale('linear')
+    plt.xlim(0, 4000)
 
+    # Add text to the lower right corner of the plot
+    plt.text(0.95, 0.05, f'SNR > {snr_th}\n $N_{{\\rm FRB}}$ = {nobj}', 
+             transform=plt.gca().transAxes, 
+             fontsize=14, 
+             verticalalignment='bottom', 
+             horizontalalignment='right', 
+             bbox=dict(facecolor='white', alpha=0.8, edgecolor='gray'))
+
+    plt.ylim(-1, 1)
+    plt.xticks(fontsize=16)
+    plt.yticks(fontsize=16)
+    plt.tight_layout()
+    #plt.savefig('./dm_corrcoeff_snr'+str(snr_th)+'_nobj'+str(nobj)+'.png', dpi=300)
+
+    #plt.show()
+    #plt.close()
 
 
 def dm_tau_corr_coeff(N, snr_th, nobj):
@@ -396,13 +514,16 @@ def dm_tau_corr_coeff(N, snr_th, nobj):
     """
     # output array
     out = np.empty(N, dtype=float)
+    mean_dm = np.zeros(N, dtype=float)
 
     # Load the data
     file_path = data
     dm_host_estimated, tau_host, zs, DMcos_macquart, dm_frb, dm_MW, DMcos, snrs, dm_hosts_sampled = load_data(file_path)
     # Filter the data based on the SNR threshold
     dm_host_estimated = dm_host_estimated[np.where(snrs > snr_th)]
-    tau_host = tau_host[np.where(snrs > snr_th)]
+    tau_host = tau_host[np.where(snrs > snr_th)]        
+    zs = zs[np.where(snrs > snr_th)]
+
 
 
     # make a subset of tau_host
@@ -415,49 +536,82 @@ def dm_tau_corr_coeff(N, snr_th, nobj):
         #print (f"Indices: {indices}")
         tau_host_sam = tau_host[indices]
         dm_host_sam = dm_host_estimated[indices]
+        zs_sam = zs[indices]
 
         # Calculate the correlation coefficient
-        corr_coeff = np.corrcoef(dm_host_sam, tau_host_sam)[0, 1]
+        corr_coeff = np.corrcoef(dm_host_sam *(1+zs_sam), tau_host_sam)[0, 1]
         #print(f"Correlation coefficient between DM host and tau host: {corr_coeff}")
         out[n] = corr_coeff
+        mean_dm[n] = np.mean(dm_host_sam*(1+zs_sam))
 
-
-
-    # Plot a histogram of the correlation coefficients
+    # Create the main histogram plot
     plt.figure(figsize=(8, 6))
-    plt.hist(out, bins=30, color='blue', alpha=0.7, edgecolor='black')
+    plt.hist(out, bins=30, color='cornflowerblue', alpha=0.6, edgecolor='black')
 
     # Calculate percentiles
     p16, p50, p84 = np.nanpercentile(out, [16, 50, 84])
-
 
     # Add vertical lines for percentiles
     plt.axvline(p16, color='red', linestyle='--', label=f'16th: {p16:.3f}')
     plt.axvline(p50, color='green', linestyle='-', label=f'50th (median): {p50:.3f}')
     plt.axvline(p84, color='orange', linestyle='--', label=f'84th: {p84:.3f}')
 
-    # Add labels and legend
-    plt.xlabel('Correlation Coefficient', fontsize=12)
-    plt.ylabel('PDF', fontsize=12)
-    plt.title('mc=100k snr>0 10 FRBs', fontsize=14)
-    plt.legend(fontsize=10)
-    plt.grid(True, linestyle='--', linewidth=0.5)
+    # Add text to the top right of the plot
+    plt.text(0.25, 0.95, f'SNR > {snr_th}\n $N_{{\\rm FRB}}$ = {nobj}', 
+             transform=plt.gca().transAxes, 
+             fontsize=14, 
+             verticalalignment='top', 
+             horizontalalignment='right', 
+             bbox=dict(facecolor='white', alpha=0.8, edgecolor='gray'))
 
+    # Add labels and legend
+    plt.xlabel('$r_{xy}$', fontsize=18)
+    plt.ylabel('Counts', fontsize=18)
+    plt.xticks(fontsize=17)
+    plt.yticks(fontsize=15)
+    #plt.grid(True, linestyle='--', linewidth=0.5)
+    plt.xlim(-1, 1)
+    plt.tight_layout()
+    plt.legend(fontsize=16, loc='lower right')
+
+    # Create an inset plot
+    # Add a shaded background to the inset
+    # Add a frame around the inset and paint the background with a faint color
+    inset_ax = plt.axes([0.095, 0.35, 0.4, 0.4], facecolor='whitesmoke', box_aspect=1)
+    inset_ax.hist2d(mean_dm, out, bins=(50, 50), cmap='Blues', cmin=1, norm=plt.matplotlib.colors.LogNorm())
+    inset_ax.set_xlabel('$\\overline{\\rm DM}_{\\rm host}$', fontsize=12)
+    inset_ax.set_ylabel('$r_{xy}$', fontsize=12)
+    inset_ax.set_yticks([-1, -0.5, 0, 0.5, 1])
+    inset_ax.set_yticklabels([-1, -0.5, 0, 0.5, 1], fontsize=8)
+    inset_ax.yaxis.tick_right()
+    inset_ax.yaxis.set_label_position("right")
+    inset_ax.spines['left'].set_visible(False)
+    inset_ax.spines['right'].set_visible(True)
+    inset_ax.set_xlim(0, 4000)
+    inset_ax.set_ylim(-1, 1)
+    inset_ax.tick_params(axis='both', which='major', labelsize=8)
+    inset_ax.grid(True, linestyle='--', linewidth=0.5)
+    
+    # Save the plot
+    plt.savefig('./dm_tau_corr_coeff_snr'+str(snr_th)+'_nobj'+str(nobj)+'_c22.png', dpi=300)
     # Show the plot
     plt.show()
 
-    return out
+
+    return
 
 
 
 # # Main function to run the simulation and plotting
 
 # choose the dataset to use
-data = 'tau_dm_sims_craco1300.npz'
+#data = 'tau_dm_sims_craco1300.npz'
+data = 'tau_dm_sims_craco1300_c22.npz' # need to divide tau by 1000
 
 #create_frbs(25000)
-#cum_tau_plot(0,500)
-#tau_z_plot(10)
-plot_dm_tau(snr_th=0, nobj=100, redshift=False)
+#create_frbs_c22(25000)
+#cum_tau_plot(10,500)
+#tau_z_plot(0)
+plot_dm_tau(snr_th=10, nobj=100, redshift=False)
 
-#dm_tau_corr_coeff(100000,0,10)
+#dm_tau_corr_coeff(N=100000,snr_th=10,nobj=10)
