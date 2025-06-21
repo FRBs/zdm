@@ -608,7 +608,7 @@ def dm_tau_corr_coeff(N, snr_th, nobj):
 #data = 'tau_dm_sims_craco1300.npz'
 data = 'tau_dm_sims_craco1300_c22.npz' # need to divide tau by 1000
 
-#create_frbs(25000)
+create_frbs(2)
 #create_frbs_c22(25000)
 #cum_tau_plot(10,500)
 #tau_z_plot(0)
