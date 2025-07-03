@@ -22,14 +22,14 @@ def runner(clusterRedshift, name, clusterNeFile, trueClusterRedshift, sourceMagn
     # in case you wish to switch to another output directory
     #opdir = "Localised_FRBs/"
     formatted_cluster_redshift = "{:03.2f}".format(clusterRedshift)
-    opdir = "/arc/projects/chime_frb/msammons/CHORD/ClusterLensed/"+name+'/z'+formatted_cluster_redshift+'/'
+    opdir = "/arc/projects/chime_frb/msammons/CHIME/ClusterLensed/"+name+'/z'+formatted_cluster_redshift+'/'
     print(opdir)
     
     if not os.path.exists(opdir):
         os.makedirs(opdir)
 
-    dishDiam = 48*u.m
-    fbar = 900*u.MHz
+    dishDiam = 80*u.m
+    fbar = 600*u.MHz
     bThresh = 1e-3
     bbins = 100
     energyIndex = -0.948
@@ -70,7 +70,7 @@ def runner(clusterRedshift, name, clusterNeFile, trueClusterRedshift, sourceMagn
             print('---Beam Pos:', i, '---Redshift:', j)
             formatted_number = "{:02d}".format(i)
             formatted_redshift = "{:03.2f}".format(zvals[j])
-            surveyName = 'CHORD_BeamPos_'+str(formatted_number)
+            surveyName = 'CHIME_BeamPos_'+str(formatted_number)
             
             if zvals[j] > clusterRedshift:
                 if sourceMagniArr:

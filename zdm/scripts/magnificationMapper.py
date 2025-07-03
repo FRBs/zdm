@@ -169,7 +169,7 @@ def clusterDMFuncAcrossBeam(D, freq, thresh, nbins, bPos, proj, clusterRedshift,
     OmegaB= (2*np.pi*dlnb*(beamSigma*180/np.pi*60)**2).decompose().value
 
     pixRes = np.abs(np.diag(proj.pixel_scale_matrix*60))
-    neX = np.meshgrid(np.arange(ne.shape[0]), np.arange(ne.shape[1]))
+    neX = np.meshgrid(np.arange(ne.shape[1]), np.arange(ne.shape[0]))
     neCoords = proj.array_index_to_world_values(neX[0], neX[1])
     neBGains = offSetBeamGains(bPos, neCoords, beamSigma.decompose().value*180/np.pi)
     imageBGains = offSetBeamGains(bPos, imageCoords, beamSigma.decompose().value*180/np.pi)
@@ -211,7 +211,7 @@ def clusterDMFuncAtSubBeam(log10b, dlog10b, OmegaB, freq, neBGains, neWeightedHi
             gtrDM[i] = np.sum((neWeightedHist[0]*inBeam)*((1e6/(1+clusterRedshift)*ne)>=DMThresh[i]))
         for i in range(len(scatThresh)):
             if z>clusterRedshift:
-                scat = (4.1e-5/(1+clusterRedshift)*(lam/1)**4*((cosmo.angular_diameter_distance(clusterRedshift)*cosmo.angular_diameter_distance_z1z2(clusterRedshift,z)/cosmo.angular_diameter_distance(z)).value/1e3)*(8.4e-13*(ne/1e-4)**2*3.08567758e+22/((1+clusterRedshift)**2)/1e12)*(2.06264806e+08)**(1/3)*1e3)
+                scat = (4.1e-5/(1+clusterRedshift)*(lam/1)**4*((cosmo.angular_diameter_distance(clusterRedshift)*cosmo.angular_diameter_distance_z1z2(clusterRedshift,z)/cosmo.angular_diameter_distance(z)).value/1e3)*(8.4e-13*(ne/1e-4)**2*3.08567758e+22/((1+clusterRedshift)**2)/1e12)*(2.06264806e+9)**(1/3)*1e3)
                 if(np.amin(scat)<np.amin(scatThresh) and np.amin(scat)>0):
                     print('WARNING: Scattering outside threshold')
                     print('z = ', z, np.amin(scat), np.amin(scatThresh))

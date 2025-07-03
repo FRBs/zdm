@@ -51,15 +51,33 @@ def pullTrigger(clusterRedshift, name):
 #    state.host.lmean = 2.22
 #    state.FRBdemo.lC = 1.443
     state = parameters.State()
-    state.energy.lEmax = 41.38
+    state.energy.lEmax = 41.63
     state.energy.gamma = -0.948
     state.energy.alpha = 1.03
     state.FRBdemo.sfr_n = 1.15
     state.host.lsigma = 0.57
     state.host.lmean = 2.22
-    state.FRBdemo.lC = 1.443
+    state.FRBdemo.lC = 2.0
     state.energy.luminosity_function=4
     state.FRBdemo.alpha_method=1
+#    state.energy.gamma = -1.3
+#    state.energy.alpha = 1.39
+#    state.FRBdemo.sfr_n = 0.96
+#    state.host.lsigma = 0.41
+#    state.host.lmean = 1.93
+#    state.FRBdemo.lC = 1.443
+#    state.energy.luminosity_function=2
+#    state.FRBdemo.alpha_method=0
+#    state = parameters.State()
+#    state.energy.lEmax = 41.42
+#    state.energy.gamma = -1.16
+#    state.energy.alpha = 0.92
+#    state.FRBdemo.sfr_n = 0.91
+#    state.host.lsigma = 0.46
+#    state.host.lmean = 2.02
+#    state.FRBdemo.lC = 2.0
+#    state.energy.luminosity_function=4
+#    state.FRBdemo.alpha_method=1
 
 
     cluster=True
@@ -79,7 +97,7 @@ def pullTrigger(clusterRedshift, name):
             NFRB=None,sdir=sdir,init_state=state, cluster=cluster, 
             clusterRedshift=clusterRedshift, lensing=lensing)
     
-        np.save(opdir+'rates_BP_'+str(formatted_number), g.rates*10**g.state.FRBdemo.lC)
+        np.save(opdir+'rates_BP_'+str(formatted_number)+'thresh10', g.rates*10**g.state.FRBdemo.lC)
         
         
         FRB_rate_per_day = np.sum(g.rates) * 10**g.state.FRBdemo.lC
@@ -89,13 +107,13 @@ def pullTrigger(clusterRedshift, name):
         print("Rate of FRBs per day with z > 1.0 is ",FRB_rate_per_day)
      
         ratesArr[i,1] = FRB_rate_per_day
-        np.save(opdir+surveyName+'RatesArr', ratesArr)
+        np.save(opdir+surveyName+'RatesArrthresh10', ratesArr)
 
         misc_functions.plot_grid_2(
                 g.rates,
                 g.zvals,
                 g.dmvals,
-                name=opdir + surveyName + ".pdf",
+                name=opdir + surveyName + "thresh10.pdf",
                 norm=3,
                 log=True,
                 label="$\\log_{10} p({\\rm DM}_{\\rm EG},z)$  [a.u.]",
@@ -104,5 +122,6 @@ def pullTrigger(clusterRedshift, name):
                 Aconts=[0.01, 0.1, 0.5],
                 DMmax=4000
             ) #
-    
 
+    return True
+    
