@@ -27,12 +27,12 @@ import os
 
 from astropy.cosmology import Planck18
 #from zdm import cosmology as cos
-from zdm import misc_functions
-from zdm import parameters
+from zdm.zdm import misc_functions
+from zdm.zdm import parameters
 #from zdm import survey
 #from zdm import pcosmic
 #from zdm import iteration as it
-from zdm import loading
+from zdm.zdm import loading
 #from zdm import io
 import matplotlib.pyplot as plt
 
@@ -71,7 +71,7 @@ def creategrid():
     names = ["CRAFT_ICS_1300"]
     
     # essentially turns off DM host and sets all FRB widths to ~0 (or close enough)
-    param_dict = {'lmean': 0.01, 'lsigma': 0.4, 'Wlogmean': -1,'Wbins': 1,
+    param_dict = {'lmean': 0.01, 'lsigma': 0.4, 'Wlogmean': -1,'WNbins': 1,
         'Wlogsigma': 0.1, 'Slogmean': -2,'Slogsigma': 0.1}
     state = parameters.State()
     state.set_astropy_cosmo(Planck18)
@@ -83,6 +83,7 @@ def creategrid():
     
     g = grids[0]
 
+
     # plots it
     misc_functions.plot_grid_2(g.rates,g.zvals,g.dmvals,
             name=os.path.join(sdir,'tau_dm_grid.png'),norm=3,log=True,
@@ -90,7 +91,7 @@ def creategrid():
             project=False,
             zmax=2.5,DMmax=3000,cmap="Oranges",Aconts=[0.01,0.1,0.5])#,
     #            pdmgz=[0.05,0.5,0.95])
-    jajsadf
+    
 
     return grids[0]
     
@@ -99,7 +100,7 @@ def creategrid():
 def create_frbs(NMC):
     # get the grid
     g = creategrid()
-    adasdfd
+    
 
     # create DM_EG by sampling the grid
     frbs = g.GenMCSample(NMC)
@@ -373,21 +374,23 @@ def plot_dm_tau(snr_th, nobj=None, redshift=False):
         plt.errorbar(dm_med, tau_med, xerr=[np.abs(dm_med - dm_l), np.abs(dm_u - dm_med)], yerr=[tau_med - tau_l, tau_u - tau_med], fmt='.', markersize=5, alpha=0.7, label='${\\rm SNR}>$'+str(snr_th))
 
     else:
-        plt.plot(dm_host_estimated*(1.+zs), tau_host, '.', markersize=10, alpha=0.7, label='${\\rm SNR}>$'+str(snr_th))
+        sc = plt.scatter(dm_host_estimated*(1.+zs), tau_host, c=zs, cmap='viridis', s=40, alpha=0.7, label='${\\rm SNR}>$'+str(snr_th))
+        cbar = plt.colorbar(sc)
+        cbar.set_label('$z$', fontsize=15)
 
-    #plt.xscale('log')
     plt.yscale('log')
+    plt.xscale('symlog', linthresh=500, linscale=3)
     # Plot the theoretical line for comparison
     dm_line = np.logspace(0, 4, 100)
     tau_line = 1.9e-7 * dm_line**1.5 * (1 + 3.55e-5 * dm_line**3)
     tau_up = 10**(np.log10(1.9e-7 * dm_line**1.5 * (1 + 3.55e-5 * dm_line**3)) + 0.76)
     tau_dw = 10**(np.log10(1.9e-7 * dm_line**1.5 * (1 + 3.55e-5 * dm_line**3)) - 0.76)
-    #plt.loglog(dm_line, tau_line, '-', color='k') #, label='$\\tau$(DM) Cordes et al. 2022')
-    #plt.loglog(dm_line, tau_up, '--', color='k') #, label='$\\sigma_{\\log\\tau}$')
-    #plt.loglog(dm_line, tau_dw, '--', color='k')
-    plt.xlabel('DM$_{\\rm host}$ (pc cm$^{-3}$)', fontsize=18)
+    plt.plot(dm_line, tau_line, '-', color='k') #, label='$\\tau$(DM) Cordes et al. 2022')
+    plt.plot(dm_line, tau_up, '--', color='k') #, label='$\\sigma_{\\log\\tau}$')
+    plt.plot(dm_line, tau_dw, '--', color='k')
+    plt.xlabel('DM$_{\\rm host}^{\prime}$ (pc cm$^{-3}$)', fontsize=18)
     plt.ylabel('$\\tau_{\\rm host}$ (ms) at 1 GHz', fontsize=18)
-    #plt.xlim(2, 5000)
+    plt.xlim(-200, 5000)
     plt.ylim(1e-7, 1e5)
     #plt.title('Log-Log Plot of DM Host vs Tau Host', fontsize=14)
     plt.grid(True, which="both", linestyle='--', linewidth=0.5)
@@ -415,6 +418,10 @@ def tau_z_plot(snr_th,nobj=None):
         indices = np.random.choice(len(zs), size=nobj, replace=False)
         zs = zs[indices]
         tau_host = tau_host[indices]
+
+    #plt.hist(zs, bins=np.linspace(0, 0.1, 10), color='blue', alpha=0.5, label='${\\rm SNR}>$'+str(snr_th))
+    #plt.show()
+    #lkjafds
 
     # Create the plot
     plt.figure(figsize=(8, 6))
@@ -539,7 +546,11 @@ def dm_tau_corr_coeff(N, snr_th, nobj):
         zs_sam = zs[indices]
 
         # Calculate the correlation coefficient
-        corr_coeff = np.corrcoef(dm_host_sam *(1+zs_sam), tau_host_sam)[0, 1]
+        dms =np.log10(dm_host_sam *(1+zs_sam))
+        nonan_indices = np.isfinite(dms) 
+        taus = np.log10(tau_host_sam[nonan_indices])
+        dms = dms[nonan_indices]
+        corr_coeff = np.corrcoef(dms,taus)[0, 1]
         #print(f"Correlation coefficient between DM host and tau host: {corr_coeff}")
         out[n] = corr_coeff
         mean_dm[n] = np.mean(dm_host_sam*(1+zs_sam))
@@ -577,7 +588,7 @@ def dm_tau_corr_coeff(N, snr_th, nobj):
     # Create an inset plot
     # Add a shaded background to the inset
     # Add a frame around the inset and paint the background with a faint color
-    inset_ax = plt.axes([0.095, 0.35, 0.4, 0.4], facecolor='whitesmoke', box_aspect=1)
+    inset_ax = plt.axes([0.1095, 0.35, 0.4, 0.4], facecolor='whitesmoke', box_aspect=1)
     inset_ax.hist2d(mean_dm, out, bins=(50, 50), cmap='Blues', cmin=1, norm=plt.matplotlib.colors.LogNorm())
     inset_ax.set_xlabel('$\\overline{\\rm DM}_{\\rm host}$', fontsize=12)
     inset_ax.set_ylabel('$r_{xy}$', fontsize=12)
@@ -587,13 +598,14 @@ def dm_tau_corr_coeff(N, snr_th, nobj):
     inset_ax.yaxis.set_label_position("right")
     inset_ax.spines['left'].set_visible(False)
     inset_ax.spines['right'].set_visible(True)
-    inset_ax.set_xlim(0, 4000)
+    inset_ax.set_xlim(0, 2500)
     inset_ax.set_ylim(-1, 1)
     inset_ax.tick_params(axis='both', which='major', labelsize=8)
     inset_ax.grid(True, linestyle='--', linewidth=0.5)
     
+    
     # Save the plot
-    plt.savefig('./dm_tau_corr_coeff_snr'+str(snr_th)+'_nobj'+str(nobj)+'_c22.png', dpi=300)
+    #plt.savefig('./dm_tau_corr_coeff_snr'+str(snr_th)+'_nobj'+str(nobj)+'_c22.png', dpi=300)
     # Show the plot
     plt.show()
 
@@ -601,17 +613,167 @@ def dm_tau_corr_coeff(N, snr_th, nobj):
     return
 
 
+def corr_z_dm(N, snr_th, nobj, zth=None, dmth=None):
+    """
+    # Calculate an array with the correlation coefficient between dm_host and tau_host
+    """
+    # output array
+    out = np.empty(N, dtype=float)
+    mean_dm = np.zeros(N, dtype=float)
+
+    # Load the data
+    file_path = data
+    dm_host_estimated, tau_host, zs, DMcos_macquart, dm_frb, dm_MW, DMcos, snrs, dm_hosts_sampled = load_data(file_path)
+    # Filter the data based on the SNR threshold
+    dm_host_estimated = dm_host_estimated[np.where(snrs > snr_th)]
+    dm_frb = dm_frb[np.where(snrs > snr_th)]
+    tau_host = tau_host[np.where(snrs > snr_th)]        
+    zs = zs[np.where(snrs > snr_th)]
+
+
+    # If z and dm are provided, filter the data based on them
+    if zth is not None:
+        # Filter based on redshift
+        indices = np.where(zs <= zth)[0]
+        dm_host_estimated = dm_host_estimated[indices]
+        dm_frb = dm_frb[indices]
+        tau_host = tau_host[indices]
+        zs = zs[indices]
+    if dmth is not None:
+        # Filter based on DM
+        indices = np.where(dm_frb <= dmth )[0]
+        dm_host_estimated = dm_host_estimated[indices]
+        dm_frb = dm_frb[indices]
+        tau_host = tau_host[indices]
+        zs = zs[indices]
+
+    print (f"Number of samples after filtering: {len(tau_host)}")
+    if len(tau_host) <432:
+        return np.nan, np.nan, np.nan
+
+    # make a subset of tau_host
+    assert nobj < len(tau_host)
+
+    for n in range(N):
+        # Randomly select nobj samples
+        np.random.seed()
+        indices = np.random.choice(len(tau_host), size=nobj)
+        #print (f"Indices: {indices}")
+        tau_host_sam = tau_host[indices]
+        dm_host_sam = dm_host_estimated[indices]
+        zs_sam = zs[indices]
+
+        # Calculate the correlation coefficient
+        dmx =np.log10(dm_host_sam *(1+zs_sam))
+        nonan_indices = np.isfinite(dmx) 
+        taus = np.log10(tau_host_sam[nonan_indices])
+        dmx = dmx[nonan_indices]
+        corr_coeff = np.corrcoef(dmx,taus)[0, 1]
+        #print(f"Correlation coefficient between DM host and tau host: {corr_coeff}")
+        out[n] = corr_coeff
+        #mean_dm[n] = np.mean(dm_host_sam*(1+zs_sam))
+
+
+    # Calculate percentiles
+    p16, p50, p84 = np.nanpercentile(out, [16, 50, 84])
+    return p16, p50, p84
+
+
+
+def run_tau_corr_zdm(N, snr_th, nobj, zs=None, dms=None):
+    """
+    # Run the correlation calculation and plot the results
+    """
+
+    # Create the main histogram plot
+    plt.figure(figsize=(8, 6))
+
+    # Add text to the lower right corner of the plot
+    plt.text(0.95, 0.05, f'$N_{{\\rm FRB}}$ = {nobj}', 
+             transform=plt.gca().transAxes, 
+             fontsize=14, 
+             verticalalignment='bottom', 
+             horizontalalignment='right', 
+             bbox=dict(facecolor='white', alpha=0.8, edgecolor='gray'))
+
+    
+    plt.ylabel('$r_{xy}$', fontsize=18)
+    plt.xticks(fontsize=16)                 
+    plt.yticks(fontsize=16)
+    plt.grid(True, linestyle='--', linewidth=0.5)
+    # Check if zs or dms are provided
+    colors = ['blue', 'orange']
+    for x,snr_th in enumerate([0,10]):  
+
+
+        if zs is not None:
+            var = 'z'
+            p16s = np.zeros(len(zs))
+            p50s = np.zeros(len(zs))
+            p84s = np.zeros(len(zs))
+            for i, zz in enumerate(zs):
+                p16s[i], p50s[i], p84s[i] = corr_z_dm(N, snr_th, nobj, zth=zz)
+
+        if dms is not None:
+            var = 'dm'
+            p16s = np.zeros(len(dms))
+            p50s = np.zeros(len(dms))
+            p84s = np.zeros(len(dms))
+            for i, dm in enumerate(dms):
+                p16s[i], p50s[i], p84s[i] = corr_z_dm(N, snr_th, nobj, dmth=dm)
+
+
+
+        if var == 'z':
+            plt.xscale('log')
+            plt.xlim(0.017, 2.1)
+            plt.xlabel('$z$', fontsize=18)
+            plt.xticks([0.02, 0.04, 0.07, 0.1, 0.2, 0.4, 0.7, 1.0, 2.0],[ '0.02', '0.04', '0.07', '0.1', '0.2', '0.4', '0.7', '1.0', '2.0'], fontsize=16)
+            plt.plot(zs, p50s, 'o-', color= colors[x], label='50th (Median) SNR>'+str(snr_th))
+            plt.fill_between(zs, p16s, p84s, alpha=0.2, label='16th-84th  SNR>'+str(snr_th), color=colors[x])
+            plt.ylim(0, 1)
+
+        elif var == 'dm':
+            plt.xlim(150, 5200)
+            plt.xscale('log')
+            plt.xlabel('${\\rm DM_{FRB}\,[pc\\,cm^{-3}]}$')
+            plt.xticks([200,300,500,700,1000,2000,4000],[str(x) for x in [200,300,500,700,1000,2000,4000]], fontsize=16)
+            plt.plot(dms, p50s, 'o-', color= colors[x], label='50th (Median) SNR>'+str(snr_th))
+            plt.fill_between(dms, p16s, p84s,  alpha=0.2, label='16th-84th  SNR>'+str(snr_th), color=colors[x])
+            plt.ylim(-0.4, 1)
+        #plt.xlim(0, 5)
+    
+    plt.legend(fontsize=16,loc='upper left')
+    plt.tight_layout()
+    plt.hlines(0.,150,5200, color='k', linestyle='dotted')
+    plt.savefig('./dm_tau_corr_zdm_snr'+str(snr_th)+'_nobj'+str(nobj)+'_'+str(var)+'_c22.png', dpi=300)
+    # Show the plot
+    plt.show()
+
+
+
+
+
 
 # # Main function to run the simulation and plotting
 
 # choose the dataset to use
-#data = 'tau_dm_sims_craco1300.npz'
-data = 'tau_dm_sims_craco1300_c22.npz' # need to divide tau by 1000
 
-create_frbs(2)
+
+#create_frbs(2)
 #create_frbs_c22(25000)
 #cum_tau_plot(10,500)
 #tau_z_plot(0)
-plot_dm_tau(snr_th=10, nobj=100, redshift=False)
 
-#dm_tau_corr_coeff(N=100000,snr_th=10,nobj=10)
+#data = 'tau_dm_sims_craco1300.npz'
+data = 'tau_dm_sims_craco1300_c22.npz' 
+
+#tau_z_plot(0)
+
+
+#plot_dm_tau(snr_th=10, nobj=100, redshift=False)
+
+#dm_tau_corr_coeff(N=100000,snr_th=0,nobj=10)
+
+#run_tau_corr_zdm(N=10000, snr_th=10, nobj=10, zs=[0.02, 0.04, 0.07, 0.1, 0.2, 0.4, 0.7, 1.0, 2.0]) #
+run_tau_corr_zdm(N=10000, snr_th=10, nobj=100, dms=np.logspace(2.2, 3.7, 10))
