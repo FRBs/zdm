@@ -44,6 +44,7 @@ from pkg_resources import resource_filename
 from frb.dm import igm
 from frb.scripts.pzdm_mag import main as pzdm_mag_main
 import argparse
+import pandas as pd
 
 
 #params 
@@ -54,6 +55,12 @@ bandwidth = 1.0 # MHz
 snrthreshold = 10. # SNR threshold
 mean_DM_MW = 80. # pc cm^-3
 disp_DM_MW = 50. # pc cm^-3
+
+
+def htr(file):
+        df = pd.read_csv(file, delim_whitespace=True)
+        #print (df.columns)
+        return df
 
 
 
@@ -177,6 +184,7 @@ def create_frbs(NMC):
 
     # save the results
     np.savez('tau_dm_sims_craco1300.npz', dm_host_est=dm_host_estimated, tau_host=tau_host, zs=zs, DMcos_macquart=DMcos_macquart, dm_frb=dm_frb, dm_MW=dm_MW,DMcos=DMcos, snrs=snrs, dm_hosts=dm_hosts)
+
 
 def create_frbs_c22(NMC):
     # get the grid
@@ -378,6 +386,17 @@ def plot_dm_tau(snr_th, nobj=None, redshift=False):
         cbar = plt.colorbar(sc)
         cbar.set_label('$z$', fontsize=15)
 
+
+    df = htr('~/FRBs/zdm/papers/tau_dm/htr_table.txt')
+
+    htr_dm = df['DMexcess'].values
+    htr_tau = df['tau[ms]'].values 
+    htr_z = df['z'].values
+    # Plot the HTR data
+    plt.scatter(htr_dm, htr_tau*(1+htr_z)**3, marker='*', s=120, facecolors='none', edgecolors='red', alpha=0.7, label='Scott+2025')
+
+    plt.vlines(500,1e-7,1e5, color='gray', linestyle=':', linewidth=1, alpha=0.5)
+
     plt.yscale('log')
     plt.xscale('symlog', linthresh=500, linscale=3)
     # Plot the theoretical line for comparison
@@ -398,7 +417,7 @@ def plot_dm_tau(snr_th, nobj=None, redshift=False):
     plt.yticks(fontsize=17)
     plt.legend(fontsize=17)
     plt.tight_layout()
-    #plt.savefig('./dm_host_est_tau_host_'+str(snr_th)+'_100_c22.png' , dpi=300)
+    plt.savefig('./dm_host_est_tau_host_'+str(snr_th)+'_100.png' , dpi=300)
     plt.show()
 
 
@@ -472,7 +491,7 @@ def cum_tau_plot(snr_th, nobj=None):
     plt.figure(figsize=(8, 6))
     plt.hist(tau_host, bins=np.logspace(np.log10(1e-7), np.log10(1e7), 100), cumulative=True, color='blue', alpha=0.5, density=True, label='${\\rm SNR}>$'+str(snr_th))   
     #plt.plot(cum_tau,  color='blue', alpha=0.5)
-    plt.xlabel('$\\tau$ Host (ms)', fontsize=12)
+    plt.xlabel('$\\tau$ Host (ms) at 1 GHz', fontsize=12)
     plt.ylabel('Cumulative Count', fontsize=12)
     #plt.title('Cumulative Distribution of Tau Host', fontsize=14)
     plt.grid(True)
@@ -736,7 +755,7 @@ def run_tau_corr_zdm(N, snr_th, nobj, zs=None, dms=None):
         elif var == 'dm':
             plt.xlim(150, 5200)
             plt.xscale('log')
-            plt.xlabel('${\\rm DM_{FRB}\,[pc\\,cm^{-3}]}$')
+            plt.xlabel('${\\rm DM_{FRB}\,(pc\\,cm^{-3})}$',fontsize=18)
             plt.xticks([200,300,500,700,1000,2000,4000],[str(x) for x in [200,300,500,700,1000,2000,4000]], fontsize=16)
             plt.plot(dms, p50s, 'o-', color= colors[x], label='50th (Median) SNR>'+str(snr_th))
             plt.fill_between(dms, p16s, p84s,  alpha=0.2, label='16th-84th  SNR>'+str(snr_th), color=colors[x])
@@ -765,15 +784,15 @@ def run_tau_corr_zdm(N, snr_th, nobj, zs=None, dms=None):
 #cum_tau_plot(10,500)
 #tau_z_plot(0)
 
-#data = 'tau_dm_sims_craco1300.npz'
-data = 'tau_dm_sims_craco1300_c22.npz' 
+data = 'tau_dm_sims_craco1300.npz'
+#data = 'tau_dm_sims_craco1300_c22.npz' 
 
 #tau_z_plot(0)
 
 
-#plot_dm_tau(snr_th=10, nobj=100, redshift=False)
+plot_dm_tau(snr_th=0, nobj=100, redshift=False)
 
 #dm_tau_corr_coeff(N=100000,snr_th=0,nobj=10)
 
 #run_tau_corr_zdm(N=10000, snr_th=10, nobj=10, zs=[0.02, 0.04, 0.07, 0.1, 0.2, 0.4, 0.7, 1.0, 2.0]) #
-run_tau_corr_zdm(N=10000, snr_th=10, nobj=100, dms=np.logspace(2.2, 3.7, 10))
+#run_tau_corr_zdm(N=10000, snr_th=10, nobj=100, dms=np.logspace(2.2, 3.7, 10))
