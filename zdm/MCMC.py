@@ -174,7 +174,8 @@ def calc_log_posterior(param_vals, state, params, surveys_sep, Pn=False, pNreps=
 #==============================================================================
 
 def mcmc_runner(logpf, outfile, state, params, surveys, nwalkers=10, nsteps=100, nthreads=1, Pn=False,
-                pNreps=True, ptauw = False, log_halo=False, lin_host=False, ind_surveys=False, g0info=None):
+                pNreps=True, ptauw = False, log_halo=False, lin_host=False, ind_surveys=False, g0info=None,
+                reset=False):
     """
     Handles the MCMC running.
 
@@ -210,9 +211,16 @@ def mcmc_runner(logpf, outfile, state, params, surveys, nwalkers=10, nsteps=100,
         print(key + " priors: " + str(val['min']) + "," + str(val['max']))
     
     starting_guesses = np.array(starting_guesses).T
-
+    
+    # we only reset the backend if specifically requested.
+    # This means that walkers will continue from a previous iteration
     backend = emcee.backends.HDFBackend(outfile+'.h5')
-    backend.reset(nwalkers, ndim)
+    exists = os.path.isfile(outfile+'.h5')
+    if reset:
+        backend.reset(nwalkers, ndim)
+        if exists:
+            print("WARNING: output file exists, will be writing new run to old file")
+        exists = False # if resetting, ignore that a file exists
     
     start = time.time()
     
@@ -224,10 +232,14 @@ def mcmc_runner(logpf, outfile, state, params, surveys, nwalkers=10, nsteps=100,
     
     
     with Pool() as pool: # could add mp.Pool(ntrheads=5) or Pool = None
-        
         sampler = emcee.EnsembleSampler(nwalkers, ndim, logpf, args=[state, params, surveys, Pn, pNreps,
                                         ptauw, log_halo, lin_host, ind_surveys, g0info], backend=backend, pool=pool)
-        sampler.run_mcmc(starting_guesses, nsteps, progress=True)
+        if exists:
+            # start from last saved position
+            sampler.run_mcmc(None, nsteps, progress=True)
+        else:
+            # start from new random guesses
+            sampler.run_mcmc(starting_guesses, nsteps, progress=True)
     end = time.time()
     print("Total time taken: " + str(end - start))
     

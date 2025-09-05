@@ -43,19 +43,32 @@ plt.rcParams['font.size'] = 16
 
 # labels = ["sfr_n", "alpha", "lmean", "lsigma", "lEmax", "lEmin", "gamma", "H0", "DMhalo"]
 # labels = [r"$n$", r"$\alpha$", r"log$\mu$", r"log$\sigma$", r"log$E_{\mathrm{max}}$", r"log$E_{\mathrm{min}}$", r"$\gamma$", r"$H_0$", "DMhalo"]
-labels = [r"$\mu_w$", r"$\sigma_w$", r"$\mu_\tau$", r"$\sigma_\tau$"]
+
 
 half = False
-
+sfr=False
 if half:
 
     filenames = ['MCMC_outputs/v2_mcmc_halflognormal','MCMC_outputs/v3_mcmc_halflognormal']
     # this name gets added to all produced plots
     prefix="MCMC_Plots/halflognormal_"
+    labels = [r"$\mu_w$", r"$\sigma_w$", r"$\mu_\tau$", r"$\sigma_\tau$"]
+if sfr:
+    filenames = ['MCMC_outputs/mcmc_lognormal_sfr_v1',
+                'MCMC_outputs/mcmc_lognormal_sfr_v2',
+                'MCMC_outputs/mcmc_lognormal_sfr_v3',
+                'MCMC_outputs/mcmc_lognormal_sfr_v4']
+    # this name gets added to all produced plots
+    labels = [r"$\mu_w$", r"$\sigma_w$", r"$\mu_\tau$", r"$\sigma_\tau$", r"$n_{\rm sfr}$"]
+    prefix="MCMC_Plots/sfr_halflognormal_"
 else:
     
-    filenames = ['MCMC_outputs/mcmc_lognormal_v1'] # turn off p(scat|w)
-    prefix = "MCMC_Plots/lognormal_v1"
+    filenames = ['MCMC_outputs/mcmc_lognormal_v1',
+                'MCMC_outputs/mcmc_lognormal_v2',
+                'MCMC_outputs/mcmc_lognormal_v3',
+                'MCMC_outputs/mcmc_lognormal_v4'] # turn off p(scat|w)
+    labels = [r"$\mu_w$", r"$\sigma_w$", r"$\mu_\tau$", r"$\sigma_\tau$"]
+    prefix = "MCMC_Plots/lognormal"
 
 samples = []
 
@@ -147,7 +160,7 @@ titles = ['' for i in range(final_sample.shape[1])]
 corner.corner(final_sample,labels=labels, show_titles=True, titles=titles, 
               fig=fig,title_kwargs={"fontsize": 15},label_kwargs={"fontsize": 15}, 
               quantiles=[0.16,0.5,0.84], truths=truths);
-
+print(prefix+"cornerplot.png")
 plt.savefig(prefix+"cornerplot.png")
 exit()
 #### LEAVE HERE ######

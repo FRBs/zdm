@@ -16,6 +16,7 @@ def plot_grid(
     name="temp.pdf",
     label='$\\log_{10}p(DM_{\\rm EG},z)$',
     ylabel="${\\rm DM}_{\\rm EG}$ (pc cm$^{-3}$)",
+    logrange=4,
     project=False,
     conts=False,
     FRBZs=None,
@@ -35,7 +36,9 @@ def plot_grid(
     pdmgz=None,
     save=True,
     othergrids=None,
-    othernames=None
+    othernames=None,
+    c_cmap = None,
+    cont_clrs = None
 ):
     """
     Very complicated routine for plotting 2D zdm grids 
@@ -56,6 +59,7 @@ def plot_grid(
         name (str, optional): Outfile name
         label (str, optional): Colourbar label
         ylabel (str,optional): Label on y axis of plot
+        logrange(float,optional): range in logspace of the z axis (defaults to 4)
         project (bool, optional): Add projections of P(z) and P(DM)
         conts (bool, optional): create contours in probability p(dm|z),
             at fractional levels set by conts. Defaults to False.
@@ -85,6 +89,8 @@ def plot_grid(
             Aconts
         othernames (list of names) [None]: list of names for original *and* other grid.
             Used only if othergrids is not None. Must be length of othergrids +1.
+        c_cmap (string): Name of colormap used to plot "Acont" contours
+        cont_clrs (float, np.ndarray): list of colors in colourmap to use for contours
     """
     if H0 is None:
         H0 = cos.cosmo.H0
@@ -104,12 +110,18 @@ def plot_grid(
 
     if Aconts:
         linestyles = ['--', '-.', ':', '-']
-        c_cmap = cmr.arctic
+        if c_cmap is None:
+            c_cmap = cmr.arctic
+        else:
+            c_cmap = plt.get_cmap(c_cmap)
         if othergrids is not None:
             n_conts = len(Aconts) + len(othergrids)
         else:
             n_conts = len(Aconts)
-        cont_clrs = c_cmap(np.linspace(0.2, 0.8, n_conts))
+        if cont_clrs is None:
+            cont_clrs = c_cmap(np.linspace(0.2, 0.8, n_conts))
+        else:
+            cont_clrs = c_cmap(cont_clrs)
 
         # Make dictionary for the contours
         if cont_dicts == None:
@@ -467,7 +479,7 @@ def plot_grid(
     
     if log:
         themax = np.nanmax(zDMgrid)
-        themin = int(themax - 4)
+        themin = int(themax - logrange)
         themax = int(themax)
         plt.clim(themin, themax)
     

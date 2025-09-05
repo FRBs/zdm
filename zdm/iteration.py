@@ -385,6 +385,8 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=True,
         piws[bad1] = 1e-10
         ptaus[bad2] = 1e-10
         
+        pbars = 0.5*ptaus + 0.5*piws # take the mean of these two
+        
         llptw = np.sum(np.log10(ptaus))
         llpiw = np.sum(np.log10(piws))
         
@@ -393,8 +395,9 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=True,
         # p(iw|tau,w) = \delta(iw-(w**2 - tau**2)**0.5)
         # However, numerical differences will affect this
         # hence, we add half of eavh value here
-        llsum += 0.5*llpiw
-        llsum += 0.5*llptw
+        #llsum += 0.5*llpiw
+        #llsum += 0.5*llptw
+        llsum += np.sum(np.log10(pbars))
         
         lllist.append(llptw)
         lllist.append(llpiw)
@@ -811,7 +814,7 @@ def calc_likelihoods_2D(grid,survey,doplot=False,norm=True,psnr=True,printit=Fal
         llsum = -1e10
     # 
     llsum -= np.log10(norm)*Zobs.size # once per event
-    lllist=[llsum]
+    lllist=[llsum] # pz,DM
     
     #### calculates zdm components p(DM),p(z|DM),p(z),p(DM|z)
     # does this by using previous results for p(z,DM) and
@@ -937,6 +940,25 @@ def calc_likelihoods_2D(grid,survey,doplot=False,norm=True,psnr=True,printit=Fal
         bad2 = np.where(ptaus==0)[0]
         piws[bad1] = 1e-10
         ptaus[bad2] = 1e-10
+        pbars = 0.5*piws + 0.5*ptaus
+        
+        
+        # TESTING - I have left this in here, because it creates
+        # a useful plot showing the relative probabilities
+        # and how well they match up. Ideally, should be 1-1
+        
+        TestProbabilities=False
+        if TestProbabilities:
+            for i,pb in enumerate(pbars):
+                print(i,Tauobs[i],Iwobs[i],pb,piws[i],ptaus[i])
+            plt.scatter(piws/Iwobs,ptaus/Tauobs)
+            plt.xscale("log")
+            plt.yscale("log")
+            plt.show()
+            exit()
+        
+        
+        llpbar = np.sum(np.log10(pbars))
         llpiw = np.sum(np.log10(piws))
         llptw = np.sum(np.log10(ptaus))
         # while we calculate llpiw, we don't add it to the sum
@@ -944,10 +966,12 @@ def calc_likelihoods_2D(grid,survey,doplot=False,norm=True,psnr=True,printit=Fal
         # p(iw|tau,w) = \delta(iw-(w**2 - tau**2)**0.5)
         # However, numerical differences will affect this
         # Hence, we ad half of each value
-        llsum += 0.5*llpiw
-        llsum += 0.5*llptw
+        #llsum += 0.5*llpiw
+        #llsum += 0.5*llptw # this was summing in logspace
+        llsum += llpbar # now summing in linear space
         lllist.append(llpiw)
         lllist.append(llptw)
+        
         
     
     ############ Calculates p(s | z,DM) #############

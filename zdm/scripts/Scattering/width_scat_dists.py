@@ -105,7 +105,8 @@ def main():
         # width in units of dlogw
         
         # n1,n2 are probability "per bin". hence, to convert to a p(w) dlogw, we diving by the bin width in logw
-        n1 = np.sum(s.wplist) * s.dlogw # n1 is probability within the bin. n3-6 are probability dlogp
+        # z is z=0 bin
+        n1 = np.sum(s.wplist[:,0]) * s.dlogw # n1 is probability within the bin. n3-6 are probability dlogp
         n2 = np.sum(Nw) * s.dlogw
         
         n3 = np.sum(ptau) * logbinwidth
@@ -128,7 +129,7 @@ def main():
     plt.ylim(1e-2,1)
     plt.xlim(1e-2,1e2)
     
-    plt.plot(ws,s.wplist/n1,label="Total width (z=0)",linestyle="-")
+    plt.plot(ws,s.wplist[:,0]/n1,label="Total width (z=0)",linestyle="-")
     plt.plot(ws,Nw/n2,label="Detected total",linestyle=":",color=plt.gca().lines[-1].get_color())
     
     plt.plot(10**s.internal_logwvals,ptau/n3,label="Scattering (z=0)",linestyle="-")

@@ -829,12 +829,13 @@ class Survey:
         # calculates intrinsic widths
         # Uses the model of James et al 2025
         # assumes we have S/N maximising widths
-        tscale = 2. # scale scattering time to total width at +- 1 sigma
+        # if scattering dominates total width, expect tau = 0.816 w
+        tscale = 1.225 # scale scattering time to total width at +- 1 sigma
         
         TEMP = self.frbs['WIDTH'].values**2 - (tscale*self.frbs['TAU'].values)**2
         self.OKTAU = np.where(self.frbs['TAU'].values != -1.)[0] # code for non-existent
         toolow = np.where(TEMP <= 0.)
-        TEMP[toolow] = 0.01**2 # 10 microsecond width. Really could be anything up to tau
+        TEMP[toolow] = 0.01*self.frbs['TAU'].values[toolow]**2 # 10% of scattering width
         iwidths = TEMP**0.5 # scale to SNR max width assuming Gaussian shape
         self.IWIDTHs = iwidths
         self.TAUs = self.frbs['TAU'].values
@@ -1120,9 +1121,12 @@ def calc_relative_sensitivity(DM_frb,DM,w,fbar,t_res,nu_res,Nchan=336,max_idt=No
         if dsmear==True:
             # width is the total width
             measured_dm_smearing=2*(nu_res/1.e3)*k_DM*DM_frb/(fbar/1e3)**3 #smearing factor of FRB in the band
-            uw=w**2-measured_dm_smearing**2-t_res**2 # uses the quadrature model to calculate intrinsic width uw
+            if model == "StdDev":
+                uw = w**2 - dm_smearing**2/3. - t_res**2/3.
+            else:
+                uw = w**2-measured_dm_smearing**2-t_res**2 # uses the quadrature model to calculate intrinsic width uw
             if uw < 0:
-                uw=0
+                uw=1e-2 # replace this with some fraction of minimum width?
             else:
                 uw=uw**0.5
         else:
@@ -1383,7 +1387,7 @@ def quadrature_convolution(width_function, width_args, scat_function, scat_args,
         taufracs = taufracs/tnorm
         
         # plot some examples. This code is kept here for internal analysis purposes
-        if True:
+        if False:
             plt.figure()
             plt.plot(internal_logvals,ptau,label="Intrinsic p(tau)")
             plt.plot(internal_logvals,pw,label="Intrinsic p(w)")
@@ -1429,11 +1433,17 @@ def lognormal(log10w, *args):
     result = norm * np.exp(-0.5 * ((log10w - logmean) / logsigma) ** 2)
     return result
     
-def halflognormal(log10w, *args):#logmean,logsigma,minw,maxw,nbins):
+def halflognormal(log10w, *args,logmax=3):#logmean,logsigma,minw,maxw,nbins):
     """
     Generates a parameterised half-lognormal distribution.
     This acts as a lognormal in the lower half, but
     keeps a constant per-log-bin width in the upper half
+    There is nor formal way to normalise this function.
+    
+    It can also be verified that changing the normalisation of these functions
+    only changes the P(N) calculation, which should in any case be
+    separately optimised. Note however that this changes the interpretation
+    of the log-constant, which may be incorrect to within such a normalisation factor.
     
     Args:
         log10w: log base 10 of widths
@@ -1444,7 +1454,7 @@ def halflognormal(log10w, *args):#logmean,logsigma,minw,maxw,nbins):
     """
     logmean = args[0]
     logsigma = args[1]
-    norm = (2.*np.pi)**-0.5/logsigma
+    norm = (2.*np.pi)**-0.5/logsigma #Currently no normalisation
     if hasattr(log10w,"__len__"):
         large = np.where(log10w > logmean)[0]
         
@@ -1456,6 +1466,14 @@ def halflognormal(log10w, *args):#logmean,logsigma,minw,maxw,nbins):
         else:
             modlogw = log10w
     result = lognormal(modlogw,logmean,logsigma)
+    if logmax is not None:
+        # normalises the distribution. We note that the lower half
+        # is correctly normalised to 0.5 via the lognormal function
+        # the upper half spans the range [logmax-logmean] at amplitude
+        # norm. Hence, the total integral is
+        # 0.5 + [logmax-logmean]*norm
+        result /= (0.5 + (logmax-logmean)*norm)
+    
     return result
 
 def constant(log10w,*args):

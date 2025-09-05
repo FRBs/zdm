@@ -27,8 +27,28 @@ from zdm import repeat_grid as zdm_repeat_grid
 from zdm import pcosmic
 from zdm import parameters
 
-
-
+def make_cum_dist(data):
+    """
+    Gets cumulative distribution of the data ready for plotting
+    
+    Args:
+        data (list or np.ndarray): data for the distribution
+    Returns:
+        xvals (np.ndarray): x values of cumulative distribution
+        yvals (np.ndarray): x values of cumulative distribution
+    """
+    
+    ordered = np.sort(data)
+    NDAT = len(data)
+    xvals = np.zeros([NDAT*2])
+    yvals = np.zeros([NDAT*2])
+    for i in np.arange(NDAT):
+        yvals[2*i] = i/NDAT
+        yvals[2*i+1] = (i+1.)/NDAT
+        xvals[2*i] = ordered[i]
+        xvals[2*i+1] = ordered[i]
+    return xvals,yvals
+    
 def get_width_stats(s,g):
     """
     gets the probability of detecting tau or w for
