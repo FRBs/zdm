@@ -27,6 +27,123 @@ from zdm import repeat_grid as zdm_repeat_grid
 from zdm import pcosmic
 from zdm import parameters
 
+
+def get_w_tau_dist(grid,norm=True):
+    """
+    This function determins the total width, tau, and intrinsic width
+    distributions predicted by zDM. It returns histograms of each of these
+    parameters, both 1D hists of total rates, and 2D hists projected onto
+    the redshift axis.
+    
+    
+    Args:
+        grid: zdm grid object. Not yet implemented for a repeating grid
+    
+    Returns:
+        wvals [np.ndarray]: array of width values
+        pw [np.ndarray]: relative probabilities of observing those widths
+        zvals [np.ndarray: nz]: grid.zvals
+        pwz [np.ndarray: nw x nz]: probability of observing each width as a function of z
+        dmvals [np.ndarray: ndm]: grid.dmvals
+        pwdm [np.ndarray: nw x ndm]
+    """
+    
+    state=grid.state # for shorter variable names
+    survey = grid.survey
+    Wmethod = survey.meta["WMETHOD"]
+    if Wmethod == 0:
+        print("WARNING: trivial width distribution: all 1ms")
+        widths = np.array([1])
+        pw = np.array([1])
+        pwz = np.full([grid.zvals.size,1],1.)
+        pwdm = np.full([grid.dmvals.size,1],1.)
+        return widths,pw,grid.zvals,pwz,grid.dmvals,pwdm
+    elif Wmethod == 4:
+        print("WARNING: trivial width distribution: all ",survey.wlist[0]," ms")
+        widths = survey.wlist
+        pw = np.array([1])
+        pwz = np.full([grid.zvals.size,1],1.)
+        pwdm = np.full([grid.dmvals.size,1],1.)
+        return widths,pw,grid.zvals,pwz,grid.dmvals,pwdm
+    
+    # if we get to here, the results make sense
+    # wlist is the list of total widths parameterised by the survey.
+    # It is the distribution against which efficiencies are evaluated
+    widths = survey.wlist
+    
+    # accesses grid weight fraction, as function of z and DM.
+    # We now need to weight by z and DM
+    
+    pw = np.zeros([widths.size])
+    pwz = np.zeros([widths.size,grid.nz])
+    pwdm = np.zeros([widths.size,grid.ndm])
+    for iw,w in enumerate(widths):
+        # weights by volume elements along z axis
+        this_pdv = np.multiply(grid.w_fractions[:,:,iw].T,grid.dV).T
+        
+        #print("Threshold at z=0, dm=0 to widths ",widths[iw],grid.thresholds[iw,0,0])
+        iz=40
+        idm=0
+        #print("this pdv at z=0, dm=0 to widths ",widths[iw],this_pdv[iz,idm],grid.eff_weights[iw,iz])
+        
+        # multiplies by p(DM) distribution for a given z
+        this_rate = grid.sfr_smear * this_pdv
+        
+        pwz[iw,:] = np.sum(this_rate,axis=1)
+        
+        pwdm[iw,:] = np.sum(this_rate,axis=0)
+        
+        pw[iw] = np.sum(pwz[iw,:])
+        
+    if norm:
+        pw /= np.sum(pw)
+        
+        thenorm = np.sum(pwz,axis=1) # probability is zero for all w at this z
+        zero = np.where(thenorm == 0)
+        pwz = (pwz.T/np.sum(pwz,axis=1)).T
+        pwz[zero,:] = 0. # resets the nan components
+        
+        thenorm = np.sum(pwdm,axis=1) # probability is zero for all w at this z
+        zero = np.where(thenorm == 0)
+        pwdm = (pwdm.T/np.sum(pwdm,axis=1)).T
+        pwdm[zero,:] = 0. # resets the nan components
+    
+    # we now estimate p(tau) and p(iw) based on the 
+    # this gives the probability of a gives intrinsic width iw
+    # gives z and total width iw
+    # hence, we need to multiply this by pwz and sum
+    if Wmethod == 3:
+        a,b,c = survey.pws.shape
+        # we sum the distribution of intrinsic width in z, intrinsic width, total width
+        # space, by multiplying by the relative expected number in z, total width space
+        # since this is normalised to unity for each z, total width when integrating over ii
+        piis = np.copy(survey.pws)
+        for ib in np.arange(b):
+            piis[:,ib,:] *= pwz.T
+        piisz = np.sum(piis,axis=2) # summing over total width
+        piis = np.sum(piisz,axis=0)
+        
+        ptaus = np.copy(survey.ptaus)
+        for ib in np.arange(b):
+            
+            ptaus[:,ib,:] *= pwz.T
+        ptausz = np.sum(ptaus,axis=2) # summing over total width
+        ptaus = np.sum(ptausz,axis=0)
+        
+        if norm:
+            ptaus /= np.sum(ptaus)
+            ptausz = (ptausz.T/np.sum(ptausz,axis=1)).T
+            
+            piis /= np.sum(piis)
+            piisz = (piisz.T/np.sum(piisz, axis=1)).T
+        
+        return widths,pw,grid.zvals,pwz,grid.dmvals,pwdm,\
+                10**survey.internal_logwvals,ptaus,ptausz,piis,piisz
+    else:
+        return widths,pw,grid.zvals,pwz,grid.dmvals,pwdm
+    
+    
+    
 def make_cum_dist(data):
     """
     Gets cumulative distribution of the data ready for plotting

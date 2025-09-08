@@ -14,8 +14,9 @@
         "gamma": -1.16,
         "alpha": 1.5,
         "WNbins": 33,
-        "WNInternalBins": 1000,
+        "WNInternalBins": 100,
         "ScatFunction": 1,
+        "WidthFunction": 1,
         "Sfnorm": 1000
     },
     "Wlogmean": {

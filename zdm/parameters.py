@@ -230,7 +230,7 @@ class WidthParams(data_class.myDataClass):
     WidthFunction: int = field(
         default=1,
         metadata={
-            "help": "ID of function to describe width distribution. 0: log-constant, 1:log-normal",
+            "help": "ID of function to describe width distribution. 0: log-constant, 1:log-normal, 2: half-lognormal",
             "unit": "",
             "Notation": "",
         },
@@ -260,7 +260,7 @@ class WidthParams(data_class.myDataClass):
         },
     )
     WNbins: int = field(
-        default=11,
+        default=12,
         metadata={"help": "Number of bins for FRB width distribution", "unit": ""},
     )
     WNInternalBins: int = field(
@@ -272,11 +272,11 @@ class WidthParams(data_class.myDataClass):
         },
     )
     WMin: int = field(
-        default=0.1,
+        default=0.01,
         metadata={"help": "Minimum width value to model", "unit": "ms"},
     )
     WMax: int = field(
-        default=1000,
+        default=100,
         metadata={"help": "Maximum width value to model", "unit": "ms"},
     )
 
@@ -317,7 +317,7 @@ class ScatParams(data_class.myDataClass):
         },
     )
     Sfnorm: float = field(
-        default=600,
+        default=1000,
         metadata={
             "help": "Frequency of scattering width",
             "unit": "MHz",

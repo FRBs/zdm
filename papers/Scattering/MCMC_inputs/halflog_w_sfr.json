@@ -1,6 +1,6 @@
 {
     "mcmc": {
-        "parameter_order": ["Wlogmean", "Wlogsigma", "Slogmean", "Slogsigma"]
+        "parameter_order": ["Wlogmean", "Wlogsigma", "Slogmean", "Slogsigma","sfr_n"]
     },
     "config": {
         "luminosity_function": 2,
@@ -36,8 +36,8 @@
     },
     "Slogsigma": {
         "DC": "scat",
-        "min": 0.2,
-        "max": 4
+        "min": 1,
+        "max": 8
     },
     "logF": {
         "DC": "cosmo",

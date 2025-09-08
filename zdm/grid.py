@@ -50,6 +50,7 @@ class Grid:
         self.beam_b = survey.beam_b
         self.beam_o = survey.beam_o
         self.b_fractions = None
+        self.w_fractions = None
         # State
         self.state = state
         self.MCinit = False
@@ -342,7 +343,13 @@ class Grid:
             self.b_fractions = np.zeros(
                 [self.zvals.size, self.dmvals.size, self.beam_b.size]
             )
-
+        
+        # we can now access the width information later on
+        if (self.w_fractions is None):
+            self.w_fractions = np.zeros(
+                [self.zvals.size, self.dmvals.size, self.eff_weights.size]
+            )
+        
         # for some arbitrary reason, we treat the beamshape slightly differently... no need to keep an intermediate product!
         main_beam_b = self.beam_b
         
@@ -355,6 +362,7 @@ class Grid:
         
         for i, b in enumerate(main_beam_b):
             # if eff_weights is 2D (i.e., z-dependent) then w is a vector of length NZ
+            # It is a probability - the detection efficiency is encapusalted by thresh"
             for j, w in enumerate(self.eff_weights):
                 # using log10 space conversion
                 if self.use_log10:
@@ -365,12 +373,17 @@ class Grid:
                 # the below is to ensure this works when w is a vector of length nz
                 w = np.array(w)
                 
-                self.b_fractions[:, :, i] += (
-                        self.beam_o[i]
+                # this array gives the relative probability of detecting an FRB at this point
+                # in the beam, with this particular width. We may not have space to store this
+                # as a 4D (w,b,z,DM) array, hence we store two 3D arrays
+                temp_wb = self.beam_o[i] \
                         * (self.array_cum_lf(
                             thresh, Emin, Emax, self.state.energy.gamma, self.use_log10
                         ).T * w.T).T
-                    )
+                
+                self.b_fractions[:, :, i] += temp_wb
+                    
+                self.w_fractions[:, :, j] += temp_wb
         # here, b-fractions are unweighted according to the value of b.
         self.fractions = np.sum(
             self.b_fractions, axis=2
@@ -1152,3 +1165,5 @@ class Grid:
                     self.state.update_param(param, vparams[param])
         #
         return updated
+    
+

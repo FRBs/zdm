@@ -10,6 +10,10 @@ This is not a 5D problem (z,DM,w,scat,tau) because
 p(w|z,DM) is independent of the tau and w that
 contributed to it.
 
+NOTE: all the calculations for p(w) assume distributions in
+    log10 space, i.e. p(log10_w), and all bins are log-spaced
+    bins, regardless of whether or not the calculations are
+    performed in linear or log space.
 
 """
 
@@ -40,7 +44,7 @@ matplotlib.rc('font', **font)
 
 def main():
     """
-    
+    See main description at top of file.
     """
     
     # in case you wish to switch to another output directory
@@ -60,13 +64,46 @@ def main():
     zmax = 2.
     dmmax = 2000
     
-    survey_dict = {"WMETHOD": 3}
+    survey_dict = {"WMETHOD": 3} # 2 is no z-depence, 3 is
+    
     state_dict = {}
     state_dict["scat"] = {}
     state_dict["scat"]["Sbackproject"] = True # turns on backprojection of tau and width for our model
     state_dict["width"] = {}
-    state_dict["width"]["WNInternalBins"] = 1000 # sets it to a small quantity
+    state_dict["width"]["WNInternalBins"] = 100 # sets it to a small quantity
     state_dict["width"]["WNbins"] = 33 # set to large number for this analysis
+    # We set these to smaller values in order to show more-
+    # detectable observational effects
+    
+    wset = 2
+    if wset == 1: # set for analytic fits to lognormal
+        state_dict["width"]["WidthFunction"] = 1 # lognormal
+        state_dict["width"]["ScatFunction"] = 1 # lognormal
+        state_dict["width"]["Wlogmean"] = 0.215
+        state_dict["width"]["Wlogsigma"] = 0.88
+        state_dict["scat"]["Slogmean"] = 0.36
+        state_dict["scat"]["Slogsigma"] = 1.05
+    elif wset == 2: # set for analytic fits to halflognormal
+        state_dict["width"]["WidthFunction"] = 2 # halflognormal
+        state_dict["width"]["ScatFunction"] = 2 # halflognormal
+        state_dict["width"]["Wlogmean"] = 0.29 # 2
+        state_dict["width"]["Wlogsigma"] = 0.64 #2
+        state_dict["scat"]["Slogmean"] = -1.3 #1
+        state_dict["scat"]["Slogsigma"] = 0.01 #4
+    elif wset==3: # set for MCMC fits to lognormal
+        state_dict["width"]["WidthFunction"] = 1 # lognormal
+        state_dict["width"]["ScatFunction"] = 1 # lognormal
+        state_dict["width"]["Wlogmean"] = 2 # 2
+        state_dict["width"]["Wlogsigma"] = 1.6 #2
+        state_dict["scat"]["Slogmean"] = 1.4 #1
+        state_dict["scat"]["Slogsigma"] = 4 #4
+    elif wset==4: # set for MCMC fits to halflognormal
+        state_dict["width"]["WidthFunction"] = 2 # halflognormal
+        state_dict["width"]["ScatFunction"] = 2 # halflognormal
+        state_dict["width"]["Wlogmean"] = 1 # 2
+        state_dict["width"]["Wlogsigma"] = 1.5 #2
+        state_dict["scat"]["Slogmean"] = 1.5 #1
+        state_dict["scat"]["Slogsigma"] = 4 #4
     
     surveys, grids = loading.surveys_and_grids(survey_names = names,\
                         repeaters=repeaters, sdir=sdir,nz=70,ndm=140,
@@ -179,5 +216,68 @@ def main():
     plt.tight_layout()
     plt.savefig(opdir+"pw_dmdep.png")
     plt.close()
-
+    
+    ###### Plot 4: modelled p(w) #####
+    
+    widths,pw,zvals,pwz,dmvals,pwdm,finewidths,ptaus,ptausz,piis,piisz = mf.get_w_tau_dist(g)
+    dw = np.log10(widths[3]/widths[2])
+    bins = 10.**(np.arange(31)*dw-2)
+    NFRB = s.frbs['WIDTH'].values.size
+    
+    plt.figure()
+    plt.plot(widths,pw*NFRB)
+    plt.hist(s.frbs['WIDTH'].values,bins=bins)
+    plt.xlabel("Total width w [ms]")
+    plt.ylabel("Probability, p(w)")
+    plt.xscale("log")
+    plt.yscale("log")
+    plt.ylim(0.1,10)
+    plt.tight_layout()
+    plt.savefig(opdir+"detected_pw.png")
+    plt.close()
+    
+    dfine = np.log10(finewidths[3]/finewidths[2])
+    rel_width = dw/dfine
+    plt.figure()
+    plt.plot(finewidths,ptaus*rel_width*NFRB)
+    #plt.hist(s.TAUs,bins=bins)
+    plt.hist(s.TAUs,bins=s.wbins)
+    plt.plot(finewidths,s.ScatFunction(np.log10(finewidths),s.slogmean,s.slogsigma))
+    plt.xlabel("Total width w [ms]")
+    plt.ylabel("Probability, p(w)")
+    plt.xscale("log")
+    plt.yscale("log")
+    plt.ylim(0.1,1000)
+    plt.tight_layout()
+    plt.savefig(opdir+"detected_ptau.png")
+    plt.close()
+    
+    plt.figure()
+    plt.plot(finewidths,piis*rel_width*NFRB)
+    plt.hist(s.IWIDTHs,bins=bins)
+    plt.xlabel("Total width w [ms]")
+    plt.ylabel("Probability, p(w)")
+    plt.xscale("log")
+    plt.yscale("log")
+    plt.ylim(0.1,10)
+    plt.tight_layout()
+    plt.savefig(opdir+"detected_piw.png")
+    plt.close()
+    
+    
+    exit()
+    # The below code shows how to plot p(tau|w) distributions for particlar widths
+    # and redshifts.
+    plt.figure()
+    iw=10
+    for iz in np.arange(6):
+        z = g.zvals[iz]
+        w = (s.wbins[iw]*s.wbins[iw+1])**0.5
+        plt.plot(s.internal_logwvals,s.ptaus[iz,:,iw]/np.max(s.ptaus[iz,:,iw]),
+                label="total width "+str(w)[0:5]+" at z="+str(z)[0:3])
+    plt.legend()
+    plt.ylim(1e-3,10)
+    plt.yscale("log")
+    plt.show()
+    
 main()

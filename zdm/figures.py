@@ -1,3 +1,8 @@
+"""
+This file contains functions designed to produce plots,
+and associated helper functions.
+"""
+
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib

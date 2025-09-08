@@ -160,15 +160,16 @@ class Survey:
         
         ###### calculate width bins. We fix these here ######
         # Unless w and tau are explicitly being fit, it is not actually necessary
-        # to have constant bin values over z a d DM
-        # ensures the first bin begins at 0
+        # to have constant bin values over z and DM. But best to do so!
+        # Here, wbins are the bin edges, w list the midpoint values used for calculations
+        # Nbins describes the number of bins, so Nedges is Nbins+1
         wbins = np.zeros([self.NWbins+1])
         if self.NWbins > 1:
-            wbins[0] = 1.e-10 # set to a tiny value, to ensure we capture all small widths
-            wbins[1:] = np.logspace(np.log10(self.WMin),np.log10(self.WMax),self.NWbins)
+            wbins = np.logspace(np.log10(self.WMin),np.log10(self.WMax),self.NWbins+1)
             dlogw = np.log10(wbins[2]/wbins[1])
+            #wbins[0] = wbins[1]-dlogw # no longer tint: 1.e-10 # set to a tiny value, to ensure we capture all small widths
             # offsets the mean by half the log-spacing for each
-            wlist = np.logspace(np.log10(self.WMin)-dlogw/2.,np.log10(self.WMax)-dlogw/2.,self.NWbins)
+            wlist = np.logspace(np.log10(self.WMin)+dlogw/2.,np.log10(self.WMax)-dlogw/2.,self.NWbins)
         else:
             wbins[0] = np.log10(self.WMin)
             wbins[1] = np.log10(self.WMax)
@@ -179,9 +180,10 @@ class Survey:
         self.dlogw = dlogw
         
         ####### generates internal width values of numerical calculation purposes #####
-        minval = np.min([self.wlogmean - self.maxsigma*self.wlogsigma,
-                        self.slogmean - self.maxsigma*self.slogsigma,
-                        np.log10(self.WMin)])
+        #minval = np.min([self.wlogmean - self.maxsigma*self.wlogsigma,
+        #                self.slogmean - self.maxsigma*self.slogsigma,
+        #                np.log10(self.WMin)])
+        minval = np.log10(self.WMin)
         maxval = np.log10(self.WMax)
         # I haven't decided yet where to put the value of 1000 internal bins
         # in terms of parameters.
@@ -228,7 +230,27 @@ class Survey:
                                         model=self.meta['WBIAS'], edir=self.edir, iz=None) 
     def make_widths(self,iz=None):
         """
-        Used to be an exterior method, now interior
+        This routine calculates width distributions of FRBs, which
+        is required to estimate detection efficiency, and (potentially)
+        calculate p(w,tau).
+        
+        The functionality depends on self.meta['WMETHOD'], which
+        is set via
+        
+        WMETHOD [int: 0-4]:
+            0: No distribution - calculations performed at total width = 1ms
+            1: FRB widths are a simple lognormal of self.wlogmean, self.wlogsigma
+                histogrammed into self.wbins. Describes widths as "total width",
+                i.e. intrinsic plus scattering.
+            2: FRB widths convolved with frequency-dependent scattering distribution.
+                Calculates lognormal intrinsic width distribution, and convolves
+                this with a lognormal scattering distribution. NOTE: if wmethod=2,
+                iz must be called with iz=None.
+            3: As above, but allows for redshift dependence of both intrinsic
+                width and scattering. Distributions both scale width redshift:
+                width with 1+z, scattering with (1+z)^-3
+            4: Use a specific width of a particular FRB. Used for detailed calcs
+                for individual FRB-by-FRB analyses.
         """
         
         if self.meta['WMETHOD'] == 0:
@@ -250,6 +272,10 @@ class Survey:
             #gets cumulative hist and bin edges
             
             if iz is not None:
+                if self.meta['WMETHOD'] == 2:
+                    print("Trying to calculate redshift dependence for redshift ",\
+                        "independent WMETHOD=2. Internally inconsistent.")
+                    exit()
                 z = self.zvals[iz]
             else:
                z=0.
@@ -284,12 +310,12 @@ class Survey:
         elif self.meta['WMETHOD'] == 4:
             # use specific width of FRB. This requires there to be only a single FRB in the survey
             if s.meta['NFRB'] != 1:
-                raise ValueError("If width method in make_widths is 3 only one FRB should be specified in the survey but ", str(s.meta['NFRB']), " FRBs were specified")
+                raise ValueError("If width method in make_widths is 4 only one FRB should be specified in the survey but ", str(s.meta['NFRB']), " FRBs were specified")
             else:
                 self.wplist[0] = 1.
                 self.wlist[0] = s.frbs['WIDTH'][0]
         else:
-            raise ValueError("Width method in make_widths must be 0, 1 or 2, not ",width_method)
+            raise ValueError("Width method in make_widths must be 0-4, not ",width_method)
         
         
     def init_repeaters(self):
@@ -436,7 +462,9 @@ class Survey:
         
         # convert to log-widths - the bins are in log10 space
         logwlist = np.log10(wlist)
-        kws=(logwlist-np.log10(self.WMin))/self.dlogw + 0.5
+        # the below assumes that
+        kws=(logwlist-np.log10(self.WMin))/self.dlogw # now will assume it begins at Wmin+dlogw + 0.5
+        # forces any low values to zero
         Bin0 = np.where(kws < 0.)[0]
         kws[Bin0] = 0.
         
@@ -1327,16 +1355,19 @@ def quadrature_convolution(width_function, width_args, scat_function, scat_args,
     pw = width_function(internal_logvals, *width_args)*logbinwidth
     ptau = scat_function(internal_logvals, *scat_args)*logbinwidth
     
-    # adds extra bits onto the lowest bin. Assumes exp(-10) is small enough!
+    
+    # adds extra bits onto the lowest bin. Does this by integrating in
+    # log space. Assumes exp(-10) is small enough!
     lowest = internal_logvals[0] - logbinwidth/2.
     extrapw,err = quad(width_function,lowest-10,lowest,args=width_args)
     extraptau,err = quad(scat_function,lowest-10,lowest,args=scat_args)
+    
     pw[0] += extrapw 
     ptau[0] += extraptau
     
     linvals = 10**internal_logvals
     
-    # calculate widths - all done in linear domain
+    # calculate total widths - all done in linear domain
     Nbins = bins.size-1
     hist = np.zeros([Nbins])
     for i,x1 in enumerate(linvals):
@@ -1358,12 +1389,17 @@ def quadrature_convolution(width_function, width_args, scat_function, scat_args,
         # arrays have dimensions(Nw,Ntotal_width) so for each total
         # width, we get the probability
         for i,x1 in enumerate(linvals):
+            # total widths corresponding to linvals for tau/iw x1
             totalwidths = (x1**2 + linvals**2)**0.5
             
+            # ptau is the probability of achieving linvals, so combined
+            # probability is pw[i]*ptau
             probs = pw[i]*ptau
             h,b = np.histogram(totalwidths,bins=bins,weights=probs)
             wfracs[i,:] = h
             
+            # pw is the probability of achieving linvals, so combined
+            # probability is ptau[i] * pw
             probs = ptau[i]*pw
             h,b = np.histogram(totalwidths,bins=bins,weights=probs)
             taufracs[i,:] = h
@@ -1465,7 +1501,9 @@ def halflognormal(log10w, *args,logmax=3):#logmean,logsigma,minw,maxw,nbins):
             modlogw = logmean
         else:
             modlogw = log10w
+    
     result = lognormal(modlogw,logmean,logsigma)
+    
     if logmax is not None:
         # normalises the distribution. We note that the lower half
         # is correctly normalised to 0.5 via the lognormal function
@@ -1490,7 +1528,10 @@ def constant(log10w,*args):
     Returns:
         result: p(logw) d logw
     """
-    nvals = log10w.size
-    result = np.fill([nvals],1.)
+    if hasattr(log10w,"__len__"):
+        nvals = log10w.size
+        result = np.full([nvals],1.)
+    else:
+        result = np.array([1])
     return result
         
