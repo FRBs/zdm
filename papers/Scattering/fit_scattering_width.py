@@ -1,3 +1,31 @@
+"""
+This routine fits scattering and width distributions to CRAFT FRBs.
+
+It loads data from the HTR and ICS survey papers, and performs the following
+analysis:
+
+- Calculation of completeness
+- Best-fit using the KS-test
+- Best-fit using maximum likelihood test
+- Calculation of Bayes factors by integrating
+  over distributions of priors
+  
+For each, we fit a range of functions defined at global level (yes, it's lazy!)
+These are indexed according to the routine "function_wrapper".
+
+Plots that get generated, for each of tau and scattering, are:
+- histograms in observer frame
+- histograms in host frame showing best fit functions
+- histograms in host frames showing only best fits relevant to paper
+- cumulative distributions with best fit KS functions
+- cumulative distributions with best-fit likelihood functions
+- spline fits to completeness
+
+A scatter vs width plot
+A plot showing function examples
+"""
+
+
 import numpy as np
 from matplotlib import pyplot as plt
 from zdm import misc_functions
@@ -18,7 +46,11 @@ font = {'family' : 'Helvetica',
         'size'   : defaultsize}
 matplotlib.rc('font', **font)
 
-# number of functions implemented
+###################################################################################################
+######### These define the kinds of fitting functions, and their initial fit first guesses ########
+###################################################################################################
+
+# number of functions implemented, function names, and initial guesses
 NFUNC=7
 FNAMES=["lognormal","half-lognormal","boxcar","log constant","smooth boxcar", "upper sb", "lower sb","hln"]
 ARGS0=[[0.,1.],[0.,1.],[-2,2],[-2],[-1.,1,1.],[-2.,2,1.],[-2.,2,1.],[0.,1.]]
@@ -33,6 +65,8 @@ log_min_sigma = np.log10(min_sigma)
 log_max_sigma = np.log10(max_sigma)
 log_min_scat = np.log10(min_scat)
 log_max_scat = np.log10(max_scat)
+
+# priors for Bayes factors
 MIN_PRIOR = [
             [log_min_scat,log_min_sigma],
             [log_min_scat,log_min_sigma],
@@ -55,11 +89,23 @@ MAX_PRIOR = [
             [log_max_scat,log_max_sigma]
             ]
 
+# CHIME values
+# raw were 
+# scaled to 1GHz and log10 are
+# $(\mu_w,\sigma_w) = (\log_{10} 1.0 {\rm ms},0.42)$
+# $(\mu_\tau,\sigma_\tau) = (\log_{10} 0.262 {\rm ms},0.75)
+CHIME_muw = 0.
+CHIME_sw = 0.42
+CHIME_mut = 0.3
+CHIME_st = 0.75
 
-def main():
+def main(outdir="Fitting_Outputs/"):
     # does k-s test to scattering distribution
     
-    plot_functions()
+    if not os.path.exists(outdir):
+        os.mkdir(outdir)
+    
+    plot_functions(outdir=outdir)
     
     tns,tauobs,w95,wsnr,z,snr,freq,DM,tres = get_data()
     
@@ -85,7 +131,7 @@ def main():
     y=slope*x
     plt.plot(x,y,linestyle="--",color="black")
     plt.tight_layout()
-    plt.savefig("scatter_w_tau.png")
+    plt.savefig(outdir+"scatter_w_tau.png")
     plt.close()
     
     NFRB = snr.size
@@ -146,11 +192,12 @@ def main():
     plt.xlim(1e-2,1e3)
     plt.ylabel("Completeness")
     plt.sca(ax1)
-    plt.legend(handles=[l1[2],l3[0],l2[2]],labels=["$\\tau_{\\rm obs}$","Completeness","Corrected $\\tau_{\\rm obs}$"],fontsize=12)
-    plt.xlabel("$\\tau$ [ms]")
+    plt.legend(handles=[l1[2],l3[0],l2[2]],labels=["Observed","Completeness","Corrected"],fontsize=12)
+    plt.xlabel("$\\tau_{\\rm obs}$ [ms]")
     plt.ylabel("Number of FRBs")
+    plt.text(2e-3,8,"(a)",fontsize=18)
     plt.tight_layout()
-    plt.savefig("tau_observed_histogram.png")
+    plt.savefig(outdir+"tau_observed_histogram.png")
     plt.close()
     
 
@@ -176,6 +223,7 @@ def main():
     
     ax2 = ax1.twinx()
     l3 = ax2.plot(xvals,yvals,label="Completeness")
+    use_this_color = l3[0].get_color()
     
     plt.ylim(0,1)
     plt.xlim(1e-2)
@@ -184,8 +232,10 @@ def main():
     plt.legend(handles=[l1[2],l3[0],l2[2]],labels=["Observed","Completeness","Corrected"],fontsize=12)
     plt.xlabel("$\\tau_{\\rm host, 1\,GHz}$ [ms]")
     plt.ylabel("Number of FRBs")
+    
+    plt.text(2e-3,8,"(b)",fontsize=18)
     plt.tight_layout()
-    plt.savefig("tau_host_histogram.png")
+    plt.savefig(outdir+"tau_host_histogram.png")
     
     #### creates a copy of the above, for paper purposes
     
@@ -215,24 +265,16 @@ def main():
     plt.sca(ax1)
     plt.xlabel("$\\tau_{\\rm host, 1\,GHz}$ [ms]")
     plt.ylabel("Number of FRBs")
-    
-    # keeps open for later plotting
+    # keeps open for later plotting - don't close this here
     
     
     ####################################### TAU - CDF and fitting ################################
-    print("\n\n   KS test evaluation \n")
+    print("\n\n   KS test evaluation for tau \n")
     # amplitude, mean, and std dev of true distribution
-    ifunc=0
-    args = (host_tau,xvals,yvals,ifunc)
-    #get_ks_stat(-1,1,*args)
-    
     
     ksbest = []
-    # begins minimisation
+    # begins minimisation for KS statistic
     for ifunc in np.arange(NFUNC):
-        if False:
-            print("skipping K-S test optimisation, remove this line to re-run")
-            continue
         args = (host_tau,xvals,yvals,ifunc)
         x0=ARGS0[ifunc]
         
@@ -259,26 +301,22 @@ def main():
     cspline = sp.interpolate.make_interp_spline(np.log10(xt), yt,k=1)
         # get a spline interpolation of completeness. Should be removed from function!
     
-    make_cdf_plot(ksbest,host_tau,xvals,yvals,"bestfit_ks_scat_cumulative.png",cspline)
+    # do a test plot of the spline
+    if True:
+        plt.figure()
+        plt.plot(np.logspace(-5,5,101),cspline(np.linspace(-5,5,101)))
+        plt.plot(xvals,yvals)
+        plt.xscale("log")
+        plt.savefig(outdir+"tau_spline_example.png")
+        plt.close()
+    
+    # make a cdf plot of the best fits
+    make_cdf_plot(ksbest,host_tau,xvals,yvals,outdir+"bestfit_ks_scat_cumulative.png",cspline)
     
     ############################################### TAU - likelihood analysis #################################################
-    print("\n\n   Max Likelihood Calculation\n")
+    print("\n\n   Max Likelihood Calculation for tau\n")
     xbest=[]
     for ifunc in np.arange(NFUNC):
-        if False:
-            print("skipping log-likelihood test optimisation, remove this line to re-run")
-            xbest=[[0.36494363, 1.04819578 ],[-1.38936953e+00, -4.12755731e-05] ,[-1.38516893,  1.62526839]]
-            continue
-        # make values for interpolation
-        
-        if False:
-            plt.figure()
-            plt.plot(np.logspace(-5,5,101),cspline(np.linspace(-5,5,101)))
-            plt.plot(xvals,yvals)
-            plt.xscale("log")
-            plt.savefig("spline_example.png")
-            plt.close()
-            
         args = (host_tau,cspline,ifunc)
         x0=ARGS0[ifunc]
         
@@ -287,10 +325,16 @@ def main():
         xbest.append(result.x)
         # llbest returns negative ll
         llbest = get_ll_stat(result.x,host_tau,cspline,ifunc) * -1
+        
+        
         print("FUNCTION ",ifunc,",",FNAMES[ifunc]," Best-fitting log-likelihood parameters are ",result.x," with p-value ",1.-result.fun)
         print("          , BIC is ",2*np.log(host_tau.size) - len(x0)*llbest)
+        if ifunc == 0:
+            llCHIME = get_ll_stat([CHIME_mut,CHIME_st],host_tau,cspline,ifunc) * -1
+            print("Compare with CHIME ",llCHIME)
     
-    make_cdf_plot(xbest,host_tau,xvals,yvals,"bestfit_ll_scat_cumulative.png",cspline)
+    
+    make_cdf_plot(xbest,host_tau,xvals,yvals,outdir+"bestfit_ll_scat_cumulative.png",cspline)
     
     
     ######## does plot with  all fits added ########
@@ -298,7 +342,7 @@ def main():
     plt.sca(ax1)
     NFRB=host_tau.size
     handles=[l1[2],l3[0],l2[2]]
-    labels=["$\\tau_{\\rm host, 1\,GHz}$","Completeness","Corrected $\\tau_{\\rm host, 1\,GHz}$"]
+    labels=["Observed","Completeness","Corrected$"]
     for i in np.arange(NFUNC):
         print("plotting function ",i," with xbest ",xbest[i])
         xs,ys = function_wrapper(i,xbest[i])#cspline=None):
@@ -315,7 +359,7 @@ def main():
     plt.legend(handles=handles,labels=labels,fontsize=6) #fontsize=12)
     
     
-    plt.savefig("tau_host_histogram_fits.png")
+    plt.savefig(outdir+"tau_host_histogram_fits.png")
     plt.close()
     
     ######## plot for paper ########
@@ -335,13 +379,15 @@ def main():
         plt.plot(xs,ys*plotnorm,linestyle=":",color=plt.gca().lines[-1].get_color())
     plt.xscale("log")
     plt.xlim(1e-2,1e3)
+    
+    plt.text(1e-3,8,"(b)",fontsize=18)
     plt.legend()
     plt.xlabel("$\\tau_{\\rm host, 1\,GHz}$ [ms]")
     plt.ylabel("Number of FRBs")
     plt.legend(handles=handles,labels=labels,fontsize=10) #fontsize=12)
     
     plt.tight_layout()
-    plt.savefig("paper_tau_host_histogram_fits.png")
+    plt.savefig(outdir+"paper_tau_host_histogram_fits.png")
     plt.close()
     
     
@@ -356,7 +402,7 @@ def main():
     print("\n\n   Bayes Factor Calculation\n")
     for ifunc in np.arange(NFUNC):
         if True:
-            print("skipping log-likelihood test optimisation, remove this line to re-run")
+            print("skipping Bayes factor calculation for Tau, remove this line to re-run")
             #FUNCTION  0  has likelihood sum  2.6815961887322472e-21  now compute Bayes factor!
             #FUNCTION  1  has likelihood sum  1.4462729739641349e-15  now compute Bayes factor!
             #FUNCTION  2  has likelihood sum  5.364450880196842e-16  now compute Bayes factor!
@@ -433,11 +479,13 @@ def main():
     plt.xlim(5e-3,1e2)
     plt.ylabel("Completeness")
     plt.sca(ax1)
-    plt.legend(handles=[l1[2],l3[0],l2[2]],labels=["$w_i$","Completeness","Corrected $w_i$"],fontsize=12)
+    plt.legend(handles=[l1[2],l3[0],l2[2]],labels=["Observed","Completeness","Corrected $w_i$"],fontsize=12)
     plt.xlabel("$w_i$ [ms]")
     plt.ylabel("Number of FRBs")
+    
+    plt.text(1e-3,8,"(a)",fontsize=18)
     plt.tight_layout()
-    plt.savefig("w_observed_histogram.png")
+    plt.savefig(outdir+"w_observed_histogram.png")
     plt.close()
     
     ################################ 1 GHz Rest-frame Histogram ##########################
@@ -468,18 +516,18 @@ def main():
     plt.xlabel("$w_{\\rm host}$ [ms]")
     plt.ylabel("Number of FRBs")
     plt.tight_layout()
-    plt.savefig("w_host_histogram.png")
+    plt.savefig(outdir+"w_host_histogram.png")
     
-    # keeps open for plottimng later
+    # keeps open for plotting later
     
     #### new plot, for paper - just a copy of the above ####
     
     plt.figure()
-    ax1v2=plt.gca()
     plt.xscale("log")
     plt.ylim(0,8)
     l1v2 = plt.hist(host_w,bins=bins,label="Host",alpha=0.5)
     
+    ax1v2=plt.gca()
     # makes a function of completeness
     wxvals,wyvals = make_completeness_plot(host_maxw)
     
@@ -488,21 +536,37 @@ def main():
     
     l2v2 = plt.hist(host_w,bins=bins,weights = 1./w_comp,label="Observed",alpha=0.5)
     
-    
     ax2v2 = ax1v2.twinx()
-    l3v2 = ax2.plot(wxvals,wyvals,label="Completeness")
+    l3v2 = ax2v2.plot(wxvals,wyvals,label="Completeness")#,color=use_this_color)
     
     plt.ylim(0,1)
     plt.xlim(1e-3,1e3)
     plt.ylabel("Completeness")
-    plt.sca(ax1)
-    plt.legend(handles=[l1[2],l3[0],l2[2]],labels=["Observed","Completeness","Corrected"],fontsize=12)
+    plt.sca(ax1v2)
+    plt.legend(handles=[l1v2[2],l3v2[0],l2v2[2]],labels=["Observed","Completeness","Corrected"],fontsize=12)
     plt.xlabel("$w_{\\rm host}$ [ms]")
     plt.ylabel("Number of FRBs")
     
     
     ####################### W - likelihood maximisation #################
     
+    ####################################### Width - CDF and fitting ################################
+    print("\n\n   KS test evaluation for width \n")
+    # amplitude, mean, and std dev of true distribution
+    
+    ksbest = []
+    # begins minimisation for KS statistic
+    for ifunc in np.arange(NFUNC):
+        args = (host_w,wxvals,wyvals,ifunc)
+        x0=WARGS0[ifunc]
+        
+        result = sp.optimize.minimize(get_ks_stat,x0=x0,args=args,method = 'Nelder-Mead')
+        psub1 = get_ks_stat(result.x,*args,plot=False)
+        ksbest.append(result.x)
+        print("FUNCTION ",ifunc,",",FNAMES[ifunc]," Best-fitting parameters are ",result.x," with p-value ",1.-result.fun)
+    
+    
+    print("\n\n   Maximum likelihood for width \n")
     ### makes temporary values for completeness
     xtemp = wxvals[::2]
     ytemp = wyvals[::2]
@@ -518,37 +582,37 @@ def main():
     xt[-1] = 1e5
     yt[-1] = 0.
     cspline = sp.interpolate.make_interp_spline(np.log10(xt), yt,k=1)
+    # do a test plot of the spline?
+    if True:
+        plt.figure()
+        plt.plot(np.logspace(-5,5,101),cspline(np.linspace(-5,5,101)))
+        plt.plot(xvals,yvals)
+        plt.xscale("log")
+        plt.savefig(outdir+"width_spline_example.png")
+        plt.close()
+    # make a cdf plot of the best fits
+    make_cdf_plot(ksbest,host_tau,xvals,yvals,outdir+"bestfit_ks_width_cumulative.png",cspline)
     
+    ####################################### Width - max likelihood ################################
+    print("\n\n   Likelhiood maximasation for width \n")
+    # amplitude, mean, and std dev of true distribution
+      
     xbest=[]
     
+    # iterate over functions to calculate max likelihood
     for ifunc in np.arange(NFUNC):
-        if False:
-            print("skipping log-likelihood test optimisation, remove this line to re-run")
-            continue
         
-        # make values for interpolation
-        # completeness for w in host frame
-        
-        # get a spline interpolation of completeness. Should be removed from function!
-        if False:
-            plt.figure()
-            plt.plot(np.logspace(-5,5,101),cspline(np.linspace(-5,5,101)))
-            plt.plot(xvals,yvals)
-            plt.xscale("log")
-            plt.savefig("spline_example.png")
-            plt.close()
-            
         args = (host_w,cspline,ifunc)
         x0=WARGS0[ifunc]
         result = sp.optimize.minimize(get_ll_stat,x0=x0,args=args,method = 'Nelder-Mead')
         #psub1 = get_ks_stat(result.x,*args,plot=True)
         xbest.append(result.x)
         print("width FUNCTION ",ifunc,",",FNAMES[ifunc]," Best-fitting log-likelihood parameters are ",result.x," with p-value ",1.-result.fun)
-    #FUNCTION  0  Best-fitting parameters are   [1.54420422 1.77315156]  with p-value  -14.098744320572287
-    #FUNCTION  1  Best-fitting parameters are   [1.54415779 1.77312642]  with p-value  -14.098744320522364
-    #FUNCTION  2  Best-fitting parameters are  [-2.59375   4.753125]  with p-value  -16.16738087050264
+        if ifunc == 0:
+            llCHIME = get_ll_stat([CHIME_muw,CHIME_sw],host_tau,cspline,ifunc) * -1
+            print("Compare with CHIME ",llCHIME)
     
-    make_cdf_plot(xbest,host_w,wxvals,wyvals,"bestfit_ll_width_cumulative.png",cspline,width=True)
+    make_cdf_plot(xbest,host_w,wxvals,wyvals,outdir+"bestfit_ll_width_cumulative.png",cspline,width=True)
     
     
     ### does plot with fits added ###
@@ -573,7 +637,7 @@ def main():
     plt.legend(handles=handles,labels=labels,fontsize=6) #fontsize=12)
     
     
-    plt.savefig("w_host_histogram_fits.png")
+    plt.savefig(outdir+"w_host_histogram_fits.png")
     plt.close()
     
     #### for paper ####
@@ -595,6 +659,7 @@ def main():
         plt.plot(xs,ys*plotnorm,linestyle=":",color=plt.gca().lines[-1].get_color())
     plt.xscale("log")
     
+    plt.text(1e-3,12,"(b)",fontsize=18)
     plt.xlim(5e-3,1e2)
     plt.legend()
     plt.xlabel("$w_{\\rm host}$ [ms]")
@@ -602,7 +667,7 @@ def main():
     plt.legend(handles=handles,labels=labels,fontsize=12) #fontsize=12)
     
     plt.tight_layout()
-    plt.savefig("paper_w_host_histogram_fits.png")
+    plt.savefig(outdir+"paper_w_host_histogram_fits.png")
     plt.close()
     
     ############################################# WIDTH - bayes factor #######################################
@@ -616,7 +681,7 @@ def main():
     print("\n\n   Bayes Factor Calculation\n")
     for ifunc in np.arange(NFUNC):
         if True:
-            print("skipping log-likelihood test optimisation, remove this line to re-run")
+            print("skipping Bayes factor calculation for width, remove this line to re-run")
             #FUNCTION  0 , lognormal  has likelihood sum  4.287511548315901e-15  now compute Bayes factor!
             #FUNCTION  1 , half-lognormal  has likelihood sum  1.3919340351669428e-12  now compute Bayes factor!
             #FUNCTION  2 , boxcar  has likelihood sum  3.1091474793575766e-13  now compute Bayes factor!
@@ -665,7 +730,7 @@ def main():
     
     
 
-def plot_functions():
+def plot_functions(outdir=""):
     """
     Plots example functions for the paper
     """
@@ -719,7 +784,7 @@ def plot_functions():
     #plt.legend()
     plt.ylabel("f(t)")
     plt.tight_layout()
-    plt.savefig("example_functions.png")
+    plt.savefig(outdir+"example_functions.png")
     plt.close()
     
 def get_ll_stat(args,tau_obs,cspline,ifunc,plot=False, log_min=-5, log_max = 5, NTau=600):

@@ -11,11 +11,20 @@ from matplotlib import pyplot as plt
 
 # Here are different plotting functions
 
-def plot_walkers(samples,labels,outfile,burnin=None):
+def plot_walkers(samples,labels,outfile,burnin=None,legend=True,xlim=None):
     """
     Puts all walkers from all samples on one plot
     If you want different samples per plot, call this function
     multiple times
+    
+    
+    Args:
+        
+        outfile (string): name of outfile to print to
+        burnin (int): length of initial burnin to discard
+        legend (bool): Plot legend or not
+        xlim (None or [xmin,xmax] flots): apply x limit, to zoom in for
+                    visibility purposes
     """
     plt.rcParams['font.size'] = 16
     # get the number of parameters
@@ -30,9 +39,11 @@ def plot_walkers(samples,labels,outfile,burnin=None):
                     ax.plot(sample[burnin[j]:,k,i], '.-', label=str(k))
         
             ax.set_ylabel(labels[i])
-    
+            if xlim is not None:
+                ax.set_xlim(xlim[0],xlim[1])
         axes[-1].set_xlabel("Step number")
-        axes[-1].legend()
+        if legend:
+            axes[-1].legend()
     
     plt.tight_layout()
     plt.savefig(outfile)

@@ -13,9 +13,9 @@ export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
 
 ####### ACTUAL RUN #######
 version=$SLURM_ARRAY_TASK_ID
-pfile="MCMC_inputs/scat_w_sfr.json"
+pfile="MCMC_inputs/halflog_w_sfr.json"
 files="CRAFT_ICS_892 CRAFT_ICS_1300 CRAFT_ICS_1632"
-opfile="MCMC_outputs/mcmc_lognormal_sfr_v${version}"
+opfile="MCMC_outputs/mcmc_lognormal_hl_sfr_v${version}"
 Pn=False
 ptauw=True
 steps=2000

@@ -32,11 +32,11 @@
     "Slogmean": {
         "DC": "scat",
         "min": -3,
-        "max": 3
+        "max": 6
     },
     "Slogsigma": {
         "DC": "scat",
-        "min": 1,
+        "min": 0.1,
         "max": 8
     },
     "logF": {
