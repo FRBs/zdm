@@ -228,7 +228,7 @@ class IGMParams(data_class.myDataClass):
 @dataclass
 class WidthParams(data_class.myDataClass):
     WidthFunction: int = field(
-        default=1,
+        default=2,
         metadata={
             "help": "ID of function to describe width distribution. 0: log-constant, 1:log-normal, 2: half-lognormal",
             "unit": "",
@@ -236,7 +236,7 @@ class WidthParams(data_class.myDataClass):
         },
     )
     Wlogmean: float = field(
-        default=1.70267,
+        default=-0.29,
         metadata={
             "help": "$\log_{10}$ mean of intrinsic width distribution in ms",
             "unit": "ms",
@@ -244,7 +244,7 @@ class WidthParams(data_class.myDataClass):
         },
     )
     Wlogsigma: float = field(
-        default=0.899148,
+        default=0.65,
         metadata={
             "help": "$\log_{10}$ sigma of intrinsic width distribution in ms",
             "unit": "ms",
@@ -285,7 +285,7 @@ class WidthParams(data_class.myDataClass):
 @dataclass
 class ScatParams(data_class.myDataClass):
     ScatFunction: int = field(
-        default=1,
+        default=2,
         metadata={
             "help": "Which scattering function to use. 0: log-constant. 1: lognormal. 2: half log-normal",
             "unit": "",
@@ -293,7 +293,7 @@ class ScatParams(data_class.myDataClass):
         },
     )
     Slogmean: float = field(
-        default=0.7,
+        default=-1.3,
         metadata={
             "help": "Mean of log-scattering distribution at 600\,Mhz",
             "unit": "ms",
@@ -301,7 +301,7 @@ class ScatParams(data_class.myDataClass):
         },
     )
     Slogsigma: float = field(
-        default=1.9,
+        default=0.2,
         metadata={
             "help": " Standard deviation of log-scattering distribution at 600\,MHz ",
             "unit": "ms",

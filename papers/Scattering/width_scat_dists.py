@@ -66,10 +66,10 @@ def main():
     # best-fit results for half-log-normal distributions
     state_dict["width"]["WidthFunction"] = 2
     state_dict["scat"]["ScatFunction"] = 2
-    state_dict["width"]["Wlogmean"] = 1.3
-    state_dict["width"]["Wlogsigma"] = 1.3
-    state_dict["scat"]["Slogmean"] = 2
-    state_dict["scat"]["Slogsigma"] = 2.2
+    state_dict["width"]["Wlogmean"] = -0.29
+    state_dict["width"]["Wlogsigma"] = 0.65
+    state_dict["scat"]["Slogmean"] = -1.3
+    state_dict["scat"]["Slogsigma"] = 0.2
     
     
     surveys, grids = loading.surveys_and_grids(survey_names = names,\
