@@ -1,6 +1,9 @@
 """
-This script plots observed and fitted width and scattering distributions
+This script plots observed and fitted width and scattering distributions from the zdm code
 
+i.e. it lods in the CRAFT ICS surveys, models the width and scattering distributions
+that are best-fit from the scattering paper, then generates "Plots/differential.png"
+whcih compares the observed and modelled distributions.
 
 """
 
@@ -32,7 +35,7 @@ matplotlib.rc('font', **font)
 
 def main():
     """
-    
+    Main function
     """
     
     # in case you wish to switch to another output directory
@@ -59,6 +62,15 @@ def main():
     state_dict["width"] = {}
     state_dict["width"]["WNInternalBins"] = 1000 # sets it to a small quantity
     state_dict["width"]["WNbins"] = 33 # set to large number for this analysis
+    
+    # best-fit results for half-log-normal distributions
+    state_dict["width"]["WidthFunction"] = 2
+    state_dict["scat"]["ScatFunction"] = 2
+    state_dict["width"]["Wlogmean"] = 1.3
+    state_dict["width"]["Wlogsigma"] = 1.3
+    state_dict["scat"]["Slogmean"] = 2
+    state_dict["scat"]["Slogsigma"] = 2.2
+    
     
     surveys, grids = loading.surveys_and_grids(survey_names = names,\
                         repeaters=repeaters, sdir=sdir,nz=70,ndm=140,
@@ -149,7 +161,6 @@ def main():
         # normalise each survey to actual number of FRBs
         nfrb = len(s.OKTAU)
         
-        
         # these need to be normalised by the internal bin width
         logbinwidth = s.internal_logwvals[-1] - s.internal_logwvals[-2]
         
@@ -199,9 +210,12 @@ def main():
     #normalisation: p per log bin * Nfrb. 
     weights = np.full([len(wlist)],1./lbw)
     alpha=1.0
-    plt.hist(wlist,bins=bins,weights=weights,alpha=alpha,facecolor = l1.get_color(),edgecolor = l1.get_color(),linewidth=2,histtype='step')
-    plt.hist(tlist,bins=bins,weights=weights,alpha=alpha,facecolor = l2.get_color(),edgecolor = l2.get_color(),linewidth=2,histtype='step')
-    plt.hist(ilist,bins=bins,weights=weights,alpha=alpha,facecolor = l3.get_color(),edgecolor = l3.get_color(),linewidth=2,histtype='step')
+    plt.hist(wlist,bins=bins,weights=weights,alpha=alpha,facecolor = l1.get_color(),
+                edgecolor = l1.get_color(),linewidth=2,histtype='step', label="Observed total")
+    plt.hist(tlist,bins=bins,weights=weights,alpha=alpha,facecolor = l2.get_color(),
+                edgecolor = l2.get_color(),linewidth=2,histtype='step', label="Observed scattering")
+    plt.hist(ilist,bins=bins,weights=weights,alpha=alpha,facecolor = l3.get_color(),
+                edgecolor = l3.get_color(),linewidth=2,histtype='step', label="Observed intrinsic")
     
     
     plt.legend()

@@ -931,33 +931,7 @@ def make_cdf_plot(args,taus,cxvals,cyvals,outfile,cspline,plot=False,width=False
         cum_dist /= cum_dist[-1]
         
         plt.plot(xs,cum_dist,label=FNAMES[i],linestyle="--")
-        
-    #yvals1 = lognormal(xvals,A,*args1)
-    #yvals2 = halflognormal(xvals,A,*args2)
-    #yvals3=logconstant(xvals,A,*args3)
     
-    # modify the expected distribution by the completeness
-    #completeness = get_completeness(xvals,cxvals,cyvals)
-    #modyvals1 = yvals1*completeness
-    #modyvals2 = yvals2*completeness
-    #modyvals3 = yvals3*completeness
-    
-    # make a cdf
-    
-    #cum_dist1 = np.cumsum(modyvals1)
-    #cum_dist1 /= cum_dist1[-1]
-    
-    #cum_dist2 = np.cumsum(modyvals2)
-    #cum_dist2 /= cum_dist2[-1]
-    
-    #cum_dist3 = np.cumsum(modyvals3)
-    #cum_dist3 /= cum_dist3[-1]
-    
-    
-    #plt.plot(xvals,cum_dist1,label="Lognormal fit",linestyle="--")
-    #plt.plot(xvals,cum_dist2,label="Half-lognormal fit",linestyle=":")
-    #plt.plot(xvals,cum_dist3,label="Log-uniform fit",linestyle="-.")
-        
     # makes a function of completeness
     xvals,yvals = make_completeness_plot(taus,reverse=False)
     plt.plot(xvals,yvals,label="Observed",color="black")
@@ -1154,10 +1128,18 @@ def find_max_w(tauobs,wtot,snrobs,fbar,DMobs,tres,nu_res = 1.,\
     return maxw
     
 def get_data():
+    """
+    Loads relevant data for this analysis
+    
+    Returns list of FRBs with both HTR data and redshift,
+    giving following info:
+        tns,tauobs,w95,wsnr,z,snr,freq,DM,tres
+    
+    """
     # extract relevant data.
     # this is the error code
     
-    
+    # loads time resolutions
     tresinfo = np.loadtxt("treslist.dat",dtype="str")
     names=tresinfo[:,0]
     
@@ -1217,6 +1199,14 @@ def get_data():
 def getOK(arrays,ERR=9999.):
     """
     Find indices where all arrays have good values
+    Returns indices where every array has a valid value
+    
+    Args:
+        arrays: some list of vectors
+        ERR is the error code
+    
+    Retusn:
+        OK: list of indices
     """
     OK = np.where(arrays[0] != ERR)
     for array in arrays[1:]:
@@ -1251,45 +1241,5 @@ def make_cum_dist(vals):
     xs[-1] = themax
     ys[-1] = 1
     return xs,ys
-    
-def read_chime_scat(infile = "chime_scat.dat"):
-    """
-    gets chime scat err data
-    """
-    scats=[]
-    errs=[]
-    with open(infile) as file:
-        for line in file:
-            fields = line.split()
-            scatstring = fields[1].replace(" ", "")
-            if scatstring[0] == "<":
-                scat = float(scatstring[1:])/2.
-                err = scat
-            elif scatstring[0] == "~":
-                scat = float(scatstring[1:])
-                err = float(fields[2].replace(" ", ""))
-            else:
-                scat = float(scatstring)
-                err = float(fields[2].replace(" ", ""))
-            scats.append(scat)
-            errs.append(err)
-    scats = np.array(scats)
-    errs = np.array(errs)
-    return scats,errs
-            
-def cutz(DM,DMG,z,scat,err):
-    """
-    cuts on z>0
-    """
-    
-    
-    OK = np.where(z>0.)[0]
-    DM = DM[OK]
-    DMG = DMG[OK]
-    z = z[OK]
-    scat = scat[OK]
-    err = err[OK]
-    return DM,DMG,z,scat,err
-
 
 main()
