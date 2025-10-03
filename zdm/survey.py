@@ -170,6 +170,7 @@ class Survey:
             #wbins[0] = wbins[1]-dlogw # no longer tint: 1.e-10 # set to a tiny value, to ensure we capture all small widths
             # offsets the mean by half the log-spacing for each
             wlist = np.logspace(np.log10(self.WMin)+dlogw/2.,np.log10(self.WMax)-dlogw/2.,self.NWbins)
+            wbins[0] -= 3 # ensures we capture low values!
         else:
             wbins[0] = np.log10(self.WMin)
             wbins[1] = np.log10(self.WMax)
@@ -183,7 +184,7 @@ class Survey:
         #minval = np.min([self.wlogmean - self.maxsigma*self.wlogsigma,
         #                self.slogmean - self.maxsigma*self.slogsigma,
         #                np.log10(self.WMin)])
-        minval = np.log10(self.WMin)
+        minval = np.log10(self.WMin)-3
         maxval = np.log10(self.WMax)
         # I haven't decided yet where to put the value of 1000 internal bins
         # in terms of parameters.
@@ -285,9 +286,15 @@ class Survey:
             wlogsigma = self.wlogsigma
             slogmean = self.slogmean - 3.*np.log10(1+z)
             slogsigma = self.slogsigma
+            # we need these for normalisation purposes. Otherwise, the
+            # scattering distribution gets diluted with a constant max value
+            # these are only used for normalisation purposes of otherwise
+            # unnormalisable functions.
+            smax = np.log10(self.WMax) - 3.*np.log10(1+z)
+            wmax = np.log10(self.WMax) + np.log10(1+z)
             
-            WidthArgs = (wlogmean,wlogsigma)
-            ScatArgs = (slogmean,slogsigma)
+            WidthArgs = (wlogmean,wlogsigma,wmax)
+            ScatArgs = (slogmean,slogsigma,smax)
             
             if self.backproject:
                 dist,pw,ptau = quadrature_convolution(self.WidthFunction, WidthArgs, self.ScatFunction, ScatArgs,
@@ -295,6 +302,7 @@ class Survey:
             else:
                 dist = quadrature_convolution(self.WidthFunction, WidthArgs, self.ScatFunction, ScatArgs,
                         self.internal_logwvals, self.wbins,backproject=self.backproject)
+            
             
             if iz is not None:
                 self.wplist[:,iz] = dist
@@ -1346,15 +1354,15 @@ def quadrature_convolution(width_function, width_args, scat_function, scat_args,
     
     '''
     
-    #draw from both distributions
-    np.random.seed(1234)
-    
     # these need to be normalised by the internal bin width
     logbinwidth = internal_logvals[-1] - internal_logvals[-2]
     
+    # these functions should *not* be normalsid, since some true distribution
+    # may extend beyond the range of interest. But it means that the below functions
+    # absolutely should be correctly normalised
+    
     pw = width_function(internal_logvals, *width_args)*logbinwidth
     ptau = scat_function(internal_logvals, *scat_args)*logbinwidth
-    
     
     # adds extra bits onto the lowest bin. Does this by integrating in
     # log space. Assumes exp(-10) is small enough!
@@ -1467,9 +1475,10 @@ def lognormal(log10w, *args):
     logsigma = args[1]
     norm = (2.*np.pi)**-0.5/logsigma
     result = norm * np.exp(-0.5 * ((log10w - logmean) / logsigma) ** 2)
+    
     return result
     
-def halflognormal(log10w, *args,logmax=3):#logmean,logsigma,minw,maxw,nbins):
+def halflognormal(log10w, *args):#logmean,logsigma,minw,maxw,nbins):
     """
     Generates a parameterised half-lognormal distribution.
     This acts as a lognormal in the lower half, but
@@ -1483,13 +1492,14 @@ def halflognormal(log10w, *args,logmax=3):#logmean,logsigma,minw,maxw,nbins):
     
     Args:
         log10w: log base 10 of widths
-        args: vector of [logmean,logsigma] mean and std dev
+        args: vector of [logmean,logsigma] mean and std dev and max value
     
     Returns:
         result: p(log10w) d log10w
     """
     logmean = args[0]
     logsigma = args[1]
+    logmax = args[2]
     norm = (2.*np.pi)**-0.5/logsigma #Currently no normalisation
     if hasattr(log10w,"__len__"):
         large = np.where(log10w > logmean)[0]
@@ -1504,34 +1514,40 @@ def halflognormal(log10w, *args,logmax=3):#logmean,logsigma,minw,maxw,nbins):
     
     result = lognormal(modlogw,logmean,logsigma)
     
-    if logmax is not None:
-        # normalises the distribution. We note that the lower half
-        # is correctly normalised to 0.5 via the lognormal function
-        # the upper half spans the range [logmax-logmean] at amplitude
-        # norm. Hence, the total integral is
-        # 0.5 + [logmax-logmean]*norm
-        result /= (0.5 + (logmax-logmean)*norm)
+    # normalises the distribution. We note that the lower half
+    # is correctly normalised to 0.5 via the lognormal function
+    # the upper half spans the range [logmax-logmean] at amplitude
+    # norm. Hence, the total integral is
+    # 0.5 + [logmax-logmean]*norm
+    result /= (0.5 + (logmax-logmean)*norm)
     
     return result
 
 def constant(log10w,*args):
     """
-    Dummy function that returns a constant of unity.
+    Dummy function that returns a constant of unity, down
+    to a certain minimum, below which it is zero.
     NOTE: to include 1+z scaling here, one will need to
     reduce the minimum width argument with z. Feature
     to be added. Maybe have args also contain min and max values?
     
     Args:
         log10w: log base 10 of widths
-        args: vector of [logmean,logsigma] mean and std dev
+        args: vector of [logmean,logsigma] mean and std dev and max width
     
     Returns:
         result: p(logw) d logw
     """
+    
+    width = args[2] - args[0]
     if hasattr(log10w,"__len__"):
-        nvals = log10w.size
-        result = np.full([nvals],1.)
+        good = np.where(log10w > args[0])[0]
+        result = np.zeros([log10w.size])
+        result[good] = 1./width
     else:
-        result = np.array([1])
+        if log10w < args[0]:
+            result = np.array([0])
+        else:
+            result = np.array([1./width])
     return result
         

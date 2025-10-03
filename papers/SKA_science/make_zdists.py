@@ -115,7 +115,6 @@ def generate_sensitivity_plot(infile,state,zDMgrid, zvals, dmvals, label, freq, 
     thresh_Jyms = np.load(opfile6)
     
     # finds the best
-    survey_name='SKA_mid'
     ibest = np.argmax(oldNs)
     survey_dict = {"THRESH": thresh_Jyms[ibest], "TOBS": TOBS[ibest], "FBAR": freq, "BW": bw}
     

@@ -52,9 +52,17 @@ matplotlib.rc('font', **font)
 
 # number of functions implemented, function names, and initial guesses
 NFUNC=7
-FNAMES=["lognormal","half-lognormal","boxcar","log constant","smooth boxcar", "upper sb", "lower sb","hln"]
-ARGS0=[[0.,1.],[0.,1.],[-2,2],[-2],[-1.,1,1.],[-2.,2,1.],[-2.,2,1.],[0.,1.]]
+FNAMES=["lognormal","half-lognormal","boxcar","log-constant","smooth boxcar", "upper sb", "lower sb","hln"]
+ARGS0=[[0.,1.],[0.,1.],[-2,2],[-2],[-2.,2,1.],[-2.,2,1.],[-2.,2,1.],[0.,1.]]
 WARGS0=[[0.,1.],[0.,1.],[-3.5,2],[-3.5],[-1.,1,1.],[-3.5,2,1.],[-3.5,2,1.],[0.,1.]]
+
+latextau = ["\\mu_\\tau, \\sigma_\\tau  ", "\\mu_\\tau, \\sigma_\\tau  ", "\\tau_{\\rm min},\\tau_{\\rm max}  ",
+            "\\tau_{\\rm min}  ","\\tau_{\\rm min},\\tau_{\\rm max},\sigma_\\tau  ",
+            "\\tau_{\\rm min},\\tau_{\\rm max},\sigma_\\tau  ","\\tau_{\\rm min},\\tau_{\\rm max},\sigma_\\tau  "]
+
+latexw  = ["\\mu_w, \\sigma_w  ", "\\mu_w, \\sigma_w  ", "w_{\\rm min},w_{\\rm max}  ",
+            "w_{\\rm min}  ","w_{\\rm min},w_{\\rm max},\sigma_w  ",
+            "w_{\\rm min},w_{\\rm max},\sigma_w  ","w_{\\rm min},w_{\\rm max},\sigma_w  "]
 
 # set up min/max ranges of integrations for Bayes factors
 min_sigma = 0.3
@@ -160,6 +168,28 @@ def main(outdir="Fitting_Outputs/"):
     
     
     
+    
+    
+    
+    
+    # generates a table
+    print("Table of FRB properties for latex")
+    for i,name in enumerate(tns):
+        string=name
+        # detection properties
+        string += " & " + str(int(DM[i]+0.5)) + " & " + str(z[i])[0:6]  + " & " + str(snr[i])[0:4]
+        string += " & " + str(freq[i])[0:6] + " & " + str(tres[i])[0:6] + " & " + str(w95[i])[0:4]
+        
+        # scattering
+        string +=  " & " + str(tauobs[i])[0:4] + " & " + str(maxtaus[i])[0:4] + " & " + str(host_tau[i])[0:4] + " & " + str(host_maxtaus[i])[0:4]
+        
+        # width
+        string += " & " + str(wobs[i])[0:4] + " & " + str(maxws[i])[0:4] + " & " + str(host_w[i])[0:4] + " & " + str(host_maxw[i])[0:4]
+        
+        # newline
+        string += " \\\\"
+        print(string)
+    print("\n\n\n\n")
     Nbins=11
     bins = np.logspace(-3.,2.,Nbins)
     
@@ -237,8 +267,10 @@ def main(outdir="Fitting_Outputs/"):
     plt.tight_layout()
     plt.savefig(outdir+"tau_host_histogram.png")
     
-    #### creates a copy of the above, for paper purposes
+    #### creates a copy of the above, for paper purposes. Does this three times! Once
+    # for "everything", once for intrinsic, once for observed
     
+    # "everything" figures #
     plt.figure()
     #obshist,bins = np.histogram(tauobs,bins=bins)
     #hosthist,bins = np.histogram(host_tau,bins=bins)
@@ -268,6 +300,49 @@ def main(outdir="Fitting_Outputs/"):
     # keeps open for later plotting - don't close this here
     
     
+    # "observed" figures #
+    plt.figure()
+    #obshist,bins = np.histogram(tauobs,bins=bins)
+    #hosthist,bins = np.histogram(host_tau,bins=bins)
+    ax1v3=plt.gca()
+    plt.xscale("log")
+    plt.ylim(0,8)
+    l1v3 = plt.hist(host_tau,bins=bins,label="Observed",alpha=0.5)
+    
+    ax2v3 = ax1v3.twinx()
+    l3v3 = ax2v3.plot(xvals,yvals,label="Completeness")
+    
+    plt.ylim(0,1)
+    plt.xlim(1e-2)
+    plt.ylabel("Completeness")
+    plt.sca(ax1)
+    plt.xlabel("$\\tau_{\\rm host, 1\,GHz}$ [ms]")
+    plt.ylabel("Number of FRBs")
+    # keeps open for later plotting - don't close this here
+    
+    # "intrinsic" figures #
+    plt.figure()
+    #obshist,bins = np.histogram(tauobs,bins=bins)
+    #hosthist,bins = np.histogram(host_tau,bins=bins)
+    ax1v4=plt.gca()
+    plt.xscale("log")
+    plt.ylim(0,8)
+    l2v4 = plt.hist(host_tau,bins=bins,weights = 1./tau_comp,label="Corrected",alpha=0.5)
+    
+    
+    ax2v4 = ax1v4.twinx()
+    l3v4 = ax2v4.plot(xvals,yvals,label="Completeness")
+    
+    plt.ylim(0,1)
+    plt.xlim(1e-2)
+    plt.ylabel("Completeness")
+    plt.sca(ax1)
+    plt.xlabel("$\\tau_{\\rm host, 1\,GHz}$ [ms]")
+    plt.ylabel("Intrinsic number of FRBs")
+    # keeps open for later plotting - don't close this here
+    
+    
+    
     ####################################### TAU - CDF and fitting ################################
     print("\n\n   KS test evaluation for tau \n")
     # amplitude, mean, and std dev of true distribution
@@ -278,12 +353,13 @@ def main(outdir="Fitting_Outputs/"):
         args = (host_tau,xvals,yvals,ifunc)
         x0=ARGS0[ifunc]
         
-        result = sp.optimize.minimize(get_ks_stat,x0=x0,args=args,method = 'Nelder-Mead')
+        result = sp.optimize.minimize(get_ks_stat,x0=x0,args=args)#,method = 'Nelder-Mead')
+        
         psub1 = get_ks_stat(result.x,*args,plot=False)
         ksbest.append(result.x)
         #Best-fitting parameters are  [0.85909445 1.45509687]  with p-value  0.9202915513749959
         print("FUNCTION ",ifunc,",",FNAMES[ifunc]," Best-fitting parameters are ",result.x," with p-value ",1.-result.fun)
-    
+        
     
     xtemp = xvals[::2]
     ytemp = yvals[::2]
@@ -316,6 +392,7 @@ def main(outdir="Fitting_Outputs/"):
     ############################################### TAU - likelihood analysis #################################################
     print("\n\n   Max Likelihood Calculation for tau\n")
     xbest=[]
+    llbests = []
     for ifunc in np.arange(NFUNC):
         args = (host_tau,cspline,ifunc)
         x0=ARGS0[ifunc]
@@ -325,14 +402,24 @@ def main(outdir="Fitting_Outputs/"):
         xbest.append(result.x)
         # llbest returns negative ll
         llbest = get_ll_stat(result.x,host_tau,cspline,ifunc) * -1
+        llbests.append(llbest)
         
-        
-        print("FUNCTION ",ifunc,",",FNAMES[ifunc]," Best-fitting log-likelihood parameters are ",result.x," with p-value ",1.-result.fun)
+        print("FUNCTION ",ifunc,",",FNAMES[ifunc]," Best-fitting log-likelihood parameters are ",result.x," with likelihood ",-result.fun)
         print("          , BIC is ",2*np.log(host_tau.size) - len(x0)*llbest)
         if ifunc == 0:
             llCHIME = get_ll_stat([CHIME_mut,CHIME_st],host_tau,cspline,ifunc) * -1
             print("Compare with CHIME ",llCHIME)
     
+    print("\n\nLATEX TABLE")
+    for ifunc in np.arange(NFUNC):
+        string = FNAMES[ifunc] + " & $" + latextau[ifunc] + f"$ & ${xbest[ifunc][0]:.2f}"
+        for iarg, arg in enumerate(xbest[ifunc]):
+            if iarg==0:
+                continue
+            string += f", {xbest[ifunc][iarg]:.2f}"
+        string += f" $ & {llbests[ifunc]:.2f}  \\\\"
+        print(string)
+    print("\n\n\n\n")
     
     make_cdf_plot(xbest,host_tau,xvals,yvals,outdir+"bestfit_ll_scat_cumulative.png",cspline)
     
@@ -362,8 +449,9 @@ def main(outdir="Fitting_Outputs/"):
     plt.savefig(outdir+"tau_host_histogram_fits.png")
     plt.close()
     
-    ######## plot for paper ########
+    ######## plots for paper ########
     
+    #"everything"
     plt.sca(ax1v2)
     NFRB=host_tau.size
     handles=[l1v2[2],l3v2[0],l2v2[2]]
@@ -390,6 +478,59 @@ def main(outdir="Fitting_Outputs/"):
     plt.savefig(outdir+"paper_tau_host_histogram_fits.png")
     plt.close()
     
+    #"observed"
+    plt.sca(ax1v3)
+    NFRB=host_tau.size
+    handles=[l1v3[2],l3v3[0]]
+    labels=["Observed","Completeness"]
+    for i in [0,2,3]:
+        print("plotting function ",i," with xbest ",xbest[i])
+        xs,ys = function_wrapper(i,xbest[i],logxmax=2)#cspline=None):
+        plotnorm = NFRB * (np.log10(bins[1])-np.log10(bins[0]))
+        #l=plt.plot(xs,ys*plotnorm,label=FNAMES[i])
+        
+        xs,ys = function_wrapper(i,xbest[i],cspline=cspline)
+        l=plt.plot(xs,ys*plotnorm,label=FNAMES[i])
+        handles.append(l[0])
+        labels.append(FNAMES[i])
+    
+    plt.xscale("log")
+    plt.xlim(1e-2,1e3)
+    
+    plt.text(1e-3,8,"(a)",fontsize=18)
+    plt.legend()
+    plt.xlabel("$\\tau_{\\rm host, 1\,GHz}$ [ms]")
+    plt.ylabel("Observed number of FRBs")
+    plt.legend(handles=handles,labels=labels,fontsize=10) #fontsize=12)
+    
+    plt.tight_layout()
+    plt.savefig(outdir+"observed_paper_tau_host_histogram_fits.png")
+    plt.close()
+    
+    # "intrinsic"
+    plt.sca(ax1v4)
+    NFRB=host_tau.size
+    handles=[l2v4[2],l3v4[0]]
+    labels=["Adjusted","Completeness"]
+    for i in [0,2,3]:
+        print("plotting function ",i," with xbest ",xbest[i])
+        xs,ys = function_wrapper(i,xbest[i],logxmax=2)#cspline=None):
+        plotnorm = NFRB * (np.log10(bins[1])-np.log10(bins[0]))
+        l=plt.plot(xs,ys*plotnorm,label=FNAMES[i])
+        handles.append(l[0])
+        labels.append(FNAMES[i])
+    plt.xscale("log")
+    plt.xlim(1e-2,1e3)
+    
+    plt.text(1e-3,8,"(b)",fontsize=18)
+    plt.legend()
+    plt.xlabel("$\\tau_{\\rm host, 1\,GHz}$ [ms]")
+    plt.ylabel("Intrinsic number of FRBs")
+    plt.legend(handles=handles,labels=labels,fontsize=10) #fontsize=12)
+    
+    plt.tight_layout()
+    plt.savefig(outdir+"intrinsic_paper_tau_host_histogram_fits.png")
+    plt.close()
     
     ############################################# TAU - bayes factor #######################################
     # priors
@@ -513,7 +654,7 @@ def main(outdir="Fitting_Outputs/"):
     plt.ylabel("Completeness")
     plt.sca(ax1)
     plt.legend(handles=[l1[2],l3[0],l2[2]],labels=["Observed","Completeness","Corrected"],fontsize=12)
-    plt.xlabel("$w_{\\rm host}$ [ms]")
+    plt.xlabel("$w_{i,\\rm host}$ [ms]")
     plt.ylabel("Number of FRBs")
     plt.tight_layout()
     plt.savefig(outdir+"w_host_histogram.png")
@@ -522,6 +663,7 @@ def main(outdir="Fitting_Outputs/"):
     
     #### new plot, for paper - just a copy of the above ####
     
+    #"everything"
     plt.figure()
     plt.xscale("log")
     plt.ylim(0,8)
@@ -540,13 +682,51 @@ def main(outdir="Fitting_Outputs/"):
     l3v2 = ax2v2.plot(wxvals,wyvals,label="Completeness")#,color=use_this_color)
     
     plt.ylim(0,1)
-    plt.xlim(1e-3,1e3)
     plt.ylabel("Completeness")
     plt.sca(ax1v2)
     plt.legend(handles=[l1v2[2],l3v2[0],l2v2[2]],labels=["Observed","Completeness","Corrected"],fontsize=12)
-    plt.xlabel("$w_{\\rm host}$ [ms]")
+    plt.xlabel("$w_{i,\\rm host}$ [ms]")
     plt.ylabel("Number of FRBs")
     
+    
+    # "observed" figures #
+    plt.figure()
+    #obshist,bins = np.histogram(tauobs,bins=bins)
+    #hosthist,bins = np.histogram(host_tau,bins=bins)
+    ax1v3=plt.gca()
+    plt.xscale("log")
+    plt.ylim(0,11)
+    l1v3 = plt.hist(host_w,bins=bins,label="Observed",alpha=0.5)
+    
+    ax2v3 = ax1v3.twinx()
+    l3v3 = ax2v3.plot(wxvals,wyvals,label="Completeness")
+    
+    plt.ylim(0,1)
+    plt.ylabel("Completeness")
+    plt.sca(ax1)
+    plt.xlabel("$w_{i,\\rm host}$ [ms]")
+    plt.ylabel("Number of FRBs")
+    # keeps open for later plotting - don't close this here
+    
+    # "intrinsic" figures #
+    plt.figure()
+    #obshist,bins = np.histogram(tauobs,bins=bins)
+    #hosthist,bins = np.histogram(host_tau,bins=bins)
+    ax1v4=plt.gca()
+    plt.xscale("log")
+    plt.ylim(0,11)
+    l2v4 = plt.hist(host_w,bins=bins,weights = 1./w_comp,label="Corrected",alpha=0.5)
+    
+    
+    ax2v4 = ax1v4.twinx()
+    l3v4 = ax2v4.plot(wxvals,wyvals,label="Completeness")
+    
+    plt.ylim(0,1)
+    plt.ylabel("Completeness")
+    plt.sca(ax1)
+    plt.xlabel("$w_{\\rm host}$ [ms]")
+    plt.ylabel("Intrinsic number of FRBs")
+    # keeps open for later plotting - don't close this here
     
     ####################### W - likelihood maximisation #################
     
@@ -563,8 +743,9 @@ def main(outdir="Fitting_Outputs/"):
         result = sp.optimize.minimize(get_ks_stat,x0=x0,args=args,method = 'Nelder-Mead')
         psub1 = get_ks_stat(result.x,*args,plot=False)
         ksbest.append(result.x)
-        print("FUNCTION ",ifunc,",",FNAMES[ifunc]," Best-fitting parameters are ",result.x," with p-value ",1.-result.fun)
-    
+        print("FUNCTION ",ifunc,",",FNAMES[ifunc]," Best-fitting parameters are ",result.x," with p-value ",-result.fun)
+        
+        
     
     print("\n\n   Maximum likelihood for width \n")
     ### makes temporary values for completeness
@@ -582,6 +763,7 @@ def main(outdir="Fitting_Outputs/"):
     xt[-1] = 1e5
     yt[-1] = 0.
     cspline = sp.interpolate.make_interp_spline(np.log10(xt), yt,k=1)
+    
     # do a test plot of the spline?
     if True:
         plt.figure()
@@ -598,19 +780,35 @@ def main(outdir="Fitting_Outputs/"):
     # amplitude, mean, and std dev of true distribution
       
     xbest=[]
-    
+    llbests = []
     # iterate over functions to calculate max likelihood
     for ifunc in np.arange(NFUNC):
         
         args = (host_w,cspline,ifunc)
         x0=WARGS0[ifunc]
         result = sp.optimize.minimize(get_ll_stat,x0=x0,args=args,method = 'Nelder-Mead')
+        llbest = get_ll_stat(result.x,host_w,cspline,ifunc) * -1
+        llbests.append(llbest)
         #psub1 = get_ks_stat(result.x,*args,plot=True)
         xbest.append(result.x)
         print("width FUNCTION ",ifunc,",",FNAMES[ifunc]," Best-fitting log-likelihood parameters are ",result.x," with p-value ",1.-result.fun)
         if ifunc == 0:
             llCHIME = get_ll_stat([CHIME_muw,CHIME_sw],host_tau,cspline,ifunc) * -1
             print("Compare with CHIME ",llCHIME)
+    
+    
+    print("\n\nLATEX TABLE")
+    for ifunc in np.arange(NFUNC):
+        string = FNAMES[ifunc] + " & $" + latexw[ifunc] + f"$ & ${xbest[ifunc][0]:.2f}"
+        for iarg, arg in enumerate(xbest[ifunc]):
+            if iarg==0:
+                continue
+            string += f", {xbest[ifunc][iarg]:.2f}"
+        string += f" $ & {llbests[ifunc]:.2f}  \\\\"
+        print(string)
+    print("\n\n\n\n")
+    
+    
     
     make_cdf_plot(xbest,host_w,wxvals,wyvals,outdir+"bestfit_ll_width_cumulative.png",cspline,width=True)
     
@@ -635,8 +833,6 @@ def main(outdir="Fitting_Outputs/"):
     plt.legend()
     
     plt.legend(handles=handles,labels=labels,fontsize=6) #fontsize=12)
-    
-    
     plt.savefig(outdir+"w_host_histogram_fits.png")
     plt.close()
     
@@ -669,6 +865,62 @@ def main(outdir="Fitting_Outputs/"):
     plt.tight_layout()
     plt.savefig(outdir+"paper_w_host_histogram_fits.png")
     plt.close()
+    
+    
+    #"observed"
+    plt.sca(ax1v3)
+    NFRB=host_tau.size
+    handles=[l1v3[2],l3v3[0]]
+    labels=["Observed","Completeness"]
+    for i in [0,1,3]:
+        print("plotting function ",i," with xbest ",xbest[i])
+        xs,ys = function_wrapper(i,xbest[i],logxmax=2)#cspline=None):
+        plotnorm = NFRB * (np.log10(bins[1])-np.log10(bins[0]))
+        #l=plt.plot(xs,ys*plotnorm,label=FNAMES[i])
+        
+        xs,ys = function_wrapper(i,xbest[i],cspline=cspline)
+        l=plt.plot(xs,ys*plotnorm,label=FNAMES[i])
+        handles.append(l[0])
+        labels.append(FNAMES[i])
+    
+    plt.xscale("log")
+    plt.xlim(5e-3,1e2)
+    
+    plt.text(1e-3,10.5,"(a)",fontsize=18)
+    plt.legend()
+    plt.xlabel("$w_{\\rm host}$ [ms]")
+    plt.ylabel("Observed number of FRBs")
+    plt.legend(handles=handles,labels=labels,fontsize=10) #fontsize=12)
+    
+    plt.tight_layout()
+    plt.savefig(outdir+"observed_paper_width_host_histogram_fits.png")
+    plt.close()
+    
+    # "intrinsic"
+    plt.sca(ax1v4)
+    NFRB=host_tau.size
+    handles=[l2v4[2],l3v4[0]]
+    labels=["Adjusted","Completeness"]
+    for i in [0,1,3]:
+        print("plotting function ",i," with xbest ",xbest[i])
+        xs,ys = function_wrapper(i,xbest[i],logxmax=2)#cspline=None):
+        plotnorm = NFRB * (np.log10(bins[1])-np.log10(bins[0]))
+        l=plt.plot(xs,ys*plotnorm,label=FNAMES[i])
+        handles.append(l[0])
+        labels.append(FNAMES[i])
+    plt.xscale("log")
+    plt.xlim(5e-3,1e2)
+    
+    plt.text(1e-3,10.5,"(b)",fontsize=18)
+    plt.legend()
+    plt.xlabel("$w_{\\rm host}$ [ms]")
+    plt.ylabel("Intrinsic number of FRBs")
+    plt.legend(handles=handles,labels=labels,fontsize=10) #fontsize=12)
+    
+    plt.tight_layout()
+    plt.savefig(outdir+"intrinsic_paper_width_host_histogram_fits.png")
+    plt.close()
+    
     
     ############################################# WIDTH - bayes factor #######################################
     # priors
@@ -814,7 +1066,7 @@ def get_ll_stat(args,tau_obs,cspline,ifunc,plot=False, log_min=-5, log_max = 5, 
     A=1.
     
     ftaus = function_wrapper(ifunc,args,taus,cspline=cspline)
-    ptaus = function_wrapper(ifunc,args,tau_obs,cspline=cspline)
+    ptaus = function_wrapper(ifunc,args,tau_obs,cspline=cspline) #normalisation should happen here
     
     # checks normalisation in log-space
     #modified = ctaus*ftaus
