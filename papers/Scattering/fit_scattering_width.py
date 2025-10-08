@@ -430,6 +430,7 @@ def main(outdir="Fitting_Outputs/"):
     NFRB=host_tau.size
     handles=[l1[2],l3[0],l2[2]]
     labels=["Observed","Completeness","Corrected$"]
+    styles=["-.","--","--",":"]
     for i in np.arange(NFUNC):
         print("plotting function ",i," with xbest ",xbest[i])
         xs,ys = function_wrapper(i,xbest[i])#cspline=None):
@@ -490,7 +491,7 @@ def main(outdir="Fitting_Outputs/"):
         #l=plt.plot(xs,ys*plotnorm,label=FNAMES[i])
         
         xs,ys = function_wrapper(i,xbest[i],cspline=cspline)
-        l=plt.plot(xs,ys*plotnorm,label=FNAMES[i])
+        l=plt.plot(xs,ys*plotnorm,label=FNAMES[i],linestyle=styles[i])
         handles.append(l[0])
         labels.append(FNAMES[i])
     
@@ -516,7 +517,7 @@ def main(outdir="Fitting_Outputs/"):
         print("plotting function ",i," with xbest ",xbest[i])
         xs,ys = function_wrapper(i,xbest[i],logxmax=2)#cspline=None):
         plotnorm = NFRB * (np.log10(bins[1])-np.log10(bins[0]))
-        l=plt.plot(xs,ys*plotnorm,label=FNAMES[i])
+        l=plt.plot(xs,ys*plotnorm,label=FNAMES[i],linestyle=styles[i])
         handles.append(l[0])
         labels.append(FNAMES[i])
     plt.xscale("log")
@@ -879,7 +880,7 @@ def main(outdir="Fitting_Outputs/"):
         #l=plt.plot(xs,ys*plotnorm,label=FNAMES[i])
         
         xs,ys = function_wrapper(i,xbest[i],cspline=cspline)
-        l=plt.plot(xs,ys*plotnorm,label=FNAMES[i])
+        l=plt.plot(xs,ys*plotnorm,label=FNAMES[i],linestyle=styles[i])
         handles.append(l[0])
         labels.append(FNAMES[i])
     
@@ -901,11 +902,12 @@ def main(outdir="Fitting_Outputs/"):
     NFRB=host_tau.size
     handles=[l2v4[2],l3v4[0]]
     labels=["Adjusted","Completeness"]
+    
     for i in [0,1,3]:
         print("plotting function ",i," with xbest ",xbest[i])
         xs,ys = function_wrapper(i,xbest[i],logxmax=2)#cspline=None):
         plotnorm = NFRB * (np.log10(bins[1])-np.log10(bins[0]))
-        l=plt.plot(xs,ys*plotnorm,label=FNAMES[i])
+        l=plt.plot(xs,ys*plotnorm,label=FNAMES[i],linestyle=styles[i])
         handles.append(l[0])
         labels.append(FNAMES[i])
     plt.xscale("log")
