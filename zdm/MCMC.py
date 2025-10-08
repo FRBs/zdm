@@ -13,7 +13,7 @@ Purpose:
 import numpy as np
 
 import zdm.iteration as it
-from pkg_resources import resource_filename
+import importlib.resources as resources
 
 import emcee
 import scipy.stats as st
@@ -125,9 +125,10 @@ def calc_log_posterior(param_vals, state, params, surveys_sep, Pn=False, pNreps=
             
             # gets new zDM grid if F and H0 in the param_dict
             if 'H0' in param_dict or 'logF' in param_dict or g0info is None:
+                datdir = resources.files('zdm').joinpath('GridData')
                 zDMgrid, zvals,dmvals = mf.get_zdm_grid(
                     state, new=True, plot=False, method='analytic',
-                    datdir=resource_filename('zdm', 'GridData'))
+                    datdir=datdir)
                 g0info = [zDMgrid, zvals,dmvals]
             
             if len(surveys_sep[0]) != 0:

@@ -23,4 +23,4 @@
 #     \  \"DIAM\": 40,\n \"BMETHOD\": 0,\n \"NBEAMS\": 1,\n \"NBINS\": 10\n }\n}"}
 # schema: astropy-2.0
 TNS BW DM DMG  FBAR FRES Gb Gl NREP SNR SNRTHRESH THRESH TRES WIDTH XDec XRA Z
-0  120 200 35.0 1284  0.0145  "" "" 1 10. 10.       0.2  0.069   1.0   ""   ""  0.276
+DUMMY  120 200 35.0 1284  0.0145  "" "" 1 10. 10.       0.2  0.069   1.0   ""   ""  0.276

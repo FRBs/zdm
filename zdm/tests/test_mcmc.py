@@ -2,7 +2,7 @@
 This is a function to test if emcee is running on your computer
 
 It defines a simple probability (log_prob) and 
-submits this a a pooled job over your cpus.
+submits this as a pooled job over your cpus.
 
 Original test code taken from
 https://emcee.readthedocs.io/en/stable/tutorials/parallel/
