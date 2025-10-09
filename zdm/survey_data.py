@@ -146,8 +146,8 @@ class Telescope(data_class.myDataClass):
                   'Notation': '',
                   })
     NBINS: int = field(
-        default=0, 
-        metadata={'help': "Number of bins for width analysis", 
+        default=5, 
+        metadata={'help': "Number of bins for beam analysis", 
                   'unit': '', 
                   'Notation': '',
                   })
@@ -164,8 +164,8 @@ class Telescope(data_class.myDataClass):
                   'Notation': '',
                   })
     WBIAS: str = field(
-        default="Quadrature", 
-        metadata={'help': "Method to calculate width bias", 
+        default="StdDev", 
+        metadata={'help': "Method to calculate width bias. Quadrature, Sammons, or StdDev", 
                   'unit': '', 
                   'Notation': '',
                   })

@@ -178,6 +178,7 @@ def load_CHIME(Nbin:int=6, make_plots:bool=False, opdir='CHIME/',\
 def surveys_and_grids(init_state=None, alpha_method=1, 
                       survey_names=None,
                       nz:int=500, ndm:int=1400,
+                      zmax=5, dmmax=7000,
                       NFRB=None, repeaters=False,
                       sdir=None, edir=None,
                       rand_DMG=False, discard_empty=False,
@@ -199,6 +200,10 @@ def surveys_and_grids(init_state=None, alpha_method=1,
             Number of redshift bins
         ndm (int, optional):
             Number of DM bins
+        zmax (float,optional):
+            Maximum value of redshift
+        dmmax (float,optional):
+            Maximum value of dispersion measure
         edir (string, optional):
             Directory containing efficiency files if using FRB-specific responses
         rand_DMG (bool, optional):
@@ -214,7 +219,10 @@ def surveys_and_grids(init_state=None, alpha_method=1,
     """
     # Init state
     if init_state is None:
-        state = set_state(alpha_method=alpha_method)
+        # we should be using defaults... by default!
+        # if a user wants something else, they can pass it here
+        #state = set_state(alpha_method=alpha_method)
+        state = parameters.State()
     else:
         state = init_state
     if state_dict is not None:
@@ -226,7 +234,7 @@ def surveys_and_grids(init_state=None, alpha_method=1,
     # get the grid of p(DM|z)
     zDMgrid, zvals,dmvals = misc_functions.get_zdm_grid(
         state, new=True, plot=False, method='analytic', 
-        nz=nz, ndm=ndm,
+        nz=nz, ndm=ndm, zmax=zmax, dmmax=dmmax,
         datdir=resource_filename('zdm', 'GridData'))
     
     ############## Initialise surveys ##############

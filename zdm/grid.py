@@ -50,6 +50,7 @@ class Grid:
         self.beam_b = survey.beam_b
         self.beam_o = survey.beam_o
         self.b_fractions = None
+        self.w_fractions = None
         # State
         self.state = state
         self.MCinit = False
@@ -338,11 +339,17 @@ class Grid:
         Emax = 10 ** self.state.energy.lEmax
 
         # this implementation allows us to access the b-fractions later on
-        if (not (self.b_fractions is not None)) or (beam_b is not None):
+        if (self.b_fractions is None) or (beam_b is not None):
             self.b_fractions = np.zeros(
                 [self.zvals.size, self.dmvals.size, self.beam_b.size]
             )
-
+        
+        # we can now access the width information later on
+        if (self.w_fractions is None):
+            self.w_fractions = np.zeros(
+                [self.zvals.size, self.dmvals.size, self.eff_weights.size]
+            )
+        
         # for some arbitrary reason, we treat the beamshape slightly differently... no need to keep an intermediate product!
         main_beam_b = self.beam_b
         
@@ -352,9 +359,10 @@ class Grid:
                 self.thresholds
             )  # use when calling in log10 space conversion
             main_beam_b = np.log10(main_beam_b)
-
+        
         for i, b in enumerate(main_beam_b):
             # if eff_weights is 2D (i.e., z-dependent) then w is a vector of length NZ
+            # It is a probability - the detection efficiency is encapusalted by thresh"
             for j, w in enumerate(self.eff_weights):
                 # using log10 space conversion
                 if self.use_log10:
@@ -365,18 +373,102 @@ class Grid:
                 # the below is to ensure this works when w is a vector of length nz
                 w = np.array(w)
                 
-                self.b_fractions[:, :, i] += (
-                        self.beam_o[i]
+                # this array gives the relative probability of detecting an FRB at this point
+                # in the beam, with this particular width. We may not have space to store this
+                # as a 4D (w,b,z,DM) array, hence we store two 3D arrays
+                temp_wb = self.beam_o[i] \
                         * (self.array_cum_lf(
                             thresh, Emin, Emax, self.state.energy.gamma, self.use_log10
                         ).T * w.T).T
-                    )
+                
+                self.b_fractions[:, :, i] += temp_wb
+                    
+                self.w_fractions[:, :, j] += temp_wb
         # here, b-fractions are unweighted according to the value of b.
         self.fractions = np.sum(
             self.b_fractions, axis=2
         )  # sums over b-axis [ we could ignore this step?]
         self.pdv = np.multiply(self.fractions.T, self.dV).T
-
+    
+    def get_pw_dist(self):
+        """
+        Function asking the grid to return the p(w) distribution.
+        
+        This will be an "all-burst" distribution in case of a
+        repeater inherited class.
+        
+        Note that a grid does not actually know what a "width" means:
+        it is simply an abstract category of FRBs corresponding to a
+        particular efficiency and fraction of the population.
+        
+        Args: None
+        
+        Returns:
+            Wtots (np.ndarray): Rate per width bin
+            Wzs (np.ndarray: Nw x Nz): Rate as a function of w and z
+            Wdms (np.ndarray: Nw x Ndm): Rate as a function of w and DM
+        """
+        
+        Wtots = np.zeros([self.nw])
+        Wzs = np.zeros([self.nw,self.nz])
+        Wdms = np.zeros([self.nw,self.ndm])
+        
+        const = 10**self.state.FRBdemo.lC
+        
+        # consider if beamb in log10 space
+        # call log10 beam
+        if self.use_log10:
+            new_thresh = np.log10(
+                self.thresholds
+            )  # use when calling in log10 space conversion
+            main_beam_b = np.log10(self.beam_b)
+        else:
+            main_beam_b = self.beam_b
+        
+        # For convenience and speed up
+        Emin = 10 ** self.state.energy.lEmin
+        Emax = 10 ** self.state.energy.lEmax
+        
+        # we record b-fractions, but NOT the width increments in each
+        for j, w in enumerate(self.eff_weights):
+            # if eff_weights is 2D (i.e., z-dependent) then w is a vector of length NZ
+            
+            # resets p(z,dm) for this w
+            Warray = np.zeros([self.nz,self.ndm]) # we re-use this array for each w
+            
+            # sums over the beam values
+            for i, b in enumerate(self.beam_b):
+                
+                # using log10 space conversion
+                if self.use_log10:
+                    thresh = new_thresh[j, :, :] - b
+                else:  # original
+                    thresh = self.thresholds[j, :, :] / b
+                
+                # the below is to ensure this works when w is a vector of length nz
+                w = np.array(w)
+                
+                Warray[:, :] += (
+                        self.beam_o[i]
+                        * (self.array_cum_lf(
+                            thresh, Emin, Emax, self.state.energy.gamma, self.use_log10
+                        ).T * w.T).T
+                    )
+            
+            # accounts for z-dependent volumetric fractions
+            Warray = np.multiply(Warray.T, self.dV).T
+            
+            # multiply by the DM distribution and star-formation-rate scaling
+            # and constant number of FRBs
+            Warray *= self.sfr_smear * const
+            
+            Wzs[j,:] = np.sum(Warray,axis = 1)
+            Wdms[j,:] = np.sum(Warray,axis = 0)
+            Wtots[j] = np.sum(Wzs[j,:])
+        
+        return Wtots,Wzs,Wdms
+            
+    
     def calc_rates(self):
         """ multiplies the rate per cell with the appropriate pdm plot """
 
@@ -448,6 +540,8 @@ class Grid:
             # observable range
             self.eff_table = eff_table
             self.eff_weights = weights
+        
+        self.nw = self.eff_weights.shape[0]
         
         # now two or three dimensions
         Eff_thresh = F0 / self.eff_table
@@ -580,7 +674,7 @@ class Grid:
         Emax = 10 ** lEmax
         
         # grid of beam values, weights
-        nw = self.eff_weights.size
+        nw = self.nw
         nb = self.beam_b.size
         
         if self.eff_weights.ndim > 1:
@@ -676,7 +770,7 @@ class Grid:
         Emax = 10 ** lEmax
         
         # grid of beam values, weights
-        nw = self.eff_weights.size
+        nw = self.nw
         if self.eff_weights.ndim > 1:
             raise ValueError("MC generation from z-dependent widths not currently enabled")
         nb = self.beam_b.size
@@ -1071,3 +1165,5 @@ class Grid:
                     self.state.update_param(param, vparams[param])
         #
         return updated
+    
+

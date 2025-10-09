@@ -28,6 +28,190 @@ from zdm import pcosmic
 from zdm import parameters
 
 
+def get_w_tau_dist(grid,norm=True):
+    """
+    This function determins the total width, tau, and intrinsic width
+    distributions predicted by zDM. It returns histograms of each of these
+    parameters, both 1D hists of total rates, and 2D hists projected onto
+    the redshift axis.
+    
+    
+    Args:
+        grid: zdm grid object. Not yet implemented for a repeating grid
+    
+    Returns:
+        wvals [np.ndarray]: array of width values
+        pw [np.ndarray]: relative probabilities of observing those widths
+        zvals [np.ndarray: nz]: grid.zvals
+        pwz [np.ndarray: nw x nz]: probability of observing each width as a function of z
+        dmvals [np.ndarray: ndm]: grid.dmvals
+        pwdm [np.ndarray: nw x ndm]
+    """
+    
+    state=grid.state # for shorter variable names
+    survey = grid.survey
+    Wmethod = survey.meta["WMETHOD"]
+    if Wmethod == 0:
+        print("WARNING: trivial width distribution: all 1ms")
+        widths = np.array([1])
+        pw = np.array([1])
+        pwz = np.full([grid.zvals.size,1],1.)
+        pwdm = np.full([grid.dmvals.size,1],1.)
+        return widths,pw,grid.zvals,pwz,grid.dmvals,pwdm
+    elif Wmethod == 4:
+        print("WARNING: trivial width distribution: all ",survey.wlist[0]," ms")
+        widths = survey.wlist
+        pw = np.array([1])
+        pwz = np.full([grid.zvals.size,1],1.)
+        pwdm = np.full([grid.dmvals.size,1],1.)
+        return widths,pw,grid.zvals,pwz,grid.dmvals,pwdm
+    
+    # if we get to here, the results make sense
+    # wlist is the list of total widths parameterised by the survey.
+    # It is the distribution against which efficiencies are evaluated
+    widths = survey.wlist
+    
+    # accesses grid weight fraction, as function of z and DM.
+    # We now need to weight by z and DM
+    
+    pw = np.zeros([widths.size])
+    pwz = np.zeros([widths.size,grid.nz])
+    pwdm = np.zeros([widths.size,grid.ndm])
+    for iw,w in enumerate(widths):
+        # weights by volume elements along z axis
+        this_pdv = np.multiply(grid.w_fractions[:,:,iw].T,grid.dV).T
+        
+        #print("Threshold at z=0, dm=0 to widths ",widths[iw],grid.thresholds[iw,0,0])
+        iz=40
+        idm=0
+        #print("this pdv at z=0, dm=0 to widths ",widths[iw],this_pdv[iz,idm],grid.eff_weights[iw,iz])
+        
+        # multiplies by p(DM) distribution for a given z
+        this_rate = grid.sfr_smear * this_pdv
+        
+        pwz[iw,:] = np.sum(this_rate,axis=1)
+        
+        pwdm[iw,:] = np.sum(this_rate,axis=0)
+        
+        pw[iw] = np.sum(pwz[iw,:])
+        
+    if norm:
+        pw /= np.sum(pw)
+        
+        thenorm = np.sum(pwz,axis=1) # probability is zero for all w at this z
+        zero = np.where(thenorm == 0)
+        pwz = (pwz.T/np.sum(pwz,axis=1)).T
+        pwz[zero,:] = 0. # resets the nan components
+        
+        thenorm = np.sum(pwdm,axis=1) # probability is zero for all w at this z
+        zero = np.where(thenorm == 0)
+        pwdm = (pwdm.T/np.sum(pwdm,axis=1)).T
+        pwdm[zero,:] = 0. # resets the nan components
+    
+    # we now estimate p(tau) and p(iw) based on the 
+    # this gives the probability of a gives intrinsic width iw
+    # gives z and total width iw
+    # hence, we need to multiply this by pwz and sum
+    if Wmethod == 3:
+        a,b,c = survey.pws.shape
+        # we sum the distribution of intrinsic width in z, intrinsic width, total width
+        # space, by multiplying by the relative expected number in z, total width space
+        # since this is normalised to unity for each z, total width when integrating over ii
+        piis = np.copy(survey.pws)
+        for ib in np.arange(b):
+            piis[:,ib,:] *= pwz.T
+        piisz = np.sum(piis,axis=2) # summing over total width
+        piis = np.sum(piisz,axis=0)
+        
+        ptaus = np.copy(survey.ptaus)
+        for ib in np.arange(b):
+            
+            ptaus[:,ib,:] *= pwz.T
+        ptausz = np.sum(ptaus,axis=2) # summing over total width
+        ptaus = np.sum(ptausz,axis=0)
+        
+        if norm:
+            ptaus /= np.sum(ptaus)
+            ptausz = (ptausz.T/np.sum(ptausz,axis=1)).T
+            
+            piis /= np.sum(piis)
+            piisz = (piisz.T/np.sum(piisz, axis=1)).T
+        
+        return widths,pw,grid.zvals,pwz,grid.dmvals,pwdm,\
+                10**survey.internal_logwvals,ptaus,ptausz,piis,piisz
+    else:
+        return widths,pw,grid.zvals,pwz,grid.dmvals,pwdm
+    
+    
+    
+def make_cum_dist(data):
+    """
+    Gets cumulative distribution of the data ready for plotting
+    
+    Args:
+        data (list or np.ndarray): data for the distribution
+    Returns:
+        xvals (np.ndarray): x values of cumulative distribution
+        yvals (np.ndarray): x values of cumulative distribution
+    """
+    
+    ordered = np.sort(data)
+    NDAT = len(data)
+    xvals = np.zeros([NDAT*2])
+    yvals = np.zeros([NDAT*2])
+    for i in np.arange(NDAT):
+        yvals[2*i] = i/NDAT
+        yvals[2*i+1] = (i+1.)/NDAT
+        xvals[2*i] = ordered[i]
+        xvals[2*i+1] = ordered[i]
+    return xvals,yvals
+    
+def get_width_stats(s,g):
+    """
+    gets the probability of detecting tau or w for
+    a given survey and grid
+    
+    Args:
+        s: survey
+        g: correspondiong grid object
+    
+    Returns:
+        Rw (np.ndarray): Rate (per day) of detecting intrinsic width w
+        Rtau (np.ndarray): Rate (per day) of detecting scattering time tau
+        Nw (np.ndarray): Total number of FRBs as a function of total width
+        Nwz (np.ndarray): Number of FRBs as a function of total width and redshift
+        Nwdm (np.ndarray): Number of FRBs as a function of total width and DM
+    """
+    
+    # extracts the p(W) distribution
+    Nw,Nwz,Nwdm = g.get_pw_dist()
+    
+    if s.wplist.ndim > 1:
+        # plist is z-dependent
+        # get expected distribution at z=0
+        wplist = s.wplist[:,0]
+    else:
+        wplist = s.wplist
+    
+    # these two arrays hold p(tau) and p(iw) values with dimensions:
+    # z, internal tau values, iwidth
+    # the normalisation is such that the sum over internal widths is unity
+    # that is, for a given tau, what is p(w). NOT for a given w, what is ptau!
+    # this is all a function of z
+    
+    Rtau = np.zeros([s.internal_logwvals.size])
+    Rw = np.zeros([s.internal_logwvals.size])
+    # calculates ptauw
+    for i,t in enumerate(s.internal_logwvals):
+        ptz = s.ptaus[:,i,:] # this is p(tau) given z and w
+        Rtz = ptz * Nwz.T
+        Rtau[i] = np.sum(Rtz)
+        
+        pwz = s.pws[:,i,:] # this is p(tau) given z and w
+        Rwz = pwz * Nwz.T
+        Rw[i] = np.sum(Rwz)
+    return Rw,Rtau,Nw,Nwz,Nwdm
+
 def j2000_to_galactic(ra_deg, dec_deg):
     """
     Convert Galactic coordinates to Equatorial J2000 coordinates.
@@ -81,6 +265,31 @@ def galactic_to_j2000(l_deg, b_deg):
     # Return RA and Dec in degrees
     return equatorial_coord.ra.degree, equatorial_coord.dec.degree
 
+
+def coord_string_to_deg(cstring,hr=False):
+    """
+    Converts a coordinate string in form of deg:min:sec to deg
+    
+    Args:
+        cstring (string): string of deg:min:sec
+        hr (optional): if True, assumes its hr:min:sec
+    
+    Returns:
+        deg (float): coordinate in degrees
+    """
+    parts = cstring.split(":")
+    if len(parts) == 3:
+        deg = float(parts[0]) + float(parts[1])/60. + float(parts[2])/3600.
+    elif len(parts) == 1:
+        deg = float(parts)
+    else:
+        raise ValueError("Do not know how to convert string ",cstring," to degrees")
+    
+    if hr:
+        deg *= 15. # accounts for hour to degree conversion
+    return deg
+    
+    
 
 def get_source_counts(grid, plot=None, Slabel=None):
     """

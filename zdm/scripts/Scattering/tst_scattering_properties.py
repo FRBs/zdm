@@ -15,7 +15,6 @@ from zdm import loading
 from zdm import io
 from pkg_resources import resource_filename
 import numpy as np
-from zdm import survey
 from matplotlib import pyplot as plt
 
 import matplotlib
@@ -28,7 +27,7 @@ font = {'family' : 'Helvetica',
 matplotlib.rc('font', **font)
 
 def main():
-
+    
     # in case you wish to switch to another output directory
     opdir = "Plots/"
     if not os.path.exists(opdir):
@@ -43,7 +42,7 @@ def main():
     # make this into a list to initialise multiple surveys art once
     names = [survey_name]
     
-    repeaters=True
+    repeaters=False
     # sets plotting limits
     zmax = 2.
     dmmax = 2000
@@ -65,10 +64,14 @@ def main():
     for i,Method in enumerate(imethods):
         
         survey_dict = {"WMETHOD": Method}
+        state_dict = {}
+        state_dict["scat"] = {}
+        state_dict["scat"]["Sbackproject"] = True # turns on backprojection of tau and width for our model
+        
         # Write True if you want to do repeater grids - see "plot_repeaters.py" to make repeater plots
         surveys, grids = loading.surveys_and_grids(survey_names = names,\
                         repeaters=repeaters, sdir=sdir,nz=70,ndm=140,
-                        survey_dict = survey_dict)
+                        survey_dict = survey_dict, state_dict = state_dict)
         g=grids[0]
         s=surveys[0]
         
@@ -78,22 +81,76 @@ def main():
         llsum = it.calc_likelihoods_2D(g,s,pNreps=False)
         print("For scattering method ",methnames[i],", 2D likelihoods are ",llsum)
         
+        if i==2:
+            # gets constant weights from plot
+            const_weights = s.wplist
+        
         # extracts weights from survey and plots as function of z
         if i==3:
-            weights = s.wplist
-            widths = s.wlist[:,0]
+            weights = s.wplist # 2D
+            widths = s.wlist # widths are now 1D, they don't vary
             nw,nz = weights.shape
             plt.figure()
             plt.xlabel('z')
             plt.ylabel('weight')
             for iw in np.arange(nw):
                 plt.plot(g.zvals,weights[iw,:],label="width = "+str(widths[iw])[0:5])
+                plt.plot([g.zvals[0],g.zvals[-1]],[const_weights[iw],const_weights[iw]],
+                        color=plt.gca().lines[-1].get_color(),linestyle=":")
             total = np.sum(weights,axis=0)
             plt.plot(g.zvals,total,label="total",color="black")
-            plt.yscale("log")
-            plt.legend()
+            plt.legend(fontsize=6)
             plt.tight_layout()
-            plt.savefig(opdir+"z_dependent_weights.png")
+            plt.savefig(opdir+"z_dependent_weights_lin.png")
+            
+            plt.yscale("log")
+            plt.tight_layout()
+            plt.savefig(opdir+"z_dependent_weights_log.png")
+            plt.close()
+            
+            
+            # plots back-projected probabilities
+            plt.figure()
+            ax1 = plt.gca()
+            plt.figure()
+            ax2 = plt.gca()
+            
+            # gets zvalues correponding to 0.1,0.5,1,2
+            izs = []
+            for z in [ 0.1,0.5,1,2]:
+                # gets index of the above redshift values
+                iz = np.where(g.zvals>z)[0][0]
+                izs.append(iz)
+            styles=["-","--","-.",":"]
+            for iw in np.arange(s.NWbins):
+                label=str(s.wlist[iw])[0:5]
+                for j,iz in enumerate(izs):
+                    if j==0:
+                        ax1.plot(s.internal_logwvals,s.ptaus[iz,:,iw],label=label,
+                                linestyle = styles[j])
+                        ax2.plot(s.internal_logwvals,s.pws[iz,:,iw],label=label,
+                                linestyle = styles[j])
+                    else:
+                        ax1.plot(s.internal_logwvals,s.ptaus[iz,:,iw],label=label,
+                                linestyle = styles[j],color=plt.gca().lines[-1].get_color())
+                        ax2.plot(s.internal_logwvals,s.pws[iz,:,iw],label=label,
+                                linestyle = styles[j],color=plt.gca().lines[-1].get_color())
+                    label=None
+            plt.sca(ax1)
+            plt.xlabel("Natural log of scattering width (observed)")
+            plt.ylabel("Probability given total width and redshift")
+            plt.legend(fontsize=6)
+            plt.tight_layout()
+            plt.savefig(opdir+"z_dependent_ptau.png")
+            plt.close()
+            
+            
+            plt.sca(ax2)
+            plt.xlabel("Natural log of intrinsic width (observed)")
+            plt.ylabel("Probability given total width and redshift")
+            plt.legend(fontsize=6)
+            plt.tight_layout()
+            plt.savefig(opdir+"z_dependent_pw.png")
             plt.close()
             
         figures.plot_grid(
@@ -128,24 +185,33 @@ def main():
     plt.xlabel('z')
     plt.ylabel('p(z) [arb units]')
     plt.xlim(0,zmax)
-    plt.ylim(0,None)
+    ymax=0.
     for i,Method in enumerate(imethods):
+        themax = np.max(zdists[i])
+        if ymax < themax:
+            ymax = themax
         plt.plot(g.zvals,zdists[i],label=methnames[i])
+    plt.ylim(0,ymax)
     plt.legend()
     plt.tight_layout()
-    plt.savefig(opdir+"pdm_comparison.png",)
+    plt.savefig(opdir+"pz_comparison.png",)
     plt.close()
     
     plt.figure()
     plt.xlabel('DM')
     plt.xlim(0,dmmax)
-    plt.ylim(0,None)
     plt.ylabel('p(DM) [arb units]')
+    ymax = 0.
     for i,Method in enumerate(imethods):
+        themax = np.max(dmdists[i])
+        if ymax < themax:
+            ymax = themax
         plt.plot(g.dmvals,dmdists[i],label=methnames[i])
+    
+    plt.ylim(0,ymax)
     plt.legend()
     plt.tight_layout()
-    plt.savefig(opdir+"pz_comparison.png",)
+    plt.savefig(opdir+"pzdm_comparison.png",)
     plt.close()
     
     if not repeaters:
