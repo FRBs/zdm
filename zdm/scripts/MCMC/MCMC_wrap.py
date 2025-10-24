@@ -16,7 +16,7 @@ import os
 import numpy as np
 
 from astropy.cosmology import Planck18
-from pkg_resources import resource_filename
+import importlib.resources as resources
 from zdm import survey
 from zdm import cosmology as cos
 from zdm import loading
@@ -95,7 +95,7 @@ def main():
 
     zDMgrid, zvals, dmvals = mf.get_zdm_grid(
                     state, new=True, plot=False, method='analytic', 
-                    datdir=resource_filename('zdm', 'GridData'),
+                    datdir=resources.files('zdm').joinpath('GridData'),
                     nz=args.Nz,ndm=args.Ndm,zmax=args.zmax,dmmax=args.dmmax)
     
     # pass this to starting iteration

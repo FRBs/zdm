@@ -6,7 +6,7 @@
 
 import numpy as np
 import os
-from pkg_resources import resource_filename
+
 from scipy.integrate import quad
 from dataclasses import dataclass, fields
 
@@ -1208,7 +1208,7 @@ def calc_relative_sensitivity(DM_frb,DM,w,fbar,t_res,nu_res,Nchan=336,max_idt=No
     # If model not CHIME, Quadrature or Sammons assume it is a filename
     else:
         if edir is None:
-            edir = resource_filename('zdm', 'data/Efficiencies')
+            edir = resources.files('zdm').joinpath('data/Efficiencies')
         filename = os.path.expanduser(os.path.join(edir, model + ".npy"))
         
         if not os.path.exists(filename):
@@ -1265,8 +1265,7 @@ def load_survey(survey_name:str, state:parameters.State,
         print(f"Loading survey: {survey_name}")
 
     if sdir is None:
-        sdir = os.path.join(
-            resource_filename('zdm', 'data'), 'Surveys')
+        sdir = resources.files('zdm').joinpath('data/Surveys')
 
     # Hard code real surveys
     if survey_name == 'CRAFT/FE':

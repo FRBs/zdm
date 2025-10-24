@@ -1,12 +1,12 @@
 import numpy as np
 import sys
-from pkg_resources import resource_filename
+
 #inputs are l, b, maximum angular separation allowed, tolerance of minimum angular separation
 #in deg
 
 def dmg_sanskriti2020(l_FRB, b_FRB, sep_th=5, sep_tol=5, verb=False):
     #Sightlines 
-    l,b,DMavg,e_l,e_u,DMmax,esys = np.loadtxt(resource_filename('zdm','data/Misc/Sanskriti_DM_inputs.txt'),unpack=True)
+    l,b,DMavg,e_l,e_u,DMmax,esys = np.loadtxt(resources.files('zdm').joinpath('data/Misc/Sanskriti_DM_inputs.txt'),unpack=True)
     length = np.size(l)
 
     #deg to radian

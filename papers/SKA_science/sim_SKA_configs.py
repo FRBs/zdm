@@ -1,7 +1,7 @@
 """ 
 This script creates a zDM plot for SKA_Mid
 
-It also estimates the raction of SKA bursts that will have
+It also estimates the fraction of SKA bursts that will have
 unseen hosts by a VLT-like optical obeservation
 """
 import os
@@ -19,7 +19,7 @@ from zdm import survey
 import numpy as np
 import copy
 from matplotlib import pyplot as plt
-from pkg_resources import resource_filename
+import importlib.resources as resources
 
 def main():
     """
@@ -34,7 +34,7 @@ def main():
     
     zDMgrid, zvals, dmvals = mf.get_zdm_grid(
                     state, new=True, plot=False, method='analytic', 
-                    datdir=resource_filename('zdm', 'GridData'))
+                    datdir=resources.files('zdm').joinpath('GridData'))
     
     ####### Loop over input files #########
     
@@ -43,7 +43,6 @@ def main():
     # loop over all files
     freqs = [865,1400,190]
     bws = [300,300,120]
-    
     
     for i,tel in enumerate(["Band1", "Band2", "Low"]):
         # sets frequency and bandwidth for each instrument
@@ -123,7 +122,7 @@ def generate_sensitivity_plot(infile,state,zDMgrid, zvals, dmvals, label, freq, 
     ########## speedups ############
     
     #set survey path
-    sdir = os.path.join(resource_filename('zdm', 'data'), 'Surveys')
+    sdir = resources.files('zdm').joinpath('data/Surveys')
     # we use SKA mid, but actually we will over-ride may attributes here
     survey_name='SKA_mid'
     

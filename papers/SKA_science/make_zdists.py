@@ -4,6 +4,9 @@ This script creates plots of p(z) for different SKA configs
 It first loads in the simulation info from the script
 "sim_SKA_configs.py", and generates plots for the best cases.
 
+It does this when iterating over various parameter estimates from
+Hoffmann et al.
+
 """
 import os
 import emcee
@@ -15,12 +18,12 @@ from zdm import pcosmic
 from zdm import io
 from zdm import misc_functions as mf
 from zdm import grid as zdm_grid
-from zdm import survey
+
 
 import numpy as np
 import copy
 from matplotlib import pyplot as plt
-from pkg_resources import resource_filename
+import importlib.resources as resources
 
 def main():
     """
@@ -35,11 +38,11 @@ def main():
     
     zDMgrid, zvals, dmvals = mf.get_zdm_grid(
                     state, new=True, plot=False, method='analytic', 
-                    datdir=resource_filename('zdm', 'GridData'))
+                    datdir=resources.files('zdm').joinpath('GridData')
     
     
     ####### sample MCMC parameter sets ######
-    infile = resource_filename('zdm', 'scripts/MCMC')+"/H0_prior10.h5"
+    infile = resources.files('zdm').joinpath('scripts/MCMC/')+"/H0_prior10.h5"
     nsets=100
     sample, params, pconfig = get_samples(infile,nsets)
     
@@ -118,7 +121,6 @@ def generate_sensitivity_plot(infile,state,zDMgrid, zvals, dmvals, label, freq, 
     ibest = np.argmax(oldNs)
     survey_dict = {"THRESH": thresh_Jyms[ibest], "TOBS": TOBS[ibest], "FBAR": freq, "BW": bw}
     
-    
     Nsamples = samples.shape[0]
     Nz = zvals.size
     Ndm = dmvals.size
@@ -131,8 +133,6 @@ def generate_sensitivity_plot(infile,state,zDMgrid, zvals, dmvals, label, freq, 
     opfile7 = opdir+label+"_sys_N.npy"
     opfile8 = opdir+label+"_sys_pz.npy"
     opfile9 = opdir+label+"_sys_pdm.npy"
-    
-    
     
     np.save("sysplotdir/zvals.npy",zvals)
     np.save("sysplotdir/dmvals.npy",dmvals)

@@ -4,7 +4,6 @@
 # but in the current implementation it is not removed.
 import numpy as np
 import os
-from pkg_resources import resource_filename
 
 from astropy.cosmology import Planck18
 
@@ -114,7 +113,7 @@ def load_CHIME(Nbin:int=6, make_plots:bool=False, opdir='CHIME/',\
     #state = st.set_state(pset)
     
     # loads survey data
-    sdir = resource_filename('zdm','data/Surveys/CHIME/')
+    sdir = resources.files('zdm').joinpath('data/Surveys/CHIME/')
     if Verbose:
         print("Loading CHIME surveys from ",sdir)
     
@@ -235,7 +234,7 @@ def surveys_and_grids(init_state=None, alpha_method=1,
     zDMgrid, zvals,dmvals = misc_functions.get_zdm_grid(
         state, new=True, plot=False, method='analytic', 
         nz=nz, ndm=ndm, zmax=zmax, dmmax=dmmax,
-        datdir=resource_filename('zdm', 'GridData'))
+        datdir=resources.files('zdm').joinpath('GridData'))
     
     ############## Initialise surveys ##############
     if survey_names is None:
