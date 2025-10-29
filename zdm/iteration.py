@@ -834,16 +834,17 @@ def calc_likelihoods_2D(grid,survey,doplot=False,norm=True,psnr=True,printit=Fal
     
     dolist:
         0: returns total log10 likelihood llsum only [float]
-        1: returns llsum, log10([Pzdm,Pn,Ps]), <Nfrbs>
-        2: as above, plus a 'long list' giving log10(likelihood)
-            for each FRB individually
-        3: return (llsum, -np.log10(norm)*Zobs.size, 
-                np.sum(np.log10(pvals)), np.sum(np.log10(psnr)))
-        4: return (llsum, -np.log10(norm)*Zobs.size, 
-                np.sum(np.log10(pvals)), 
-                pvals.copy(), psnr.copy())
-        5: returns llsum, log10([Pzdm,Pn,Ps]), <Nfrbs>, 
-            np.log10([p(z|DM), p(DM), p(DM|z), p(z)])
+        1: returns llsum and a dict of individual contributoions to log-likelihood, log10([Pzdm,Pn,Ps]), <Nfrbs>
+        2: returns a long list of probabilities, according to which is specified:
+            llsum (over all stats below)
+            lllist: <Nfrbs>
+            longlist [list of lists]:
+                Pn: float
+                zDM: PzDM
+                zDM extras: P(z) P(DM), P(DM|z), P(z|DM)
+                ptauw: p(tau|wtot), p(wtot), p(snr|wtot)
+                psnr: p_snr (over all beams/widths)
+                pwb: p(snr|b,w,z,dm), p(snr,b,w|z,DM), p(b|zDM), p(w|zDM), p(b|w,zDM), p(w|b,zDM), p(wb|zDM)
         else: returns nothing (actually quite useful behaviour!)
     
     norm:
@@ -926,28 +927,36 @@ def calc_likelihoods_2D(grid,survey,doplot=False,norm=True,psnr=True,printit=Fal
             pvals[i] = np.sum(rates[izs1[i],iweights[i]] * dm_weights[i] * dkzs1[i] 
                               + rates[izs2[i],iweights[i]] * dm_weights[i] * dkzs2[i])
     
-    bad= pvals <= 0.
+    bad = pvals <= 0.
     flg_bad = False
     if np.any(bad):
         # This avoids a divide by 0 but we are in a NAN regime
         pvals[bad]=1e-50 # hopefully small but not infinitely so
         flg_bad = True
     
-    # holds individual FRB data
-    if dolist==2:
-        longlist=np.log10(pvals)-np.log10(norm)
+    # initialise dicts to return detailed log-likelihood information
+    longlist={}
+    lllist={}
     
+    # holds individual FRB data
+    # records p(z,DM) for each FRB. Analagous to lllist, but for each FRB
+    longlist["pzDM"]={}
+    longlist["pzDM"]["pzDM"]=np.log10(pvals/norm)
+    
+    # llsum is the total log-likelihood for the entire set
     llsum=np.sum(np.log10(pvals))
     if flg_bad:
         llsum = -1e10
-    # 
     llsum -= np.log10(norm)*Zobs.size # once per event
-    lllist=[llsum] # pz,DM
+    
+    # creates a list of all z,DM results
+    lllist["pzDM"]={} # pz,DM
+    lllist["pzDM"]["pzDM"]=llsum
     
     #### calculates zdm components p(DM),p(z|DM),p(z),p(DM|z)
     # does this by using previous results for p(z,DM) and
     # calculating p(DM) and p(z)
-    if dolist==5:
+    if dolist > 0:
         # calculates p(dm)
         pdmvals = np.sum(rates[:,idms1],axis=0)*dkdms1
         pdmvals += np.sum(rates[:,idms2],axis=0)*dkdms2
@@ -973,7 +982,18 @@ def calc_likelihoods_2D(grid,survey,doplot=False,norm=True,psnr=True,printit=Fal
         llpdmgz = np.sum(np.log10(pdmgzvals))
         llpdm = np.sum(np.log10(pdmvals)) - np.log10(norm)*Zobs.size
         llpz = np.sum(np.log10(pzvals)) - np.log10(norm)*Zobs.size
-        dolist5_return = [llpzgdm,llpdm,llpdmgz,llpz]
+        
+        # adds survey totals to log-likelihood list
+        lllist["pzDM"]["pzgdm"] = llpzgdm
+        lllist["pzDM"]["pdmgz"] = llpdmgz
+        lllist["pzDM"]["pdm"] = llpdm
+        lllist["pzDM"]["pz"] = llpz
+        
+        # adds individual FRB data to long list
+        longlist["pzDM"]["pzgdm"] = np.log10(pzgdmvals)
+        longlist["pzDM"]["pdmgz"] = np.log10(pdmgzvals)
+        longlist["pzDM"]["pdm"] = np.log10(pdmvals)
+        longlist["pzDM"]["pz"] = np.log10(pzvals)
     
     
     ############### Calculate p(N) ###############3
@@ -1001,27 +1021,21 @@ def calc_likelihoods_2D(grid,survey,doplot=False,norm=True,psnr=True,printit=Fal
             #    return Pll
         else:
             Pll=np.log10(Pn)
-        lllist.append(Pll)
+        lllist["Pn"]=Pll
+        lllist["Nexpected"]=expected
         if verbose:
             print(f'Pll term = {Pll}')
         llsum += Pll
     else:
-        expected=0
-        lllist.append(0)
-
-    # plots figures as appropriate
-    if doplot:
-        plt.figure()
-        #plt.plot(dmvals,pdm,color='blue')
-        plt.plot(DMobs,pvals,'ro')
-        plt.xlabel('DM')
-        plt.ylabel('p(DM)')
-        plt.tight_layout()
-        plt.savefig('1d_dm_fit.pdf')
-        plt.close()
+        # dummy values
+        lllist["Nexpected"]=-1
+        lllist["Pn"]=0
     
     ################ Calculates p(tau,w| total width) ###############
     if ptauw:
+        if not survey.backproject:
+            raise ValueError("Cannot estimate p(tau,w) without survey.backproject being True!")
+        
         # checks which have OK tau values - in general, this is a subset
         # ALSO: note that this only checks p(tau,iw | w)! It does NOT
         # evaluate p(w)!!! Which is a pretty key thing...
@@ -1070,36 +1084,25 @@ def calc_likelihoods_2D(grid,survey,doplot=False,norm=True,psnr=True,printit=Fal
         ptaus[bad2] = 1e-10
         pbars = 0.5*piws + 0.5*ptaus
         
-        
-        # TESTING - I have left this in here, because it creates
-        # a useful plot showing the relative probabilities
-        # and how well they match up. Ideally, should be 1-1
-        
-        TestProbabilities=False
-        if TestProbabilities:
-            for i,pb in enumerate(pbars):
-                print(i,Tauobs[i],Iwobs[i],pb,piws[i],ptaus[i])
-            plt.scatter(piws/Iwobs,ptaus/Tauobs)
-            plt.xscale("log")
-            plt.yscale("log")
-            plt.show()
-            exit()
-        
-        
         llpbar = np.sum(np.log10(pbars))
         llpiw = np.sum(np.log10(piws))
         llptw = np.sum(np.log10(ptaus))
         # while we calculate llpiw, we don't add it to the sum
         # this is because w and tau are not independent!
-        # p(iw|tau,w) = \delta(iw-(w**2 - tau**2)**0.5)
-        # However, numerical differences will affect this
-        # Hence, we ad half of each value
-        #llsum += 0.5*llpiw
-        #llsum += 0.5*llptw # this was summing in logspace
-        llsum += llpbar # now summing in linear space
-        lllist.append(llpiw)
-        lllist.append(llptw)
         
+        llsum += llpbar # now summing in linear space
+        
+        lllist["ptauw"]={}
+        # appending total of each to log0-likelihood list
+        lllist["ptauw"]["piw"]=llpiw
+        lllist["ptauw"]["ptw"]=llptw
+        
+        # appending individual FRB data to long long list
+        longlist["ptauw"]={}
+        longlist["ptauw"]["pbars"]=np.log10(pbars)
+        longlist["ptauw"]["piws"]=np.log10(piws)
+        longlist["ptauw"]["ptaus"]=np.log10(ptaus)
+        longlist["ptauw"]["w_indices"]=iztaulist
         
     
     ############ Calculates p(s | z,DM) #############
@@ -1248,7 +1251,10 @@ def calc_likelihoods_2D(grid,survey,doplot=False,norm=True,psnr=True,printit=Fal
             
             llpws = np.sum(np.log10(pws))
             llsum += llpws
-            lllist.append(llpws)
+            
+            # adds these to list of likelihood outputs
+            lllist["ptauw"]["pws"]=llpws
+            longlist["ptauw"]["pws"]=np.log10(pws)
         
         # calculates all metrics: (psnr|b,w,z,DM), p(b,w | z,DM), p(w|z,DM), p(b|z,dM), p(w|b,z,DM), p(b|w,z,DM)
         if pwb:
@@ -1297,24 +1303,35 @@ def calc_likelihoods_2D(grid,survey,doplot=False,norm=True,psnr=True,printit=Fal
             # calculates p(w|b,z,DM), using p(w|b) p(b) = p(b,w)
             pw_gb = pbw / pb
             
-            # we should have now calculated psnr|b,w,
-            #print("psnr_gbw,pb_gw,pw_gb,pw,pb,pbw,psnrbw")
-            #for i in np.arange(nfrb):
-            #    print(psnr_gbw[i],pb_gw[i],pw_gb[i],pw[i],pb[i],pbw[i],psnrbw[i])
-            
             # adds p(widht, beam) to the list
             bad = np.where(pbw == 0.)
             pbw[bad] = 1.e-10
             llpbw = np.sum(np.log10(pbw))
             llsum += llpbw
-            lllist.append(llpbw)
             
             # adds psnr values to the list
             bad = np.where(psnr_gbw == 0.)
             psnr_gbw[bad] = 1.e-10
             llpsnr_gbw = np.sum(np.log10(psnr_gbw))
             llsum += llpsnr_gbw
-            lllist.append(llpsnr_gbw)
+            
+            longlist["pbw"]={}
+            longlist["pbw"]["pb"]=np.log10(pb)
+            longlist["pbw"]["pw"]=np.log10(pw)
+            longlist["pbw"]["pbgw"]=np.log10(pb_gw)
+            longlist["pbw"]["pwgb"]=np.log10(pw_gb)
+            longlist["pbw"]["pbw"]=np.log10(pbw)
+            longlist["pbw"]["psnr_gbw"]=np.log10(psnr_gbw)
+            longlist["pbw"]["psnrbw"]=np.log10(psnrbw)
+            
+            lllist["pbw"]={}
+            lllist["pbw"]["pb"]=np.sum(np.log10(pb))
+            lllist["pbw"]["pw"]=np.sum(np.log10(pw))
+            lllist["pbw"]["pbgw"]=np.sum(np.log10(pb_gw))
+            lllist["pbw"]["pwgb"]=np.sum(np.log10(pw_gb))
+            lllist["pbw"]["pbw"]=np.sum(np.log10(pbw))
+            lllist["pbw"]["psnr_gbw"]=np.sum(np.log10(psnr_gbw))
+            lllist["pbw"]["psnrbw"]=np.sum(np.log10(psnrbw))
             
         OK = np.where(pbw_norm > 0.)[0]
         psnr[OK] /= pbw_norm[OK]
@@ -1329,10 +1346,7 @@ def calc_likelihoods_2D(grid,survey,doplot=False,norm=True,psnr=True,printit=Fal
             plt.tight_layout()
             plt.savefig("2D_ps.png")
             plt.close()
-            
-        # keeps individual FRB values
-        if dolist==2:
-            longlist += np.log10(psnr)
+        
         
         # checks to ensure all frbs have a chance of being detected
         bad=np.array(np.where(psnr == 0.))
@@ -1341,25 +1355,29 @@ def calc_likelihoods_2D(grid,survey,doplot=False,norm=True,psnr=True,printit=Fal
         else:
             snrll = np.sum(np.log10(psnr))
         
+        
+        # keeps individual FRB values
+        longlist["psnr"] = np.log10(psnr)
+        
+        # add to likelihood list
+        lllist["psnr"] = snrll
+        
         if not pwb:
             # only do this if we are not already calculating psnr given p(w,b)
-            lllist.append(snrll)
             llsum += snrll
-        
-    else:
-        lllist.append(0)
-
+    
     if grid_type==1 and pNreps:
         repll = 0
+        allpReps=[]
         if len(survey.replist) != 0:
             for irep in survey.replist:
                 pReps = grid.calc_exact_repeater_probability(Nreps=survey.frbs["NREP"][irep],DM=survey.DMs[irep],z=survey.Zs[irep])
+                allpReps.append(float(pReps))
                 repll += np.log10(float(pReps))
-        lllist.append(repll)
+        lllist["pReps"]=repll
         llsum += repll
-    else:
-        lllist.append(0)
-
+        longlist["pReps"] = np.log10(np.array(allpReps))
+    
     if verbose:
         print(f"rates={np.sum(rates):0.5f}," \
             f"nterm={-np.log10(norm)*Zobs.size:0.2f}," \
@@ -1367,21 +1385,13 @@ def calc_likelihoods_2D(grid,survey,doplot=False,norm=True,psnr=True,printit=Fal
             f"wzterm={np.sum(np.log10(psnr)):0.2f}," \
             f"comb={np.sum(np.log10(psnr*pvals)):0.2f}")
     
+    # determines which list of things to return
     if dolist==0:
         return llsum
     elif dolist==1:
-        return llsum,lllist,expected
+        return llsum,lllist
     elif dolist==2:
-        return llsum,lllist,expected,longlist
-    elif dolist==3:
-        return (llsum, -np.log10(norm)*Zobs.size, 
-                np.sum(np.log10(pvals)), np.sum(np.log10(psnr)))
-    elif dolist==4:
-        return (llsum, -np.log10(norm)*Zobs.size, 
-                np.sum(np.log10(pvals)), 
-                pvals.copy(), psnr.copy())
-    elif dolist==5:
-        return llsum,lllist,expected,dolist5_return
+        return llsum,lllist,longlist
 
 def calc_DMG_weights(DMEGs, DMhalos, DM_ISMs, dmvals, sigma_ISM=0.5, sigma_halo_abs=15.0, log=False):
     """

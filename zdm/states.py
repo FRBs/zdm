@@ -210,7 +210,7 @@ def set_fit_params(vparams,case):
         vparams['FRBdemo']['alpha_method'] = 1
         vparams['FRBdemo']['source_evolution'] = 0
         vparams['FRBdemo']['sfr_n'] = 0.21
-        #vparams['FRBdemo']['lC'] = 3.15 # incorrect, check
+        vparams['FRBdemo']['lC'] = -7.4 
         
         vparams['host']['lmean'] = 2.18
         vparams['host']['lsigma'] = 0.42
