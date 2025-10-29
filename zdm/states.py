@@ -1,5 +1,18 @@
 """
-This file keeps a record of known states from specific papers
+This file keeps a record of known states from specific papers.
+
+References below are:
+JamesSFR22: https://ui.adsabs.harvard.edu/abs/2022MNRAS.510L..18J/abstract
+JamesH022: https://ui.adsabs.harvard.edu/abs/2022MNRAS.516.4862J/abstract
+BaptisaF24: https://ui.adsabs.harvard.edu/abs/2024ApJ...965...57B/abstract
+HoffmannEmin25: https://ui.adsabs.harvard.edu/abs/2025PASA...42...17H/abstract
+HoffmannHalo25: Unpublished (yet!)
+
+Other relevant references are:
+https://ui.adsabs.harvard.edu/abs/2025arXiv251005654J/abstract (scattering)
+https://ui.adsabs.harvard.edu/abs/2023PASA...40...57J/abstract (repeaters)
+https://ui.adsabs.harvard.edu/abs/2022MNRAS.509.4775J/abstract (zDM methods paper)
+
 """
 
 from zdm import parameters
@@ -11,18 +24,13 @@ def load_state(case="HoffmannHalo25",scat=None,rep=None):
     Routine to set state variables according to the methods used
     in specific previous works.
     
-    Papers implemented are:
+    Args:
+        case [string]: which paper to use
+        scat [string]: which scattering method to use (overwrites default in case)
+        rep [string]: which repetition parameter set to use
     
-    JamesScattering25:
-        Updated scattering model
-    
-    HoffmannHalo25:
-        Investigation of MW halo
-    
-    HoffmannEmin25:
-        Implementation of MCMC algorithm with FAST and DSA
-    
-    James2: Original zDM paper
+    Returns:
+        state: zdm state object
     """
     
     #### primary fit params ####
@@ -77,7 +85,7 @@ def set_reps(vparams,rep):
     """
     Sets repetition parameters from JamesRepeaters24.
     
-    There are four cases to choose from - see that paper
+    There are four cases to choose from - see that paper.
     """
     if not "rep" in vparams:
         vparams["rep"] = {}

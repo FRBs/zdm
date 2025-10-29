@@ -6,7 +6,7 @@ import numpy as np
 import os
 
 from astropy.cosmology import Planck18
-
+import importlib.resources as resources
 from zdm import survey
 from zdm import parameters
 from zdm import cosmology as cos

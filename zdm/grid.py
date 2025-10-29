@@ -381,8 +381,10 @@ class Grid:
                             thresh, Emin, Emax, self.state.energy.gamma, self.use_log10
                         ).T * w.T).T
                 
+                # partial sum over all beam values for a given width
                 self.b_fractions[:, :, i] += temp_wb
-                    
+                
+                # partial sum over all width values for a given beam
                 self.w_fractions[:, :, j] += temp_wb
         # here, b-fractions are unweighted according to the value of b.
         self.fractions = np.sum(

@@ -114,6 +114,12 @@ class FRB(data_class.myDataClass):
                   'unit': '', 
                   'Notation': '',
                   })
+    B: float = field( 
+        default=-1., 
+        metadata={'help': "Beam value B at point of detection. Negative means unknown.", 
+                  'unit': '', 
+                  'Notation': '',
+                  })
 
 @dataclass
 class Telescope(data_class.myDataClass):
