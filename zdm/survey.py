@@ -539,6 +539,17 @@ class Survey:
         
         # convert to log-widths - the bins are in log10 space
         logwlist = np.log10(wlist)
+        if self.NWbins == 1:
+            # only when there is a single width bin
+            nfrb = logwlist.size
+            iws1 = np.full([nfrb],0,dtype='int')
+            iws2 = iws1
+            dkws1 = np.full([nfrb],1.,dtype='float')
+            dkws2 = dkws1
+            # dkws2 is identical to 1. This over-writes 1, but ensures
+            # that order of implementation of 1 and 2 does not matter
+            return iws1, iws2, dkws1, dkws2
+        
         # the below assumes that
         kws=(logwlist-np.log10(self.WMin))/self.dlogw # now will assume it begins at Wmin+dlogw + 0.5
         # forces any low values to zero
