@@ -13,105 +13,6 @@ from scipy.stats import poisson
 import scipy.stats as st
 from zdm import repeat_grid as zdm_repeat_grid
 
-# internal counter
-NCF=0
-
-def get_likelihood(pset,grid,survey,norm=True,psnr=True):
-    """ Returns log-likelihood for parameter set
-    norm:normalizatiom
-    psnr: probability of snr (S/R)
-    """
-    #changed this so that calc_likelihood doList=True, helps in debugging while checking likelihoods for different param values 
-    if isinstance(grid,list):
-        if not isinstance(survey,list):
-            raise ValueError("Grid is a list, survey is not...")
-        ng=len(grid)
-    else:
-        ng=1
-        ns=1
-    if ng==1:
-        update_grid(grid,pset,survey)
-        if survey.nD==1:
-            llsum,lllist,expected=calc_likelihoods_1D(grid,survey,norm=norm,psnr=True,dolist=1)
-        elif survey.nD==2:
-            llsum,lllist,expected=calc_likelihoods_2D(grid,survey,norm=norm,psnr=True,dolist=1)
-        elif survey.nD==3:
-            # mixture of 1 and 2D samples. NEVER calculate Pn twice!
-            llsum1,lllist1,expected1=calc_likelihoods_1D(grid,survey,norm=norm,psnr=True,dolist=1)
-            llsum2,lllist2,expected2=calc_likelihoods_2D(grid,survey,norm=norm,psnr=True,dolist=1,Pn=False)
-            llsum = llsum1+llsum2
-            # adds log-likelihoods for psnrs, pzdm, pn
-            # however, one of these Pn *must* be zero by setting Pn=False
-            lllist = [lllist1[0]+lllist2[0], lllist1[1]+lllist2[1], lllist1[2]+lllist2[2]] #messy!
-            expected = expected1 #expected number of FRBs ignores how many are localsied
-        else:
-            raise ValueError("Unknown code ",survey.nD," for dimensions of survey")
-        return llsum,lllist,expected
-        #negative loglikelihood is NOT returned, positive is.	
-    else:
-        loglik=0
-        for i,g in enumerate(grid):
-            s=survey[i]
-            update_grid(g,pset,s)
-            if s.nD==1:
-                llsum,lllist,expected=calc_likelihoods_1D(g,s,norm=norm,psnr=True,dolist=1)
-            elif s.nD==2:
-                llsum,lllist,expected=calc_likelihoods_2D(g,s,norm=norm,psnr=True,dolist=1)
-            elif s.nD==3:
-                # mixture of 1 and 2D samples. NEVER calculate Pn twice!
-                llsum1,lllist1,expected1=calc_likelihoods_1D(g,s,norm=norm,psnr=True,dolist=1)
-                llsum2,lllist2,expected2=calc_likelihoods_2D(g,s,norm=norm,psnr=True,dolist=1,Pn=False)
-                llsum = llsum1+llsum2
-                # adds log-likelihoods for psnrs, pzdm, pn
-                # however, one of these Pn *must* be zero by setting Pn=False
-                lllist = [lllist1[0]+lllist2[0], lllist1[1]+lllist2[1], lllist1[2]+lllist2[2]]
-                expected = expected1 #expected number of FRBs ignores how many are localsied
-            else:
-                raise ValueError("Unknown code ",s.nD," for dimensions of survey")
-            loglik += llsum
-        return loglik,lllist,expected
-        #negative loglikelihood is NOT returned, positive is.	
-    
-
-def maximise_likelihood(grid,survey):
-    # specifies which set of parameters to pass to the dmx function
-    
-    if isinstance(grid,list):
-        if not isinstance(survey,list):
-            raise ValueError("Grid is a list, survey is not...")
-        ng=len(grid)
-        ns=len(survey)
-        if ng != ns:
-            raise ValueError("Number of grids and surveys not equal.")
-        pset=set_defaults(grid[0]) # just chooses the first one
-    else:
-        ng=1
-        ns=1
-        pset=set_defaults(grid)
-    
-    # fixed alpha=1.6 (Fnu ~ nu**-alpha), Emin 10^30 erg, sfr_n > 0
-    eq_cons = {'type': 'eq',
-        'fun': lambda x: np.array([x[2]-1.6,x[0]-30]),
-        'jac': lambda x: np.array([[0,0,1.0,0,0,0,0,0],[1,0,0,0,0,0,0,0]])
-        }
-    
-    # holds sfr_n >0
-    # also holds Emax > 1e40
-    ineq_cons = {'type': 'ineq',
-        'fun': lambda x: np.array([x[4],x[1]-40]),
-        'jac': lambda x: np.array([[0,0,0,0,1,0,0,0],[0,1,0,0,0,0,0,0]])
-        }
-    
-    bounds=((None,None),(39,44),(0,5),(-3,-0.1),(0,3),(0,3),(0,2),(None,None))
-    
-    # these 'arguments' get sent to the likelihood function
-    #results=minimize(get_likelihood,pset,args=(grid,survey),constraints=[eq_cons,ineq_cons],method='SLSQP',tol=1e-10,options={'eps': 1e-4},bounds=bounds)
-    results=minimize(get_likelihood,pset,args=(grid,survey),method='L-BFGS-B',tol=1e-10,options={'eps': 1e-4},bounds=bounds)
-    
-    #print("Results from minimisation are ",results)
-    #print("Best-fit values: ",results["x"])
-    return results
-
 
 def get_log_likelihood(grid, s, norm=True, psnr=True, Pn=False, pNreps=True, ptauw=False, pwb=False):
     """
@@ -132,20 +33,17 @@ def get_log_likelihood(grid, s, norm=True, psnr=True, Pn=False, pNreps=True, pta
     if isinstance(grid, zdm_repeat_grid.repeat_Grid):
         # Repeaters
         if s.nDr==1:
-            llsum1, lllist, expected = calc_likelihoods_1D(grid, s, norm=norm, psnr=psnr,
-                            dolist=1, grid_type=1, Pn=Pn, pNreps=pNreps, ptauw=ptauw, pwb=pwb)
-            llsum = llsum1
-            # print(s.name, "repeaters:", lllist)
+            llsum = calc_likelihoods_1D(grid, s, norm=norm, psnr=psnr,
+                            dolist=0, grid_type=1, Pn=Pn, pNreps=pNreps, ptauw=ptauw, pwb=pwb)
         elif s.nDr==2:
-            llsum1, lllist, expected = calc_likelihoods_2D(grid, s, norm=norm, psnr=psnr,
-                            dolist=1, grid_type=1, Pn=Pn, pNreps=pNreps, ptauw=ptauw, pwb=pwb)
-            llsum = llsum1
+            llsum = calc_likelihoods_2D(grid, s, norm=norm, psnr=psnr,
+                            dolist=0, grid_type=1, Pn=Pn, pNreps=pNreps, ptauw=ptauw, pwb=pwb)
         elif s.nDr==3:
-            llsum1, lllist1, expected1 = calc_likelihoods_1D(grid, s, norm=norm, psnr=psnr,
-                                        dolist=1, grid_type=1, Pn=Pn, pNreps=pNreps, ptauw=ptauw,
+            llsum11 = calc_likelihoods_1D(grid, s, norm=norm, psnr=psnr,
+                                        dolist=0, grid_type=1, Pn=Pn, pNreps=pNreps, ptauw=ptauw,
                                         pwb=pwb)
-            llsum2, lllist2, expected2 = calc_likelihoods_2D(grid, s, norm=norm, psnr=psnr,
-                                        dolist=1, grid_type=1, Pn=False, pNreps=False, ptauw=ptauw,
+            llsum2 = calc_likelihoods_2D(grid, s, norm=norm, psnr=psnr,
+                                        dolist=0, grid_type=1, Pn=False, pNreps=False, ptauw=ptauw,
                                         pwb=pwb)
             llsum = llsum1 + llsum2
         else:
@@ -154,22 +52,21 @@ def get_log_likelihood(grid, s, norm=True, psnr=True, Pn=False, pNreps=True, pta
 
         # Singles
         if s.nDs==1:
-            llsum1, lllist, expected = calc_likelihoods_1D(grid, s, norm=norm, psnr=psnr,
-                                                dolist=1, grid_type=2, Pn=Pn, ptauw=ptauw,
+            llsum1 = calc_likelihoods_1D(grid, s, norm=norm, psnr=psnr,
+                                                dolist=0, grid_type=2, Pn=Pn, ptauw=ptauw,
                                                 pwb=pwb)
             llsum += llsum1
-            # print(s.name, "singles:", lllist)
         elif s.nDs==2:
-            llsum1, lllist, expected = calc_likelihoods_2D(grid, s, norm=norm, psnr=psnr,
-                                                dolist=1, grid_type=2, Pn=Pn, ptauw=ptauw,
+            llsum1 = calc_likelihoods_2D(grid, s, norm=norm, psnr=psnr,
+                                                dolist=0, grid_type=2, Pn=Pn, ptauw=ptauw,
                                                 pwb=pwb)
             llsum += llsum1
         elif s.nDs==3:
-            llsum1, lllist1, expected1 = calc_likelihoods_1D(grid, s, norm=norm, psnr=psnr,
-                                                    dolist=1, grid_type=2, Pn=Pn, ptauw=ptauw,
+            llsum1 = calc_likelihoods_1D(grid, s, norm=norm, psnr=psnr,
+                                                    dolist=0, grid_type=2, Pn=Pn, ptauw=ptauw,
                                                     pwb=pwb)
-            llsum2, lllist2, expected2 = calc_likelihoods_2D(grid, s, norm=norm, psnr=psnr,
-                                                    dolist=1, grid_type=2, Pn=False, ptauw=ptauw,
+            llsum2 = calc_likelihoods_2D(grid, s, norm=norm, psnr=psnr,
+                                                    dolist=0, grid_type=2, Pn=False, ptauw=ptauw,
                                                     pwb=pwb)
             llsum = llsum + llsum1 + llsum2
         else:
@@ -177,19 +74,17 @@ def get_log_likelihood(grid, s, norm=True, psnr=True, Pn=False, pNreps=True, pta
             exit()
     else:
         if s.nD==1:
-            llsum1, lllist, expected = calc_likelihoods_1D(grid, s, norm=norm, psnr=psnr,
-                                                            dolist=1, Pn=Pn, ptauw=ptauw,pwb=pwb)
-            llsum = llsum1
+            llsum = calc_likelihoods_1D(grid, s, norm=norm, psnr=psnr,
+                                                            dolist=0, Pn=Pn, ptauw=ptauw,pwb=pwb)
         elif s.nD==2:
-            llsum1, lllist, expected = calc_likelihoods_2D(grid, s, norm=norm, psnr=psnr,
-                                                            dolist=1, Pn=Pn, ptauw=ptauw,pwb=pwb)
-            llsum = llsum1
+            llsum = calc_likelihoods_2D(grid, s, norm=norm, psnr=psnr,
+                                                            dolist=0, Pn=Pn, ptauw=ptauw,pwb=pwb)
         elif s.nD==3:
-            llsum1, lllist1, expected1 = calc_likelihoods_1D(grid, s, norm=norm, psnr=psnr,
-                                                                    dolist=1, Pn=Pn, ptauw=ptauw,
+            llsum1 = calc_likelihoods_1D(grid, s, norm=norm, psnr=psnr,
+                                                                    dolist=0, Pn=Pn, ptauw=ptauw,
                                                                     pwb=pwb)
-            llsum2, lllist2, expected2 = calc_likelihoods_2D(grid, s, norm=norm, psnr=psnr,
-                                                                    dolist=1, Pn=False, ptauw=ptauw,
+            llsum2 = calc_likelihoods_2D(grid, s, norm=norm, psnr=psnr,
+                                                                    dolist=0, Pn=False, ptauw=ptauw,
                                                                     pwb=pwb)
             llsum = llsum1 + llsum2
         else:
@@ -299,23 +194,19 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=True,
     zvals=grid.zvals
 
     # start by collapsing over z
-    # TODO: this is slow - should collapse only used columns
     pdm=np.sum(rates,axis=0)
     
     if np.sum(pdm) == 0:
         if dolist==0:
             return -np.inf
         elif dolist==1:
-            return -np.inf, None, None
+            return -np.inf, None
         elif dolist==2:
-            return -np.inf, None, None, None
-        elif dolist==5: #for compatibility with 2D likelihood calculation
-            return -np.inf, None, None,[0.,0.,0.,0.]
+            return -np.inf, None, None
     
     if norm:
         global_norm=np.sum(pdm)
         log_global_norm=np.log10(global_norm)
-        #pdm /= global_norm
     else:
         log_global_norm=0
     
@@ -473,8 +364,6 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=True,
         
         if Pn==0:
             Nll=-1e10
-            if dolist==0:
-                return Nll
         else:
             Nll=np.log10(Pn)
         
@@ -1005,9 +894,6 @@ def calc_likelihoods_2D(grid,survey,doplot=False,norm=True,psnr=True,printit=Fal
         Pn=Poisson_p(observed,expected)
         if Pn==0:
             Pll=-1e10
-            # otherwise 1e-10 might be better than the actual total ll!
-            #if dolist==0:
-            #    return Pll
         else:
             Pll=np.log10(Pn)
         lllist["pN"]=Pll
