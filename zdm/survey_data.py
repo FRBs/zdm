@@ -97,7 +97,7 @@ class FRB(data_class.myDataClass):
                   'Notation': '',
                   })
     WIDTH: float = field( 
-        default=0.1, 
+        default=-1, 
         metadata={'help': "Width of the event", 
                   'unit': 'ms', 
                   'Notation': '',
