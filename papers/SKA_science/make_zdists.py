@@ -38,11 +38,12 @@ def main():
     
     zDMgrid, zvals, dmvals = mf.get_zdm_grid(
                     state, new=True, plot=False, method='analytic', 
-                    datdir=resources.files('zdm').joinpath('GridData')
+                    datdir=resources.files('zdm').joinpath('GridData'))
     
     
     ####### sample MCMC parameter sets ######
-    infile = resources.files('zdm').joinpath('scripts/MCMC/')+"/H0_prior10.h5"
+    infile = resources.files('zdm').joinpath('scripts/MCMC/H0_prior10.h5')
+    infile = str(infile)
     nsets=100
     sample, params, pconfig = get_samples(infile,nsets)
     
@@ -108,19 +109,20 @@ def generate_sensitivity_plot(infile,state,zDMgrid, zvals, dmvals, label, freq, 
     opfile2 = opdir+label+"_pdm.npy"
     opfile3 = opdir+label+"_pz.npy"
     opfile4 = opdir+label+"_Nz.npy"
-    opfile5 = opdir+label+"_Tobs.npy"
+    opfile4 = opdir+label+"_Tobs.npy"
     opfile6 = opdir+label+"_thresh.npy"
     oldNs = np.load(opfile1)
     #pdms = np.load(opfile2)
     #pzs = np.load(opfile3)
     #Nizs = np.load(opfile4)
-    TOBS = np.load(opfile5)
+    TOBS = fov*
     thresh_Jyms = np.load(opfile6)
     
     # finds the best
     ibest = np.argmax(oldNs)
     survey_dict = {"THRESH": thresh_Jyms[ibest], "TOBS": TOBS[ibest], "FBAR": freq, "BW": bw}
-    
+    print(survey_dict)
+    return
     Nsamples = samples.shape[0]
     Nz = zvals.size
     Ndm = dmvals.size
@@ -129,13 +131,13 @@ def generate_sensitivity_plot(infile,state,zDMgrid, zvals, dmvals, label, freq, 
     pzs = np.zeros([Nsamples,Nz])
     Ns = np.zeros([Nsamples])
     
-    opdir = "sys_outputs/"
-    opfile7 = opdir+label+"_sys_N.npy"
-    opfile8 = opdir+label+"_sys_pz.npy"
-    opfile9 = opdir+label+"_sys_pdm.npy"
+    opdir = "outputs/"
+    opfile7 = opdir+label+"_N.npy"
+    opfile8 = opdir+label+"_pz.npy"
+    opfile9 = opdir+label+"_pdm.npy"
     
-    np.save("sysplotdir/zvals.npy",zvals)
-    np.save("sysplotdir/dmvals.npy",dmvals)
+    np.save("plotdir/zvals.npy",zvals)
+    np.save("plotdir/dmvals.npy",dmvals)
     
     #load=True
     load=False

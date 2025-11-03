@@ -14,40 +14,26 @@ from zdm import iteration as it
 from zdm import loading
 from zdm import io
 from zdm import optical as opt
+from zdm import states
 
 import numpy as np
 from zdm import survey
 from matplotlib import pyplot as plt
-from pkg_resources import resource_filename
+import importlib.resources as resources
+
 def main():
     
-    # in case you wish to switch to another output directory
-    
-    
-    
     # approximate best-fit values from recent analysis
-    # best-fit from Jordan et al
-    if True:
-        # approximate best-fit values from recent analysis
-        param_dict={'sfr_n': 0.21, 'alpha': 0.11, 'lmean': 2.18, 'lsigma': 0.42, 'lEmax': 41.37, 
-                'lEmin': 39.47, 'gamma': -1.04, 'H0': 70.23, 'halo_method': 0, 'sigmaDMG': 0.0, 'sigmaHalo': 0.0,'lC': -7.61}
-        opdir='MeerTRAP/'
-    else:
-        # best fit from James et al
-        param_dict={'sfr_n': 1.13, 'alpha': 0.99, 'lmean': 2.27, 'lsigma': 0.55, 'lEmax': 41.26, 
-                    'lEmin': 32, 'gamma': -0.95, 'H0': 73, 'halo_method': 0, 'sigmaDMG': 0.0, 'sigmaHalo': 0.0,'lC': -0.76}
-        opdir='MeerTRAP2/'
+    # load states from Hoffman et al 2025
+    state = states.load_state("HoffmannEmin25",scat="updated",rep=None)
+    opdir="MeerTRAP"
     
     if not os.path.exists(opdir):
         os.mkdir(opdir)
     
     # Initialise surveys and grids
-    sdir = os.path.join(resource_filename('zdm', 'data'), 'Surveys')
+    sdir = resources.files('zdm').joinpath('data/Surveys')
     names=['MeerTRAPcoherent']
-    
-    state = parameters.State()
-    state.set_astropy_cosmo(Planck18)
-    state.update_params(param_dict)
     
     ss,gs = loading.surveys_and_grids(
         survey_names=names,repeaters=False,init_state=state,sdir=sdir) # should be equal to actual number of FRBs, but for this purpose it doesn't matter

@@ -57,9 +57,9 @@ def hist_craco_beams(footprint, pitch, freq, gsize, gpix,plot=False):
     
     bcs = 10**np.linspace(bmin + db/2.,bmax - db/2.,nbins)
     
-    basename = f"./hist_craco_{footprint}_p{pitch:.2f}_f{freq:.1f}MHz_f{gsize:.1f}d_npix{gpix}.npy"
+    basename = f"./hist_craco_{footprint}_p{pitch:.2f}_f{freq:.1f}MHz_f{gsize:.1f}d_npix{gpix}"
     
-    np.save(basename,h)
+    np.save(basename+"_.npy",h)
     np.save("craco_histogram_bins.npy",binedges)
     
     if plot:
@@ -283,8 +283,7 @@ def main():
             fov=values.fov, npix=values.npix, sbeam=sbeam, gsize=gsize,
             gpix=gpix
         )
-    else:
-        hist_craco_beams(footprint, pitch, freq, gsize, gpix,plot=True)
+    hist_craco_beams(footprint, pitch, freq, gsize, gpix,plot=False)
 
 
 main()
