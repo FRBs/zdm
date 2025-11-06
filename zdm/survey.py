@@ -120,7 +120,16 @@ class Survey:
         self.thresh = self.state.width.Wthresh
         self.wlogmean = self.state.width.Wlogmean
         self.wlogsigma = self.state.width.Wlogsigma
-        self.width_method = self.meta["WMETHOD"]
+        if self.meta['WBIAS'] == 'Quadrature' or self.meta['WBIAS'] == 'Sammons' or self.meta['WBIAS']=="StdDev":
+            # these allow width-dependent sensitivities
+            self.width_method = self.state.width.Wmethod
+        else:
+            # the sensitivity is a fixed function of DM. Don't waste
+            # time on multiple width bins! (though maybe we should...)
+            # so just set to a constant width of 1, i.e. a single bin.
+            self.width_method = 0
+        
+        
         if self.width_method == 3 and self.zvals is None:
             raise ValueError("Width method 3 requires z-values to be set")
         self.NInternalBins=self.state.width.WNInternalBins
@@ -158,7 +167,7 @@ class Survey:
             raise ValueError("state parameter scat.ScatFunction ",SF," not implemented, use 0-2 only")
         
         # sets n width bins equal to zero for this survey
-        if self.meta['WMETHOD'] == 0 or self.meta['WMETHOD'] == 4:
+        if self.width_method == 0 or self.width_method == 4:
             self.NWbins = 1
         
         ###### calculate width bins. We fix these here ######
@@ -194,7 +203,7 @@ class Survey:
         self.internal_logwvals = np.linspace(minval,maxval,self.NInternalBins)
         
         # initialise probability bins
-        if self.meta['WMETHOD'] == 3:
+        if self.width_method == 3:
             # evaluate efficiencies at each redshift
             self.efficiencies = np.zeros([self.NWbins,self.NZ,self.NDM])
             self.wplist = np.zeros([self.NWbins,self.NZ])
@@ -219,13 +228,38 @@ class Survey:
             #_ = self.get_efficiency_from_wlist(self.wlist,self.wplist,
             #                            model=self.meta['WBIAS'], edir=self.edir, iz=None) 
         self.do_efficiencies()
+    
+    def process_dm_mask(self,edir=None):
+        """
+        Processes a DM mask into units of local DM
+        """
         
+        # loads the mask
+        if edir is None:
+            edir = resources.files('zdm').joinpath('data/Efficiencies')
+        filename = os.path.expanduser(os.path.join(edir, self.meta['DMMASK']))
+        
+        if not os.path.exists(filename):
+            raise ValueError("Could not find DM mask " + filename + " in directory "+edir)
+
+        # Should contain DM in the first row and efficiencies in the second row
+        sensitivity_array = np.load(filename)
+        dm_mask = np.interp(self.dmvals, sensitivity_array[0,:], sensitivity_array[1,:], left=1.,right=0)
+        self.dm_mask = dm_mask
+    
     def do_efficiencies(self):
         """
         Function to handle calculation of efficiencies.
         Allows this to be called externally, e.g. if DM halo model changes
         """
-        if self.meta['WMETHOD'] == 3:
+        
+        # process DM mask to get mask in units of used DM values
+        if self.meta['DMMASK'] is not None:
+            self.process_dm_mask()
+        else:
+            self.dm_mask = None
+        
+        if self.width_method == 3:
             for iz,z in enumerate(self.zvals):
                 _ = self.get_efficiency_from_wlist(self.wlist,self.wplist[:,iz],
                                         model=self.meta['WBIAS'], edir=self.edir, iz=iz)
@@ -238,7 +272,7 @@ class Survey:
         is required to estimate detection efficiency, and (potentially)
         calculate p(w,tau).
         
-        The functionality depends on self.meta['WMETHOD'], which
+        The functionality depends on self.width_method, which
         is set via
         
         WMETHOD [int: 0-4]:
@@ -257,13 +291,13 @@ class Survey:
                 for individual FRB-by-FRB analyses.
         """
         
-        if self.meta['WMETHOD'] == 0:
+        if self.width_method == 0:
             # do not take a distribution, just use 1ms for everything
             # this is done for tests, for complex surveys such as CHIME,
             # or for estimating the properties of a single FRB
             self.wlist[0] = 1.
             self.wplist[0] = 1.
-        elif self.meta['WMETHOD'] == 1:
+        elif self.width_method == 1:
             # take intrinsic width function only
             for i in np.arange(self.NWbins):
                 norm=(2.*np.pi)**-0.5/self.wlogsigma
@@ -271,12 +305,12 @@ class Survey:
                 weight,err=quad(self.WidthFunction,
                             np.log10(self.wbins[i]),np.log10(self.wbins[i+1]),args=args)
                 self.wplist[i]=weight
-        elif self.meta['WMETHOD'] == 2 or self.meta['WMETHOD'] == 3:
+        elif self.width_method == 2 or self.width_method == 3:
             # include scattering distribution. 3 means include z-dependence
             #gets cumulative hist and bin edges
             
             if iz is not None:
-                if self.meta['WMETHOD'] == 2:
+                if self.width_method == 2:
                     print("Trying to calculate redshift dependence for redshift ",\
                         "independent WMETHOD=2. Internally inconsistent.")
                     exit()
@@ -318,7 +352,7 @@ class Survey:
                     self.pws=pw
                     self.ptaus=ptau
             
-        elif self.meta['WMETHOD'] == 4:
+        elif self.width_method == 4:
             # use specific width of FRB. This requires there to be only a single FRB in the survey
             if s.meta['NFRB'] != 1:
                 raise ValueError("If width method in make_widths is 4 only one FRB should be specified in the survey but ", str(s.meta['NFRB']), " FRBs were specified")
@@ -1148,8 +1182,12 @@ class Survey:
                 edir=edir,
                 max_iw=self.meta['MAX_IW'],
                 max_meth = self.meta['MAXWMETH'])
-        # keep an internal record of this
         
+        # multiplies by DM mask if applicable
+        if self.dm_mask is not None:
+            efficiencies *= self.dm_mask
+        
+        # keep an internal record of this
         if iz is None:
             self.efficiencies=efficiencies
             self.DMlist=DMlist
@@ -1160,6 +1198,7 @@ class Survey:
             self.DMlist[iz,:]=DMlist
             mean_efficiencies=np.mean(efficiencies,axis=0)
             self.mean_efficiencies[iz,:]=mean_efficiencies #be careful here!!! This may not be what we want!
+        
         return efficiencies
     
     def __repr__(self):
@@ -1297,7 +1336,7 @@ def calc_relative_sensitivity(DM_frb,DM,w,fbar,t_res,nu_res,Nchan=336,max_idt=No
         # Should contain DM in the first row and efficiencies in the second row
         sensitivity_array = np.load(filename)
         sensitivity = np.interp(DM, sensitivity_array[0,:], sensitivity_array[1,:], right=1e-2)
-
+    
     return sensitivity
 
 

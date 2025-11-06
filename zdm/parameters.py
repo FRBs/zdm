@@ -235,6 +235,12 @@ class WidthParams(data_class.myDataClass):
             "Notation": "",
         },
     )
+    WMETHOD: int = field(
+        default=3, 
+        metadata={'help': "Code for width method. 0: ignore it (all 1ms), 1: intrinsic lognormal, 2: include scattering, 3: scat & z-dependence, 4: specific FRB", 
+                  'unit': '', 
+                  'Notation': '',
+                  })
     Wlogmean: float = field(
         default=-0.29,
         metadata={

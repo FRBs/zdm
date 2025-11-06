@@ -20,8 +20,9 @@
 # - {name: Z, datatype: float64}
 # meta: !!omap
 # - {survey_data: '{"observing": {"NORM_FRB": 1,"TOBS": 1},
-#                    "telescope": {"DIAM": 15, "BMETHOD": 0, "NBEAMS": 1,
-#                                   "NBINS": 10,"BTHRESH": 0.5}}'}
+#                   "telescope": {"BEAM": "CRACO_900", "DMMASK": "craco_900_mask.npy",
+#                                 "DIAM": 12.0, "NBEAMS": 1, "NBINS": 5, "FBAR": 906}  }'}
 # schema: astropy-2.0
-TNS   BW  DM  DMG  FBAR  FRES    Gb Gl NREP SNR SNRTHRESH THRESH TRES WIDTH  XDec XRA Z
-DUMMY 300 200 35.0 1400  0.1075  "" "" 1    10. 10.       0.06   0.069 1.0   ""   ""  0.276
+TNS   BW    DM    DMG  FBAR   FRES Gb Gl NREP SNR  SNRTHRESH THRESH TRES WIDTH XDec XRA Z
+DUMMY 288.0 401.4 35.0 906    1.0  "" "" 1    27.9 9.5       0.99   13.8  4.0   ""   "" 0.1
+

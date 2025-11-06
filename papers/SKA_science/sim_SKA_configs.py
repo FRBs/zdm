@@ -67,7 +67,6 @@ def generate_sensitivity_plot(infile,state,zDMgrid, zvals, dmvals, label, freq, 
     if not os.path.exists(plotdir):
         os.mkdir(plotdir)
         
-    
     data=np.loadtxt(infile,dtype=str)
     radius = data[:,1].astype(float)
     sense_m2K = data[:,2].astype(float)

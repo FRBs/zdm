@@ -86,11 +86,10 @@ class Grid:
             self.calc_thresholds(survey.meta["THRESH"],
                              efficiencies,weights=weights)
         else:
-            # if this is the case, why calc thresholds again below?
+            # this is called when the grid is not iterating over widths internally
             efficiencies = survey.mean_efficiencies # one dimension
             weights = None
             self.calc_thresholds(survey.meta["THRESH"], efficiencies, weights=weights)
-            efficiencies=survey.mean_efficiencies
         
         # Calculate
         self.calc_pdv()

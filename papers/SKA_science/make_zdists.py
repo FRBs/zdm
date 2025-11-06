@@ -25,7 +25,7 @@ import copy
 from matplotlib import pyplot as plt
 import importlib.resources as resources
 
-def main():
+def main(configdir = "Configs/"):
     """
     Main program to loop over SKA frequency ranges and deployment milestones
     
@@ -61,12 +61,12 @@ def main():
             infile = "inputs/"+tel+telconfig+"_ID_radius_AonT_FoVdeg2"
             label = tel+"_"+telconfig
             generate_sensitivity_plot(infile,state,zDMgrid, zvals, dmvals, label, freq, bw, survey_name,
-                                sample, params, pconfig)
+                                sample, params, pconfig,configdir=configdir)
             
     
 def generate_sensitivity_plot(infile,state,zDMgrid, zvals, dmvals, label, freq, bw, survey_name,
                             samples, params, pconfig,
-                        opdir = "outputs/", plotdir = "plotdir/"):
+                        configdir="Configs/", plotdir = "plotdir/"):
     """
     generates a plot of FRB rate vs Nelements used
     
@@ -105,23 +105,25 @@ def generate_sensitivity_plot(infile,state,zDMgrid, zvals, dmvals, label, freq, 
     Ngrids = radius.size
     
     # defines name of output files
-    opfile1 = opdir+label+"_N.npy"
-    opfile2 = opdir+label+"_pdm.npy"
-    opfile3 = opdir+label+"_pz.npy"
-    opfile4 = opdir+label+"_Nz.npy"
-    opfile4 = opdir+label+"_Tobs.npy"
-    opfile6 = opdir+label+"_thresh.npy"
+    opfile1 = configdir+label+"_N.npy"
+    opfile2 = configdir+label+"_pdm.npy"
+    opfile3 = configdir+label+"_pz.npy"
+    opfile4 = configdir+label+"_Nz.npy"
+    opfile5 = configdir+label+"_Tobs.npy"
+    opfile6 = configdir+label+"_thresh.npy"
     oldNs = np.load(opfile1)
     #pdms = np.load(opfile2)
     #pzs = np.load(opfile3)
     #Nizs = np.load(opfile4)
-    TOBS = fov*
+    TOBS = np.load(opfile5)
     thresh_Jyms = np.load(opfile6)
     
     # finds the best
     ibest = np.argmax(oldNs)
     survey_dict = {"THRESH": thresh_Jyms[ibest], "TOBS": TOBS[ibest], "FBAR": freq, "BW": bw}
-    print(survey_dict)
+    print(infile)
+    print(ibest,survey_dict)
+    print("\n\n")
     return
     Nsamples = samples.shape[0]
     Nz = zvals.size

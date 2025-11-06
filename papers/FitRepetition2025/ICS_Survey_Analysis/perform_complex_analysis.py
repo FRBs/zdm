@@ -228,8 +228,37 @@ def main(alpha=-1.5):
     ##### generates a single effective sensitivity curve #####
     # weights by time and efficiency here
     if True:
-        mean_curve = get_dm_efficiencies(ctsamp,cfmid[OK],ceff[OK]*ctime[OK],outfile="mean_ICS_efficiency.npy")
-    
+        mean_curve,mask = get_dm_efficiencies(ctsamp[OK],cfmid[OK],ceff[OK]*ctime[OK],
+                                    outfile="mean_ICS_efficiency.npy",
+                                    maskname="mean_ICS_mask.npy")
+        
+        lmean_curve,lmask = get_dm_efficiencies(ctsamp[LOW],cfmid[LOW],ceff[LOW]*ctime[LOW],
+                                    outfile="low_ICS_efficiency.npy",
+                                    maskname="low_ICS_mask.npy")
+        
+        mmean_curve,mmask = get_dm_efficiencies(ctsamp[MID],cfmid[MID],ceff[MID]*ctime[MID],
+                                    outfile="mid_ICS_efficiency.npy",
+                                    maskname="mid_ICS_mask.npy")
+        
+        hmean_curve,hmask = get_dm_efficiencies(ctsamp[HIGH],cfmid[HIGH],ceff[HIGH]*ctime[HIGH],
+                                    outfile="high_ICS_efficiency.npy",
+                                    maskname="high_ICS_mask.npy")
+        
+        # plots these masks
+        plt.figure()
+        plt.xlabel("DM [pc cm$^{-3}$]")
+        plt.ylabel("Fractional coverage")
+        plt.plot(lmask[0,:],lmask[1,:],label="low")
+        plt.plot(mmask[0,:],mmask[1,:],label="mid")
+        plt.plot(hmask[0,:],hmask[1,:],label="high")
+        plt.plot(mask[0,:],mask[1,:],label="mean")
+        plt.legend()
+        plt.tight_layout()
+        plt.ylim(0,1)
+        plt.xlim(0,7000)
+        plt.savefig("masks.png")
+        plt.close()
+        
     exit()
     
     ############ cumulative rate plots vs efficiencies ##########
@@ -409,7 +438,7 @@ def make_histograms(ICStimes,ICSfmids,ICSfootprints,ICSpitches,Nants,label="",sf
     
     return
 
-def get_dm_efficiencies(tsamps,flists,weights,outfile,plot=True):
+def get_dm_efficiencies(tsamps,flists,weights,outfile,maskname,plot=False):
     """
     Returns a total efficiency due to sampling
     time and frequency
@@ -418,15 +447,18 @@ def get_dm_efficiencies(tsamps,flists,weights,outfile,plot=True):
     tsamps: list of samplin times
     weights: list of weights
     """
-    DMs = np.linspace(0.,7000.,701)
+    nDM=701
+    DMs = np.linspace(0.,7000.,nDM)
     
     tlist = np.unique(tsamps)
     flist = np.unique(flists)
     
-    curves = get_sensitivity_curves(DMs,tlist,flist)
+    curves,DM_maxes = get_sensitivity_curves(DMs,tlist,flist)
+    
     effs = np.zeros([tsamps.size])
     
     csum = 0.
+    DM_weights = np.zeros([tlist.size,flist.size])
     
     for i,t in enumerate(tlist):
         OK1 = np.where(tsamps == t)[0]
@@ -435,6 +467,20 @@ def get_dm_efficiencies(tsamps,flists,weights,outfile,plot=True):
             if len(OK2)>0:
                 total_weight = np.sum(weights[OK1[OK2]])
                 csum += total_weight * curves[i][j]
+                DM_weights[i,j] = total_weight
+    
+    # we now make the DM mask
+    DM_weights = DM_weights.flatten()
+    DM_maxes = np.array(DM_maxes).flatten()
+    mask = np.zeros([2,nDM])
+    for i, dm in enumerate(DMs):
+        
+        OK = np.where(DM_maxes > dm)[0]
+        total = np.sum(DM_weights[OK])
+        mask[1,i]=total
+    
+    mask[0,:] = DMs
+    mask[1,:] /= mask[1,0]
     
     
     csum /= np.sum(weights)
@@ -453,7 +499,9 @@ def get_dm_efficiencies(tsamps,flists,weights,outfile,plot=True):
     print("shape is ",tosave.shape)
     np.save(outfile,tosave)
     
-    return csum
+    np.save(maskname,mask)
+    
+    return csum,mask
 
 
 
@@ -495,12 +543,16 @@ def get_sensitivity_curves(DMs,tlist,flist,nu_res = 1,iDM = 4096):
     df = 336.
     
     curves = []
+    DM_maxes = []
     for i,tres in enumerate(tlist):
         curves.append([])
+        DM_maxes.append([])
         for j,fbar in enumerate(flist):
             s.meta['FBAR'] = fbar
             s.meta['TRES'] = tres
-            widths,weights = survey.make_widths(s,state)
+            s.make_widths()
+            widths = s.wlist
+            weights = s.wplist
             rel_s_bar = 0.
             for k,w in enumerate(widths):
                 
@@ -509,14 +561,20 @@ def get_sensitivity_curves(DMs,tlist,flist,nu_res = 1,iDM = 4096):
                 rel_s_bar += rel_s * weights[k]
             
             # sets the curves to zero after a maximum DM
-            # solves 4096 * tres = Delta t = 4.196e-3 * DM * (numax^-2 - numin^-2)
-            DM_max = iDM * tres / ((fbar/1e3 - df/2e3)**-2 - (fbar/1e3+df/2e3)**-2) / 4.149
+            # solves 4096 * tres = Delta t = 4.196e-3 * DM * (numax^-2 - numin^-2) but in milliseconds
+            numaxGHz = fbar/1e3 + df/2e3
+            numinGHz = fbar/1e3 - df/2e3
+            dm_mult = 4.196 * (numinGHz**-2 - numaxGHz**-2)
+            DM_max = iDM * tres / dm_mult
+            #DM_max = iDM * tres / ((fbar/1e3 - df/2e3)**-2 - (fbar/1e3+df/2e3)**-2) / 4.149
+            
+            DM_maxes[i].append(DM_max)
             bad = np.where(DMs > DM_max)[0]
             rel_s_bar[bad]=0.
             
             curves[i].append(rel_s_bar)
     
-    return curves
+    return curves,DM_maxes
                 
 def get_width_efficiencies(tsamps,flists,maxDM=False,normF=1272,normT=1.182):
     """

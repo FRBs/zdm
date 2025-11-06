@@ -115,7 +115,6 @@ def set_fit_params(vparams,case):
     sets best-fit standard fit parameters,
     as returned from the MCMC
     
-    
     """
     
     
@@ -284,6 +283,7 @@ def set_orig_scat(vparams):
     vparams['width']['WNbins'] = 5
     vparams['width']['WidthFunction'] = 1 # lognormal
     vparams['width']['Wthresh'] = 0.5
+    vparams['width']['Wmethod'] = 1 # intrinsic width only
     # approximately the same width treatment - 
     # the functionality is changed, so it's not *quite*
     # identical
@@ -323,6 +323,7 @@ def set_chime_scat(vparams):
     vparams['width']['WNbins'] = 5
     vparams['width']['WidthFunction'] = 1 # lognormal
     vparams['width']['Wthresh'] = 0.5
+    vparams['width']['Wmethod'] = 2 # width and scattering, no z-dependence
     # approximately the same width treatment - 
     # the functionality is changed, so it's not *quite*
     # identical
@@ -356,6 +357,7 @@ def set_updated_scat(vparams):
     vparams['width']['WNbins'] = 12
     vparams['width']['WidthFunction'] = 2 # half-lognormal
     vparams['width']['Wthresh'] = 0.5
+    vparams['width']['Wmethod'] = 3 # width and scattering, z-dependence
     # approximately the same width treatment - 
     # the functionality is changed, so it's not *quite*
     # identical
