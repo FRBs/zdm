@@ -26,19 +26,20 @@ import importlib.resources as resources
 def main():
     
     # in case you wish to switch to another output directory
-    name="ASKAP"
+    name="CRACO"
     opdir=name+"/"
     
     # approximate best-fit values from recent analysis
     # best-fit from Jordan et al
-    state = states.load_state("HoffmannEmin25",scat="updated",rep=None)
+    # plot scat "updated" if better, but takes ages!
+    state = states.load_state("HoffmannEmin25",scat="CHIME",rep=None)
     
     if not os.path.exists(opdir):
         os.mkdir(opdir)
     
     # Initialise surveys and grids
     sdir = resources.files('zdm').joinpath('data/Surveys')
-    names=['CRAFT_CRACO_900']
+    names=['CRAFT_CRACO_1300','CRAFT_CRACO_900']
     
     ss,gs = loading.surveys_and_grids(
         survey_names=names,repeaters=False,init_state=state,sdir=sdir) # should be equal to actual number of FRBs, but for this purpose it doesn't matter
@@ -54,15 +55,18 @@ def main():
     ax2 = plt.gca()
     
     # chooses the first arbitrarily to extract zvals etc from
-    s=ss[0]
-    g=gs[0]
-    name = names[0]
-    figures.plot_grid(gs[0].rates,g.zvals,g.dmvals,
-        name=opdir+name+"_zDM.pdf",norm=3,log=True,
-        label='$\\log_{10} p({\\rm DM}_{\\rm IGM} + {\\rm DM}_{\\rm host},z)$ [a.u.]',
-        project=False,ylabel='${\\rm DM}_{\\rm IGM} + {\\rm DM}_{\\rm host}$',
-        zmax=zmax,DMmax=DMmax,Aconts=[0.01,0.1,0.5])
+    for i,g in enumerate(gs):
+        s=ss[i]
+        name = names[i]
+    
+        figures.plot_grid(g.get_rates(),g.zvals,g.dmvals,
+            name=opdir+name+"_zDM.pdf",norm=3,log=True,
+            label='$\\log_{10} p({\\rm DM}_{\\rm IGM} + {\\rm DM}_{\\rm host},z)$ [a.u.]',
+            project=False,ylabel='${\\rm DM}_{\\rm IGM} + {\\rm DM}_{\\rm host}$',
+            zmax=zmax,DMmax=DMmax,Aconts=[0.01,0.1,0.5],
+            FRBDMs=s.frbs['DM'].values,FRBZs=s.frbs['Z'].values)
     exit()
+    
     pz = np.sum(mean_rates,axis=1)
     pz /= np.max(pz)
     ax1.plot(g.zvals,pz,label=name)

@@ -24,16 +24,57 @@ def main():
     """
     
     df = pd.read_csv("Logs/craco_13ms_survey_db.weight.altaz.csv")
+    print(df.columns)
     
-    LOW = np.where(df["fbar"] < 1050)[0]
-    HIGH = np.where(df["fbar"] > 1050)[0]
+    LOW = np.where(df["fbar"] < 1000)[0]
+    HIGH = np.where(df["fbar"] > 1000)[0]
+    
+    # prints some characteristic values
+    print_mean_values(df,LOW,HIGH)
+    
+    # produces some basic plots
+    do_basic_plots(df,LOW,HIGH)
+    
+    # plots example of sampling time effet
+    plot_tsamp()
+    
+    # produces plot of cumulative effective and normal time vs detected FRBs
+    plot_cumulative(df,LOW,HIGH)
+    
+    # load_frbs
+
+    frbs = pd.read_csv("Logs/CRACO_13.8ms_zdm.dmgal.altaz.mjd.csv")
+    match_values(df,frbs)
+    
+def match_values(df,frbs):
+    """
+    For each frb, get slices corresponding to which observation they were found in
+    """
+    scans = frbs["scan"]
+    for i,scan in enumerate(scans):
+        j = np.where(df["scan"] == scan)[0]
+        fbar = df["fbar"][j].to_string(index=False, header=False)
+        nchan = df["nchans"][j].to_string(index=False, header=False)
+        print(i,fbar,nchan)
+    
+    
+    
+def print_mean_values(df,LOW,HIGH):
+    """
+    Prints mean values of various quantities
+    """
+    
     
     Ttot = np.sum(df["tobs"])
     LTtot = np.sum(df["tobs"][LOW])
     HTtot = np.sum(df["tobs"][HIGH])
-    print("Total time is ",Ttot," with ",LTtot/3600," at low, and ",HTtot/3600," at high")
+    LTeff = np.sum(df["t_eff"][LOW])
+    HTeff = np.sum(df["t_eff"][HIGH])
+    print("Total time is ",Ttot/3600," with ",LTtot/3600," at low, and ",HTtot/3600," at high")
+    print("Total effective time is ",LTeff/3600," at low, and ",HTeff/3600," at high")
     print("Mean low frequency is ",np.sum(df["tobs"][LOW]*df["fbar"][LOW])/LTtot)
     print("Mean high frequency is ",np.sum(df["tobs"][HIGH]*df["fbar"][HIGH])/HTtot,"\n\n\n")
+    
     
     # on average, we have lost 0.913 due to bandwidth
     print("mean bandwidth ",np.sum(df['nchans']*df["tobs"])/Ttot)
@@ -56,14 +97,9 @@ def main():
     print("Low nant loss ",np.sum(df['w_nant'][LOW]*df["tobs"][LOW])/LTtot)
     print("High nant loss ",np.sum(df['w_nant'][HIGH]*df["tobs"][HIGH])/HTtot,"\n\n")
     
-    # produces some basic plots
-    do_basic_plots(df,LOW,HIGH)
     
-    # plots example of sampling time effet
-    plot_tsamp()
     
-    # produces plot of cumulative effective and normal time vs detected FRBs
-    plot_cumulative(df,LOW,HIGH)
+    # but NOT calculating width, 
     
 def plot_cumulative(df,LOW,HIGH):
     """

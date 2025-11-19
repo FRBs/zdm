@@ -595,6 +595,11 @@ class Survey:
         dkws2=kws-iws1 # applies to izs2
         dkws1 = 1. - dkws2
         
+        # in case iws1 is in the largets bin, then 
+        # iws2 will be too large
+        toobig1 = np.where(iws2 >= self.wlist.size)[0]
+        iws2[toobig1]=self.wlist.size-1
+        
         # checks for values which are too large
         toobigw = np.where(wlist > self.WMax)[0]
         if len(toobigw) > 0:
