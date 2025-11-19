@@ -497,7 +497,8 @@ class Grid:
         
     def get_rates(self):
         """
-        Returns rates, multiplied by the relevant constant
+        Returns rates, multiplied by the relevant constant,
+        and accounting for any DM preference via a DM mask
         """
         
         rates = np.zeros(self.rates.shape)
