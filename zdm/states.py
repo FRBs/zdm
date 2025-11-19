@@ -50,6 +50,12 @@ def load_state(case="HoffmannHalo25",scat=None,rep=None):
         # just use the user-defined scattering version. Check if this exists!
         if not scat in scats:
             raise ValueError("Case ",scat," undefined, please choose from ",scats)
+        elif scat=="orig":
+            vparams = set_orig_scat(vparams)
+        elif scat=="CHIME":
+            vparams = set_chime_scat(vparams)
+        elif scat=="updated":
+            vparams = set_updated_scat(vparams)
     elif case == "JamesSFR22":
         scat="orig"
         vparams = set_orig_scat(vparams)
@@ -324,6 +330,7 @@ def set_chime_scat(vparams):
     vparams['width']['WidthFunction'] = 1 # lognormal
     vparams['width']['Wthresh'] = 0.5
     vparams['width']['Wmethod'] = 2 # width and scattering, no z-dependence
+    
     # approximately the same width treatment - 
     # the functionality is changed, so it's not *quite*
     # identical
@@ -333,7 +340,7 @@ def set_chime_scat(vparams):
     
     
     if not 'scat' in vparams:
-        vparams['width'] = {}
+        vparams['scat'] = {}
     vparams['scat'] = {}
     vparams['scat']['Slogmean'] = 0.305
     vparams['scat']['Slogsigma'] = 0.75
@@ -349,6 +356,9 @@ def set_updated_scat(vparams):
     Sets the width and scattering variables to those from
     James et al 2025, which focusses on width and scattering
     """
+    
+    # first-order correction compared to CHIME scattering
+    vparams['FRBdemo']['lC'] = vparams['FRBdemo']['lC'] + np.log10(20./13.6) 
     
     if not 'width' in vparams:
         vparams['width'] = {}

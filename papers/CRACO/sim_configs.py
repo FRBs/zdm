@@ -15,7 +15,7 @@ def main():
 
 def sim_all_configs(Bdir,primary=False):
     
-    configs = pd.read_csv("configs.csv")# np.loadtxt("configs.dat",dtype="str")
+    configs = pd.read_csv("Logs/configs.csv")# np.loadtxt("configs.dat",dtype="str")
     nconfigs = len(configs)
     
     pyfile = os.path.join(resources.files('zdm'), 'beam_generator','sim_craco_beam.py')
@@ -45,8 +45,8 @@ def sim_all_configs(Bdir,primary=False):
         gpix = 2560
         basename = f"{Bdir}/hist_craco_{footprint}_p{fpitch:.2f}_f{freq:.1f}MHz_f{gsize:.1f}d_npix{gpix}_.npy"
         basename2 = f"./hist_craco_{footprint}_p{fpitch:.2f}_f{freq:.1f}MHz_f{gsize:.1f}d_npix{gpix}_.npy"
-        basename3 = f"./craco_{footprint}_p{fpitch:.2f}_f{freq:.1f}MHz_f{gsize:.1f}d_npix{gpix}_.npy"
-        if os.path.exists(basename):
+        basename3 = f"./craco_{footprint}_p{fpitch:.2f}_f{freq:.1f}MHz_f{gsize:.1f}d_npix{gpix}.npy"
+        if False: #os.path.exists(basename):
             print("Found ",basename)
         else:
             command = "python "+pyfile +" -fp " + footprint + " -p " + spitch + " -f " + sfreq[0:7] + " --primary="+str(primary)
@@ -60,6 +60,6 @@ def sim_all_configs(Bdir,primary=False):
             os.system(command)
         
     
-
+        exit()
 
 main()

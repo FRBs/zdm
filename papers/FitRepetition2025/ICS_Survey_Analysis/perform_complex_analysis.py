@@ -259,6 +259,8 @@ def main(alpha=-1.5):
         plt.savefig("masks.png")
         plt.close()
         
+        
+        
     exit()
     
     ############ cumulative rate plots vs efficiencies ##########
@@ -524,10 +526,13 @@ def get_sensitivity_curves(DMs,tlist,flist,nu_res = 1,iDM = 4096):
     """
     ########## initiualise lognormal width distribution #######3
     from zdm import parameters
-    state = parameters.State()
+    #state = parameters.State()
     import os
     from pkg_resources import resource_filename
     from zdm import survey
+    from zdm import states
+    
+    state = states.load_state("HoffmannEmin25")
     
     # sets path to ASKAP surveys
     sdir = os.path.join(resource_filename('zdm', 'data'), 'Surveys/')

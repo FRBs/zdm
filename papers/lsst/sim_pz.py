@@ -28,7 +28,7 @@ from scipy.interpolate import CubicSpline
 from scipy import stats
 import matplotlib
 
-defaultsize=14
+defaultsize=18
 ds=4
 font = {'family' : 'Helvetica',
         'weight' : 'normal',
@@ -42,7 +42,9 @@ def main(opdir="Data/"):
     meerkat_z,meerkat_mr = read_meerkat()
     
     Load=True
+    repeaters=False
     
+    Rlim0 = 19.8 # existing magnitude limits
     Rlim1 = 24.7
     Rlim2 = 27.5
     
@@ -61,7 +63,7 @@ def main(opdir="Data/"):
       
     if not Load:
         #gs,ss = get_surveys_grids(names,opdir,repeaters=True,Test=False)
-        ss,gs = get_surveys_grids(names,opdir,repeaters=False,Test=True)
+        ss,gs = get_surveys_grids(names,opdir,repeaters=False,Test=False)
         
         plot_efficiencies(gs,ss,opdir,prefixes)
         
@@ -80,8 +82,10 @@ def main(opdir="Data/"):
         Rvals = np.linspace(0,40,NR+1) # 401 values - defining bin edges
         Rbars = (Rvals[:-1]+Rvals[1:])/2.
         Rhist = np.zeros([nz,NR])
+        fz0 = np.zeros([nz])
         fz1 = np.zeros([nz])
         fz2 = np.zeros([nz])
+        iz0 = np.where(Rbars < Rlim0)[-1]
         iz1 = np.where(Rbars < Rlim1)[-1]
         iz2 = np.where(Rbars < Rlim2)[-1]
         
@@ -101,15 +105,17 @@ def main(opdir="Data/"):
                 Rhist[i,:] = dv
                 
                 # fractions up to that redshift
+                fz0[i] = norm.cdf(Rlim0)
                 fz1[i] = norm.cdf(Rlim1)
                 fz2[i] = norm.cdf(Rlim2)
+        np.save(opdir+"fz_19.8.npy",fz0)
         np.save(opdir+"fz_24.7.npy",fz1)
         np.save(opdir+"fz_27.5.npy",fz2)
         np.save(opdir+"Rhist.npy",Rhist)
         np.save(opdir+"Rvals.npy",Rvals)
         np.save(opdir+"Rbars.npy",Rbars)
     else:
-        
+        fz0 = np.load(opdir+"fz_19.8.npy")
         fz1 = np.load(opdir+"fz_24.7.npy")
         fz2 = np.load(opdir+"fz_27.5.npy")
         Rhist = np.load(opdir+"Rhist.npy")
@@ -126,6 +132,8 @@ def main(opdir="Data/"):
     plt.tight_layout()
     plt.savefig(opdir+"fraction_visible.png")
     plt.close()
+    
+    DPplot(zvals,[fz1],["$m_r = 24.7$"],opdir + "DP_fraction_visible.png",color="orange")
     
     ####### p(z) plot #####
     plt.figure()
@@ -144,10 +152,12 @@ def main(opdir="Data/"):
             break
         if Load:
             pz = np.load(opdir+prefixes[i]+"_pz.npy")
+            pz0 = np.load(opdir+prefixes[i]+"_fpz0.npy")
             pz1 = np.load(opdir+prefixes[i]+"_fpz1.npy")
             pz2 = np.load(opdir+prefixes[i]+"_fpz2.npy")
         else:
             s=ss[i]
+            g=gs[i]
             ########## gets p(z) ##########
             if repeaters:
                 # plots individual sources
@@ -161,11 +171,13 @@ def main(opdir="Data/"):
             norm = 7./dz
             pz *= norm
             
+            pz0 = pz*fz0
             pz1 = pz*fz1
             pz2 = pz*fz2
             
             np.save(opdir+"zvals.npy",g.zvals)
             np.save(opdir+prefixes[i]+"_pz.npy",pz)
+            np.save(opdir+prefixes[i]+"_fpz0.npy",pz0)
             np.save(opdir+prefixes[i]+"_fpz1.npy",pz1)
             np.save(opdir+prefixes[i]+"_fpz2.npy",pz2)
         
@@ -175,11 +187,12 @@ def main(opdir="Data/"):
         print(i,"Norm is ",norm)
         
         plt.plot(zvals,pz/norm,label=labels[i],linestyle="-")
+        plt.plot(zvals,pz0/norm,linestyle="-.",color=plt.gca().lines[-1].get_color())
         plt.plot(zvals,pz1/norm,linestyle="--",color=plt.gca().lines[-1].get_color())
         plt.plot(zvals,pz2/norm,linestyle=":",color=plt.gca().lines[-1].get_color())
         
-        print("For survey ",prefixes[i]," number of FRBs will be ",np.sum(pz),np.sum(pz1),\
-                np.sum(pz2),np.sum(pz1)/np.sum(pz),np.sum(pz2)/np.sum(pz))
+        print("For survey ",prefixes[i]," number of FRBs will be ",np.sum(pz),np.sum(pz0),np.sum(pz1),\
+                np.sum(pz2),np.sum(pz0)/np.sum(pz),np.sum(pz1)/np.sum(pz),np.sum(pz2)/np.sum(pz))
         
         # plots total magnitude distribution
         pzR = (Rhist.T*pz).T
@@ -219,6 +232,55 @@ def main(opdir="Data/"):
     plt.legend()
     plt.tight_layout()
     plt.savefig(opdir+"lsst_pR.png")
+    plt.close()
+    
+    DPplot(zvals,[pz,pz1],["all FRBs","LSST"],opdir + "DP_pz.png",color="orange",legend=False)
+    DPplot(zvals,[pz,pz1,pz0],["all FRBs","LSST","Now"],opdir + "DP_pz0.png",color="orange",legend=False)
+    
+    DPplot(zvals,[pz1,pz0],["LSST","Now"],opdir + "DP_lsst_vs_now.png",color="orange",legend=False)
+
+def DPplot(zvals,yvals,labels,outfile,color="orange",legend=True):
+    
+    fig = plt.figure()
+    
+    linestyles=["-","--",":","-."]
+    # Plot in orange
+    Norm=-1
+    for i,yval in enumerate(yvals):
+        norm = np.max(yval)
+        if norm > Norm:
+            Norm=norm
+    
+    for i,yval in enumerate(yvals):
+        plt.plot(zvals, yval/Norm, label=labels[i], color=color,linestyle=linestyles[i])
+    
+    # Labels in orange
+    plt.xlabel("redshift", color=color)
+    plt.ylabel("fraction visible", color=color)
+    
+    # Axis limits
+    plt.xlim(0, 3)
+    plt.ylim(0, 1.05)
+    
+    # Make tick labels orange
+    plt.tick_params(axis='both', colors=color)
+    
+    # Make the axes spines orange
+    for spine in plt.gca().spines.values():
+        spine.set_color(color)
+    
+    if legend:
+        # Legend text + frame in orange
+        leg = plt.legend()
+        for text in leg.get_texts():
+            text.set_color(color)
+        leg.get_frame().set_edgecolor(color)
+    
+    fig.set_facecolor("none")
+    plt.gca().set_facecolor("none")
+    
+    plt.tight_layout()
+    plt.savefig(outfile,transparent=True)
     plt.close()
 
 def plot_beams(ss,labels,opdir):

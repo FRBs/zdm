@@ -494,6 +494,18 @@ class Grid:
         self.sfr_smear = np.multiply(self.smear_grid.T, self.sfr).T
 
         self.rates = self.pdv * self.sfr_smear
+        
+    def get_rates(self):
+        """
+        Returns rates, multiplied by the relevant constant
+        """
+        
+        rates = np.zeros(self.rates.shape)
+        rates[:,:] = self.rates * 10**self.state.FRBdemo.lC
+        # multiplies by DM mask if applicable
+        if self.survey.dm_mask is not None:
+            rates = rates*self.survey.dm_mask
+        return rates
 
     def calc_thresholds(self, F0:float, 
                         eff_table, 

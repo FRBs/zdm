@@ -2,19 +2,19 @@ import numpy as np
 import importlib.resources as resources
 import os
 import pandas as pd
-
 def main():
     """
     Loads in unique configs, and generates beamfiles for them,
     weighted by the time on sky
     """
-    
-    gen_weighted_beams("BeamHistograms/","FinalBeams/")
-    #gen_weighted_beams("PrimaryBeams/","PrimaryBeams/")
+    # turn on add to add beamfactors column
+    gen_weighted_beams("BeamHistograms/","FinalBeams/",add=False)
+    # turn on this to generate files for the primary beam
+    gen_weighted_beams("PrimaryBeams/","PrimaryBeams/")
 
-def gen_weighted_beams(indir,opdir):  
+def gen_weighted_beams(indir,opdir,add=False):  
     
-    configs = pd.read_csv("configs.csv")# np.loadtxt("configs.dat",dtype="str")
+    configs = pd.read_csv("Logs/configs.csv")# np.loadtxt("configs.dat",dtype="str")
     nconfigs = len(configs)
     
     pyfile = os.path.join(resources.files('zdm'), 'beam_generator','sim_craco_beam.py')
@@ -22,6 +22,7 @@ def gen_weighted_beams(indir,opdir):
     bins = np.load("BeamHistograms/craco_histogram_bins.npy")
     nbins=bins.size-1
     bcentres = bins[0:-1] * (bins[1]/bins[0])**0.5
+    # relative rate per solid angle: Euclidean expectation
     bfactors = bcentres**1.5
     
     fcut = 1100
@@ -94,19 +95,20 @@ def gen_weighted_beams(indir,opdir):
     print("Total effective sensitivity of beam2 is ",np.sum(bfactors*h2))
     
     bfs = np.array(bfs)
-    df = pd.read_csv("configs.csv")
+    df = pd.read_csv("Logs/configs.csv")
     df["bfactors"]=bfs
-    df.to_csv("configs.csv",index=False)
+    df.to_csv("Logs/configs.csv",index=False)
     
-    # adds beam factors to the 
-    add_beamfactors()
+    # adds beam factors to the  configs file
+    if add:
+        add_beamfactors()
     
 def add_beamfactors():
     """
     Adds relative beam factors as weighting to data
     """
     
-    dfc = pd.read_csv("configs.csv")
+    dfc = pd.read_csv("Logs/configs.csv")
     df = pd.read_csv("Logs/craco_13ms_survey_db_with_weights.csv")
     nobs = len(df)
     bfs = np.zeros([nobs])

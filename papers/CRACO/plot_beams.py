@@ -14,19 +14,19 @@ font = {'family' : 'Helvetica',
 matplotlib.rc('font', **font)
 
 def main():
-    
+    """
+    Loads in beam data and plots this
+    """
     # loads in data
-    #h1=np.load("FinalBeams/CRACO_900_log_hist.npy")
-    #b1=np.load("FinalBeams/CRACO_900_log_bins.npy")
-    #h2=np.load("FinalBeams/CRACO_1300_log_hist.npy")
-    #b2=np.load("FinalBeams/CRACO_1300_log_bins.npy")
-    
     indir = os.path.join(resources.files('zdm'), 'data','BeamData')
     
     beams = ["CRACO_900","CRACO_1300"]#,"ASKAP_892","ASKAP_1300"]
     labels=["CRACO 900","CRACO 1300"]#,"ICS 892","ICS 1300"]
     linestyles=["-","--",":","-."]
         
+    Senses = []
+    bfiles = []
+    
     plt.figure()
     for i,beam in enumerate(beams):
         bfile=beam+"_bins.npy"
@@ -37,17 +37,24 @@ def main():
         h=np.load(hfile)
         b=np.load(bfile)
         
-        print("Total solid for ",labels[i]," is ",np.sum(h))
         
         # divides hist file by log-scaling in b
-        bwidth = np.log10(b[1]/b[0])
-        h /= bwidth
-        # get bin centres
+        bwidth = b[1]/b[0]
+        lbwidth = np.log10(bwidth)
         b=b[:-1] * bwidth**0.5
         
+        # need to sum before normalisation
+        Sens = np.sum(h*b**1.5)
+        Senses.append(Sens)
+        bfiles.append(bfile)
         
-        plt.plot(b,h,label=labels[i])
+        h /= lbwidth
+        # get bin centres
         
+        if i == 0:
+            plt.plot(b,h,label=labels[i],linestyle=linestyles[i])
+        else:
+            plt.plot(b,h,label=labels[i],linestyle=linestyles[i],color=plt.gca().lines[-1].get_color())
         
         
     plt.xlabel("$B$")
@@ -56,27 +63,95 @@ def main():
     plt.tight_layout()
     
     # plots data
-    plt.savefig("craco_beams.png")
+    plt.savefig("Plots/craco_beams.png")
+    
     
     ###### Adds primary beams #####
     
     # adds plots of primary beam response
     # just knows that the b values are identical to previous
-    h = np.load("PrimaryBeams/CRACO_900_hist.npy")
-    h /= bwidth
-    plt.plot(b,h,label="Primary 900")
+    bfile="PrimaryBeams/CRACO_900_hist.npy"
+    h = np.load(bfile)
     
-    h = np.load("PrimaryBeams/CRACO_1300_hist.npy")
-    h /= bwidth
-    plt.plot(b,h,label="Primary 1300")
+    
+    # need to sum before normalisation
+    Sens = np.sum(h*b**1.5)
+    Senses.append(Sens)
+    bfiles.append(bfile)
+    
+    
+    h /= lbwidth
+    plt.plot(b,h,label="Primary 900",linestyle="-")
+    
+    bfile="PrimaryBeams/CRACO_1300_hist.npy"
+    h = np.load(bfile)
+    
+    # need to sum before normalisation
+    Sens = np.sum(h*b**1.5)
+    Senses.append(Sens)
+    bfiles.append(bfile)
+    
+    h /= lbwidth
+    plt.plot(b,h,label="Primary 1300",linestyle="--",color=plt.gca().lines[-1].get_color())
     plt.legend()
     plt.tight_layout()
-    plt.savefig("primary_askap_beams.png")
+    plt.savefig("Plots/primary_askap_beams.png")
+    
+    ###### Adds primary beams #####
+    
+    # adds plots of primary beam response
+    # just knows that the b values are identical to previous
+    bfile=indir+"/ASKAP_892_hist.npy"
+    h = np.load(bfile)
+    b = np.load(indir+"/ASKAP_892_bins.npy")
+    
+    
+    bwidth = b[1]/b[0]
+    b = b[:-1]*bwidth**0.5
+    
+    # need to sum before normalisation
+    Sens = np.sum(h*b**1.5)
+    Senses.append(Sens)
+    bfiles.append(bfile)
+    
+    lbwidth = np.log10(bwidth)
+    h /= lbwidth
+    
+    plt.plot(b,h,label="ICS 900",linestyle="-")
+    
+    bfile=indir+"/ASKAP_1300_hist.npy"
+    h = np.load(bfile)
+    b = np.load(indir+"/ASKAP_1300_bins.npy")
+    bwidth = b[1]/b[0]
+    b = b[:-1]*bwidth**0.5
+    
+    # need to sum before normalisation
+    Sens = np.sum(h*b**1.5)
+    Senses.append(Sens)
+    bfiles.append(bfile)
+    
+    lbwidth = np.log10(bwidth)
+    h /= lbwidth
+    
+    plt.plot(b,h,label="ICS 1300",linestyle="--",color=plt.gca().lines[-1].get_color())
+    plt.ylim(0,0.07)
+    plt.xlim(0,1)
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig("Plots/comparison_askap_beams.png")
+    
+    
     plt.close()
+    
+    # prints relative sensitivitiesa compared to 
+    for i in np.arange(3):
+        
+        print("Sensitivity of beam file ",i," compared to ICS: ",bfiles[2*i],Senses[2*i]/Senses[4])
+        print("Sensitivity of beam file ",i," compared to ICS: ",bfiles[2*i+1],Senses[2*i+1]/Senses[5])
     
     
     ##### plots all components #####
-    configs = pd.read_csv("configs.csv")# np.loadtxt("configs.dat",dtype="str")
+    configs = pd.read_csv("Logs/configs.csv")# np.loadtxt("configs.dat",dtype="str")
     nconfigs = len(configs)
     
     b = np.load("BeamHistograms/craco_histogram_bins.npy")
@@ -128,7 +203,7 @@ def main():
     plt.tight_layout()
     
     # plots data
-    plt.savefig("closepack_lowf_component_beams.png")
+    plt.savefig("Plots/closepack_lowf_component_beams.png")
     plt.close()
     
     

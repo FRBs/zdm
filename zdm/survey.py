@@ -855,16 +855,18 @@ class Survey:
         # Survey Data
         self.survey_data = survey_data.SurveyData.from_jsonstr(
             frb_tbl.meta['survey_data'])
+        
+        
         # Meta -- for convenience for now;  best to migrate away from this
         for key in self.survey_data.params:
             DC = self.survey_data.params[key]
             self.meta[key] = getattr(self.survey_data[DC],key)
-        
+            
         # Get default values from default frb data
         default_frb = survey_data.FRB()
         
         # we now populate missing fields with the default values
-        for field in fields(default_frb):
+        for field in fields(default_frb):\
             # checks to see if this is a field in metadata: if so, takes priority
             if survey_dict is not None and field.name in survey_dict.keys():
                 default_vaue = survey_dict[field.name]
@@ -941,23 +943,27 @@ class Survey:
         
         if len(self.frbs) > 0:
             # first, replacing missing values with survey values
+            # only do this for values which are otherwise missing!
             
             # replace default values with observed media values
             # it's unclear if median or mean is the best here
-            self.meta['SNRTHRESH'] = np.median(self.frbs['SNRTHRESH'])
-            self.meta['THRESH'] = np.median(self.frbs['THRESH'])
-            self.meta['BW'] = np.median(self.frbs['BW'])
-            self.meta['FBAR'] = np.median(self.frbs['FBAR'])
-            self.meta['FRES'] = np.median(self.frbs['FRES'])
-            self.meta['TRES'] = np.median(self.frbs['TRES'])
-            self.meta['WIDTH'] = np.median(self.frbs['WIDTH'])
-            self.meta['DMG'] = np.mean(self.frbs['DMG'])
-        
+            keylist = ['SNRTHRESH','THRESH','BW','FBAR','FRES','TRES','WIDTH','DMG']
+            for key in keylist:
+                if not key in self.meta:
+                    self.meta[key] = np.median(self.frbs[key])
+            #self.meta['SNRTHRESH'] = np.median(self.frbs['SNRTHRESH'])
+            #self.meta['THRESH'] = np.median(self.frbs['THRESH'])
+            #self.meta['BW'] = np.median(self.frbs['BW'])
+            #self.meta['FBAR'] = np.median(self.frbs['FBAR'])
+            #self.meta['FRES'] = np.median(self.frbs['FRES'])
+            #self.meta['TRES'] = np.median(self.frbs['TRES'])
+            #self.meta['WIDTH'] = np.median(self.frbs['WIDTH'])
+            #self.meta['DMG'] = np.mean(self.frbs['DMG'])
         # over-rides survey data if applicable
         if survey_dict is not None:
             for key in survey_dict:
                 self.meta[key] = survey_dict[key]
-        
+                print(self.meta[key], "overidden by ",survey_dict[key])
         ### processes galactic contributions
         self.process_dmg()
         
@@ -1002,7 +1008,7 @@ class Survey:
             
         
         print("FRB survey sucessfully initialised with ",self.NFRB," FRBs starting from", self.iFRB)
-
+        
     
     def fix_coordinates(self,verbose=False):
         """
@@ -1183,9 +1189,6 @@ class Survey:
                 max_iw=self.meta['MAX_IW'],
                 max_meth = self.meta['MAXWMETH'])
         
-        # multiplies by DM mask if applicable
-        if self.dm_mask is not None:
-            efficiencies *= self.dm_mask
         
         # keep an internal record of this
         if iz is None:
@@ -1289,8 +1292,9 @@ def calc_relative_sensitivity(DM_frb,DM,w,fbar,t_res,nu_res,Nchan=336,max_idt=No
             uw=w
         
         if model == "StdDev":
-            totalw = (uw**2 + dm_smearing**2/3. + t_res**2/3.)**0.5
-            nosmearw = (uw**2 + t_res**2/3.)**0.5
+            # 2* to be +- one standard deviation. But we're now fixing Tres to be unity
+            totalw = (uw**2 + dm_smearing**2/3. + t_res**2)**0.5
+            nosmearw = (uw**2 + t_res**2)**0.5
         else:
             totalw = (uw**2 + dm_smearing**2 + t_res**2)**0.5
             nosmearw = (uw**2 + t_res**2)**0.5
@@ -1323,7 +1327,7 @@ def calc_relative_sensitivity(DM_frb,DM,w,fbar,t_res,nu_res,Nchan=336,max_idt=No
                 # we have already reduced it by \sqrt{t}
                 # we thus add a further sqrt{t} factor
                 sensitivity[toolong] *= (max_w / totalw[toolong])**0.5
-    
+        
     # If model not CHIME, Quadrature or Sammons assume it is a filename
     else:
         if edir is None:

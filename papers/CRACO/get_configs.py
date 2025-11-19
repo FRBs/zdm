@@ -10,11 +10,12 @@ def main():
     produces observation time for each unique configuration
     """
     
-    df = read_logfile()
+    df = read_logfile(infile = "Logs/craco_13ms_survey_db.weight.altaz.csv")
     
     # adds statistical weighting factors
-    opfile = "Logs/craco_13ms_survey_db_with_weights.csv"
-    df = add_columns(df,opfile) 
+    # turn on if extra info is not yet generated
+    #opfile = "Logs/craco_13ms_survey_db.weight.altaz.csv"
+    #df = add_columns(df,opfile) 
     
     # gets unique configurations
     get_unique(df)
@@ -25,9 +26,11 @@ def add_columns(df,opfile):
     """
     
     
-    # proportional to square root of bandwidth
+    # sens is proportional to square root of bandwidth
+    # rate goes as ^1.5. Hence, power of 0.75
     maxchan = np.max(df["nchans"])
-    w_bw = (df["nchans"]/maxchan)**0.5
+    print("Max channels is ",maxchan)
+    w_bw = (df["nchans"]/maxchan)**0.75
     df["w_bandwidth"] = w_bw
     
     # just go linearly with this
@@ -120,5 +123,5 @@ def get_unique(df):
             "Teff": wtotal}
     
     df = pd.DataFrame(data)
-    df.to_csv("configs.csv",index=False)
+    df.to_csv("Logs/configs.csv",index=False)
 main()
