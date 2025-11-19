@@ -6,10 +6,10 @@
 
 import numpy as np
 import os
-from pkg_resources import resource_filename
+
 from scipy.integrate import quad
 from dataclasses import dataclass, fields
-
+import importlib.resources as resources
 import pandas
 from astropy.table import Table
 import json
@@ -95,6 +95,9 @@ class Survey:
         
         # initialise scattering/width and resulting efficiences
         self.init_widths()
+        
+        self.init_frb_bvals() #initial;ise weights for FRBs with known beam values
+        self.init_frb_wvals()
         
         self.calc_max_dm()
         
@@ -453,6 +456,72 @@ class Survey:
         
         return iws1, iws2, dkws1, dkws2
     
+    
+    def init_frb_bvals(self):
+        """
+        Initialise frb-by-frb weights for each value of the beam histogram, based on
+        the value of the beam that the FRB was detected in.
+        
+        Simply does this by linear interpolation
+        """
+        
+        # contains beam-dependent weights for each FRB
+        frb_bweights = np.zeros([self.NFRB,self.meta["NBINS"]])
+        
+        lbs = np.log(self.beam_b)
+        
+        for i,B in enumerate(self.frbs["B"]):
+            if B == -1: # code for "ignore it"
+                # still have to decide what to do here. Likely give equal weights?
+                frb_bweights[i,:] = 1./self.meta["NBINS"]
+            elif B > self.beam_b[-1]: # greater value than max, just use max
+                frb_bweights[i,-1] = 1.
+            elif B < self.beam_b[0]:
+                frb_bweights[i,0] = 1.
+            else:
+                # at least one value of beam_b will be greater and one lesser than B
+                iB2 = np.where(self.beam_b > B)[0][0]
+                iB1 = iB2 - 1
+                # do log-scaling
+                lB = np.log(B)
+                kB2 = (lB- lbs[iB1])/(lbs[iB2]-lbs[iB1])
+                kB1 = 1.-kB2
+                frb_bweights[i,iB1] = kB1
+                frb_bweights[i,iB2] = kB2
+        self.frb_bweights = frb_bweights
+        
+        # speedups when iterating through 1D and 2D likelihoods
+        self.frb_zbweights = frb_bweights[self.zlist,:]
+        self.frb_nozbweights = frb_bweights[self.nozlist,:]
+        
+    def init_frb_wvals(self):
+        """
+        Initialises frb width coefficients for linear interpolation
+        
+        This is for a slightly different purpose than the init widths routine
+        """
+        
+        
+        #wlist = survey.WIDTHs # measured total widths
+        nw = self.wlist.size
+        frb_wweights = np.zeros([self.NFRB,nw])
+        
+        OKw = np.where(self.WIDTHs > 0.)
+        notOKw = np.where(self.WIDTHs <= 0.)
+        
+        # equal weights for all FRBs with no measured width
+        frb_wweights[notOKw,:] = 1./nw
+        
+        # iterature through the list
+        iws1,iws2,dkws1,dkws2 = self.get_w_coeffs(self.WIDTHs[OKw])
+        frb_wweights[OKw,iws1] = dkws1
+        frb_wweights[OKw,iws2] = dkws2
+        self.frb_wweights = frb_wweights
+        
+        # speedups when iterating through 1D and 2D likelihoods
+        self.frb_zwweights = self.frb_wweights[self.zlist,:]
+        self.frb_nozwweights = self.frb_wweights[self.nozlist,:]
+        
     def get_w_coeffs(self,wlist):
         """
         Returns indices and coefficients for linear interpolation between width values
@@ -470,6 +539,17 @@ class Survey:
         
         # convert to log-widths - the bins are in log10 space
         logwlist = np.log10(wlist)
+        if self.NWbins == 1:
+            # only when there is a single width bin
+            nfrb = logwlist.size
+            iws1 = np.full([nfrb],0,dtype='int')
+            iws2 = iws1
+            dkws1 = np.full([nfrb],1.,dtype='float')
+            dkws2 = dkws1
+            # dkws2 is identical to 1. This over-writes 1, but ensures
+            # that order of implementation of 1 and 2 does not matter
+            return iws1, iws2, dkws1, dkws2
+        
         # the below assumes that
         kws=(logwlist-np.log10(self.WMin))/self.dlogw # now will assume it begins at Wmin+dlogw + 0.5
         # forces any low values to zero
@@ -991,7 +1071,7 @@ class Survey:
             
         else:
             print("No beam found to initialise...")
-
+    
     def calc_max_dm(self):
         '''
         Calculates the maximum searched DM.
@@ -1208,7 +1288,7 @@ def calc_relative_sensitivity(DM_frb,DM,w,fbar,t_res,nu_res,Nchan=336,max_idt=No
     # If model not CHIME, Quadrature or Sammons assume it is a filename
     else:
         if edir is None:
-            edir = resource_filename('zdm', 'data/Efficiencies')
+            edir = resources.files('zdm').joinpath('data/Efficiencies')
         filename = os.path.expanduser(os.path.join(edir, model + ".npy"))
         
         if not os.path.exists(filename):
@@ -1265,8 +1345,7 @@ def load_survey(survey_name:str, state:parameters.State,
         print(f"Loading survey: {survey_name}")
 
     if sdir is None:
-        sdir = os.path.join(
-            resource_filename('zdm', 'data'), 'Surveys')
+        sdir = resources.files('zdm').joinpath('data/Surveys')
 
     # Hard code real surveys
     if survey_name == 'CRAFT/FE':

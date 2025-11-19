@@ -4,8 +4,20 @@ This script creates plots of p(z) and p(dm) for different SKA configs
 """
 import numpy as np
 from matplotlib import pyplot as plt
-
 import matplotlib
+import importlib.resources as resources
+from astropy.cosmology import Planck18
+from zdm import cosmology as cos
+from zdm import parameters
+from zdm import survey
+from zdm import pcosmic
+from zdm import loading
+from zdm import io
+from zdm import misc_functions as mf
+from zdm import grid as zdm_grid
+from zdm import figures
+from zdm import states
+import copy
 
 defaultsize=14
 ds=4
@@ -20,41 +32,34 @@ def main():
     
     """
     
-    
     ####### Loop over input files #########
     # these set the frequencies in MHz and bandwidths in MHz
-    names = ["SKA_mid","SKA_mid","SKA_low"]
+    names = ["SKA_mid_band1_AA4","SKA_mid_band2_AA4"] #,"SKA_mid_band5a_AA4","SKA_mid_band5b_AA4"]
+    # don't have Aeff/Tsys for these ones. The above are based on how far out we beamform
+    Tobs = np.array([100.]) #[1.,10.,100.,1000.]) # hr per pointing
+    Tobs /= 24. # converts to day
     
-    datadir = "sys_outputs/"
-    plotdir = "sysplotdir/"
+    outdir = "FRBAstrophysics/"
     
+    # ensures we keep the same state
+    case = "b"
+    state = states.load_state("HoffmannEmin25",scat="updated",rep=case)
     
-    plt.figure()
-    plt.xlabel("z")
-    plt.ylabel("N(z) per year")
-    plt.xlim(0,5)
+    ss,gs = loading.surveys_and_grids(init_state=state,survey_names=["CRAFT_class_I_and_II"],repeaters=False)
+    s=ss[0]
+    g=gs[0]
     
-    for i,tel in enumerate(["Band1", "Band2", "Low"]):
+    # we expect np.sum(g.rates)*s.TOBS * C = s.NORM_FRB
+    #norm = s.NORM_FRB/(s.TOBS*np.sum(g.rates))
+    #logC = np.log10(norm)
+    #print("logC is ",logC)
+    
+    for i,name in enumerate(names):
         # sets frequency and bandwidth for each instrument
-        for telconfig in ["AA4","AAstar"]:
-            label = tel+"_"+telconfig
-            print("\n\n\n DOING ",label," ########")
-            zvals,plow,pmid,phigh = make_plots(label,datadir=datadir)
-            if telconfig == "AA4":
-                if i==2:
-                    plotlabel="SKA Low "+telconfig
-                else:
-                    plotlabel="SKA Mid "+tel+" "+telconfig
-                plt.fill_between(zvals,plow,phigh,linestyle=":",linewidth=1,label=plotlabel,alpha=0.5)
-                plt.plot(zvals,pmid,linestyle="-",linewidth=2)
-    plt.ylim(1,1e4)
-    plt.legend()
-    plt.yscale("log")
-    plt.tight_layout()
-    plt.savefig("all_pz.png")
-    plt.close()
+        zvals,plow,pmid,phigh = make_plots(name,outdir,state,Tobs,tag=name+"_case_"+case)
+        
     
-def make_plots(label,datadir="sys_outputs/",plotdir="sysplotdir/"):
+def make_plots(survey_name,outdir,state,Tobss,tag=""):
     """
     
     Args:
@@ -63,15 +68,25 @@ def make_plots(label,datadir="sys_outputs/",plotdir="sysplotdir/"):
             output files
         
     """
+    state = parameters.State()
+    survey_dict={}
+    survey_dict["Telescope"]={}
+    survey_dict["TOBS"] = 365 # This is one year
+    survey_dict["NORM_FRB"] = 0
+    survey_dict["NORM_REPS"] = 0 # fake
+    survey_dict["NORM_SINGLES"] = 0 #fake
+    sdir = resources.files('zdm').joinpath('data/Surveys/SKA/')
     
-    # load redshift and dm values
-    zvals = np.load(datadir+"zvals.npy")
-    dmvals = np.load(datadir+"dmvals.npy")
     
-    # load survey-specific outputs
-    Ns = np.load(datadir+label+"_sys_N.npy")
-    meanN = np.sum(Ns)/Ns.size
-    print("Mean annual event rate for ",label," is ",meanN)
+    for i,Tobs in enumerate(Tobss):
+        
+        survey_dict["TFIELD"] = Tobs #OK, this is time per field
+        ss,gs = loading.surveys_and_grids(init_state=state,survey_names=[survey_name],repeaters=True,
+                    survey_dict=survey_dict,sdir=sdir)
+        s=ss[0]
+        g=gs[0]
+        figures.plot_repeaters_zdist(g,prefix=tag)
+        exit()
     
     pzs = np.load(datadir+label+"_sys_pz.npy")
     pdms = np.load(datadir+label+"_sys_pdm.npy")

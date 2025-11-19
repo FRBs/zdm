@@ -115,7 +115,7 @@ class FRBDemoParams(data_class.myDataClass):
         },
     )
     lC: float = field(
-        default=4.19,
+        default=3.3249,
         metadata={"help": "log10 constant in number per Gpc^-3 yr^-1 at z=0"},
     )
 

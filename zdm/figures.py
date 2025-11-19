@@ -757,3 +757,38 @@ def gen_cdf_hist(origx):
         yvals[2*i+1] = (i+1)/N
     return xvals,yvals
     
+def plot_repeaters_zdist(g,prefix="",zmax=2):
+    """
+    Plots the distribution of sources for a repeat grid
+    
+    Args:
+        grids: list of repeat grid objects to plot
+        prefix: prfix for the output
+    """
+    plt.figure()
+    
+    #if not grids.hasattr("len"):
+    if True:
+        # in case only one in plote
+    
+        pztot = np.sum(g.rates,axis=1)* g.survey.TOBS * 10**g.state.FRBdemo.lC # weight by Tobs wrst repeaters
+        pzsingles = np.sum(g.exact_singles,axis=1) * g.Rc * g.survey.Nfields
+        pzreps = np.sum(g.exact_reps,axis=1) * g.Rc * g.survey.Nfields
+        pzbursts = np.sum(g.exact_rep_bursts,axis=1) * g.Rc * g.survey.Nfields
+        pzsources = pzsingles+pzreps
+        
+        plt.plot(g.zvals,pztot,label="Total",linestyle="-",linewidth=2)
+        plt.plot(g.zvals,pzsingles,label="Single bursts",linestyle="--")
+        plt.plot(g.zvals,pzreps,label="Repeaters",linestyle="-")
+        plt.plot(g.zvals,pzbursts,label="Bursts from repeaters",linestyle="-.")
+        plt.plot(g.zvals,pzsources,label="Unique sources",linestyle=":")
+    
+    
+    plt.xlabel('z')
+    plt.ylabel('p(z) [a.u.]')
+    plt.xlim(0,zmax)
+    plt.ylim(0,None)
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(prefix+"repeater_pz.png")
+    plt.close()

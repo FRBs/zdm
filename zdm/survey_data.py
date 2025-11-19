@@ -97,7 +97,7 @@ class FRB(data_class.myDataClass):
                   'Notation': '',
                   })
     WIDTH: float = field( 
-        default=0.1, 
+        default=-1, 
         metadata={'help': "Width of the event", 
                   'unit': 'ms', 
                   'Notation': '',
@@ -111,6 +111,12 @@ class FRB(data_class.myDataClass):
     Z: float = field( 
         default=-1., 
         metadata={'help': "redshift; -1 means unlocalised", 
+                  'unit': '', 
+                  'Notation': '',
+                  })
+    B: float = field( 
+        default=-1., 
+        metadata={'help': "Beam value B at point of detection. Negative means unknown.", 
                   'unit': '', 
                   'Notation': '',
                   })
