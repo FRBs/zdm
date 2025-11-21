@@ -414,6 +414,7 @@ class State(data_class.myData):
         self.IGM = IGMParams()
         self.energy = EnergeticsParams()
         self.rep = RepeatParams()
+        self.photo=PhotometricParams()
 
     def update_param(self, param:str, value):
         # print(self.params)
@@ -439,3 +440,16 @@ class State(data_class.myData):
         self.cosmo.Omega_b = cosmo.Ob0
         self.cosmo.Omega_b_h2 = cosmo.Ob0 * (cosmo.H0.value / 100.0) ** 2
         return
+
+################################################################################
+@dataclass
+class PhotometricParams(data_class.myDataClass):
+    
+    smearing:bool =field(default=False)
+
+    sigma:float =field(default=0.035)
+
+    sigma_width:int =field(default=6)
+
+
+

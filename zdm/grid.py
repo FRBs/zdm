@@ -1,6 +1,8 @@
 from IPython.terminal.embed import embed
 import numpy as np
 import datetime
+from numpy import random
+import scipy.ndimage as ndimage
 
 from zdm import cosmology as cos
 from zdm import misc_functions
@@ -78,6 +80,7 @@ class Grid:
             self.dV = prev_grid.dV.copy()
             self.smear = prev_grid.smear.copy()
             self.smear_grid = prev_grid.smear_grid.copy()
+        
             
         if wdist is not None:
             efficiencies = survey.efficiencies  # two OR three dimensions
@@ -493,6 +496,10 @@ class Grid:
         self.sfr_smear = np.multiply(self.smear_grid.T, self.sfr).T
 
         self.rates = self.pdv * self.sfr_smear
+
+        if self.state.photo.smearing is True:
+            self.smear_z()
+            self.rates=self.smear_zgrid
 
     def calc_thresholds(self, F0:float, 
                         eff_table, 
@@ -1166,4 +1173,14 @@ class Grid:
         #
         return updated
     
+########################################
 
+    def smear_z(self):
+        r,c=self.rates.shape
+        smear_size=int(self.state.photo.sigma_width*self.state.photo.sigma*len(self.zvals)/max(self.zvals))+1
+        smear_arr=random.normal(loc=1,scale=self.state.photo.sigma,size=(smear_size))
+        smear_arr/=np.sum(smear_arr)
+        if not hasattr(self,"smear_zgrid"):
+            self.smear_zgrid=np.zeros([r,c])
+        for i in range(c):
+            self.smear_zgrid[:,i]=np.convolve(self.rates[:,i],smear_arr,mode="same")
