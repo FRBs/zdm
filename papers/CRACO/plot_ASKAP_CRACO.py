@@ -3,6 +3,8 @@ This script creates zdm grids for ASKAP incoherent sum observations.
 
 It exists partly to calculate relative rates from surveys
 
+It also calculates expected p(DM) distributions
+
 """
 import os
 
@@ -31,7 +33,7 @@ def main():
     
     # approximate best-fit values from recent analysis
     # best-fit from Jordan et al
-    state = states.load_state("HoffmannEmin25",scat="updated",rep=None)
+    state = states.load_state("HoffmannHalo25",scat="updated",rep=None)
     
     if not os.path.exists(opdir):
         os.mkdir(opdir)

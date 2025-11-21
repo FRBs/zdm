@@ -358,7 +358,7 @@ def set_updated_scat(vparams):
     """
     
     # first-order correction compared to CHIME scattering
-    vparams['FRBdemo']['lC'] = vparams['FRBdemo']['lC'] + np.log10(20./13.6) 
+    #vparams['FRBdemo']['lC'] = vparams['FRBdemo']['lC'] + np.log10(20./13.6) 
     
     if not 'width' in vparams:
         vparams['width'] = {}

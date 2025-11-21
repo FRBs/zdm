@@ -7,7 +7,7 @@ It also plots a whole bunch of diagnostic plots
 import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
-
+from zdm import misc_functions as mf
 import matplotlib
 
 defaultsize=14
@@ -38,12 +38,12 @@ def main():
     # plots example of sampling time effet
     plot_tsamp()
     
+    frbs = pd.read_csv("Logs/CRACO_13.8ms_zdm.dmgal.altaz.mjd.csv")
+    
     # produces plot of cumulative effective and normal time vs detected FRBs
-    plot_cumulative(df,LOW,HIGH)
+    plot_cumulative(df,LOW,HIGH,frbs)
     
     # load_frbs
-
-    frbs = pd.read_csv("Logs/CRACO_13.8ms_zdm.dmgal.altaz.mjd.csv")
     match_values(df,frbs)
     
 def match_values(df,frbs):
@@ -100,14 +100,15 @@ def print_mean_values(df,LOW,HIGH):
     
     
     # but NOT calculating width, 
-    
-def plot_cumulative(df,LOW,HIGH):
+
+
+
+def plot_cumulative(df,LOW,HIGH,frbs):
     """
     Generates some cumulative plots
     """
     
-    weights = df["w_tot"]*df["bfactors"]
-    teff = df["tsamp"]*df["nsamples"]*weights
+    teff = df["t_eff"]*df["bfactors"]
     
     ctraw = np.cumsum(df["tobs"]/3600)
     Lctraw = np.cumsum(df["tobs"][LOW]/3600)
@@ -117,7 +118,8 @@ def plot_cumulative(df,LOW,HIGH):
     Lcteff = np.cumsum(teff[LOW]/3600)
     Hcteff = np.cumsum(teff[HIGH]/3600)
     
-    print(df["tstart"])
+    frbxs,frbys=mf.make_cum_dist(frbs["mjd"])
+    frbys *= len(frbs["mjd"])
     
     plt.figure()
     
@@ -125,8 +127,22 @@ def plot_cumulative(df,LOW,HIGH):
     plt.plot(df["tstart"],cteff,label="Total")
     plt.plot(df["tstart"][LOW],Lcteff,label="900 MHz",linestyle="--")
     plt.plot(df["tstart"][HIGH],Hcteff,label="1300 MHz",linestyle=":")
+    
+    ax = plt.gca()
+    # FRBs
+    ax2 = ax.twinx()
+    ax2.plot(frbxs,frbys,linestyle="-.",color="black")
+    ax2.set_ylabel("$N_{\\rm FRB}$")
+    plt.ylim(0,18)
+    
+    plt.sca(ax)
+    
+    # does a dummy plot
+    plt.plot([-1e9,-1e8],[-100,-100],linestyle="-.",color="black",label="CRACO FRBs")
+    plt.xlim(60280,60650)
+    plt.ylim(0,cteff.values[-1])
     plt.xlabel("mjd")
-    plt.ylabel("Cumulative $T_{\\rm obs}$ [hr]")
+    plt.ylabel("Cumulative $T_{\\rm eff}$ [hr]")
     plt.legend()
     plt.tight_layout()
     plt.savefig("Plots/eff_cumulative_fig.png")
@@ -138,6 +154,16 @@ def plot_cumulative(df,LOW,HIGH):
     plt.plot(df["tstart"],ctraw,label="Total")
     plt.plot(df["tstart"][LOW],Lctraw,label="900 MHz",linestyle="--")
     plt.plot(df["tstart"][HIGH],Hctraw,label="1300 MHz",linestyle=":")
+    
+    # FRBs
+    ax = plt.gca()
+    ax2 = ax.twinx()
+    ax2.plot(frbxs,frbys)
+    ax2.set_ylabel("$N_{\\rm FRB}$")
+    plt.ylim(0,18)
+    
+    plt.sca(ax)
+    plt.ylim(0,ctraw.values[-1])
     plt.xlabel("mjd")
     plt.ylabel("Cumulative $T_{\\rm obs}$ [hr]")
     plt.legend()

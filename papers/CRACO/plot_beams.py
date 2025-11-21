@@ -144,10 +144,11 @@ def main():
     plt.close()
     
     # prints relative sensitivitiesa compared to 
+    labels=["CRACO 900", "CRACO 1300", "Primary 900", "Primary 1300", "ICS 900", "ICS 1300"]
+    mult = (180./np.pi)**2
     for i in np.arange(3):
-        
-        print("Sensitivity of beam file ",i," compared to ICS: ",bfiles[2*i],Senses[2*i]/Senses[4])
-        print("Sensitivity of beam file ",i," compared to ICS: ",bfiles[2*i+1],Senses[2*i+1]/Senses[5])
+        print("Sensitivity of ",labels[2*i]," is ",Senses[2*i]*mult, " cf ICS: ",Senses[2*i]/Senses[4])
+        print("Sensitivity of ",labels[2*i+1]," is ",Senses[2*i+1]*mult, " cf ICS: ",Senses[2*i+1]/Senses[5])
     
     
     ##### plots all components #####

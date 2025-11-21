@@ -69,7 +69,9 @@ def gen_weighted_beams(indir,opdir,add=False):
         
         Bfactor = np.sum(bfactors * hist)
         bfs.append(Bfactor)
-        print(i,"beam factor is ",Bfactor)
+        print(i," ",footprint," ",spitch," ",sfreq," beam factor is ",Bfactor)
+        
+        
         if freq < fcut:
             # low band
             t1 += teff

@@ -195,6 +195,16 @@ def main(alpha=-1.5):
     LOW=np.where(cfmid < 1000.)[0]
     HIGH=np.where(cfmid > 1400)[0]
     MID=np.where(np.abs(cfmid-1200) < 200)[0]
+    
+    
+    CP = np.where(cfootprint[LOW] == 1)
+    S = np.where(cfootprint[LOW]==2)
+    print("Respective low times between closepack and square: ",np.sum(ctime[LOW][CP]),np.sum(ctime[LOW][S]))
+    
+    CP = np.where(cfootprint[MID] == 1)
+    S = np.where(cfootprint[MID]==2)
+    print("Respective mid times between closepack and square: ",np.sum(ctime[MID][CP]),np.sum(ctime[MID][S]))
+    
     labels=["low","mid","high"]
     if True:
         # one per frequency bin

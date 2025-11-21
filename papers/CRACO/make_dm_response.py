@@ -118,9 +118,8 @@ def plot_dm_masks(max_dms,cum_teffs_sorteds,labels,savefile,ylabel):
     styles=["-","--",":","-."]
     
     plt.figure()
-    #plt.ylim(0,1700)
+    plt.ylim(0,3000)
     plt.xlim(0,5000)
-    plt.ylim(0,None)
     plt.ylabel(ylabel)
     plt.xlabel("DM [pc cm$^{-3}$]")
     
