@@ -1,0 +1,25 @@
+# %ECSV 1.0
+# ---
+# datatype:
+# - {name: TNS, datatype: string}
+# - {name: DM, datatype: float64}
+# - {name: RA, datatype: string}
+# - {name: DEC, datatype: string}
+# - {name: Z, datatype: float64}
+# - {name: SNR, datatype: float64}
+# - {name: WIDTH, datatype: float64}
+# - {name: XWc, datatype: float64}
+# - {name: Gl, unit: deg, datatype: float64}
+# - {name: Gb, unit: deg, datatype: float64}
+# - {name: DMG, datatype: float64}
+# - {name: XDMG, datatype: float64}
+# - {name: FBAR, datatype: float64}
+# - {name: BW, datatype: float64}
+# meta: !!omap
+# - {survey_data: '{"observing": {"NORM_FRB": 1,"TOBS": 9.5,"MAX_IW": 8, "MAXWMETH": 2},
+#                   "telescope": {"BEAM": "CRACO_1300", "DMMASK": "craco_1300_mask.npy",
+#                                 "DIAM": 12.0, "NBEAMS": 1, "NBINS": 5, "FBAR": 1392,
+#                                 "TRES": 13.8, "FRES": 1.0, "THRESH": 1.01}}'}
+# schema: astropy-2.0
+TNS        DM       RA            DEC           Z       SNR    WIDTH  XWc Gl      Gb      DMG     XDMG     FBAR  BW
+20240826A   387.0   22:38:27.84   -30:08:18.23   0.203   9.6    -1     0   19.0   -60.76   34.57   21.78    1320  240

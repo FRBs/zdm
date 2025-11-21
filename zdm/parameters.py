@@ -115,8 +115,8 @@ class FRBDemoParams(data_class.myDataClass):
         },
     )
     lC: float = field(
-        default=4.19,
-        metadata={"help": "log10 constant in number per Gpc^-3 yr^-1 at z=0"},
+        default=3.3249,
+        metadata={"help": "log10 constant in number per Gpc^-3 day^-1 at z=0"},
     )
 
 
@@ -235,6 +235,12 @@ class WidthParams(data_class.myDataClass):
             "Notation": "",
         },
     )
+    Wmethod: int = field(
+        default=3, 
+        metadata={'help': "Code for width method. 0: ignore it (all 1ms), 1: intrinsic lognormal, 2: include scattering, 3: scat & z-dependence, 4: specific FRB", 
+                  'unit': '', 
+                  'Notation': '',
+                  })
     Wlogmean: float = field(
         default=-0.29,
         metadata={

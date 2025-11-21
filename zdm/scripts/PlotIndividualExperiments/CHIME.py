@@ -8,7 +8,8 @@ import numpy as np
 from astropy.cosmology import Planck18
 from matplotlib import pyplot as plt
 import os
-from pkg_resources import resource_filename
+from zdm import states
+import importlib.resources as resources
 
 # zdm imports
 from zdm import loading
@@ -28,11 +29,7 @@ def main():
         os.mkdir(opdir)
     
     # sets basic state and cosmology
-    state = parameters.State()
-    state.set_astropy_cosmo(Planck18)
-    
-    # shortest method to load CHIME grids. Slightly expanded below
-    #ss,rgs,all_rates, all_singles, all_reps = loading.load_CHIME(state=state)
+    state = states.load_state("HoffmannEmin25",scat="updated",rep="b")
     
     # defines CHIME grids to load
     NDECBINS=6
@@ -40,8 +37,8 @@ def main():
     for i in np.arange(NDECBINS):
         name="CHIME_decbin_"+str(i)+"_of_6"
         names.append(name)
-    survey_dir = os.path.join(resource_filename('zdm', 'data'), 'Surveys/CHIME/')
-    ss,gs = loading.surveys_and_grids(survey_names=names, init_state=state, rand_DMG=False,sdir = survey_dir, repeaters=True)
+    sdir = resources.files('zdm').joinpath('data/Surveys/CHIME')
+    ss,gs = loading.surveys_and_grids(survey_names=names, init_state=state, rand_DMG=False,sdir = sdir, repeaters=True)
     
     # compiles sums over all six declination bins
     rates = gs[0].rates * 10**gs[0].state.FRBdemo.lC * ss[0].TOBS

@@ -105,7 +105,10 @@ def main(filenames,labels,prefix):
         for i in range(sample.shape[2]):
             final_sample[i].append(sample[burnin[j]:,:,i].flatten())
     final_sample = np.array([np.hstack(final_sample[i]) for i in range(len(final_sample))]).T
-
+    
+    print(final_sample.shape)
+    exit()
+    
     # - Changes prior to discard samples outside the specified prior range
     # - Implements the burnin using either the predefined burnin or a constant specified
     # e.g.:

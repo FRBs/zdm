@@ -1,7 +1,7 @@
 """ 
 This script creates a zDM plot for SKA_Mid
 
-It also estimates the raction of SKA bursts that will have
+It also estimates the fraction of SKA bursts that will have
 unseen hosts by a VLT-like optical obeservation
 """
 import os
@@ -19,13 +19,15 @@ from zdm import survey
 import numpy as np
 import copy
 from matplotlib import pyplot as plt
-from pkg_resources import resource_filename
+import importlib.resources as resources
 
 def main():
     """
     
     
     """
+    
+    opdir="Configs/"
     
     #### Initialises general zDM stuff #####
     state = parameters.State()
@@ -34,7 +36,7 @@ def main():
     
     zDMgrid, zvals, dmvals = mf.get_zdm_grid(
                     state, new=True, plot=False, method='analytic', 
-                    datdir=resource_filename('zdm', 'GridData'))
+                    datdir=resources.files('zdm').joinpath('GridData'))
     
     ####### Loop over input files #########
     
@@ -44,7 +46,6 @@ def main():
     freqs = [865,1400,190]
     bws = [300,300,120]
     
-    
     for i,tel in enumerate(["Band1", "Band2", "Low"]):
         # sets frequency and bandwidth for each instrument
         freq = freqs[i]
@@ -52,14 +53,20 @@ def main():
         for config in ["AA4","AAstar"]:
             infile = "inputs/"+tel+config+"_ID_radius_AonT_FoVdeg2"
             label = tel+"_"+config
-            generate_sensitivity_plot(infile,state,zDMgrid, zvals, dmvals, label, freq, bw)
+            generate_sensitivity_plot(infile,state,zDMgrid, zvals, dmvals, label, freq, bw,
+                                    opdir=opdir,plotdir=opdir)
     
 def generate_sensitivity_plot(infile,state,zDMgrid, zvals, dmvals, label, freq, bw,
-                        opdir = "outputs/", plotdir = "plotdir/"):
+                        opdir = "outputs/", plotdir = "plotdir/",load=False):
     """
     generates a plot of FRB rate vs Nelements used
     """
     
+    if not os.path.exists(opdir):
+        os.mkdir(opdir)
+    if not os.path.exists(plotdir):
+        os.mkdir(plotdir)
+        
     data=np.loadtxt(infile,dtype=str)
     radius = data[:,1].astype(float)
     sense_m2K = data[:,2].astype(float)
@@ -87,7 +94,7 @@ def generate_sensitivity_plot(infile,state,zDMgrid, zvals, dmvals, label, freq, 
     TOBS0 = 365.25 #calendar year
     TOBS = fov*TOBS0/fov[0]
     
-    if True:
+    if False:
         # produces a plot of sensitivity
         plt.figure()
         p1,=plt.plot(thresh_Jyms,label="Thresh",color="blue")
@@ -123,7 +130,7 @@ def generate_sensitivity_plot(infile,state,zDMgrid, zvals, dmvals, label, freq, 
     ########## speedups ############
     
     #set survey path
-    sdir = os.path.join(resource_filename('zdm', 'data'), 'Surveys')
+    sdir = resources.files('zdm').joinpath('data/Surveys')
     # we use SKA mid, but actually we will over-ride may attributes here
     survey_name='SKA_mid'
     

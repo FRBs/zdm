@@ -12,7 +12,7 @@ python average_grids.py H0_prior10 -s MeerTRAPincoherent -n 10 -d "./"
 
 import emcee
 import argparse
-from pkg_resources import resource_filename
+import importlib.resources as resources
 import os
 import json
 from zdm import survey
@@ -37,7 +37,7 @@ def parse_args():
     args = parser.parse_args()
 
     if args.directory == None:
-        args.directory = resource_filename('zdm', 'mcmc')
+        args.directory = resources.files('zdm').joinpath('mcmc')
 
     return args
 
@@ -69,7 +69,7 @@ def main():
     grid_vals = mf.get_zdm_grid(
         state, new=True, plot=False, method='analytic', 
         nz=nz, ndm=ndm, dmmax=dmmax,
-        datdir=resource_filename('zdm', 'GridData'))
+        datdir=resources.files('zdm').joinpath('GridData'))
 
     # Load survey
     # If the survey is not specified, then the default is to use CRAFT_ICS_1300

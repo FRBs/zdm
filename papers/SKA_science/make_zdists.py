@@ -4,6 +4,9 @@ This script creates plots of p(z) for different SKA configs
 It first loads in the simulation info from the script
 "sim_SKA_configs.py", and generates plots for the best cases.
 
+It does this when iterating over various parameter estimates from
+Hoffmann et al.
+
 """
 import os
 import emcee
@@ -15,14 +18,14 @@ from zdm import pcosmic
 from zdm import io
 from zdm import misc_functions as mf
 from zdm import grid as zdm_grid
-from zdm import survey
+
 
 import numpy as np
 import copy
 from matplotlib import pyplot as plt
-from pkg_resources import resource_filename
+import importlib.resources as resources
 
-def main():
+def main(configdir = "Configs/"):
     """
     Main program to loop over SKA frequency ranges and deployment milestones
     
@@ -35,11 +38,12 @@ def main():
     
     zDMgrid, zvals, dmvals = mf.get_zdm_grid(
                     state, new=True, plot=False, method='analytic', 
-                    datdir=resource_filename('zdm', 'GridData'))
+                    datdir=resources.files('zdm').joinpath('GridData'))
     
     
     ####### sample MCMC parameter sets ######
-    infile = resource_filename('zdm', 'scripts/MCMC')+"/H0_prior10.h5"
+    infile = resources.files('zdm').joinpath('scripts/MCMC/H0_prior10.h5')
+    infile = str(infile)
     nsets=100
     sample, params, pconfig = get_samples(infile,nsets)
     
@@ -57,12 +61,12 @@ def main():
             infile = "inputs/"+tel+telconfig+"_ID_radius_AonT_FoVdeg2"
             label = tel+"_"+telconfig
             generate_sensitivity_plot(infile,state,zDMgrid, zvals, dmvals, label, freq, bw, survey_name,
-                                sample, params, pconfig)
+                                sample, params, pconfig,configdir=configdir)
             
     
 def generate_sensitivity_plot(infile,state,zDMgrid, zvals, dmvals, label, freq, bw, survey_name,
                             samples, params, pconfig,
-                        opdir = "outputs/", plotdir = "plotdir/"):
+                        configdir="Configs/", plotdir = "plotdir/"):
     """
     generates a plot of FRB rate vs Nelements used
     
@@ -101,12 +105,12 @@ def generate_sensitivity_plot(infile,state,zDMgrid, zvals, dmvals, label, freq, 
     Ngrids = radius.size
     
     # defines name of output files
-    opfile1 = opdir+label+"_N.npy"
-    opfile2 = opdir+label+"_pdm.npy"
-    opfile3 = opdir+label+"_pz.npy"
-    opfile4 = opdir+label+"_Nz.npy"
-    opfile5 = opdir+label+"_Tobs.npy"
-    opfile6 = opdir+label+"_thresh.npy"
+    opfile1 = configdir+label+"_N.npy"
+    opfile2 = configdir+label+"_pdm.npy"
+    opfile3 = configdir+label+"_pz.npy"
+    opfile4 = configdir+label+"_Nz.npy"
+    opfile5 = configdir+label+"_Tobs.npy"
+    opfile6 = configdir+label+"_thresh.npy"
     oldNs = np.load(opfile1)
     #pdms = np.load(opfile2)
     #pzs = np.load(opfile3)
@@ -117,8 +121,10 @@ def generate_sensitivity_plot(infile,state,zDMgrid, zvals, dmvals, label, freq, 
     # finds the best
     ibest = np.argmax(oldNs)
     survey_dict = {"THRESH": thresh_Jyms[ibest], "TOBS": TOBS[ibest], "FBAR": freq, "BW": bw}
-    
-    
+    print(infile)
+    print(ibest,survey_dict)
+    print("\n\n")
+    return
     Nsamples = samples.shape[0]
     Nz = zvals.size
     Ndm = dmvals.size
@@ -127,15 +133,13 @@ def generate_sensitivity_plot(infile,state,zDMgrid, zvals, dmvals, label, freq, 
     pzs = np.zeros([Nsamples,Nz])
     Ns = np.zeros([Nsamples])
     
-    opdir = "sys_outputs/"
-    opfile7 = opdir+label+"_sys_N.npy"
-    opfile8 = opdir+label+"_sys_pz.npy"
-    opfile9 = opdir+label+"_sys_pdm.npy"
+    opdir = "outputs/"
+    opfile7 = opdir+label+"_N.npy"
+    opfile8 = opdir+label+"_pz.npy"
+    opfile9 = opdir+label+"_pdm.npy"
     
-    
-    
-    np.save("sysplotdir/zvals.npy",zvals)
-    np.save("sysplotdir/dmvals.npy",dmvals)
+    np.save("plotdir/zvals.npy",zvals)
+    np.save("plotdir/dmvals.npy",dmvals)
     
     #load=True
     load=False

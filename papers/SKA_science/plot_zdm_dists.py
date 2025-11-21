@@ -76,7 +76,6 @@ def make_plots(label,datadir="sys_outputs/",plotdir="sysplotdir/"):
     pzs = np.load(datadir+label+"_sys_pz.npy")
     pdms = np.load(datadir+label+"_sys_pdm.npy")
     
-    
     plow,pmid,phigh = make_pz_plots(zvals,pzs,plotdir+label)
     make_pdm_plots(dmvals,pdms,plotdir+label)
 
