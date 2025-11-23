@@ -45,6 +45,7 @@ from frb.dm import igm
 from frb.scripts.pzdm_mag import main as pzdm_mag_main
 import argparse
 import pandas as pd
+from scipy.stats import spearmanr
 
 
 #params 
@@ -85,18 +86,18 @@ def creategrid():
     state.update_params(param_dict)
     
     
-    surveys, grids = loading.surveys_and_grids(survey_names = names,
+    surveys, grids = loading.surveys_and_grids(init_state=state, survey_names = names,
         repeaters=False, sdir=sdir)
     
     g = grids[0]
 
 
     # plots it
-    misc_functions.plot_grid_2(g.rates,g.zvals,g.dmvals,
-            name=os.path.join(sdir,'tau_dm_grid.png'),norm=3,log=True,
-            label='$\\log_{10} p(z|{\\rm DM}_{\\rm cosmic})$ [a.u.]',
-            project=False,
-            zmax=2.5,DMmax=3000,cmap="Oranges",Aconts=[0.01,0.1,0.5])#,
+    #misc_functions.plot_grid_2(g.rates,g.zvals,g.dmvals,
+    #        name=os.path.join(sdir,'tau_dm_grid.png'),norm=3,log=True,
+    #        label='$\\log_{10} p(z|{\\rm DM}_{\\rm cosmic})$ [a.u.]',
+    #        project=False,
+    #        zmax=2.5,DMmax=3000,cmap="Oranges",Aconts=[0.01,0.1,0.5])#,
     #            pdmgz=[0.05,0.5,0.95])
     
 
@@ -183,7 +184,7 @@ def create_frbs(NMC):
     dm_host_estimated = dm_frb - DMcos_macquart - mean_DM_MW
 
     # save the results
-    np.savez('tau_dm_sims_craco1300.npz', dm_host_est=dm_host_estimated, tau_host=tau_host, zs=zs, DMcos_macquart=DMcos_macquart, dm_frb=dm_frb, dm_MW=dm_MW,DMcos=DMcos, snrs=snrs, dm_hosts=dm_hosts)
+    np.savez('tau_dm_sims_craco1300_v2.npz', dm_host_est=dm_host_estimated, tau_host=tau_host, zs=zs, DMcos_macquart=DMcos_macquart, dm_frb=dm_frb, dm_MW=dm_MW,DMcos=DMcos, snrs=snrs, dm_hosts=dm_hosts)
 
 
 def create_frbs_c22(NMC):
@@ -270,7 +271,7 @@ def create_frbs_c22(NMC):
     dm_host_estimated = dm_frb - DMcos_macquart - mean_DM_MW
 
     # save the results
-    np.savez('tau_dm_sims_craco1300_c22.npz', dm_host_est=dm_host_estimated, tau_host=tau_host, zs=zs, DMcos_macquart=DMcos_macquart, dm_frb=dm_frb, dm_MW=dm_MW,DMcos=DMcos, snrs=snrs, dm_hosts=dm_hosts)
+    np.savez('tau_dm_sims_craco1300_c22_v2.npz', dm_host_est=dm_host_estimated, tau_host=tau_host, zs=zs, DMcos_macquart=DMcos_macquart, dm_frb=dm_frb, dm_MW=dm_MW,DMcos=DMcos, snrs=snrs, dm_hosts=dm_hosts)
 
 
 def redshift_estimate(dm_total):
@@ -569,7 +570,7 @@ def dm_tau_corr_coeff(N, snr_th, nobj):
         nonan_indices = np.isfinite(dms) 
         taus = np.log10(tau_host_sam[nonan_indices])
         dms = dms[nonan_indices]
-        corr_coeff = np.corrcoef(dms,taus)[0, 1]
+        corr_coeff, p_value = spearmanr(dms, taus)
         #print(f"Correlation coefficient between DM host and tau host: {corr_coeff}")
         out[n] = corr_coeff
         mean_dm[n] = np.mean(dm_host_sam*(1+zs_sam))
@@ -624,7 +625,7 @@ def dm_tau_corr_coeff(N, snr_th, nobj):
     
     
     # Save the plot
-    #plt.savefig('./dm_tau_corr_coeff_snr'+str(snr_th)+'_nobj'+str(nobj)+'_c22.png', dpi=300)
+    plt.savefig('./dm_tau_corr_coeff_snr'+str(snr_th)+'_nobj'+str(nobj)+'_spearman_c22.png', dpi=300)
     # Show the plot
     plt.show()
 
@@ -687,7 +688,7 @@ def corr_z_dm(N, snr_th, nobj, zth=None, dmth=None):
         nonan_indices = np.isfinite(dmx) 
         taus = np.log10(tau_host_sam[nonan_indices])
         dmx = dmx[nonan_indices]
-        corr_coeff = np.corrcoef(dmx,taus)[0, 1]
+        corr_coeff , p_value = spearmanr(dmx, taus)
         #print(f"Correlation coefficient between DM host and tau host: {corr_coeff}")
         out[n] = corr_coeff
         #mean_dm[n] = np.mean(dm_host_sam*(1+zs_sam))
@@ -759,13 +760,13 @@ def run_tau_corr_zdm(N, snr_th, nobj, zs=None, dms=None):
             plt.xticks([200,300,500,700,1000,2000,4000],[str(x) for x in [200,300,500,700,1000,2000,4000]], fontsize=16)
             plt.plot(dms, p50s, 'o-', color= colors[x], label='50th (Median) SNR>'+str(snr_th))
             plt.fill_between(dms, p16s, p84s,  alpha=0.2, label='16th-84th  SNR>'+str(snr_th), color=colors[x])
-            plt.ylim(-0.4, 1)
+            plt.ylim(-0.1, 1)
         #plt.xlim(0, 5)
     
     plt.legend(fontsize=16,loc='upper left')
     plt.tight_layout()
     plt.hlines(0.,150,5200, color='k', linestyle='dotted')
-    plt.savefig('./dm_tau_corr_zdm_snr'+str(snr_th)+'_nobj'+str(nobj)+'_'+str(var)+'_c22.png', dpi=300)
+    plt.savefig('./dm_tau_corr_zdm_snr'+str(snr_th)+'_nobj'+str(nobj)+'_'+str(var)+'_spearman_c22.png', dpi=300)
     # Show the plot
     plt.show()
 
@@ -779,20 +780,21 @@ def run_tau_corr_zdm(N, snr_th, nobj, zs=None, dms=None):
 # choose the dataset to use
 
 
-#create_frbs(2)
+#create_frbs(25000)
 #create_frbs_c22(25000)
+#lkajsdfa
 #cum_tau_plot(10,500)
 #tau_z_plot(0)
 
-data = 'tau_dm_sims_craco1300.npz'
-#data = 'tau_dm_sims_craco1300_c22.npz' 
+#data = 'tau_dm_sims_craco1300.npz'
+data = 'tau_dm_sims_craco1300_c22.npz' 
 
 #tau_z_plot(0)
 
 
-plot_dm_tau(snr_th=0, nobj=100, redshift=False)
+#plot_dm_tau(snr_th=0, nobj=100, redshift=False)
 
-#dm_tau_corr_coeff(N=100000,snr_th=0,nobj=10)
+#dm_tau_corr_coeff(N=100000,snr_th=0,nobj=100)
 
-#run_tau_corr_zdm(N=10000, snr_th=10, nobj=10, zs=[0.02, 0.04, 0.07, 0.1, 0.2, 0.4, 0.7, 1.0, 2.0]) #
-#run_tau_corr_zdm(N=10000, snr_th=10, nobj=100, dms=np.logspace(2.2, 3.7, 10))
+run_tau_corr_zdm(N=10000, snr_th=10, nobj=100, zs=[0.02, 0.04, 0.07, 0.1, 0.2, 0.4, 0.7, 1.0, 2.0]) #
+run_tau_corr_zdm(N=10000, snr_th=10, nobj=100, dms=np.logspace(2.2, 3.7, 10))

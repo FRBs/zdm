@@ -12,7 +12,7 @@ import scipy as sp
 import matplotlib.pyplot as plt
 import matplotlib
 
-from frb import dlas
+#from frb import dlas
 from frb.dm import igm
 from frb.dm import cosmic
 
