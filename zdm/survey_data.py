@@ -75,7 +75,7 @@ class FRB(data_class.myDataClass):
                   'Notation': '',
                   })
     SNRTHRESH: float = field( 
-        default=0., 
+        default=10., 
         metadata={'help': "S/N threshold to detect an FRB", 
                   'unit': '', 
                   'Notation': '',
