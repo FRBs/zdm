@@ -201,6 +201,12 @@ class Telescope(data_class.myDataClass):
                   'unit': 'Jy ms', 
                   'Notation': '',
                   })
+    SNRTHRESH: float = field( 
+        default=10., 
+        metadata={'help': "S/N threshold to detect an FRB", 
+                  'unit': '', 
+                  'Notation': '',
+                  })
     FBAR: float = field( 
         default=1300., 
         metadata={'help': "Mean frequency",
