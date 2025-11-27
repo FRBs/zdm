@@ -244,7 +244,11 @@ class Survey:
 
         # Should contain DM in the first row and efficiencies in the second row
         sensitivity_array = np.load(filename)
-        dm_mask = np.interp(self.dmvals, sensitivity_array[0,:], sensitivity_array[1,:], left=1.,right=0)
+        if self.DMGs is not None:
+            effective_vals = self.dmvals + self.state.MW.DMhalo + np.median(self.DMGs)
+        else:
+            effective_vals = self.dmvals + self.state.MW.DMhalo + 30
+        dm_mask = np.interp(effective_vals, sensitivity_array[0,:], sensitivity_array[1,:], left=1.,right=0)
         self.dm_mask = dm_mask
     
     def do_efficiencies(self):
