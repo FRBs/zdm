@@ -1,7 +1,12 @@
 """ 
-This script creates zdm grids for ASKAP incoherent sum observations.
+This script  plots the resulting redshift and dm distributions
+from various alternative hypothertical CRACO setups,
+in order to estimate the effects on the system
 
-It exists partly to calculate relative rates from surveys
+Results:
+    For Jordan Halo model:
+        CHIME: 1300: 5.07 worse width, same DM
+        Updated: 3.43
 
 """
 import os
@@ -40,7 +45,8 @@ def main():
     
     # approximate best-fit values from recent analysis
     # best-fit from Jordan et al
-    state = states.load_state("HoffmannEmin25",scat="CHIME",rep=None) #scat="updated",rep=None)
+    #state = states.load_state("HoffmannHalo25",scat="CHIME",rep=None) #scat="updated",rep=None)
+    state = states.load_state("HoffmannHalo25",scat="updated",rep=None) #scat="updated",rep=None)
     #state = states.load_state("JamesH022",scat="CHIME",rep=None) #scat="updated",rep=None)
     
     #check_FE(state)
@@ -63,6 +69,10 @@ def main():
                                     init_state=state,sdir=sdir,
                                     zmax=zmax,nz=nz,dmmax=dmmax,ndm=ndm) 
     
+    ##### prints total relative rates #####
+    for i,n in enumerate(names):
+        print("Total rate for survey ",n," is ",np.sum(gs[i].rates)/np.sum(gs[0].rates))
+    
     
     ######### plots total DM and z distribution #######
     # set limits for plots - will be LARGE!   
@@ -72,20 +82,24 @@ def main():
     plt.figure()
     ax1 = plt.gca()
     plt.xlabel("redshift $z$")
-    plt.ylabel("p(z)")
+    plt.ylabel("p(z) [a.u.]")
     plt.xlim(0.01,3)
-    plt.ylim(0,80)
+    plt.ylim(0,1)
     
     plt.figure()
     ax2 = plt.gca()
-    plt.xlabel("DM pc cm$^{-3}$")
-    plt.ylabel("p(DM)")
+    plt.xlabel("DM [pc cm$^{-3}$]")
+    plt.ylabel("p(DM) [a.u.]")
+    plt.ylim(0,1)
+    plt.xlim(0,4000)
     
     zvals = gs[0].zvals
     dz = zvals[1]-zvals[0]
     dmvals = gs[0].dmvals
     ddm = dmvals[1]-dmvals[0]
     
+    pzs=[]
+    pdms=[]
     # chooses the first arbitrarily to extract zvals etc from
     for i,g in enumerate(gs):
         
@@ -106,6 +120,16 @@ def main():
         
         pdm = np.sum(rates,axis=0)
         pdm /= ddm
+          
+        pzs.append(pz)
+        pdms.append(pdm)
+    
+    znorm = np.max(pzs[1])
+    dmnorm = np.max(pdms[1])
+    
+    for i,g in enumerate(gs):
+        pz = pzs[i]/znorm
+        pdm = pdms[i]/dmnorm
         
         plt.sca(ax1)
         plt.plot(zvals,pz,label=labels[i],linestyle=linestyles[i])
@@ -113,11 +137,11 @@ def main():
         if i==1:
             plt.legend()
             plt.tight_layout()
-            plt.savefig("Plots/CRACO_zcomparison1.png")
+            plt.savefig("Plots/CRACO1300_zcomparison1.png")
         if i==2:
             plt.legend()
             plt.tight_layout()
-            plt.savefig("Plots/CRACO_zcomparison2.png")
+            plt.savefig("Plots/CRACO1300_zcomparison2.png")
             
         plt.sca(ax2)
         plt.plot(dmvals,pdm,label=labels[i],linestyle=linestyles[i])
@@ -125,11 +149,11 @@ def main():
         if i==1:
             plt.legend()
             plt.tight_layout()
-            plt.savefig("Plots/CRACO_dmcomparison1.png")
+            plt.savefig("Plots/CRACO1300_dmcomparison1.png")
         if i==2:
             plt.legend()
             plt.tight_layout()
-            plt.savefig("Plots/CRACO_dmcomparison2.png")
+            plt.savefig("Plots/CRACO1300_dmcomparison2.png")
             
     plt.sca(ax1)
     plt.close()

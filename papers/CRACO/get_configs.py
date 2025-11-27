@@ -29,6 +29,7 @@ def add_columns(df,opfile):
     # sens is proportional to square root of bandwidth
     # rate goes as ^1.5. Hence, power of 0.75
     maxchan = np.max(df["nchans"])
+    print("maxchan is ",maxchan)
     print("Max channels is ",maxchan)
     w_bw = (df["nchans"]/maxchan)**0.75
     df["w_bandwidth"] = w_bw
