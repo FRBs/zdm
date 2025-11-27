@@ -66,8 +66,8 @@ def main():
             label='$\\log_{10} p({\\rm DM}_{\\rm EX},z)$ [a.u.]',
             project=False,ylabel='${\\rm DM}_{\\rm EX}$',
             zmax=zmax,DMmax=DMmax,Aconts=[0.01,0.1,0.5],
-            FRBDMs=s.frbs['DM'].values,FRBZs=s.frbs['Z'].values,
-            DMlines = s.frbs['DM'].values[noz])
+            FRBDMs=s.frbs['DMEG'].values,FRBZs=s.frbs['Z'].values,
+            DMlines = s.frbs['DMEG'].values[noz])
     exit()
     
     pz = np.sum(mean_rates,axis=1)
