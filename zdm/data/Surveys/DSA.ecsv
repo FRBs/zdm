@@ -19,8 +19,10 @@
 # - {name: XRA, datatype: float64}
 # - {name: Z, datatype: float64}
 # meta: !!omap
-# - {survey_data: '{"observing": {"MAX_LOC_DMEG": -1, "FBAR": 1405.0, "MAX_DM": 1500}, "telescope": {"BMETHOD": 0, "BTHRESH": 0.001, "DIAM": 4.65, "NBEAMS": 1,
-#     "NBINS": 10}}'}
+# - {survey_data: '{"observing": {"MAX_LOC_DMEG": -1, "FBAR": 1405.0, "MAX_DM": 1500},
+#                   "telescope": {"BMETHOD": 0, "BTHRESH": 0.001, "DIAM": 4.65,
+#                       "NBEAMS": 1,"NBINS": 10, "FBAR": 1405, "FRES": 0.244141,
+#                       "TRES":0.262144,"SNRTHRESH":8.5}}'}
 # schema: astropy-2.0
 TNS BW DM DMG FBAR FRES Gb Gl NREP SNR SNRTHRESH THRESH TRES WIDTH XDec XRA Z
 20240229A 187.5 491.554 37.37271394885186 1405.0 0.244141 44.55831358432649 133.33265375649617 1 93.8694 8.5 1.9 0.262144 0.524288 70.67622222 169.98354167 0.2870

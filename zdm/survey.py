@@ -1143,6 +1143,14 @@ class Survey:
             max_dm = max_dt / (k_DM * ((f_low/1e3)**(-2) - (f_high/1e3)**(-2)))
 
         self.max_dm = max_dm
+        
+        # calculates max iDM value
+        if self.max_dm is not None:
+            max_dmeg = max_dm - np.median(self.DMhalos + self.DMGs)
+            max_idm = np.where(self.dmvals < max_dmeg)[0][-1]
+            self.max_idm = max_idm
+        else:
+            self.max_idm = None
 
     def get_efficiency_from_wlist(self,wlist,plist, 
                                   model="Quadrature", 

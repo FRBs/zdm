@@ -506,6 +506,10 @@ class Grid:
         # multiplies by DM mask if applicable
         if self.survey.dm_mask is not None:
             rates = rates*self.survey.dm_mask
+        elif self.survey.max_dm is not None:
+            # in case a maximum DM is set in survey
+            if self.survey.max_idm < self.dmvals.size-1:
+                rates[:,self.survey.max_idm+1:]=0.
         return rates
 
     def calc_thresholds(self, F0:float, 
