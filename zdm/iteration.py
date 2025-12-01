@@ -90,7 +90,6 @@ def get_log_likelihood(grid, s, norm=True, psnr=True, Pn=False, pNreps=True, pta
         else:
             print("Implementation is only completed for nD 1-3.")
             exit()
-
     return llsum
 
 def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=True,

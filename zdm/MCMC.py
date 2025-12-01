@@ -155,7 +155,6 @@ def calc_log_posterior(param_vals, state, params, surveys_sep, Pn=False, pNreps=
                 llsum += ll
                 if ind_surveys:
                     ll_list.append(ll)
-
         #except ValueError as e:
         #    print("Error, setting likelihood to -inf: " + str(e))
         #    llsum = -np.inf

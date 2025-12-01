@@ -46,7 +46,7 @@ def main():
     
     # Initialise surveys and grids
     sdir = os.path.join(resource_filename('zdm', 'data'), 'Surveys')
-    names=['CRAFT_ICS_892','CRAFT_ICS_1300','CRAFT_ICS_1632']
+    names=['CRAFT_ICS_892']#,'CRAFT_ICS_1300','CRAFT_ICS_1632']
     
     state = parameters.State()
     state.set_astropy_cosmo(Planck18)
@@ -61,18 +61,10 @@ def main():
     # gets sum of rates over three sets of observations
     # weights by constant and TOBS
     time=0
-    ###########################
-    samples=gs[1].GenMCSample(100)
-    FRBZs=np.zeros(len(samples))
-    FRBDMs=np.zeros(len(samples))
-    for i in range(len(samples)):
-        FRBZs[i]=samples[i][0]
-        FRBDMs[i]=samples[i][1]
-    ########################
 
     for i,g in enumerate(gs):
         #################################
-        g.state.photo.smearing=True
+        g.state.photo.smearing=False
         g.calc_rates()
         ################################
         if i==0:
@@ -90,11 +82,21 @@ def main():
     name = names[0]
     s=ss[0]
     g=gs[0]
+    ########################
+    '''
+    samples=gs[1].GenMCSample(100)
+    FRBZs=np.zeros(len(samples))
+    FRBDMs=np.zeros(len(samples))
+    for i in range(len(samples)):
+        FRBZs[i]=samples[i][0]
+        FRBDMs[i]=samples[i][1]
+    '''
+    ########################
     figures.plot_grid(mean_rates,g.zvals,g.dmvals,
         name=opdir+name+"_zDM.pdf",norm=3,log=True,
         label='$\\log_{10} p({\\rm DM}_{\\rm IGM} + {\\rm DM}_{\\rm host},z)$ [a.u.]',
         project=False,ylabel='${\\rm DM}_{\\rm IGM} + {\\rm DM}_{\\rm host}$',
-        FRBZs=FRBZs,FRBDMs=FRBDMs,zmax=zmax,DMmax=DMmax,Aconts=[0.01,0.1,0.5])
+        zmax=zmax,DMmax=DMmax,Aconts=[0.01,0.1,0.5])
     
     pz = np.sum(mean_rates,axis=1)
     pz /= np.max(pz)
@@ -145,7 +147,7 @@ def main():
     plt.tight_layout()
     plt.savefig(opdir+name+"_pdm.pdf")
     plt.close()
-    
+    print(it.get_log_likelihood(g,s))  
 
 
     

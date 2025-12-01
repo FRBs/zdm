@@ -497,6 +497,10 @@ class Grid:
         self.sfr_smear = np.multiply(self.smear_grid.T, self.sfr).T
 
         self.rates = self.pdv * self.sfr_smear
+
+        if self.state.photo.smearing is True:
+            self.smear_z(self.rates)
+            self.rates=self.smear_zgrid
         
     def get_rates(self):
         """
@@ -511,9 +515,6 @@ class Grid:
             rates = rates*self.survey.dm_mask
         return rates
 
-        if self.state.photo.smearing is True:
-            self.smear_z()
-            self.rates=self.smear_zgrid
 
     def calc_thresholds(self, F0:float, 
                         eff_table, 
@@ -676,7 +677,8 @@ class Grid:
                 frb = self.GenMCFRB(Emax_boost)
 
             sample.append(frb)
-            
+           
+        
         sample = np.array(sample)
         return sample
     
@@ -724,9 +726,14 @@ class Grid:
                     pzDM [:,setDMzero] = 0.
                 
                 # weighted pzDM
-                wb_fraction = (self.beam_o[i] * w * pzDM)
+                wb_fraction = (self.beam_o[i]* w  * pzDM)
                 pdv = np.multiply(wb_fraction.T, self.dV).T
                 rate = pdv * self.sfr_smear
+                
+                if self.state.photo.smearing is True:
+                    self.smear_z(rate)
+                    rate=np.copy(self.smear_zgrid)
+
                 rates.append(rate)
                 pwb[i * nw + j] = np.sum(rate)
                 
@@ -745,7 +752,7 @@ class Grid:
         
         # saves individal wxb zDM rates for sampling these distributions
         self.MCrates = rates
-        
+
         # saves projections onto z-axis
         self.MCpzcs = pzcs
         
@@ -811,7 +818,6 @@ class Grid:
         
         # get p(z,DM) distribution for this b,w
         pzDM = self.MCrates[which]
-        
         pzc = self.MCpzcs[which]
         
         r = np.random.rand(1)[0]
@@ -1189,12 +1195,12 @@ class Grid:
     
 ########################################
 
-    def smear_z(self):
-        r,c=self.rates.shape
+    def smear_z(self,array):
+        r,c=array.shape
         smear_size=int(self.state.photo.sigma_width*self.state.photo.sigma*len(self.zvals)/max(self.zvals))+1
         smear_arr=random.normal(loc=1,scale=self.state.photo.sigma,size=(smear_size))
         smear_arr/=np.sum(smear_arr)
         if not hasattr(self,"smear_zgrid"):
             self.smear_zgrid=np.zeros([r,c])
         for i in range(c):
-            self.smear_zgrid[:,i]=np.convolve(self.rates[:,i],smear_arr,mode="same")
+            self.smear_zgrid[:,i]=np.convolve(array[:,i],smear_arr,mode="same")
