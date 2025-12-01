@@ -39,27 +39,65 @@ def main():
     
     # in case you wish to switch to another output directory
     
-    opdir="TestSurveys/"
+    opdir="ImprovedSurveys/"
     
     # approximate best-fit values from recent analysis
     # best-fit from Jordan et al
-    #state = states.load_state("HoffmannHalo25",scat="CHIME",rep=None) #scat="updated",rep=None)
-    state = states.load_state("HoffmannHalo25",scat="updated",rep=None) #scat="updated",rep=None)
-    #state = states.load_state("JamesH022",scat="CHIME",rep=None) #scat="updated",rep=None)
-    
-    #check_FE(state)
-    
+    state = states.load_state("HoffmannHalo25",scat="updated",rep=None)
     
     if not os.path.exists(opdir):
         os.mkdir(opdir)
     
     # Initialise surveys and grids
-    sdir = resources.files('zdm').joinpath('../papers/CRACO/TestSurveys')
-    names=['CRAFT_CRACO_900','CRAFT_CRACO_900_alldm','CRAFT_CRACO_900_icsdm',
-            'CRAFT_CRACO_900_1.28','CRAFT_CRACO_900_alldm_1.28']
-    labels = ["CRACO 900 MHz","All DMs searched","ICS DM limits","$t_{\\rm res} = 1.28$ ms",
-                "$t_{\\rm res} = 1.28$ ms, all DMs"]
-    linestyles=["-","-.","--",":","-"]
+    sdir = resources.files('zdm').joinpath('../papers/CRACO/ImprovedSurveys')
+    """
+    ORIGINAL INVESTIGATION
+    names=['CRAFT_CRACO_900','CRAFT_CRACO_900_imp1',
+            'CRAFT_CRACO_900_imp2.1_div2','CRAFT_CRACO_900_imp2.1_div4','CRAFT_CRACO_900_imp2.1_div8',
+            'CRAFT_CRACO_900_imp2.2_div2','CRAFT_CRACO_900_imp2.2_div4','CRAFT_CRACO_900_imp2.2_div8',
+            'CRAFT_CRACO_900_imp2.3_div2','CRAFT_CRACO_900_imp2.3_div4','CRAFT_CRACO_900_imp2.3_div8',
+            'CRAFT_CRACO_900_imp3'
+            ]
+    labels = ["CRACO 900 MHz","1: $T_{\\rm sys}=25^{\\circ}$ K",
+               "2.1 $t_{\\rm rs}=6.8$\\,ms","2.1 $t_{\\rm rs}=3.4$\\,ms","2.1 $t_{\\rm rs}=1.7$\\,ms",
+               "2.2 $t_{\\rm rs}=6.8$\\,ms","2.2 $t_{\\rm rs}=3.4$\\,ms","2.2 $t_{\\rm rs}=1.7$\\,ms",
+               "2.3 $t_{\\rm rs}=6.8$\\,ms","2.3 $t_{\\rm rs}=3.4$\\,ms","2.3 $t_{\\rm rs}=1.7$\\,ms",
+               "3: $\\nu_{\\rm res}=167\\,kHz"
+               ]
+    linestyles=["-","-","-.","-.","-.","--","--","--",":",":",":","-"]
+    """
+    
+    """
+    names=['CRAFT_CRACO_900',
+            'CRAFT_CRACO_900_imp2.3_div2','CRAFT_CRACO_900_imp2.3_div4','CRAFT_CRACO_900_imp2.3_div8',
+            'CRAFT_CRACO_900_imp2.4_div2','CRAFT_CRACO_900_imp2.4_div4','CRAFT_CRACO_900_imp2.4_div8',
+            'CRAFT_CRACO_900_imp2.4_div8_primary',
+            #'CRAFT_CRACO_900_imp1',
+            'CRAFT_CRACO_900_imp_all'
+            ]
+    labels = ["CRACO 900 MHz",
+            "1: $t_{\\rm rs}=6.8$\\,ms","2: $t_{\\rm rs}=3.4$\\,ms","2: $t_{\\rm rs}=1.7$\\,ms",
+                "2: $t_{\\rm rs}=6.8$\\,ms","3: $t_{\\rm rs}=3.4$\\,ms","3: $t_{\\rm rs}=1.7$\\,ms",
+                "3: Perfect imaging",
+                #"4: $T_{\\rm sys}=25^{\\circ}$ K",
+                 "4: $T_{\\rm sys}=25^{\\circ}$ K"]
+    linestyles=["-",":",":",":","--","--","--","-.","-"]
+    """
+    
+    
+    names=['CRAFT_CRACO_900',
+            'CRAFT_CRACO_900_imp2.3_div8',
+            'CRAFT_CRACO_900_imp2.4_div8',
+            'CRAFT_CRACO_900_imp2.4_div8_primary',
+            'CRAFT_CRACO_900_imp_all'
+            ]
+    labels = ["CRACO 900 MHz",
+               "1: $t_{\\rm res}=1.7$ ms",
+                "2: $\\nu_{\\rm res} = 167$ kHz",
+                "3: Perfect imaging",
+                "4: $T_{\\rm sys}=25^{\\circ}$ K"]
+    linestyles=["-",":","--","-.","-"]
+    
     nz=400
     zmax=4
     ndm=500
@@ -72,7 +110,7 @@ def main():
     
     ##### prints total relative rates #####
     for i,n in enumerate(names):
-        print("Total rate for survey ",n," is ",np.sum(gs[i].rates)/np.sum(gs[0].rates))
+        print("Total rate for survey ",labels[i]," is ",np.sum(gs[i].rates)/np.sum(gs[0].rates))
     
     
     
@@ -111,11 +149,11 @@ def main():
         s=ss[i]
         g=gs[i]
         name = names[i]
-        figures.plot_grid(gs[i].rates,g.zvals,g.dmvals,
-            name=opdir+name+"_zDM.pdf",norm=3,log=True,
-            label='$\\log_{10} p({\\rm DM}_{\\rm IGM} + {\\rm DM}_{\\rm host},z)$ [a.u.]',
-            project=False,ylabel='${\\rm DM}_{\\rm IGM} + {\\rm DM}_{\\rm host}$',
-            zmax=zmax,DMmax=DMmax,Aconts=[0.01,0.1,0.5])
+        #figures.plot_grid(gs[i].rates,g.zvals,g.dmvals,
+        #    name=opdir+name+"_zDM.pdf",norm=3,log=True,
+        #    label='$\\log_{10} p({\\rm DM}_{\\rm IGM} + {\\rm DM}_{\\rm host},z)$ [a.u.]',
+        #    project=False,ylabel='${\\rm DM}_{\\rm IGM} + {\\rm DM}_{\\rm host}$',
+        #    zmax=zmax,DMmax=DMmax,Aconts=[0.01,0.1,0.5])
         
         rates = gs[i].get_rates() #gs[i].rates * 10**g.state.FRBdemo.lC 
         rate = np.sum(rates)
@@ -129,56 +167,31 @@ def main():
         pzs.append(pz)
         pdms.append(pdm)
     
+    inorm=4
     for i,g in enumerate(gs):
-        pz = pzs[i]/np.max(pzs[4])
-        pdm = pdms[i]/np.max(pdms[4])
+        pz = pzs[i]/np.max(pzs[inorm])
+        pdm = pdms[i]/np.max(pdms[inorm])
         
         print("Relative rate for ",names[i]," is ",allrates[i]/allrates[0]," per day")
         
         plt.sca(ax1)
         plt.plot(zvals,pz,label=labels[i],linestyle=linestyles[i])
         
-        if i==1:
-            plt.legend()
-            plt.tight_layout()
-            plt.savefig("Plots/CRACO900_zcomparison1.png")
-        if i==2:
-            plt.legend()
-            plt.tight_layout()
-            plt.savefig("Plots/CRACO900_zcomparison2.png")
-        if i==3:
-            plt.legend()
-            plt.tight_layout()
-            plt.savefig("Plots/CRACO900_zcomparison3.png")
-        if i==4:
-            plt.legend()
-            plt.tight_layout()
-            plt.savefig("Plots/CRACO900_zcomparison4.png")
-                     
         plt.sca(ax2)
         plt.plot(dmvals,pdm,label=labels[i],linestyle=linestyles[i])
     
-        if i==1:
-            plt.legend()
-            plt.tight_layout()
-            plt.savefig("Plots/CRACO900_dmcomparison1.png")
-        if i==2:
-            plt.legend()
-            plt.tight_layout()
-            plt.savefig("Plots/CRACO900_dmcomparison2.png")
-        if i==3:
-            plt.legend()
-            plt.tight_layout()
-            plt.savefig("Plots/CRACO900_dmcomparison3.png")
-        if i==4:
-            plt.legend()
-            plt.tight_layout()
-            plt.savefig("Plots/CRACO900_dmcomparison4.png")
+        
                
     plt.sca(ax1)
+    plt.legend(fontsize=12)
+    plt.tight_layout()
+    plt.savefig("ImprovedSurveys/improved_zs.png")
     plt.close()
     
     plt.sca(ax2)
+    plt.legend(fontsize=12)
+    plt.tight_layout()
+    plt.savefig("ImprovedSurveys/improved_dms.png")
     plt.close()
     
 def plot_efficiencies(gs,ss):

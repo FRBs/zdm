@@ -41,7 +41,7 @@ def main():
     frbs = pd.read_csv("Logs/CRACO_13.8ms_zdm.dmgal.altaz.mjd.csv")
     
     # produces plot of cumulative effective and normal time vs detected FRBs
-    plot_cumulative(df,LOW,HIGH,frbs)
+    plot_cumulative(df,LOW,HIGH,frbs,ks=True)
     
     # load_frbs
     match_values(df,frbs)
@@ -103,7 +103,7 @@ def print_mean_values(df,LOW,HIGH):
 
 
 
-def plot_cumulative(df,LOW,HIGH,frbs):
+def plot_cumulative(df,LOW,HIGH,frbs,ks=True):
     """
     Generates some cumulative plots
     """
@@ -120,6 +120,15 @@ def plot_cumulative(df,LOW,HIGH,frbs):
     
     frbxs,frbys=mf.make_cum_dist(frbs["mjd"])
     frbys *= len(frbs["mjd"])
+    
+    
+    if ks:
+        from scipy.stats import kstest
+        from scipy.interpolate import interp1d
+        rvs = frbs["mjd"]
+        cum_func = interp1d(df["tstart"],cteff/cteff.values[-1],kind="linear",assume_sorted=True)
+        result = kstest(rvs,cum_func,mode="exact",alternative="two-sided")
+        print(result)
     
     plt.figure()
     
