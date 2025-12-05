@@ -1,4 +1,7 @@
+"""
+Script to plot inverse beamshapes \Omega(B) vs B
 
+"""
 import numpy as np
 from matplotlib import pyplot as plt
 import importlib.resources as resources
@@ -15,14 +18,18 @@ matplotlib.rc('font', **font)
 
 def main():
     """
-    Loads in beam data and plots this
+    Loads in beam data and plots it
     """
+    
+    prefix=""
+    #prefix="3ms_"
+    
     # loads in data
     indir = os.path.join(resources.files('zdm'), 'data','BeamData')
     
-    beams = ["CRACO_900","CRACO_1300"]#,"ASKAP_892","ASKAP_1300"]
-    labels=["CRACO 900","CRACO 1300"]#,"ICS 892","ICS 1300"]
-    linestyles=["-","--",":","-."]
+    beams = ["CRACO_900","CRACO_1300","3ms_CRACO_900","3ms_CRACO_1300"]#,"ASKAP_892","ASKAP_1300"]
+    labels=["CRACO 900 13.8ms","CRACO 1300 13.8ms","CRACO 900 3.4ms","CRACO 1300 3.4ms"]#,"ICS 892","ICS 1300"]
+    linestyles=["-","--",":","-.","-","--",":","-."]
         
     Senses = []
     bfiles = []
@@ -63,14 +70,14 @@ def main():
     plt.tight_layout()
     
     # plots data
-    plt.savefig("Plots/craco_beams.png")
+    plt.savefig("Plots/"+prefix+"craco_beams.png")
     
     
     ###### Adds primary beams #####
     
     # adds plots of primary beam response
     # just knows that the b values are identical to previous
-    bfile="PrimaryBeams/CRACO_900_hist.npy"
+    bfile="PrimaryBeams/"+prefix+"CRACO_900_hist.npy"
     h = np.load(bfile)
     
     
@@ -83,7 +90,7 @@ def main():
     h /= lbwidth
     plt.plot(b,h,label="Primary 900",linestyle="-")
     
-    bfile="PrimaryBeams/CRACO_1300_hist.npy"
+    bfile="PrimaryBeams/"+prefix+"CRACO_1300_hist.npy"
     h = np.load(bfile)
     
     # need to sum before normalisation
@@ -95,7 +102,7 @@ def main():
     plt.plot(b,h,label="Primary 1300",linestyle="--",color=plt.gca().lines[-1].get_color())
     plt.legend()
     plt.tight_layout()
-    plt.savefig("Plots/primary_askap_beams.png")
+    plt.savefig("Plots/"+prefix+"primary_askap_beams.png")
     
     ###### Adds primary beams #####
     
@@ -138,21 +145,22 @@ def main():
     plt.xlim(0,1)
     plt.legend()
     plt.tight_layout()
-    plt.savefig("Plots/comparison_askap_beams.png")
+    plt.savefig("Plots/"+prefix+"comparison_askap_beams.png")
     
     
     plt.close()
     
     # prints relative sensitivitiesa compared to 
-    labels=["CRACO 900", "CRACO 1300", "Primary 900", "Primary 1300", "ICS 900", "ICS 1300"]
+    #labels=["CRACO 900", "CRACO 1300", "Primary 900", "Primary 1300", "ICS 900", "ICS 1300"]
+    labels = labels + ["Primary 900", "Primary 1300", "ICS 900", "ICS 1300"]
     mult = (180./np.pi)**2
-    for i in np.arange(3):
-        print("Sensitivity of ",labels[2*i]," is ",Senses[2*i]*mult, " cf ICS: ",Senses[2*i]/Senses[4])
-        print("Sensitivity of ",labels[2*i+1]," is ",Senses[2*i+1]*mult, " cf ICS: ",Senses[2*i+1]/Senses[5])
+    for i in np.arange(4):
+        print("Sensitivity of ",labels[2*i]," is ",Senses[2*i]*mult, " cf ICS: ",Senses[2*i]/Senses[-2])
+        print("Sensitivity of ",labels[2*i+1]," is ",Senses[2*i+1]*mult, " cf ICS: ",Senses[2*i+1]/Senses[-1])
     
     
     ##### plots all components #####
-    configs = pd.read_csv("Logs/configs.csv")# np.loadtxt("configs.dat",dtype="str")
+    configs = pd.read_csv("Logs/"+prefix+"configs.csv")# np.loadtxt("configs.dat",dtype="str")
     nconfigs = len(configs)
     
     b = np.load("BeamHistograms/craco_histogram_bins.npy")
@@ -204,7 +212,7 @@ def main():
     plt.tight_layout()
     
     # plots data
-    plt.savefig("Plots/closepack_lowf_component_beams.png")
+    plt.savefig("Plots/"+prefix+"closepack_lowf_component_beams.png")
     plt.close()
     
     

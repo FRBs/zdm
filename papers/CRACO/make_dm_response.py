@@ -24,13 +24,28 @@ matplotlib.rc('font', **font)
 
 def main():
     """
+    A wrapper around analyseDM, just to run it for both
+    3.4ms and 13.8ms surveys
+    """
+    
+    #analyseDM("craco_13ms_survey_db.weight.altaz.csv")
+    analyseDM("craco_3ms_survey_db.csv",prefix="3ms_")
+
+def analyseDM(logfile,prefix=""):
+    """
     Main program to run masks and plotting for
     - low and mid frequencies
     - raw and effective observation time
+    
+    Args:
+        logfile [string]: name of logfile
+        prefix [string]: prefix for output
     """
     
+    #logfile="craco_13ms_survey_db.weight.altaz.csv"
+    #logfile="craco_3ms_survey_db.csv"
     
-    df = pd.read_csv("Logs/craco_13ms_survey_db.weight.altaz.csv")
+    df = pd.read_csv("Logs/"+logfile)
     
     fcut = 1100 # threshold frequency between low and high
     low = np.where(df["fbar"] < fcut)[0]
@@ -46,11 +61,11 @@ def main():
     mteffs=teffs[mid]
     
     # effective observation times  
-    l_max_dm_sorted,l_cum_teffs_sorted = make_dm_mask(dmvals,lteffs,low_max_dm,savedir,'craco_900_mask.npy')
-    m_max_dm_sorted,m_cum_teffs_sorted = make_dm_mask(dmvals,mteffs,mid_max_dm,savedir,'craco_1300_mask.npy')
+    l_max_dm_sorted,l_cum_teffs_sorted = make_dm_mask(dmvals,lteffs,low_max_dm,savedir,prefix+'craco_900_mask.npy')
+    m_max_dm_sorted,m_cum_teffs_sorted = make_dm_mask(dmvals,mteffs,mid_max_dm,savedir,prefix+'craco_1300_mask.npy')
     
     plot_dm_masks([l_max_dm_sorted,m_max_dm_sorted],[l_cum_teffs_sorted,m_cum_teffs_sorted],
-                ["900 MHz","1300 MHz"],"Plots/max_searched_dm.png","$T_{\\rm eff}$ [hr]")
+                ["900 MHz","1300 MHz"],"Plots/"+prefix+"max_searched_dm.png","$T_{\\rm eff}$ [hr]")
     
     
     # raw observation times
@@ -60,7 +75,7 @@ def main():
     m_max_dm_sorted,m_cum_traws_sorted = make_dm_mask(dmvals,mtraws,mid_max_dm,savedir,None)
     
     plot_dm_masks([l_max_dm_sorted,m_max_dm_sorted],[l_cum_traws_sorted,m_cum_traws_sorted],
-                ["900 MHz","1300 MHz"],"Plots/raw_max_searched_dm.png","$T_{\\rm obs}$ [hr]")
+                ["900 MHz","1300 MHz"],"Plots/"+prefix+"raw_max_searched_dm.png","$T_{\\rm obs}$ [hr]")
     
 def make_dm_mask(dmvals,teffs,max_dms,savedir,savename):
     """
