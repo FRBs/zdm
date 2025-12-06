@@ -18,7 +18,7 @@ def main():
     
     print("######## Generating beamfile for 13.8ms mode ######## ")
     configfile="Logs/configs.csv"
-    logfile="Logs/craco_13ms_survey_db_with_weights.csv"
+    logfile="Logs/craco_13ms_survey_db.weight.altaz.csv"
     # turn on add to add beamfactors column
     gen_weighted_beams("BeamHistograms/","FinalBeams/",configfile,logfile,add=False)
     # turn on this to generate files for the primary beam

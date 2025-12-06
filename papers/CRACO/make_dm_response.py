@@ -28,7 +28,7 @@ def main():
     3.4ms and 13.8ms surveys
     """
     
-    #analyseDM("craco_13ms_survey_db.weight.altaz.csv")
+    analyseDM("craco_13ms_survey_db.weight.altaz.csv")
     analyseDM("craco_3ms_survey_db.csv",prefix="3ms_")
 
 def analyseDM(logfile,prefix=""):
