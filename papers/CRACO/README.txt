@@ -1,17 +1,20 @@
+These files relate to the CRACO paper modelling, and for effective
+ICS observations for CRAFT repetition modelling.
 
+They process logs from CRACO observation files (in "Logs/"), and generate necessary inputs to zDM
 
-These files relate to the CRACO paper modelling
+The scripts are currently set up to do this for both the 13.8 ms and 3.4ms survey data.
 
-They process logs from CRACO obs, and generate necessary inputs to zDM
+Please regenerate the data by running through in the following order:
 
 
 #1: get_configs
 This routine reads in the log file, updates it with derived data, and re-saves it under Logs. It then looks up unique observing configurations, and prints them to screen
 
-Produces "configs.csv"
+Produces "Logs/configs.csv" and "Logs/3ms_configs.csv"
 
 #2: sim_configs
-The routine loops over all previously identified configs, and generates
+The routine loops over all previously identified configs (above), and generates
 CRACO beams for them.
 
 
@@ -23,25 +26,22 @@ MANUAL: Copy these to the CRAFT beam directory zdm/data/BeamData/
 
 This also outputs the total effective beam sensitivity (\int B^-1.5 d \Omega).
 
-For CRACO beams, this is 
-Total effective sensitivity of beam1 (906 MHz) is  0.00386
-Total effective sensitivity of beam2 (1342 MHz) is  0.00391
-
-For primary beams only, this is
-Total effective sensitivity of beam1 (906 MHz) is  0.00589
-Total effective sensitivity of beam2 (1342 MHz) is  0.00528
-
 #4: plot_beams
-This simply plots the previously generated beams. It also generates plots of the individual components, and a plot including the primary beamshape only
+This simply plots the previously generated beams. It also generates numerous plots of the individual components, and a plot including the primary beamshape only.
 
 
 #5: make_dm_response
-Calculates a DM mask, which represents the different limitations of maximum DM over the survey
+Calculates a DM mask, which represents the different limitations of maximum DM over the survey. This should be copied to zdm/data/Efficiencies/
 
 
 #6 plot_ASKAP_CRACO.py
 This script plots the rate of FRB detections for these different surveys
 
-#7 print_weighting_factors.py
+#7 gen_diagnostics.py
 This generates plots of mean frequency etc etc, and averaged weightings
 factors over the entire survey
+
+#8 plot_[900 or 1300]_{alternatives or improvements].py
+Calculates total rates, and plots zDM curves, for various alternative configurations of CRACO, in order to evalaute the effect of various inefficiencies or future improvements
+
+
