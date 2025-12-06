@@ -7,6 +7,11 @@ import numpy as np
 
 @dataclass
 class Hosts(data_class.myDataClass):
+    """
+    Data class to hold the generic host galaxy class with no
+    pre-specified model
+    
+    """
     # None of the fields should start with an X
     Absmin: float = field( 
         default=-30, 
@@ -65,6 +70,54 @@ class Hosts(data_class.myDataClass):
     AbsModelID: int = field( 
         default=0, 
         metadata={'help': "Model for describing absolute magnitudes. 0: Simple histogram of absolute magnitudes. 1: spline interpolation of histogram.",
+                  'unit': '', 
+                  'Notation': '',
+                  })
+
+class SFRmodel(data_class.myDataClass):
+    """
+    Data class to hold the SFR model from Nick, which models
+    FRBs as some fraction of the star-formation rate
+    """
+    fSFR: float = field( 
+        default=0.5, 
+        metadata={'help': "Fraction of FRBs associated with star-formation", 
+                  'unit': '', 
+                  'Notation': '',
+                  })
+    NzBins: int = field( 
+        default=10, 
+        metadata={'help': "Number of redshift bins over which the histograms are calculated",
+                  'unit': '', 
+                  'Notation': '',
+                  })
+    zmin: float = field( 
+        default=0., 
+        metadata={'help': "Minimum redshift over which pmag is calculated",
+                  'unit': '', 
+                  'Notation': '',
+                  })
+    zmax: float = field( 
+        default=0., 
+        metadata={'help': "Maximum redshift over which pmag is calculated",
+                  'unit': '', 
+                  'Notation': '',
+                  })
+    NMrBins: int = field( 
+        default=0., 
+        metadata={'help': "Number of magnitude bins",
+                  'unit': '', 
+                  'Notation': '',
+                  })
+    Mrmin: float = field( 
+        default=0., 
+        metadata={'help': "Minimum absolute magnitude over which pmag is calculated",
+                  'unit': '', 
+                  'Notation': '',
+                  })
+    Mrmax: float = field( 
+        default=0., 
+        metadata={'help': "Maximum magnitude over which pmag is calculated",
                   'unit': '', 
                   'Notation': '',
                   })

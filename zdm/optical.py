@@ -822,3 +822,20 @@ def load_marnoch_data():
     infile =  os.path.join(resources.files('zdm'), 'data', 'optical', datafile)
     table = Table.read(infile, format='ascii.ecsv')
     return table
+
+
+############ Routines associated with Nick's model ################
+
+class host_model:
+    """
+    This class initiates a model based on ...
+    """
+    
+    
+    
+    def 
+
+def gen_mag_dist(z,f):
+    """
+    generates a magnitude distribution as a function of z and f
+    """
