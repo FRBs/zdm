@@ -12,14 +12,16 @@ from zdm import loading
 from zdm import io
 from zdm import optical as opt
 
+from matplotlib import pyplot as plt
+from numpy import random
 import numpy as np
 from zdm import survey
 from matplotlib import pyplot as plt
 from pkg_resources import resource_filename
 
 def create_fake_survey(smearing=False):
-    path="/home/brycesmith/Desktop/zdm/zdm/data/Surveys/"
-    file="Fake_Surveys.ecsv"
+    path = os.path.join(resource_filename('zdm', 'data'), 'Surveys')+"/"
+    file="Spectroscopic.ecsv"
     
     IntroStr="""# %ECSV 1.0
 # ---
@@ -52,9 +54,10 @@ def create_fake_survey(smearing=False):
     sdir = os.path.join(resource_filename('zdm', 'data'), 'Surveys')
     ss,gs=loading.surveys_and_grids(survey_names=name,repeaters=False,init_state=state,sdir=sdir)
     gs=gs[0]
-    gs.state.photo.smearing=smearing
+    #gs.state.photo.smearing=smearing
     gs.calc_rates()
     samples=gs.GenMCSample(100)
+    zvals=np.zeros(len(samples))
     fp=open(path+file,"w+")
     fp.write(IntroStr)
     fp.write("TNS        DM             RA      DEC         Z                 SNR                   WIDTH        Gl      Gb     DMG           FBAR     BW\n")
@@ -65,14 +68,87 @@ def create_fake_survey(smearing=False):
         fp.write('{0:10}'.format("00:00:00"))
         fp.write('{0:25}'.format(str(samples[i][0])))
         fp.write('{0:25}'.format(str(samples[i][3]*10)))
-        fp.write('{0:8}'.format("31.0"))
-        fp.write('{0:8}'.format("31.0"))
-        fp.write('{0:8}'.format("31.0"))
+        fp.write('{0:8}'.format("-1.0"))
+        fp.write('{0:8}'.format("-1.0"))
+        fp.write('{0:8}'.format("-1.0"))
         fp.write('{0:8}'.format("35.0"))
         fp.write('{0:8}'.format("888"))
         fp.write('{0:8}'.format("288"))
         fp.write("\n")
     fp.close()
 
+    if smearing is True:
+        sigmas=np.array([0.035])
+        for sigma in sigmas:
+            for i in range(len(samples)):
+                zvals[i]=samples[i][0]
+            file="Smeared.ecsv"
+            fp=open(path+file,"w+")
+            fp.write(IntroStr)
+            fp.write("TNS        DM             RA      DEC         Z                 SNR                   WIDTH        Gl      Gb     DMG           FBAR     BW\n")
+            smear_error=random.normal(loc=0,scale=sigma,size=100)
+            newvals=zvals+smear_error
+            for i in range(len(samples)):
+                fp.write('{0:5}'.format(str(i)))
+                fp.write('{0:20}'.format(str(samples[i][1]+35)))
+                fp.write('{0:10}'.format("00:00:00"))
+                fp.write('{0:10}'.format("00:00:00"))
+                fp.write('{0:25}'.format(str(newvals[i])))
+                fp.write('{0:25}'.format(str(samples[i][3]*10)))
+                fp.write('{0:8}'.format("-1.0"))
+                fp.write('{0:8}'.format("-1.0"))
+                fp.write('{0:8}'.format("-1.0"))
+                fp.write('{0:8}'.format("35.0"))
+                fp.write('{0:8}'.format("888"))
+                fp.write('{0:8}'.format("288"))
+                fp.write("\n")
+            fp.close()
 
-create_fake_survey(smearing=False)
+    frac_path=path+"/../Optical/"
+    fz=np.load(frac_path+"lsst_24.7_fz.npy")[0:500]
+    zs=np.load(frac_path+"lsst_24.7_z.npy")[0:500]
+    file="zFrac.ecsv"
+    fp=open(path+file,"w+")
+    fp1=open(path+"Smeared_and_zFrac.ecsv","w+")
+    fp.write(IntroStr)
+    fp1.write(IntroStr)
+    fp.write("TNS        DM             RA      DEC         Z                 SNR                   WIDTH        Gl      Gb     DMG           FBAR     BW\n")
+    fp1.write("TNS        DM             RA      DEC         Z                 SNR                   WIDTH        Gl      Gb     DMG           FBAR     BW\n")
+    for i in range(len(samples)):
+        prob_thresh=random.rand()
+        j=np.where(zs>samples[i][0]-0.005)[0][0]
+        prob=fz[j]
+        if prob>=prob_thresh:
+            fp.write('{0:5}'.format(str(i)))
+            fp.write('{0:20}'.format(str(samples[i][1]+35)))
+            fp.write('{0:10}'.format("00:00:00"))
+            fp.write('{0:10}'.format("00:00:00"))
+            fp.write('{0:25}'.format(str(samples[i][0])))
+            fp.write('{0:25}'.format(str(samples[i][3]*10)))
+            fp.write('{0:8}'.format("-1.0"))
+            fp.write('{0:8}'.format("-1.0"))
+            fp.write('{0:8}'.format("-1.0"))
+            fp.write('{0:8}'.format("35.0"))
+            fp.write('{0:8}'.format("888"))
+            fp.write('{0:8}'.format("288"))
+            fp.write("\n")
+
+            fp1.write('{0:5}'.format(str(i)))
+            fp1.write('{0:20}'.format(str(samples[i][1]+35)))
+            fp1.write('{0:10}'.format("00:00:00"))
+            fp1.write('{0:10}'.format("00:00:00"))
+            fp1.write('{0:25}'.format(str(samples[i][0]+smear_error[i])))
+            fp1.write('{0:25}'.format(str(samples[i][3]*10)))
+            fp1.write('{0:8}'.format("-1.0"))
+            fp1.write('{0:8}'.format("-1.0"))
+            fp1.write('{0:8}'.format("-1.0"))
+            fp1.write('{0:8}'.format("35.0"))
+            fp1.write('{0:8}'.format("888"))
+            fp1.write('{0:8}'.format("288"))
+            fp1.write("\n")
+
+    fp.close()
+    fp1.close()
+
+
+create_fake_survey(True)

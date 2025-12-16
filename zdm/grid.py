@@ -1,3 +1,6 @@
+import os
+from pkg_resources import resource_filename
+
 from IPython.terminal.embed import embed
 import numpy as np
 import datetime
@@ -493,6 +496,12 @@ class Grid:
         except:
             print("WARNING: no volumetric probability pdv yet calculated")
             exit()
+        
+        if self.survey.survey_data.observing.Z_FRACTION is not None:
+            sdir = os.path.join(resource_filename('zdm', 'data'), 'Optical')
+            self.linear_interpolation(np.load(sdir+"/fz_24.7.npy"),np.load(sdir+"/zvals.npy"),self.survey.survey_data.observing.Z_FRACTION)
+            self.fz=np.load(sdir+"/"+self.survey.survey_data.observing.Z_FRACTION+"_fz.npy")
+            self.sfr*=self.fz
 
         self.sfr_smear = np.multiply(self.smear_grid.T, self.sfr).T
 
@@ -1201,10 +1210,26 @@ class Grid:
 
     def smear_z(self,array):
         r,c=array.shape
-        smear_size=int(self.state.photo.sigma_width*self.state.photo.sigma*len(self.zvals)/max(self.zvals))+1
-        smear_arr=random.normal(loc=1,scale=self.state.photo.sigma,size=(smear_size))
+        sigma=self.state.photo.sigma*len(self.zvals)/max(self.zvals)
+        smear_size=int(self.state.photo.sigma_width*sigma)
+        smear_size=smear_size-smear_size%2+1
+        smear_arr=np.linspace(-(smear_size-1)/2,(smear_size-1)//2,smear_size)
+        smear_arr=np.exp(-(smear_arr**2)/(2*(sigma**2)))
+        #smear_arr=random.normal(loc=1,scale=self.state.photo.sigma,size=(smear_size))
         smear_arr/=np.sum(smear_arr)
         if not hasattr(self,"smear_zgrid"):
             self.smear_zgrid=np.zeros([r,c])
         for i in range(c):
             self.smear_zgrid[:,i]=np.convolve(array[:,i],smear_arr,mode="same")
+
+    def linear_interpolation(self,fz,z,name):
+        path = os.path.join(resource_filename('zdm', 'data'), 'Optical')
+        newz=np.copy(self.zvals)
+        newfz=np.zeros(len(newz))
+        for i in range(len(newz)):
+            j2=np.where(z>newz[i])[0][0]
+            j1=j2+1
+            newfz[i]=fz[j1]+(newz[i]-z[j1])*(fz[j2]-fz[j1])/(z[j2]-z[j1])
+        np.save(path+"/"+name+"_fz",newfz)
+        np.save(path+"/"+name+"_z",newz)
+

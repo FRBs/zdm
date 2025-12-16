@@ -64,8 +64,9 @@ def main():
 
     for i,g in enumerate(gs):
         #################################
-        g.state.photo.smearing=False
-        g.calc_rates()
+        #g.state.photo.smearing=True
+        #g.survey.survey_data.observing.Z_FRACTION="lsst_24.7"
+        #g.calc_rates()
         ################################
         if i==0:
             mean_rates=g.rates * ss[i].TOBS * 10**g.state.FRBdemo.lC
@@ -147,7 +148,6 @@ def main():
     plt.tight_layout()
     plt.savefig(opdir+name+"_pdm.pdf")
     plt.close()
-    print(it.get_log_likelihood(g,s))  
 
 
     

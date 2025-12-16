@@ -300,6 +300,11 @@ class Observing(data_class.myDataClass):
                   'Notation': '',
                   })
 
+    Z_FRACTION:str =field(
+            default=None,
+            metadata={'help':"Fraction of visible FRBs at a redshift"}
+            )
+
 class SurveyData(data_class.myData):
     """ Hold the SurveyData in a convenient object
 

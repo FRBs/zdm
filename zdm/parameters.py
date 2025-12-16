@@ -458,4 +458,3 @@ class PhotometricParams(data_class.myDataClass):
     sigma_width:int =field(default=6)
 
 
-
