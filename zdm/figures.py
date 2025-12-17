@@ -104,12 +104,13 @@ def plot_grid(
 
     if Aconts:
         linestyles = ['--', '-.', ':', '-']
-        c_cmap = cmr.arctic
         if othergrids is not None:
             n_conts = len(Aconts) + len(othergrids)
         else:
             n_conts = len(Aconts)
-        cont_clrs = c_cmap(np.linspace(0.2, 0.8, n_conts))
+        c_cmap = cmr.arctic
+        cont_clrs = c_cmap(np.linspace(0.2, 0.6, n_conts))
+        # cont_clrs = data_clrs
 
         # Make dictionary for the contours
         if cont_dicts == None:

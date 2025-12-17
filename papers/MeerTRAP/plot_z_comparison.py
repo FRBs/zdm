@@ -8,7 +8,7 @@ import os
 
 from astropy.cosmology import Planck18
 from zdm import cosmology as cos
-from zdm import misc_functions
+from zdm import figures
 from zdm import parameters
 from zdm import survey
 from zdm import pcosmic
@@ -60,7 +60,7 @@ def main():
     
     # Initialise surveys and grids
     sdir = os.path.join(resource_filename('zdm', 'data'), 'Surveys')
-    names=["MeerTRAPcoherent","DSA","CRAFT_ICS_1300"]
+    names=["MeerTRAPcoherent","DSA","CRAFT_average_ICS"]
     
     state = parameters.State()
     state.set_astropy_cosmo(Planck18)
@@ -184,18 +184,31 @@ def main():
     name = names[0]
     
     # Do the plotting
-    misc_functions.plot_grid_2(g.rates,g.zvals,g.dmvals,
-        name=opdir+name+"_zDM.pdf",norm=3,log=True,
-        label='$\\log_{10} p({\\rm DM}_{\\rm IGM} + {\\rm DM}_{\\rm host},z)$ [a.u.]',
-        project=False,ylabel='${\\rm DM}_{\\rm IGM} + {\\rm DM}_{\\rm host}$',
-        zmax=3,DMmax=3000, FRBZs=Zs, FRBDMs=DMs, 
+    figures.plot_grid(crates,g.zvals,g.dmvals,
+        name=opdir+name+"_zDM_test.pdf",norm=3,log=False,
+        label='$\\log_{10} p({\\rm DM}_{\\rm EG}$ [a.u.]',
+        project=False,ylabel='${\\rm DM}_{\\rm EG}$',
+        zmax=3.9,DMmax=3000, FRBZs=Zs, FRBDMs=DMs, 
         # point_labels=point_labels, data_clrs=data_clrs, markersize=5, data_styles=markers,
         plt_dicts=plt_dicts, cont_dicts=cont_dicts,
         Aconts=[0.1],othergrids=[gs[1].rates,crates,gs[2].rates],
         othernames = ["MeerKAT","DSA","CHIME","ASKAP"], 
         cmap=cmr.prinsenvlag_r)
         #0.01, 0.1,0.5
-    
+    # figures.plot_grid(
+    #     zDMgrid=crates[:,200:],
+    #     zvals=g.zvals,
+    #     dmvals=g.dmvals[200:],
+    #     zmax=2.5,
+    #     DMmax=2500,
+    #     norm=0,
+    #     log=False,
+    #     project=False,
+    #     Aconts=[0.01,0.1,0.5],
+    #     showplot=True,
+    #     save=True,
+    #     name="CHIME.pdf"
+    # )
     
     ############ Plots z projection ##########
     plt.figure()
@@ -206,43 +219,64 @@ def main():
     for i,g in enumerate(gs):
         s=ss[i]
         
-        # Calc pz
-        pz = np.sum(g.rates,axis=1)
-        pz = pz / np.sum(pz)
+        # # Calc pz
+        # pz = np.sum(g.rates,axis=1)
+        # pz = pz / np.sum(pz)
 
-        # Do plotting
-        plt.plot(g.zvals,pz,label=names[i],linestyle=styles[i],linewidth=2)
+        # # Do plotting
+        # plt.plot(g.zvals,pz,label=names[i],linestyle=styles[i],linewidth=2)
 
-        # Calculate z0 at which P(z < z0) = 0.95
-        pz_cum = np.cumsum(pz) 
-        i_one_percent = np.where(pz_cum>0.95)[0][0]
-        one_percent = g.zvals[i_one_percent]
-        print(s.name, one_percent, pz_cum[i_one_percent])
+        # # # Calculate z0 at which P(z < z0) = 0.95
+        # # pz_cum = np.cumsum(pz) 
+        # # i_one_percent = np.where(pz_cum>0.95)[0][0]
+        # # one_percent = g.zvals[i_one_percent]
+        # # print(s.name, one_percent, pz_cum[i_one_percent])
 
-        # Calculate P(z > 2)
-        i_z_two = np.where(g.zvals>2)[0][0]
-        print(pz_cum[i_z_two])
+        # # # Calculate P(z > 2)
+        # # i_z_two = np.where(g.zvals>2)[0][0]
+        # # print(pz_cum[i_z_two])
+
+        # # Calculate P(z > 1 | DM_EG > 1000)
+        # i_z_one = np.where(g.zvals>1)[0][0]
+        # i_DM_1000 = np.where(g.dmvals>1000)[0][0]
+        # print("P(z>1 and DM>1000)", s.name, np.sum(g.rates[i_z_one:,i_DM_1000:])/np.sum(g.rates))
+        # print("max(z>1 and DM>1000)", s.name, np.max(g.rates[i_z_one:,i_DM_1000:]))
+        # print("max(DM > 1000)", s.name, np.max(g.rates[:,i_DM_1000:]))
+        # print("P(DM>1000)", s.name, np.sum(g.rates[:,i_DM_1000:])/np.sum(g.rates))
+        # print("P(z>1|DM>1000)", s.name, np.sum(g.rates[i_z_one:,i_DM_1000:]) / np.sum(g.rates[:,i_DM_1000:]))
+        # print("P(z>1)", s.name, np.sum(g.rates[i_z_one:,:])/np.sum(g.rates))
+    
+    # Calculate P(z > 1 | DM_EG > 1000)
+    i_z_one = np.where(g.zvals>1)[0][0]
+    i_DM_1000 = np.where(g.dmvals>1000)[0][0]
+    print(g.rates.shape, i_z_one, i_DM_1000)
+    print(len(g.zvals), len(g.dmvals))
+    print(g.zvals, g.dmvals)
+    print("P(z>1 and DM>1000) CHIME", np.sum(crates[i_z_one:,i_DM_1000:])/np.sum(crates))
+    print("P(DM>1000) CHIME", np.sum(crates[:,i_DM_1000:])/np.sum(crates))
+    print("P(z>1|DM>1000) CHIME", np.sum(crates[i_z_one:,i_DM_1000:]) / np.sum(crates[:,i_DM_1000:]))
+    print("P(z>1) CHIME", np.sum(crates[i_z_one:])/np.sum(crates))
     
     # adds CHIME
-    pz = np.sum(crates,axis=1)
+    pz = np.sum(crates[:,200:],axis=1)
     pz = pz / np.sum(pz)
 
-    # Calculate z0 at which P(z < z0) = 0.95
-    pz_cum = np.cumsum(pz)
-    i_one_percent = np.where(pz_cum>0.95)[0][0]
-    one_percent = g.zvals[i_one_percent]
-    print("CHIME", one_percent, pz_cum[i_one_percent])
+    # # Calculate z0 at which P(z < z0) = 0.95
+    # pz_cum = np.cumsum(pz)
+    # i_one_percent = np.where(pz_cum>0.95)[0][0]
+    # one_percent = g.zvals[i_one_percent]
+    # print("CHIME", one_percent, pz_cum[i_one_percent])
     
-    # Calculate P(z > 2)
-    i_z_two = np.where(g.zvals>2)[0][0]
-    print(pz_cum[i_z_two])
+    # # Calculate P(z > 2)
+    # i_z_two = np.where(g.zvals>2)[0][0]
+    # print(pz_cum[i_z_two])
     
     plt.plot(g.zvals,pz,label="CHIME",linestyle=":",linewidth=2)
     
     plt.xlabel("z")
     plt.ylabel("p(z)")
     plt.xlim(0.,3)
-    plt.ylim(0,1)
+    # plt.ylim(0,1)
     plt.legend(loc="lower right")
     plt.tight_layout()
     plt.savefig(opdir+"pz_comparison.pdf")

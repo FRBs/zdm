@@ -7,15 +7,23 @@
 # - {name: DMG, datatype: float64}
 # - {name: FBAR, datatype: float64}
 # - {name: FRES, datatype: float64}
-# - {name: NREP, datatype: int64}
+# - {name: Gb, unit: deg, datatype: float64}
+# - {name: Gl, unit: deg, datatype: float64}
 # - {name: SNR, datatype: float64}
 # - {name: SNRTHRESH, datatype: float64}
 # - {name: THRESH, datatype: float64}
 # - {name: TRES, datatype: float64}
 # - {name: WIDTH, datatype: float64}
+# - {name: XDec, datatype: string}
+# - {name: XRA, datatype: string}
+# - {name: Z, datatype: float64}
 # meta: !!omap
-# - {survey_data: '{"observing": {"NORM_FRB": 1,"TOBS": 317.5},
-#                   "telescope": {"BEAM": "MeerTRAP_coherent_log","BTHRESH": 0.001,"NBEAMS": 1,"NBINS": 5}}'}
+# - {survey_data: '{"observing": {"NORM_FRB": 10},
+#                   "telescope": {"BMETHOD": 0, "BTHRESH": 0.001, "DIAM": 13.5, "NBEAMS": 1, "NBINS": 5}}'}
 # schema: astropy-2.0
-TNS    BW  DM  DMG  FBAR  FRES   NREP  SNR SNRTHRESH THRESH TRES    WIDTH
-DUMMY  770 200 35.0 1284  0.836  1     10. 10.       3.3    0.30624 1.0
+TNS        BW   DM       DMG     FBAR  FRES   Gb       Gl       SNR    SNRTHRESH  THRESH  TRES     WIDTH   XDec           XRA             Z
+20220224C  770  1140.2   52      1284  0.836  44.56    278.40   11.1   8.0        0.33    0.30624  46.0     -22:56:23.48   11:06:42.61     0.6271
+20230503E  770  483.74   88      1284  0.836  -24.91   313.56   16.87  8.0        0.33    0.30624  6.7      -83:46:30.93   15:53:43.19     -1.0
+20230814F  875  471.44   134     2625  0.836  -13.93   278.79   78.78  8.0        0.33    0.30624  5.39     -68:19:55.70   09:06:28.88     -1.0
+20230907D  770  1030.79  29      1284  0.836  65.85    287.39   11.57  8.0        0.33    0.30624  4.9      +08:39:29.13   12:28:34.20     0.4638
+20231020B  770  952.2    34      1284  0.836  -42.61   244.93   16.4   8.0        0.33    0.30624  16.0     -37:46:11.56   03:49:06.77     0.4775

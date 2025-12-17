@@ -79,6 +79,7 @@ class Survey:
 
         self.init_DMEG(state.MW.DMhalo, state.MW.halo_method)
         # Zs
+        print("Initialising zs")
         self.init_zs() # This should be redone every time DMhalo is changed IF we use a flat cutoff on DMEG
         # Allows survey metadata to over-ride parameter defaults if present.
         # This is required when mixing CHIME and non-CHIME FRBs
@@ -299,8 +300,12 @@ class Survey:
             # self.DMGals = np.zeros(len(self.frbs))
             self.DMG_el = np.zeros(len(self.frbs))
             self.DMG_eu = np.zeros(len(self.frbs))
+            DMMWs = np.zeros(len(self.frbs))
             for i, (Gl, Gb) in enumerate(zip(self.Gls, self.Gbs)):
-                self.DMGs[i], self.DMG_el[i], self.DMG_eu[i] = galactic_dm_models.dmg_sanskriti2020(Gl, Gb)
+                DMMWs[i], self.DMG_el[i], self.DMG_eu[i] = galactic_dm_models.dmg_sanskriti2020(Gl, Gb)
+            self.DMhalos = DMMWs - self.DMGs
+            self.DMhalo = np.median(self.DMhalos)
+            print(self.DMhalos)
 
         # self.DMGal = np.median(self.DMGals)
 
@@ -326,26 +331,28 @@ class Survey:
         """
         # Ignore redshifts above MAX_LOC_DMEG
         self.min_noz = self.meta["MAX_LOC_DMEG"]
+
         # Ignore redshifts above the minimum unlocalised DM if MAX_LOC_DMEG==0
         if self.min_noz == 0:
-            nozlist = np.where(self.frbs["Z"] < 0.)[0]
+            nozlist = np.where((self.frbs["Z"] == -1.) | (self.frbs["Z"] is None))[0]
             if len(nozlist != 0):
-                self.min_noz = np.min(self.DMEGs[nozlist])
+                self.min_noz = np.min(self.DMEGs[nozlist] + self.DMhalos[nozlist])
+                imin = np.where(self.DMEGs + self.DMhalos == self.min_noz)[0][0]
 
         # Do not get rid of redshifts if MAX_LOC_DMEG==-1
         if self.min_noz > 0:
-            high_dm = np.where(self.DMEGs > self.min_noz)[0]
+            high_dm = np.where(self.DMEGs + self.DMhalos > self.min_noz)[0]
             self.ignored_Zs = self.frbs["Z"].values[high_dm]
             self.ignored_Zlist = high_dm[self.ignored_Zs > 0]
             self.ignored_Zs = self.ignored_Zs[self.ignored_Zs > 0]
             self.frbs["Z"].values[high_dm] = -1.0
-            print("Ignoring redshifts with DMEG > " + str(self.min_noz))
+            print("Ignoring redshifts with DMEG >", str(self.min_noz))
         else:
             self.ignored_Zs = []
             self.ignored_Zlist = []
 
         # Pandas resolves None to Nan
-        if len(self.frbs["Z"])>0 and np.isfinite(self.frbs["Z"].values[0]):
+        if len(self.frbs["Z"])>0:
             
             self.Zs=self.frbs["Z"].values
             # checks for any redhsifts identically equal to zero
@@ -357,6 +364,7 @@ class Survey:
             
             # checks to see if there are any FRBs which are localised
             self.zlist = np.where(self.Zs > 0.)[0]
+
             if len(self.zlist) < self.NFRB:
                 self.nozlist = np.where(self.Zs < 0.)[0]
                 if len(self.nozlist) == len(self.Zs):
@@ -367,6 +375,7 @@ class Survey:
             else:
                 self.nozlist = None
                 self.nD=2
+            
         else:
             self.nD=1
             self.Zs=None
@@ -500,7 +509,7 @@ class Survey:
                 default_value = getattr(default_frb, field.name)
                 frb_tbl[field.name] = default_value
                 print("WARNING: no ",field.name," found in survey",
-                    "repalcing with default value of ",default_value)
+                    "replacing with default value of ",default_value)
         
         self.frbs = frb_tbl.to_pandas()
         
@@ -519,34 +528,19 @@ class Survey:
         
         # Min latitude
         if min_lat is not None and min_lat > 0.0:
-            excluded = 0
-            # blanks = np.where(self.frbs['Gb'].values == None)[0]
-
-            # if len(blanks) > 0:
-            #     warnings.warn("Some FRBs have no Gb value, using DMG cut of 50 instead", UserWarning)
-            # self.frbs = self.frbs[self.frbs['Gb'].values != None]
-
-            # excluded += len(self.frbs[np.abs(self.frbs['Gb'].values) <= min_lat])
-            # self.frbs = self.frbs[np.abs(self.frbs['Gb'].values) > min_lat]
-
-            frbs =  []
-
-            for i, frb in self.frbs.iterrows():
-                if np.isnan(frb['Gb']):
-                    warnings.warn("FRB " + frb['TNS'] + " has no Gb value, using DMG cut of 50 instead", UserWarning)
-                    if frb['DMG'] < 50:
-                        frbs.append(frb)
-                    else:
-                        excluded += 1
-                elif np.abs(frb['Gb']) > min_lat:
-                    frbs.append(frb)
-                else:
-                    excluded += 1
+            tot = len(self.frbs)
+            mask = [(Gb is None) or (np.abs(Gb) > min_lat) for Gb in self.frbs['Gb'].values]
+            self.frbs = self.frbs[mask]
+            included = len(self.frbs)
             
-            print("Using minimum galactic latitude of " + str(min_lat) + ". Excluding " + str(excluded) + " FRBs")
+            print("Using minimum galactic latitude of " + str(min_lat) + ". Excluding " + str(tot - included) + " FRBs")
         # Max DM
         if dmg_cut is not None:
+            tot = len(self.frbs)
             self.frbs = self.frbs[np.abs(self.frbs['DMG'].values) < dmg_cut]
+            included = len(self.frbs)
+            print("Using maximum DMG of " + str(dmg_cut) + ". Excluding " + str(tot - included) + " FRBs")
+
         # Get new number of FRBs
         self.NFRB = len(self.frbs)
         
@@ -586,6 +580,8 @@ class Survey:
         self.Ss=self.SNRs/self.SNRTHRESHs
         self.TOBS=self.meta['TOBS']
         self.NORM_FRB=self.meta['NORM_FRB']
+        self.Gbs=self.frbs['Gb'].values
+        self.Gls=self.frbs['Gl'].values
 
         # sets the 'beam' values to unity by default
         self.beam_b=np.array([1])

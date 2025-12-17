@@ -7,16 +7,29 @@
 # - {name: DMG, datatype: float64}
 # - {name: FBAR, datatype: float64}
 # - {name: FRES, datatype: float64}
-# - {name: NREP, datatype: int64}
+# - {name: Gb, unit: deg, datatype: float64}
+# - {name: Gl, unit: deg, datatype: float64}
 # - {name: SNR, datatype: float64}
 # - {name: SNRTHRESH, datatype: float64}
 # - {name: THRESH, datatype: float64}
 # - {name: TRES, datatype: float64}
 # - {name: WIDTH, datatype: float64}
+# - {name: XDec, datatype: string}
+# - {name: XRA, datatype: string}
 # - {name: Z, datatype: float64}
 # meta: !!omap
-# - {survey_data: '{"observing": {"NORM_FRB": 1,"TOBS": 317.5},
+# - {survey_data: '{"observing": {"NORM_FRB": 11},
 #                   "telescope": {"BEAM": "MeerTRAP_coherent_log","BTHRESH": 0.25,"NBEAMS": 1,"NBINS": 5}}'}
 # schema: astropy-2.0
-TNS    BW  DM  DMG  FBAR  FRES   NREP SNR SNRTHRESH THRESH TRES    WIDTH Z
-DUMMY  770 200 35.0 1284  0.836  1    10. 10.       0.66   0.30624 1.0   -1.0
+TNS        BW   DM       DMG     FBAR  FRES   Gb       Gl       SNR    SNRTHRESH  THRESH  TRES     WIDTH   XDec           XRA             Z
+20220222C  770  1071.2   56      1284  0.836  28.78    311.66   24.2   8.0        0.066    0.30624  15.9     -28:01:36.93   13:35:37.08     0.853
+20230125D  770  640.08   88      1284  0.836  26.13    270.70   18.28  8.0        0.066    0.30624  3.67     -31:32:40.77   10:00:49.21     0.3265
+20230306F  770  689.5    23      1284  0.836  76.91    287.65   11.02  8.0        0.066    0.30624  3.6      +14:54:17      12:24:01        -1.0
+20230413C  544  1532.2   45      816   0.836  -30.92   252.63   14.8   8.0        0.066    0.30624  19.28    -39:50:00      05:13:00        -1.0
+20230613A  770  483.51   30      1284  0.836  -71.61   353.52   49.88  8.0        0.066    0.30624  1.84     -27:03:10.01   23:47:24.65     0.3923
+20230827E  544  1433.7   38      816   0.836  -42.84   222.57   54.8   8.0        0.066    0.30624  9.6      -18:16:58.55   04:08:28.242    -1.0
+20230907D  770  1030.79  29      1284  0.836  65.85    287.39   11.57  8.0        0.066    0.30624  4.9      +08:39:29.13   12:28:34.20     0.4638
+20231007C  770  2660.4   42      1284  0.836  -38.48   92.94    9.85   8.0        0.066    0.30624  9.8      +21:52:34      23:38:18        -1.0
+20231010A  544  442.59   41      816   0.836  -41.94   303.99   12.77  8.0        0.066    0.30624  4.82     -70:35:46.93   00:58:55.67     -1.0
+20231204B  544  1772.1   41      816   0.836  -41.93   304.66   25.0   8.0        0.066    0.30624  15.0     -70:37:16.5    01:05:07        -1.0
+20231210F  770  720.6    32      1284  0.836  -45.17   240.94   28.3   8.0        0.066    0.30624  12.86    -35:45:41.13   03:21:37.28     -1.0
