@@ -116,7 +116,7 @@ class FRBDemoParams(data_class.myDataClass):
     )
     lC: float = field(
         default=3.3249,
-        metadata={"help": "log10 constant in number per Gpc^-3 day^-1 at z=0"},
+        metadata={"help": "log10 constant in number per Mpc^-3 day^-1 at z=0"},
     )
 
 
@@ -144,8 +144,8 @@ class RepeatParams(data_class.myDataClass):
                   })
     RC: float = field(
         default = 1e-2,
-        metadata={'help': 'Constant repeater density',
-                  'unit': 'Repeaters day / Gpc^-3',
+        metadata={'help': 'Constant repeater density. Gets calculated by code.',
+                  'unit': 'Repeaters / Mpc^-3',
                   'Notation': '$C_R$',
                   })
     RE0: float = field(

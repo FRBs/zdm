@@ -3,10 +3,45 @@ This library contains routines that interact with
 the FRB/astropath module and (optical) FRB host galaxy
 information.
 
-It includes the class "host_model" for describing the
-intrinsic FRB host galaxy distribution, associated functions,
-and the approximate fraction of
-detectable FRBs from Marnoch et al (https://doi.org/10.1093/mnras/stad2353)
+The philosophy of the module is this. The base class
+is "host_model". This class is the top-level class
+that contains base functions to e.g. calculate
+p(m_r|DM).
+
+However, no host_model class contains any astroiphysics.
+
+Instead, it wraps an underlying set of possible class
+objects that must have a specific set of callable functions
+which each contain the relevant calculations.
+
+The current set are the following:
+
+Simple_host_model:
+    Describes intrinsic host properties as a spline
+    interpolation between p(M_r) described by N
+    points. N parameters (e.g. 10).
+
+Marnoch_model:
+    Fixed calculation of p(M_r) based on extrapolation
+    of known FRB host galaxies. No parameters. See
+    https://doi.org/10.1093/mnras/stad2353
+    
+
+Loudas_model:
+    Calculates p(M_r) via assigning a fraction of FRB
+    hosts to follow star-formation in galaxies, and
+    a fraction to stellar mass, then includes the modelled
+    evolution of these galaxies. 1 parameter.
+    
+Each "host_model" class object above must provide functions to:
+    __init__
+    calculate p(m_r|z,parameters)
+    
+The wrapper class provides the following fubctions:
+ 
+- init_path_raw_prior_Oi(self,DM,grid):
+ (takes as input an FRB DM, and grid object)
+
 """
 
 
@@ -15,24 +50,301 @@ from matplotlib import pyplot as plt
 from zdm import cosmology as cos
 from zdm import optical_params as op
 from scipy.interpolate import CubicSpline
+from scipy.interpolate import make_interp_spline
 import os
 from importlib import resources
 import pandas
+import h5py
 
 
-class host_model:
+###################################################################
+############ Routines associated with Nick's model ################
+###################################################################
+
+class loudas_model:
+    """
+    This class initiates a model based on Nick Loudas's model of
+    galaxy magnitudes as a function of redshift. The underlying
+    model is a description of galaxies as a function of
+    stellar mass and star-formation rate as a function of redshift.
+    
+    """
+    
+    def __init__(self,OpticalState=None,fname='p_mr_distributions_dz0.01_z_in_0_1.2.h5',data_dir=None,verbose=False):
+        """
+        initialises the model. Loads data provided by Nick Loudas
+        on mass- and sfr-weighted magnitudes.
+        
+        Args:
+            fname [string]: h55 filename containing the data
+            datadir [string]: directory that the data is contained in. Defaults to None.
+        """
+        
+        # uses the "simple hosts" descriptor
+        if OpticalState is None:
+            OpticalState = op.OpticalState() 
+        self.OpticalState = OpticalState
+        
+        #extract the correct optical substate from the opstate
+        self.opstate = self.OpticalState.loudas
+        
+        self.fsfr = self.opstate.fSFR
+        
+        
+        # checks that cosmology is initialised
+        if not cos.INIT:
+            cos.init_dist_measures()
+        
+        # gets base input directory. In future, this may be expanded
+        if data_dir is None:
+            data_dir = os.path.join(resources.files('zdm'), 'data', 'optical')
+        
+        # load data and its properties
+        self.init_pmr(fname,data_dir)
+        
+        # initialises cubic splines for faster speedups
+        self.init_cubics()
+        
+    def init_pmr(self,fname,data_dir):
+        """
+        Loads p(mr|z) distributions from Nick Loudas. Note - these are
+        actually distributions in apparent magnitude mr.
+        
+        Mostly, this wraps around Nick's code "load_p_mr_distributions".
+        I've kept them separate to distinguish between his code and mine -CWJ.
+        
+        """
+        ####### loading p(mr) distributions ##########
+        zbins, rmag_centres, p_mr_sfr, p_mr_mass = self.load_p_mr_distributions(
+                                        data_dir, fname = fname)
+        
+        # zbins represent ranges. We also calculate z-bin centres
+        self.zbins = zbins
+        self.nzbins = zbins.size-1
+        self.czbins = 0.5*(self.zbins[1:] + self.zbins[:-1])
+        self.logzbins = np.log10(zbins)
+        self.clogzbins = 0.5*(self.logzbins[1:] + self.logzbins[:-1])
+        self.rmags = rmag_centres # centres of rmag bins
+        self.p_mr_sfr = p_mr_sfr # sfr-weighted p_mr
+        self.p_mr_mass = p_mr_mass # mass-weighted p_mr
+        
+        
+        # we have now all the data we need!
+    
+    def init_cubics(self):
+        """
+        initialises cubic splines that interpolate in mr. For later use (speedup!)
+        """
+        
+        sfr_splines = []
+        mass_splines = []
+        for i in np.arange(self.nzbins):
+            sfr_spline = make_interp_spline(self.rmags,self.p_mr_sfr[i],k=1)
+            sfr_splines.append(sfr_spline)
+            
+            mass_spline = make_interp_spline(self.rmags,self.p_mr_mass[i],k=1)
+            mass_splines.append(mass_spline)
+        
+        self.mass_splines = mass_splines
+        self.sfr_splines = sfr_splines
+    
+    def get_pmr_gz(self,mrbins,z): # fsfr must be a self value z: float,fsfr: float):
+        """
+        Returns the p_mr distribution for a given redshift z and sfr fraction f_sfr
+        
+        Args:
+            z (float): redshift
+            fsfr (float): fraction of population associated with star-formation
+        """
+        
+        fsfr = self.fsfr
+        
+        # gets interpolation coefficients
+        lz = np.log10(z)
+        if lz < self.clogzbins[0]:
+            # sets values equal to that of smallest bin, to avoid interpolation
+            i1=0
+            i2=1
+            k1=1.
+            k2=0.
+        elif lz > self.clogzbins[-1]:
+            i1=self.nzbins-2
+            i2=self.nzbins-1
+            k1=0
+            k2=1.
+        else:
+            i1 = np.where(lz > self.clogzbins)[0][-1] # gets lowest value where zs are larger
+            i2=i1+1
+            k2 = (lz-self.clogzbins[i1])/(self.clogzbins[i2]-self.clogzbins[i1])
+            k1 = 1.-k2
+        
+        z1=self.czbins[i1]
+        z2=self.czbins[i2]
+        
+        # the mr distributions are apparent magnitudes
+        # hence, we have to interpolate between z-bins using first-order shifting
+        # this is *very* important for low values of z
+        
+        DL = cos.dl(z)
+        DL1 = cos.dl(z1)
+        DL2 = cos.dl(z2)
+        
+        # calculates shifts in logarithm. Still shifts when z is lower or higher than m_r
+        # note: a factor of 2 in DL means a factor of 4 in luminosity, meaning
+        # 5/2 log10(4) in mr = 5 log10(2).
+        dmr1 = 5.*np.log10(DL/DL1) # will be a positive shift
+        dmr2 = 5.*np.log10(DL/DL2) # will be a negative shift
+        
+        
+        mr_centres = (mrbins[:-1]+mrbins[1:])/2.
+        
+        # will interpolate the values at *lower* magnitudes, effectively shifting distribution up
+        p_mr_mass1 = self.mass_splines[i1](mr_centres - dmr1)
+        
+        # will interpolate the values at *higher* magnitudes, effectively shifting distribution down
+        p_mr_mass2 = self.mass_splines[i2](mr_centres - dmr2)
+        
+        
+        # will interpolate the values at *lower* magnitudes, effectively shifting distribution up
+        p_mr_sfr1 = self.sfr_splines[i1](mr_centres - dmr1)
+        # will interpolate the values at *higher* magnitudes, effectively shifting distribution down
+        p_mr_sfr2 = self.sfr_splines[i2](mr_centres - dmr2)
+        
+        # distribution for that redshift assuming mass weighting
+        pmass = k1*p_mr_mass1 + k2*p_mr_mass2
+        
+        # just left here for testing purposes
+        if False:
+            print("Redshift bins are ",z,z1,z2)
+            print("Luminosity distances are ",DL,DL1,DL2)
+            print("shifts are therefore ",dmr1,dmr2)
+            
+            # generate an example plot showing interpolation
+            plt.plot(self.rmags,p_mr_mass1,linestyle="-",label="scaled from z0")
+            plt.plot(self.rmags,p_mr_mass2,linestyle="--",label="scaled from z1")
+            plt.plot(self.rmags,self.p_mr_mass[i1],linestyle=":",label="z0")
+            plt.plot(self.rmags,self.p_mr_mass[i2],linestyle=":",label="z1")
+            plt.legend()
+            plt.tight_layout()
+            plt.show()
+            exit()
+        
+        # distribution foe that redshift assuming sfr weighting
+        psfr = k1*p_mr_sfr1 + k2*p_mr_sfr2
+        
+        # mean weighted distribution
+        pmr = pmass*(1.-fsfr) + psfr*fsfr
+        
+        return pmr
+        
+    def load_p_mr_distributions(self,data_dir,fname: str = 'p_mr_distributions_dz0.01_z_in_0_1.2.h5') -> tuple:
+        """
+        This code originally written by Nick Loudas. Used with permission
+        
+        Load the p(mr|z) distributions from an HDF5 file.
+        Args:
+            fname (str): Input filename.
+            output_dir (str): Directory where the file is stored. Optional (otherwise defaults as below)
+        Returns:
+            zbins (np.array): Redshift bin edges.
+            rmag_centers (np.array): Centers of r-band magnitude bins.
+            p_mr_sfr (np.array): p(mr|z) for SFR-weighted population. Shape: (len(zbins) - 1,
+                    rmag_resolution). rmag_resolution(=len(rmag_centers)) is fixed across redshift bins.
+            p_mr_mass (np.array): p(mr|z) for Mass-weighted population. Shape: (len(zbins) - 1,
+                    rmag_resolution). rmag_resolution(=len(rmag_centers)) is fixed across redshift bins.
+        Note:
+            The PDF in m_r within a given redshift bin [z1,z2] has been computed at the right edge of the bin (z = z2).
+        """
+        infile = os.path.join(data_dir,fname)
+        with h5py.File(infile, 'r') as hf:
+            zbins = np.array(hf['zbins'])
+            zbins = zbins[1:] # first bin is "extra" for "reasons"
+            rmag_centers = np.array(hf['rmag_centers'])
+            p_mr_sfr = np.array(hf['p_mr_sfr'])
+            p_mr_mass = np.array(hf['p_mr_mass'])
+        
+            # normalise these probabilities such that the bins sum to unity
+            p_mr_sfr = (p_mr_sfr.T / np.sum(p_mr_sfr,axis=1)).T
+            p_mr_mass = (p_mr_mass.T / np.sum(p_mr_mass,axis=1)).T
+        
+        print(f"p(mr|z) distributions loaded successfully from 'p_mr_dists/{fname}'")
+        n_redshift_bins = len(zbins) - 1
+        return zbins, rmag_centers, p_mr_sfr, p_mr_mass
+    
+    def give_p_mr_mass(self,z: float):
+        """
+        Function to return p(mr|z) for mass-weighted population.
+        Args:
+            z (float): Redshift value.
+        Returns:
+            np.array: p(mr|z) values.
+        Note:
+            This function assumes that the redshift bins are defined in the `massweighted_population` data.
+            Given the fine discretization of redshift bins, it uses the nearest bin for the provided redshift value.
+            rmag_centers and p_mr_mass are defined in the outer scope of this function.
+        """
+        # Find the appropriate redshift bin index
+        idx = np.clip(np.searchsorted(self.zbins, z) - 1, 0,  n_redshift_bins - 1)
+        return self.p_mr_mass[idx]
+    
+    def give_p_mr_sfr(self,z: float):
+        """
+        Function to return p(mr|z) for SFR-weighted population.
+        Args:
+            z (float): Redshift value.
+        Returns:
+            np.array: p(mr|z) values.
+        Note:
+            This function assumes that the redshift bins are defined in the `sfrweighted_population` data.
+            Given the fine discretization of redshift bins, it uses the nearest bin for the provided redshift value.
+            rmag_centers and p_mr_sfr are defined in the outer scope of this function.
+        """
+        # Find the appropriate redshift bin index
+        idx = np.clip(np.searchsorted(self.zbins, z) - 1, 0,  n_redshift_bins - 1)
+        return self.p_mr_sfr[idx]
+    
+    def init_args(self,OpticalState):
+        """
+        Initialises prior based on sfr fraction
+        
+        Args:
+            opstate: optical model state. Grabs the Loudas parameters from there.
+        
+        """
+        self.OpticalState = OpticalState
+        self.opstate = OpticalState.loudas
+        self.fsfr = self.opstate.fSFR
+    
+    def init_priors(self,zlist):
+        """
+        Generates magniude prior distributions for a list of redshifts
+        This allows faster interpolation later.
+        
+        Currently, this is not used!
+        """
+        print("WARNING: redundant init priors!!!!!!")
+        exit()
+        mass_priors = np.zeros([zlist.size,self.nmr])
+        sfr_priors = np.zeros([zlist.size,self.nmr])
+        for i,z in enumerate(zlist):
+            mass_priors[i,:] = self.get_p_mr(z,0.)
+            sfr_priors[i,:] = self.get_p_mr(z,1.)
+        self.mass_priors = mass_priors
+        self.sfr_priors = sfr_priors
+
+class simple_host_model:
     """
     A class to hold information about the intrinsic properties of FRB
-    host galaxies. Eventually, this should be expanded to be a
-    meta-class with different internal models. But for now, it's
-    just a simple one
+    host galaxies. This is a simple but generic model.
     
     Ingredients are:
         A model for describing the intrinsic distribution
             of host galaxies. This model must be described 
             by some set of parameters, and be able to return a
             prior as a function of intrinsic host galaxy magnitude.
-            This model is initialised via opstate.AbsModelID
+            This model is initialised via opstate.AbsModelID.
+            Here, it is just 10 parameters at different absolute
+            magnitudes, with linear/spline interpolation
             
         A model for converting absolute to apparent host magnitudes.
             This is by defult an apparent r-band magnitude, though
@@ -40,18 +352,9 @@ class host_model:
             
     Internally, this class initialises:
         An array of absolute magnitudes, which get weighted according
-        to the host model.
-        Internal variables associated with this are prefaced "Model"
+        to the host model. Internal variables associated with this
+        are prefaced "Model"
         
-        An array of apparent magnitudes, which is used to compare with
-        host galaxy candidates
-        Internal variables associated with this are prefaced "App"
-        
-        Arrays mapping intrinsic to absolute magnitude as a function
-        of redshift, to allow quick estimation of p(apparent_mag | DM)
-        for a given FRB survey with many FRBs
-        Internal variables associated with this are prefaced "Abs"
-    
     Note that while this class describes the intrinsic "magnitudes",
     really magnitude here is a proxy for whatever parameter is used
     to intrinsically describe FRBs. However, only 1D descriptions are
@@ -59,9 +362,9 @@ class host_model:
     evolution, and 2D descriptions (e.g. mass, SFR) at any given redshift.
     
     """
-    def __init__(self,opstate=None,verbose=False):
+    def __init__(self,OpticalState=None,verbose=False):
         """
-        Class constructor
+        Class constructor.
         
         Args:
             opstate (class: Hosts, optional): class defining parameters
@@ -69,49 +372,42 @@ class host_model:
             verbose (bool, optional): to be verbose y/n
         
         """
-        if opstate is None:
-            opstate = op.Hosts()
+        # uses the "simple hosts" descriptor
+        if OpticalState is None:
+            self.OpticalState = op.OpticalState()
+        else:
+            self.OpticalState = OpticalState
+        self.opstate = self.OpticalState.simple
         
+        # checks that cosmology is initialised
+        if not cos.INIT:
+            cos.init_dist_measures()
         
-        if opstate.AppModelID == 0:
+        if self.opstate.AppModelID == 0:
             if verbose:
                 print("Initialising simple luminosity function")
             # must take arguments of (absoluteMag,z)
             self.CalcApparentMags = SimpleApparentMags
         else:
-            raise ValueError("Model ",opstate.AppModelID," not implemented")
+            raise ValueError("Model ",self.opstate.AppModelID," not implemented")
         
-        if opstate.AbsModelID == 0:
+        if self.opstate.AbsModelID == 0:
             if verbose:
                 print("Describing absolute mags with N independent bins")
-        elif opstate.AbsModelID == 1:
+        elif self.opstate.AbsModelID == 1:
             if verbose:
                 print("Describing absolute mags with spline interpoilation of N points")
         else:
-            raise ValueError("Model ",opstate.AbsModelID," not implemented")
+            raise ValueError("Model ",self.opstate.AbsModelID," not implemented")
         
         
-        self.AppModelID = opstate.AppModelID
-        self.AbsModelID = opstate.AbsModelID
+        self.AppModelID = self.opstate.AppModelID
+        self.AbsModelID = self.opstate.AbsModelID
         
-        self.opstate = opstate
+        
         
         self.init_abs_bins()
         self.init_model_bins()
-        self.init_app_bins()
-        self.init_abs_prior()
-        
-        self.ZMAP = False # records that we need to initialise this
-        
-    #############################################################
-    ################## Initialisation Functions #################
-    #############################################################
-    
-    def init_abs_prior(self):
-        """
-        Initialises prior on absolute magnitude of galaxies according to the method.
-        
-        """
         
         if self.opstate.AbsPriorMeth==0:
             # uniform prior in log space of absolute magnitude
@@ -120,43 +416,17 @@ class host_model:
             # other methods to be added as required
             raise ValueError("Luminosity prior method ",self.opstate.AbsPriorMeth," not implemented")
         
-        # enforces normalisation of the prior to unity
-        Absprior /= np.sum(Absprior)
-        self.AbsPrior = Absprior
+        self.init_args(Absprior)
         
-        
-        # this maps the weights from the parameter file to the absoluate magnitudes use
-        # internally within the program. We now initialise this during an "init"
-        self.AbsMagWeights = self.init_abs_mag_weights()
-        
-        # renormalises the weights, so all internal apparent mags sum to unit
-        # include this step in the init routine perhaps?
-        self.AbsMagWeights /= np.sum(self.AbsMagWeights)
-        
-    def init_app_bins(self):
-        """
-        Initialises bins in apparent magnitude
-        It uses these to calculate priors for any given host galaxy magnitude.
-        This is a very simple set of uniformly log-spaced bins in magnitude space,
-        and linear interpolation is used between them.
-        """
-        
-        self.Appmin = self.opstate.Appmin
-        self.Appmax = self.opstate.Appmax
-        self.NAppBins = self.opstate.NAppBins
-        
-        # this creates the bin edges
-        self.AppBins = np.linspace(self.Appmin,self.Appmax,self.NAppBins+1)
-        dAppBin = self.AppBins[1] - self.AppBins[0]
-        self.AppMags = self.AppBins[:-1] + dAppBin/2.
-        self.dAppmag = dAppBin
-        
+        # the below is done for the wrapper function
+        #self.ZMAP = False # records that we need to initialise this
+    
     def init_abs_bins(self):
         """
         Initialises internal array of absolute magnitudes
         This is a simple set of uniformly log-spaced bins in terms
         of absolute magnitude, which the absolute magnitude model gets
-        projected onto
+        projected onto.
         """  
         # shortcuts
         Absmin = self.opstate.Absmin
@@ -176,6 +446,25 @@ class host_model:
         self.MagBins = MagBins
         self.dMag = dMag
         self.AbsMags = AbsMags
+    
+    def init_args(self,AbsPrior):
+        """
+        Initialises prior on absolute magnitude of galaxies according to the method.
+        
+        Args:
+            - AbsPrior (list of floats): The prior on absolute magnitudes
+                        to set for this model
+        
+        """
+        # Eventually, incorporate the AbsPrior vector into SimpleParams
+        #self.opstate = OpticalState.SimpleParams
+        
+        # enforces normalisation of the prior to unity
+        self.AbsPrior = AbsPrior/np.sum(AbsPrior)
+        
+        # this maps the weights from the parameter file to the absoluate magnitudes use
+        # internally within the program. We now initialise this during an "init"
+        self.init_abs_mag_weights()
     
     def init_model_bins(self):
         """
@@ -203,7 +492,7 @@ class host_model:
         self.ModelBins = ModelBins
         self.dModel = ModelBins[1]-ModelBins[0]
     
-    def init_zmapping(self,zvals):
+    def get_pmr_gz(self,mrbins,z):
         """
         For a set of redshifts, initialise mapping
         between intrinsic magnitudes and apparent magnitudes
@@ -215,63 +504,40 @@ class host_model:
         with a set of z values. This is all for speedup purposes.
         
         Args:
+            mrbins (np.array, float): array of apparent magnitudes (mr)
+                    over which to calculate p(mr). These act as bins
+                    in apparent magnitude mr for histogram purposes,
+                    i.e. they are not probabilities *at* mr
             zvals (np.ndarray, float): array of redshifts over which
                 to map absolute to apparent magnitudes.
         """
         
-        # records that this has been initialised
-        self.ZMAP = True
-        
         # mapping of apparent to absolute magnitude
-        self.zmap = self.CalcApparentMags(self.AbsMags,zvals)
-        self.zvals = zvals
-        self.NZ = self.zvals.size
+        mrvals = self.CalcApparentMags(self.AbsMags,z) # works with scalar z
         
-        self.init_maghist()
+        
+        # creates weighted histogram of apparent magnitudes,
+        # using model weights from wmap (which are fixed for all z)
+        hist,bins = np.histogram(mrvals,weights=self.AbsMagWeights,bins=mrbins)
+        
+        #smoothing function - just to flatten the params
+        NS=10
+        smoothf = self.gauss(mrvals[0:NS] - np.average(mrvals[0:NS]))
+        smoothf /= np.sum(smoothf)
+        smoothed = np.convolve(hist,smoothf,mode="same")
+        
+        smoothed=hist
+        
+        # # NOTE: these should NOT be re-normalised, since the normalisation reflects
+        # true magnitudes which fall off the apparent magnitude histogram.
+        return smoothed
     
-    def init_maghist(self):
+    def gauss(self,x,mu=0,sigma=0.1):
         """
-        Initialises the array mapping redshifts and absolute magnitudes
-        to redshift and apparent magnitude
-        
-        Calculates the internal maghist array, of size self.NAppBins X self.NZ
-        
-        No return value.
-            
+        simple Gaussian smoothing function
         """
+        return np.exp(-0.5*(x-mu)**2/sigma**2)
         
-        # for current model, calculate weighted histogram of apparent magnitude
-        # for each redshift. Done by converting intrinsic to apparent for each z,
-        # then suming up the associated weights
-        maghist = np.zeros([self.NAppBins,self.NZ])
-        for i in np.arange(self.NZ):
-            # creates weighted histogram of apparent magnitudes,
-            # using model weights from wmap (which are fixed for all z)
-            hist,bins = np.histogram(self.zmap[:,i],weights=self.AbsMagWeights,bins=self.AppBins)
-            
-            # # NOTE: these should NOT be re-normalised, since the normalisation reflects
-            # true magnitudes which fall off the apparent magnitude histogram.
-            maghist[:,i] = hist
-            
-        self.maghist = maghist
-        
-    def reinit_model(self):
-        """
-        Re-initialises all internal info which depends on the optical
-        param model. It assumes that the changes have been implemented in
-        self.AbsPrior
-        """
-        
-        # this maps the weights from the parameter file to the absoluate magnitudes use
-        # internally within the program. We now initialise this during an "init"
-        self.AbsMagWeights = self.init_abs_mag_weights()
-        
-        # renormalises the weights, so all internal apparent mags sum to unity
-        # include this step in the init routine perhaps?
-        self.AbsMagWeights /= np.sum(self.AbsMagWeights)
-        
-        self.init_maghist()
-    
     def init_abs_mag_weights(self):
         """
         Assigns a weight to each of the absolute magnitudes
@@ -298,16 +564,215 @@ class host_model:
             # coefficients span full range
             cs = CubicSpline(self.ModelBins,self.AbsPrior)
             weights = cs(self.AbsMags)
+            # ensures no negatives
             toolow = np.where(weights < 0.)
             weights[toolow] = 0.
+            # ensures that if everything is zero above/below a point, so is the interpolation
+            iFirstNonzero = np.where(self.AbsPrior > 0.)[0][0]
+            if iFirstNonzero > 0:
+                toolow = np.where(self.AbsMags < self.ModelBins[iFirstNonzero -1])
+                weights[toolow] = 0.
+            iLastNonzero = np.where(self.AbsPrior > 0.)[0][-1]
+            if iLastNonzero < self.AbsPrior.size - 1:
+                toohigh = np.where(self.AbsMags > self.ModelBins[iLastNonzero+1])
+                weights[toohigh] = 0.
+            
         else:
             raise ValueError("This weighting scheme not yet implemented")
-        return weights
+        
+        
+        
+        # renormalises the weights, so all internal apparent mags sum to unit
+        self.AbsMagWeights = weights / np.sum(weights)
+        
+        return 
+        
+
+class model_wrapper:
+    """
+    Generic functions applicable to all models.
+    
+    The program flow is to initialise with a host model ("model"),
+    then given arrays of Mr and zvalues, pre-calculate an array
+    of p(Mr|z), and then for individual host galaxies with a
+    p(z|DM) distribution, be able to return priors for PATH.
+    
+    Internally, the code uses an array of apparent magnitudes,
+    which is used to compare with host galaxy candidates.
+    Internal variables associated with this are prefaced "App"
+        
+    The Arrays mapping intrinsic to absolute magnitude as a function
+        of redshift, to allow quick estimation of p(apparent_mag | DM)
+        for a given FRB survey with many FRBs
+        Internal variables associated with this are prefaced "Abs"
     
     
+    The workflow is:
+        -init with a model class and array of z values. This sets 
+            absolute magnitude bins. The z values should correspond
+            to those from a grid object.
+            Initialisation primarily calls p(Mr|z) repeatedly for all internal
+            Mr and z values, to allow fast evaluation in the future
+        - set up PATH functions to point to this array:
+            pathpriors.USR_raw_prior_Oi = wrapper.path_raw_prior_Oi
+        - initialise this class for a given init_path_raw_prior_Oi(DM,grid).
+            This calculates magnitude priors given p(z|DM) (grid)
+            and p(mr|z) (host model).
+       
+    """
+    def __init__(self,model,zvals):
+        """
+        Initialises model wrapper.
+        
+        
+        Args:
+            model (class object): Model is one of the host model class objects
+                    that can calculate p(Mr|z)
+            zvals (np.array): redshift values corresponding to grid object
+            opstate (class optical): state containing optical info
+            
+        """
+        
+        # higher level state defining optical parameters
+        self.OpticalState = model.OpticalState
+        
+        # specific substate of the model
+        self.opstate = model.opstate
+        
+        self.model = model # checks the model has required attributes
+        
+        
+        # initialise bins in apparent magnitude
+        self.init_app_bins()
+        
+        self.init_zmapping(zvals)
+        
+        
+    def init_app_bins(self):
+        """
+        Initialises bins in apparent magnitude
+        It uses these to calculate priors for any given host galaxy magnitude.
+        This is a very simple set of uniformly log-spaced bins in magnitude space,
+        and linear interpolation is used between them.
+        """
+        
+        
+        self.Appmin = self.OpticalState.app.Appmin
+        self.Appmax = self.OpticalState.app.Appmax
+        self.NAppBins = self.OpticalState.app.NAppBins
+        
+        # this creates the bin edges
+        self.AppBins = np.linspace(self.Appmin,self.Appmax,self.NAppBins+1)
+        dAppBin = self.AppBins[1] - self.AppBins[0]
+        self.AppMags = self.AppBins[:-1] + dAppBin/2.
+        self.dAppmag = dAppBin
+    
+    def init_zmapping(self,zvals):
+        """
+        For a set of redshifts, initialise mapping
+        between intrinsic magnitudes and apparent magnitudes
+        
+        This routine only needs to be called once, since the model
+        to convert absolute to apparent magnitudes is fixed
+        
+        It is not set automatically however, and needs to be called
+        with a set of z values. This is all for speedup purposes.
+        
+        Args:
+            zvals (np.ndarray, float): array of redshifts over which
+                to map absolute to apparent magnitudes.
+        """
+        
+        self.zvals=zvals
+        
+        # we aim to produce a grid of p(z,m_r) for rapid convolution 
+        # with a p(z) array
+        self.nz = zvals.size
+        
+        p_mr_z = np.zeros([self.NAppBins,self.nz])
+        
+        for i,z in enumerate(zvals):
+            # use the model to calculate p(mr|z) for range of z-values
+            # this is then stored in an array
+            p_mr_z[:,i] = self.model.get_pmr_gz(self.AppBins,z)
+            
+        self.p_mr_z = p_mr_z
+        
+        
+        
+        # records that this has been initialised
+        self.ZMAP = True
+     
     #############################################################
     ##################    Path Calculations    #################
     #############################################################
+    
+    
+    def init_path_raw_prior_Oi(self,DM,grid):
+        """
+        Initialises the priors for a particlar DM.
+        This performs a function very similar to
+        "get_posterior" except that it expicitly
+        only operates on a single DM, and saves the
+        information internally so that
+        path_raw_prior_Oi can be called for numerous
+        host galaxy candidates.
+        
+        It returns the priors distribution.
+        
+        Args:
+            DM [float]: dispersion measure of an FRB (pc cm-3)
+            grid (class grid): initialised grid object from which
+                                to calculate priors
+        
+        Returns:
+            priors (float): vector of priors on host galaxy apparent magnitude
+        """
+        
+        # we start by getting the posterior distribution p(z)
+        # for an FRB with DM DM seen by the 'grid'
+        pz = get_pz_prior(grid,DM)
+        
+        # checks that pz is normalised
+        pz /= np.sum(pz)
+        
+        priors = np.sum(self.p_mr_z * pz,axis=1) # sums over z
+        
+        # stores knowledge of the DM used to calculate the priors
+        self.prior_DM = DM
+        self.priors = priors
+        
+        #return priors
+    
+    def get_posterior(self, grid, DM):
+        """
+        Similar functionality to init_path_raw_prior_Oi. May be legacy code.
+        
+        Returns posterior redshift distributiuon for a given grid, and DM
+        magnitude distribution, for FRBs of DM given a grid object.
+        Note: this calculates a prior for PATH, but is a posterior
+            from zDM's point of view.
+        
+        Args:
+            grid (class grid object): grid object defining p(z,DM)
+            DM (float, np.ndarray OR scalar): FRB DM(s)
+        
+        Returns:
+            papps (np.ndarray, floats): probability distribution of apparent magnitudes given DM
+            pz  (np.ndarray, floats): probability distribution of redshift given DM
+        """
+        # Step 1: get prior on z
+        pz = get_pz_prior(grid,DM)
+        
+        ### STEP 2: get apparent magnitude distribution ###
+        if hasattr(DM,"__len__"):
+            papps = np.dot(self.maghist,pz)
+        else:
+            papps = self.maghist*pz
+        
+        
+        return papps,pz    
+
     
     def estimate_unseen_prior(self,mag_limit):
         """
@@ -391,98 +856,10 @@ class host_model:
         Ois = np.array(Ois)
         return Ois
     
-    def init_path_raw_prior_Oi(self,DM,grid):
-        """
-        Initialises the priors for a particlar DM.
-        This performs a function very similar to
-        "get_posterior" except that it expicitly
-        only operates on a single DM, and saves the
-        information internally so that
-        path_raw_prior_Oi can be called for numerous
-        host galaxy candidates.
-        
-        It returns the priors distribution.
-        
-        Args:
-            DM [float]: dispersion measure of an FRB (pc cm-3)
-            grid (class grid): initialised grid object from which
-                                to calculate priors
-        
-        Returns:
-            priors (float): vector of priors on host galaxy apparent magnitude
-        """
-        
-        # we start by getting the posterior distribution p(z)
-        # for an FRB with DM DM seen by the 'grid'
-        pz = get_pz_prior(grid,DM)
-        
-        # we now calculate the list of priors - for the array
-        # defined by self.AppBins with bin centres at self.AppMags
-        priors = self.calc_magnitude_priors(grid.zvals,pz)
-        
-        # stores knowledge of the DM used to calculate the priors
-        self.prior_DM = DM
-        self.priors = priors
-        
-        return priors
-    
-    
-    def calc_magnitude_priors(self,zlist:np.ndarray,pzlist:np.ndarray):
-        """
-        Calculates priors as a function of magnitude for
-        a given redshift distribution.
-        
-        Args:
-            zlist (np.ndarray, float): array of redshifts
-            pz (np.ndarray, float): array of probabilities of the FRB
-                            occurring at each of those redshifts
-        
-        # returns probability-weighted magnitude distribution, as a function of
-        # self.AppBins
-        
-        """
-        # we integrate over the host absolute magnitude distribution
-        
-        # checks that pz is normalised
-        pzlist /= np.sum(pzlist)
-        
-        for i,absmag in enumerate(self.AbsMags):
-            plum = self.AbsMagWeights[i]
-            mags = self.CalcApparentMags(absmag,zlist)
-            temp,bins = np.histogram(mags,weights=pzlist*plum,bins=self.AppBins)
-            if i==0:
-                pmags = temp
-            else:
-                pmags += temp
-        
-        return pmags
-    
-    def get_posterior(self, grid, DM):
-        """
-        Returns posterior redshift distributiuon for a given grid, and DM
-        magnitude distribution, for FRBs of DM given a grid object.
-        Note: this calculates a prior for PATH, but is a posterior
-            from zDM's point of view.
-        
-        Args:
-            grid (class grid object): grid object defining p(z,DM)
-            DM (float, np.ndarray OR scalar): FRB DM(s)
-        
-        Returns:
-            papps (np.ndarray, floats): probability distribution of apparent magnitudes given DM
-            pz  (np.ndarray, floats): probability distribution of redshift given DM
-        """
-        # Step 1: get prior on z
-        pz = get_pz_prior(grid,DM)
-        
-        ### STEP 2: get apparent magnitude distribution ###
-        if hasattr(DM,"__len__"):
-            papps = np.dot(self.maghist,pz)
-        else:
-            papps = self.maghist*pz
-        
-        
-        return papps,pz
+
+
+
+################# Useful functions not associated with a class #########
 
 def get_pz_prior(grid, DM):
     """
@@ -664,7 +1041,7 @@ frblist=['FRB20180924B','FRB20181112A','FRB20190102C','FRB20190608B',
 
 
 
-def run_path(name,model,PU=0.1,usemodel = False, sort = False):
+def run_path(name,PU=0.1,usemodel = False, sort = False):
     """
     evaluates PATH on an FRB
     
@@ -824,18 +1201,3 @@ def load_marnoch_data():
     return table
 
 
-############ Routines associated with Nick's model ################
-
-class host_model:
-    """
-    This class initiates a model based on ...
-    """
-    
-    
-    
-    def 
-
-def gen_mag_dist(z,f):
-    """
-    generates a magnitude distribution as a function of z and f
-    """
