@@ -75,7 +75,7 @@ class FRB(data_class.myDataClass):
                   'Notation': '',
                   })
     SNRTHRESH: float = field( 
-        default=0., 
+        default=10., 
         metadata={'help': "S/N threshold to detect an FRB", 
                   'unit': '', 
                   'Notation': '',
@@ -157,12 +157,6 @@ class Telescope(data_class.myDataClass):
                   'unit': '', 
                   'Notation': '',
                   })
-    WMETHOD: int = field(
-        default=2, 
-        metadata={'help': "Code for width method. 0: ignore it (all 1ms), 1: intrinsic lognormal, 2: include scattering, 3: scat & z-dependence, 4: specific FRB", 
-                  'unit': '', 
-                  'Notation': '',
-                  })
     WDATA: int = field(
         default=2, 
         metadata={'help': "What does the WIDTH column include? 0 intrinsic, 1: also scattering, 2: also DM smearing",
@@ -172,6 +166,12 @@ class Telescope(data_class.myDataClass):
     WBIAS: str = field(
         default="StdDev", 
         metadata={'help': "Method to calculate width bias. Quadrature, Sammons, or StdDev", 
+                  'unit': '', 
+                  'Notation': '',
+                  })
+    DMMASK: str = field(
+        default=None, 
+        metadata={'help': "Mask to apply multiplicatively in DM space over standard Wbias model", 
                   'unit': '', 
                   'Notation': '',
                   })
@@ -199,6 +199,12 @@ class Telescope(data_class.myDataClass):
         default=1., 
         metadata={'help': "Threshold fluence used to detect an FRB", 
                   'unit': 'Jy ms', 
+                  'Notation': '',
+                  })
+    SNRTHRESH: float = field( 
+        default=10., 
+        metadata={'help': "S/N threshold to detect an FRB", 
+                  'unit': '', 
                   'Notation': '',
                   })
     FBAR: float = field( 
@@ -271,7 +277,7 @@ class Observing(data_class.myDataClass):
                   })
     MAX_IDT: int = field(
         default=None,
-        metadata={'help': "Maximum number of time samples seaarched (4096 for CRAFT ICS)",
+        metadata={'help': "Maximum number of time samples searched (4096 for CRAFT ICS)",
                   'unit': '',
                   'Notation': '',
                   })
