@@ -1,6 +1,16 @@
 """
-This file contains functions designed to produce plots,
-and associated helper functions.
+Plotting functions for visualizing z-DM grids and FRB data.
+
+This module provides functions for creating publication-quality plots of
+z-DM probability distributions, FRB populations, and analysis results.
+
+Main Functions
+--------------
+- `plot_grid`: Plot 2D z-DM probability grid with optional FRB overlays
+- `plot_zdm_basic`: Basic z-DM grid visualization
+- `plot_1d_projection`: Project grid onto z or DM axis
+
+Author: C.W. James
 """
 
 import numpy as np
