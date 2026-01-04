@@ -154,43 +154,47 @@ Key Modules
 cosmology
 ---------
 
-Implements Lambda-CDM cosmology:
+Implements Lambda-CDM cosmology calculations:
 
-- Distance measures (comoving, luminosity, angular diameter)
-- Volume elements
-- Source evolution functions
+- Distance measures: comoving (DM), angular diameter (DA), luminosity (DL)
+- Volume elements: differential comoving volume dV/dz
+- Source evolution functions: SFR-based and (1+z)^n power-law models
+- Energy-flux conversions for FRB observables
 
-Uses spline interpolation for efficiency.
+Uses interpolation tables for fast array operations on redshift grids.
 
 pcosmic
 -------
 
 Computes p(DM_cosmic | z), the probability distribution of cosmic DM
-given redshift. Implements the Macquart et al. formalism with the
-fluctuation parameter F.
+given redshift. Implements the Macquart relation from Macquart et al. (2020,
+Nature 581, 391) with the feedback parameter F controlling variance in
+the cosmic baryon distribution.
 
 energetics
 ----------
 
-Implements the FRB luminosity function using incomplete gamma functions.
-Uses spline interpolation of pre-computed values for speed.
+Implements FRB luminosity/energy functions using the upper incomplete
+gamma function. Uses spline interpolation of pre-computed values for
+computational efficiency during grid calculations.
 
 Supports multiple luminosity function forms:
 
-- Power-law
-- Gamma function
-- Spline + gamma hybrid
+- **Power-law**: Simple truncated power-law with Emin, Emax, gamma
+- **Gamma function**: Schechter-like function with exponential cutoff
+- **Spline interpolation**: Pre-computed gamma function lookups for speed
 
 iteration
 ---------
 
-Contains likelihood calculation routines:
+Contains likelihood calculation routines for z-DM grids:
 
-- ``get_log_likelihood``: Main likelihood function
-- ``calc_likelihoods_1D``: For DM-only fits
-- ``calc_likelihoods_2D``: For DM+z fits
+- ``get_log_likelihood``: Main likelihood function combining all components
+- ``calc_likelihoods_1D``: For DM-only fits (non-localized FRBs)
+- ``calc_likelihoods_2D``: For DM+z fits (localized FRBs)
 
-Supports various likelihood components (normalization, p(SNR), etc.)
+Supports various likelihood components including p(DM,z), Poisson number
+counts, SNR distributions, and width/scattering contributions.
 
 MCMC
 ----
