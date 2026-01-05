@@ -1,14 +1,16 @@
 """
 Script showing how to load different FRB host models.
 
-It does this for both my simple naive model, and Nick's
-model based on mass- or sfr-weightings.
+It does this for both my simple naive model, and Nick Loudas's
+model based on mass- or sfr-weightings, and Lachlan's
+evolution of galaxy spectra.
 
 We then evaluate P(O|x) for CRAFT FRBs in the CRAFT 1300 MHz survey
 
 """
 
 #standard Python imports
+import os
 import numpy as np
 from matplotlib import pyplot as plt
 
@@ -29,7 +31,8 @@ def calc_path_priors():
     """
     
     opdir = "Plots/"
-    
+    if not os.path.exists(opdir):
+        os.mkdir(opdir)
     ##### performs the following calculations for the below combinations ######
     
     # loads a default optical state.
@@ -87,18 +90,17 @@ def calc_path_priors():
     plt.close() 
     
     
-    
     # set up basic histogram of p(mr) distribution
     mrbins = np.linspace(0,30,301)
     mrvals=(mrbins[:-1]+mrbins[1:])/2.
     
-    
+    model3 = opt.marnoch_model()
     
     ######### Plots apparent mag distribution for all models as function of z #######
     styles=["-","--",":","-."]
     
     plt.figure()
-    flist=[0,0.5,1.]
+    flist=[0,1.]
     
     for z in [0.1,0.5,2]:
         
@@ -109,19 +111,22 @@ def calc_path_priors():
         
         # Loudas model dependencies
         for i,fsfr in enumerate(flist):
-            opstate2.loudas.fSFR = fsfr # mass-dependent
-            model2.init_args(opstate2)
+            model2.init_args(fsfr)
             pmr = model2.get_pmr_gz(mrbins,z)
             pmr /= np.sum(pmr)
-            plt.plot(mrvals,pmr,label="z = "+str(z)+", $f_{\\rm sfr}$ = "+str(fsfr),linestyle=styles[i+1],color=plt.gca().lines[-1].get_color())
-    
+            plt.plot(mrvals,pmr,label = "z = "+str(z)+", $f_{\\rm sfr}$ = "+str(fsfr),
+                linestyle=styles[i+1],color=plt.gca().lines[-1].get_color())
+        
+        pmr = model3.get_pmr_gz(mrbins,z)
+        plt.plot(mrvals,pmr,label = "Marnoch: z = "+str(z),linestyle=styles[3],
+            color=plt.gca().lines[-1].get_color())
+        
     plt.xlabel("Optical magnitude $m_r$")
     plt.ylabel("p(m_r|z)")
     plt.tight_layout()
     plt.legend()
     plt.savefig(opdir+"all_model_apparent_mags.png")
     plt.close()
-    
     
     
     ############################################################################
@@ -137,6 +142,7 @@ def calc_path_priors():
     # wrapper around the optical model. For returning p(m_r|DM)
     wrapper1 = opt.model_wrapper(model1,g.zvals) # simple
     wrapper2 = opt.model_wrapper(model2,g.zvals) # loudas with fsfr=0
+    wrapper3 = opt.model_wrapper(model3,g.zvals) # loudas with fsfr=0
     
     # do this once per "model" objects
     #pathpriors.USR_raw_prior_Oi = wrapper1.path_raw_prior_Oi
@@ -154,25 +160,30 @@ def calc_path_priors():
         # we first change the underlying state
         # then we initialise the model
         # then we re-init the wrapper.
-        opstate2.loudas.fSFR=0.
-        model2.init_args(opstate2)
+        fSFR=0.
+        model2.init_args(fSFR)
         wrapper2.init_zmapping(g.zvals)
         wrapper2.init_path_raw_prior_Oi(DM,g)
-        plt.plot(wrapper2.AppMags,wrapper2.priors,label="DM = "+str(DM)+", $f_{\\rm sfr}$ = 0.0",
+        plt.plot(wrapper2.AppMags,wrapper2.priors,label="DM = "+str(DM)+", Loudas: $f_{\\rm sfr}$ = 0.0",
             linestyle=styles[1],color=plt.gca().lines[-1].get_color())
         
-        opstate2.loudas.fSFR=1.0
-        model2.init_args(opstate2)
+        fSFR=1.0
+        model2.init_args(fSFR)
         wrapper2.init_zmapping(g.zvals)
         wrapper2.init_path_raw_prior_Oi(DM,g)
-        plt.plot(wrapper2.AppMags,wrapper2.priors,label="DM = "+str(DM)+", $f_{\\rm sfr}$ = 1.0",
+        plt.plot(wrapper2.AppMags,wrapper2.priors,label="DM = "+str(DM)+", Loudas: $f_{\\rm sfr}$ = 1.0",
             linestyle=styles[2],color=plt.gca().lines[-1].get_color())
-
+        
+        wrapper3.init_zmapping(g.zvals)
+        wrapper3.init_path_raw_prior_Oi(DM,g)
+        plt.plot(wrapper3.AppMags,wrapper3.priors,label="DM = "+str(DM)+", Marnoch",
+            linestyle=styles[2],color=plt.gca().lines[-1].get_color())
+        
     plt.xlabel("Absolute magnitude $M_r$")
     plt.ylabel("$p(M_r)$")
     plt.legend()
     plt.tight_layout()
-    plt.savefig(opdir+"all_models_mag_priors_dm.png")
+    plt.savefig(opdir+"all_model_mag_priors_dm.png")
     plt.close()
     
     # do this only for a particular FRB
@@ -180,11 +191,11 @@ def calc_path_priors():
     #AppMagPriors,pz = model.get_posterior(g,DMlist)
     
     
-    maglist = [None,None,None,None]
-    allPOx = [None,None,None,None]
+    maglist = [None,None,None,None,None]
+    allPOx = [None,None,None,None,None]
     
-    labels=["Orig","Simple","Mass-weighted","SFR weighted"]
-    markers=["x","+","s","o"]
+    labels=["Orig","Simple","Mass-weighted","SFR weighted","Marnoch"]
+    markers=["x","+","s","o","v"]
     
     for i,frb in enumerate(frblist):
         # interates over the FRBs. "Do FRB"
@@ -240,8 +251,8 @@ def calc_path_priors():
         
         
         # loudas fsfr = 0.0 (i.e., mass weighted)
-        opstate2.loudas.fSFR=0.0
-        model2.init_args(opstate2)
+        fSFR=0.0
+        model2.init_args(fSFR)
         wrapper2.init_zmapping(g.zvals)
         wrapper2.init_path_raw_prior_Oi(DMEG,g)
         PU3 = wrapper2.estimate_unseen_prior(mag_limit=26) # might not be correct
@@ -258,8 +269,8 @@ def calc_path_priors():
         
         
         # loudas fsfr = 1.0
-        opstate2.loudas.fSFR=1.0
-        model2.init_args(opstate2)
+        fSFR=1.0
+        model2.init_args(fSFR)
         wrapper2.init_zmapping(g.zvals)
         wrapper2.init_path_raw_prior_Oi(DMEG,g)
         PU4 = wrapper2.estimate_unseen_prior(mag_limit=26) # might not be correct limit
@@ -274,12 +285,27 @@ def calc_path_priors():
             maglist[3] = np.append(maglist[3],mags4)
             allPOx[3] = np.append(allPOx[3],P_Ox4)
         
-    
+        # Marnoch model
+        wrapper3.init_zmapping(g.zvals)
+        wrapper3.init_path_raw_prior_Oi(DMEG,g)
+        PU5 = wrapper3.estimate_unseen_prior(mag_limit=26) # might not be correct limit
+        pathpriors.USR_raw_prior_Oi = wrapper3.path_raw_prior_Oi
+        P_O5,P_Ox5,P_Ux5,mags5 = opt.run_path(frb,usemodel=True,PU = PU5)
+        
+        # record this info
+        if maglist[4] is None:
+            maglist[4] = mags5
+            allPOx[4] = P_Ox5
+        else:
+            maglist[4] = np.append(maglist[4],mags5)
+            allPOx[4] = np.append(allPOx[4],P_Ox5)
+        
+        
     # scatter plot of old vs new priors
     plt.figure()
     plt.xlabel("$P(O|x)$ (original)")
     plt.ylabel("$P(O|x)$ (new)")
-    for j in np.arange(1,4,1):
+    for j in np.arange(1,5,1):
         plt.scatter(allPOx[0],allPOx[j],label=labels[j],marker=markers[j])
     plt.legend()
     plt.tight_layout()

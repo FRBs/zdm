@@ -51,16 +51,114 @@ from zdm import cosmology as cos
 from zdm import optical_params as op
 from scipy.interpolate import CubicSpline
 from scipy.interpolate import make_interp_spline
+from scipy.stats import norm
 import os
 from importlib import resources
 import pandas
 import h5py
+
+import astropath.priors as pathpriors
 
 
 ###################################################################
 ############ Routines associated with Nick's model ################
 ###################################################################
 
+
+class marnoch_model:
+    """
+    Class initiates a model based on Lachlan Marnoch's predictions
+    for FRB host galaxy visibility in
+    https://ui.adsabs.harvard.edu/abs/2023MNRAS.525..994M/abstract
+    Here, we assume that host galaxy magnitudes have a normal
+    distribution, with mean and standard deviation given by
+    L. Marnoch's data.
+    """
+    
+    def __init__(self,OpticalState=None):
+        """
+        Initialises the model. There are no variables here.
+        
+        Args:
+            OpticalState: allows the model to refer to an optical state.
+                    However, the model is independent of that state.
+        """
+        
+        # uses the "simple hosts" descriptor
+        if OpticalState is None:
+            OpticalState = op.OpticalState()
+        self.OpticalState = OpticalState
+        self.opstate = None
+        
+        # loads the dataset
+        self.load_data()
+        
+        # extracts subic splines for mean and std dev
+        self.process_rbands()
+    
+    
+    def load_data(self):
+        """
+        Loads the Marnoch et al data on r-band magnitudes from FRB hosts
+        """
+        from astropy.table import Table
+        datafile="magnitudes_and_probabilities_vlt-fors2_R-SPECIAL.ecsv"
+        infile =  os.path.join(resources.files('zdm'), 'data', 'optical', datafile)
+        table = Table.read(infile, format='ascii.ecsv')
+        self.table = table
+
+    def process_rbands(self):
+        """
+        Returns parameters of the host magnitude distribution as a function of redshift
+        """
+        #FRBlist=["FRB20180301A FRB20180916B FRB20190520B FRB20201124A FRB20210410D FRB20121102A FRB20180924B FRB20181112A FRB20190102C FRB20190608B FRB20190611B FRB20190711A FRB20190714A FRB20191001A FRB20200430A FRB20200906A FRB20210117A FRB20210320C FRB20210807D FRB20211127I FRB20211203C FRB20211212A FRB20220105A]
+        
+        table = self.table
+        colnames = table.colnames
+        # gets FRBs
+        frblist=[]
+        for name in colnames:
+            if name[0:3]=="FRB":
+                frblist.append(name)
+        zlist = table["z"]
+        nz = zlist.size
+        nfrb = len(frblist)
+        Rmags = np.zeros([nfrb,nz])
+
+        for i,frb in enumerate(frblist):
+
+            Rmags[i,:] = table[frb]
+
+        # gets mean and rms
+        Rbar = np.average(Rmags,axis=0)
+        Rrms = (np.sum((Rmags - Rbar)**2,axis=0)/(nfrb-1))**0.5
+        
+        # creates cubic spline fits to mean and rms of m_r as a function of z
+        self.sbar = CubicSpline(zlist,Rbar)
+        self.srms = CubicSpline(zlist,Rrms)
+        
+        #return Rbar,Rrms,zlist,sbar,srms
+    
+    def get_pmr_gz(self,mrbins,z): # fsfr must be a self value z: float,fsfr: float):
+        """
+        Returns the p_mr distribution for a given redshift z and sfr fraction f_sfr
+        
+        Args:
+            mrbins (array of floats): list of r-band magnitude bins
+            z (float): redshift
+        """
+        
+        mean = self.sbar(z)
+        rms = self.srms(z)
+        
+        deviates = (mrbins-mean)/rms
+        cprobs = norm.cdf(deviates)
+        pmr = cprobs[1:] - cprobs[:-1]
+        
+        return pmr
+    
+    
+    
 class loudas_model:
     """
     This class initiates a model based on Nick Loudas's model of
@@ -119,6 +217,7 @@ class loudas_model:
                                         data_dir, fname = fname)
         
         # zbins represent ranges. We also calculate z-bin centres
+        self.drmag = rmag_centres[1] - rmag_centres[0]
         self.zbins = zbins
         self.nzbins = zbins.size-1
         self.czbins = 0.5*(self.zbins[1:] + self.zbins[:-1])
@@ -151,6 +250,8 @@ class loudas_model:
     def get_pmr_gz(self,mrbins,z): # fsfr must be a self value z: float,fsfr: float):
         """
         Returns the p_mr distribution for a given redshift z and sfr fraction f_sfr
+        Should be defined such that the sum over all mrbins is unity (or less,
+        if there is a limitation due to range)
         
         Args:
             z (float): redshift
@@ -229,11 +330,21 @@ class loudas_model:
             plt.show()
             exit()
         
-        # distribution foe that redshift assuming sfr weighting
+        # distribution for that redshift assuming sfr weighting
         psfr = k1*p_mr_sfr1 + k2*p_mr_sfr2
         
         # mean weighted distribution
         pmr = pmass*(1.-fsfr) + psfr*fsfr
+        
+        # normalise by relative bin width - recall, bins should sum to unity
+        pmr *= (mrbins[1]-mrbins[0])/self.drmag
+        
+        # remove negative probabilities - set to zero, and re-normalise
+        prevsum = np.sum(pmr)
+        bad = np.where(pmr < 0.)[0]
+        pmr[bad] = 0.
+        newsum = np.sum(pmr)
+        pmr *= prevsum / newsum
         
         return pmr
         
@@ -303,7 +414,7 @@ class loudas_model:
         idx = np.clip(np.searchsorted(self.zbins, z) - 1, 0,  n_redshift_bins - 1)
         return self.p_mr_sfr[idx]
     
-    def init_args(self,OpticalState):
+    def init_args(self,fSFR):
         """
         Initialises prior based on sfr fraction
         
@@ -311,9 +422,10 @@ class loudas_model:
             opstate: optical model state. Grabs the Loudas parameters from there.
         
         """
-        self.OpticalState = OpticalState
-        self.opstate = OpticalState.loudas
-        self.fsfr = self.opstate.fSFR
+        # for numerical purposes, fSFR may have to be a vector
+        if hasattr(fSFR,'__len__'):
+            fSFR = fSFR[0]
+        self.fsfr = fSFR
     
     def init_priors(self,zlist):
         """
@@ -409,6 +521,7 @@ class simple_host_model:
         self.init_abs_bins()
         self.init_model_bins()
         
+        # could perhaps use init args for this?
         if self.opstate.AbsPriorMeth==0:
             # uniform prior in log space of absolute magnitude
             Absprior = np.full([self.ModelNBins],1./self.NAbsBins)
@@ -504,12 +617,15 @@ class simple_host_model:
         with a set of z values. This is all for speedup purposes.
         
         Args:
-            mrbins (np.array, float): array of apparent magnitudes (mr)
+            mrbins (np.array, float, length N+1): array of apparent magnitudes (mr)
                     over which to calculate p(mr). These act as bins
                     in apparent magnitude mr for histogram purposes,
                     i.e. they are not probabilities *at* mr
-            zvals (np.ndarray, float): array of redshifts over which
+            zvals (float): redshifts at which
                 to map absolute to apparent magnitudes.
+        
+        Returns:
+           pmr: probability for each of the bins (length: N) 
         """
         
         # mapping of apparent to absolute magnitude
@@ -526,11 +642,12 @@ class simple_host_model:
         smoothf /= np.sum(smoothf)
         smoothed = np.convolve(hist,smoothf,mode="same")
         
-        smoothed=hist
+        #smoothed=hist. Not sure yet if smoothing is the right thing to do!
+        pmr = smoothed
         
         # # NOTE: these should NOT be re-normalised, since the normalisation reflects
         # true magnitudes which fall off the apparent magnitude histogram.
-        return smoothed
+        return pmr
     
     def gauss(self,x,mu=0,sigma=0.1):
         """
@@ -741,6 +858,9 @@ class model_wrapper:
         # stores knowledge of the DM used to calculate the priors
         self.prior_DM = DM
         self.priors = priors
+        
+        # sets the PATH user function to point to its own
+        pathpriors.USR_raw_prior_Oi = self.path_raw_prior_Oi
         
         #return priors
     
@@ -1188,16 +1308,5 @@ def plot_frb(name,ralist,declist,plist,opfile):
     plt.close()
 
 
-
-
-def load_marnoch_data():
-    """
-    Loads the Marnoch et al data on r-band magnitudes from FRB hosts
-    """
-    from astropy.table import Table
-    datafile="magnitudes_and_probabilities_vlt-fors2_R-SPECIAL.ecsv"
-    infile =  os.path.join(resources.files('zdm'), 'data', 'optical', datafile)
-    table = Table.read(infile, format='ascii.ecsv')
-    return table
 
 
