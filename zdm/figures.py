@@ -1,3 +1,8 @@
+"""
+This file contains functions designed to produce plots,
+and associated helper functions.
+"""
+
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib
@@ -16,6 +21,7 @@ def plot_grid(
     name="temp.pdf",
     label='$\\log_{10}p(DM_{\\rm EG},z)$',
     ylabel="${\\rm DM}_{\\rm EG}$ (pc cm$^{-3}$)",
+    logrange=4,
     project=False,
     conts=False,
     FRBZs=None,
@@ -35,7 +41,9 @@ def plot_grid(
     pdmgz=None,
     save=True,
     othergrids=None,
-    othernames=None
+    othernames=None,
+    c_cmap = None,
+    cont_clrs = None
 ):
     """
     Very complicated routine for plotting 2D zdm grids 
@@ -56,6 +64,7 @@ def plot_grid(
         name (str, optional): Outfile name
         label (str, optional): Colourbar label
         ylabel (str,optional): Label on y axis of plot
+        logrange(float,optional): range in logspace of the z axis (defaults to 4)
         project (bool, optional): Add projections of P(z) and P(DM)
         conts (bool, optional): create contours in probability p(dm|z),
             at fractional levels set by conts. Defaults to False.
@@ -85,6 +94,8 @@ def plot_grid(
             Aconts
         othernames (list of names) [None]: list of names for original *and* other grid.
             Used only if othergrids is not None. Must be length of othergrids +1.
+        c_cmap (string): Name of colormap used to plot "Acont" contours
+        cont_clrs (float, np.ndarray): list of colors in colourmap to use for contours
     """
     if H0 is None:
         H0 = cos.cosmo.H0
@@ -104,13 +115,18 @@ def plot_grid(
 
     if Aconts:
         linestyles = ['--', '-.', ':', '-']
+        if c_cmap is None:
+            c_cmap = cmr.arctic
+        else:
+            c_cmap = plt.get_cmap(c_cmap)
         if othergrids is not None:
             n_conts = len(Aconts) + len(othergrids)
         else:
             n_conts = len(Aconts)
-        c_cmap = cmr.arctic
-        cont_clrs = c_cmap(np.linspace(0.2, 0.6, n_conts))
-        # cont_clrs = data_clrs
+        if cont_clrs is None:
+            cont_clrs = c_cmap(np.linspace(0.2, 0.8, n_conts))
+        else:
+            cont_clrs = c_cmap(cont_clrs)
 
         # Make dictionary for the contours
         if cont_dicts == None:
@@ -468,7 +484,7 @@ def plot_grid(
     
     if log:
         themax = np.nanmax(zDMgrid)
-        themin = int(themax - 4)
+        themin = int(themax - logrange)
         themax = int(themax)
         plt.clim(themin, themax)
     
@@ -715,3 +731,64 @@ def ticks_pgrid(vals, everyn=5, fmt=None, these_vals=None):
     # Return
     return tvals, ticks
 
+
+def gen_cdf_hist(origx):
+    """
+    Args:
+        origx (np.ndarray): x values of the data
+    
+    Returns:
+        xvals (np.ndarray): x values of cdf plot
+        yvals (np.ndarray): y values of cdf plot
+    """
+    
+    xs = np.sort(origx)
+    
+    N = xs.size
+    newN = 2*N
+    xvals = np.zeros([newN])
+    yvals = np.zeros([newN])
+    
+    for i,x in enumerate(xs):
+        xvals[2*i] = x
+        xvals[2*i+1] = x
+        
+        yvals[2*i] = i/N
+        yvals[2*i+1] = (i+1)/N
+    return xvals,yvals
+    
+def plot_repeaters_zdist(g,prefix="",zmax=2):
+    """
+    Plots the distribution of sources for a repeat grid
+    
+    Args:
+        grids: list of repeat grid objects to plot
+        prefix: prfix for the output
+    """
+    plt.figure()
+    
+    #if not grids.hasattr("len"):
+    if True:
+        # in case only one in plote
+    
+        pztot = np.sum(g.rates,axis=1)* g.survey.TOBS * 10**g.state.FRBdemo.lC # weight by Tobs wrst repeaters
+        pzsingles = np.sum(g.exact_singles,axis=1) * g.Rc * g.survey.Nfields
+        pzreps = np.sum(g.exact_reps,axis=1) * g.Rc * g.survey.Nfields
+        pzbursts = np.sum(g.exact_rep_bursts,axis=1) * g.Rc * g.survey.Nfields
+        pzsources = pzsingles+pzreps
+        
+        plt.plot(g.zvals,pztot,label="Total",linestyle="-",linewidth=2)
+        plt.plot(g.zvals,pzsingles,label="Single bursts",linestyle="--")
+        plt.plot(g.zvals,pzreps,label="Repeaters",linestyle="-")
+        plt.plot(g.zvals,pzbursts,label="Bursts from repeaters",linestyle="-.")
+        plt.plot(g.zvals,pzsources,label="Unique sources",linestyle=":")
+    
+    
+    plt.xlabel('z')
+    plt.ylabel('p(z) [a.u.]')
+    plt.xlim(0,zmax)
+    plt.ylim(0,None)
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(prefix+"repeater_pz.png")
+    plt.close()

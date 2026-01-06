@@ -6,10 +6,10 @@
 
 import numpy as np
 import os
-from pkg_resources import resource_filename
+
 from scipy.integrate import quad
 from dataclasses import dataclass, fields
-
+import importlib.resources as resources
 import pandas
 from astropy.table import Table
 import json
@@ -59,12 +59,14 @@ class Survey:
                             values in the survey file
         """
         # Proceed
+        self.state = state
         self.name = survey_name
         self.dmvals = dmvals
         self.zvals = zvals
         self.NDM = dmvals.size
-        self.NZ = zvals.size
-        
+        if zvals is not None:
+            self.NZ = zvals.size
+        self.edir = edir
         # Load up
         self.process_survey_file(filename, NFRB, iFRB, min_lat=state.analysis.min_lat,
                         dmg_cut=state.analysis.DMG_cut,survey_dict = survey_dict)
@@ -81,48 +83,136 @@ class Survey:
         # Zs
         print("Initialising zs")
         self.init_zs() # This should be redone every time DMhalo is changed IF we use a flat cutoff on DMEG
+        
         # Allows survey metadata to over-ride parameter defaults if present.
         # This is required when mixing CHIME and non-CHIME FRBs
         beam_method = self.meta['BMETHOD']
         beam_thresh = self.meta['BTHRESH']
-        width_bias = self.meta['WBIAS']
         
         self.init_beam(
                        method=beam_method, 
                        plot=False, 
                        thresh=beam_thresh) # tells the survey to use the beam file
         
-        # Efficiency: width_method passed through "self" here
-        # Determines if the model is redshift dependent
-        
-        self.init_widths(state, width_bias=width_bias, edir=edir)
+        # initialise scattering/width and resulting efficiences
+        self.init_widths()
         self.calc_max_dm()
-
-    def init_widths(self, state, width_bias=None, edir=None):
+        
+        self.init_frb_bvals() #initial;ise weights for FRBs with known beam values
+        self.init_frb_wvals()
+        
+        self.calc_max_dm()
+        
+    def init_widths(self,state=None):
         """
-        Initialises the widths and efficiencies for the survey.
+        Performs initialisation of width and scattering distributions
+        
+        Args:
+            state (parameters.state object., optional): if set, assume
+                this state contains new scattering/width parameters
+        
         """
-        if width_bias is None:
-            width_bias = self.meta['WBIAS']
-
-        if self.meta['WMETHOD'] != 3:
-            pwidths,pprobs=make_widths(self, state)
-            _ = self.get_efficiency_from_wlist(pwidths,pprobs,
-                                        model=width_bias, edir=edir, iz=None) 
+        if state is not None:
+            self.state = state
+        
+        # copies over Width bin information
+        self.NWbins = self.state.width.WNbins
+        self.WMin = self.state.width.WMin
+        self.WMax = self.state.width.WMax
+        self.thresh = self.state.width.Wthresh
+        self.wlogmean = self.state.width.Wlogmean
+        self.wlogsigma = self.state.width.Wlogsigma
+        self.width_method = self.meta["WMETHOD"]
+        if self.width_method == 3 and self.zvals is None:
+            raise ValueError("Width method 3 requires z-values to be set")
+        self.NInternalBins=self.state.width.WNInternalBins
+        
+        # records scattering information, scaling
+        # according to frequency
+        self.slogmean=self.state.scat.Slogmean \
+                    + self.state.scat.Sfpower*np.log10(
+                        self.meta['FBAR']/self.state.scat.Sfnorm
+                        )
+        self.slogsigma=self.state.scat.Slogsigma
+        self.maxsigma=self.state.scat.Smaxsigma
+        self.scatdist=self.state.scat.ScatDist
+        self.backproject=self.state.scat.Sbackproject
+        
+        # sets internal functions
+        WF = self.state.width.WidthFunction
+        if WF ==0:
+            self.WidthFunction = constant
+        elif WF == 1:
+            self.WidthFunction = lognormal
+        elif WF == 2:
+            self.WidthFunction = halflognormal
         else:
+            raise ValueError("state parameter scat.WidthFunction ",WF," not implemented, use 0-2 only")
+        
+        SF = self.state.scat.ScatFunction
+        if SF ==0:
+            self.ScatFunction = constant
+        elif SF == 1:
+            self.ScatFunction = lognormal
+        elif SF == 2:
+            self.ScatFunction = halflognormal
+        else:
+            raise ValueError("state parameter scat.ScatFunction ",SF," not implemented, use 0-2 only")
+        
+        # sets n width bins equal to zero for this survey
+        if self.meta['WMETHOD'] == 0 or self.meta['WMETHOD'] == 4:
+            self.NWbins = 1
+        
+        ###### calculate width bins. We fix these here ######
+        # Unless w and tau are explicitly being fit, it is not actually necessary
+        # to have constant bin values over z and DM. But best to do so!
+        # Here, wbins are the bin edges, w list the midpoint values used for calculations
+        # Nbins describes the number of bins, so Nedges is Nbins+1
+        wbins = np.zeros([self.NWbins+1])
+        if self.NWbins > 1:
+            wbins = np.logspace(np.log10(self.WMin),np.log10(self.WMax),self.NWbins+1)
+            dlogw = np.log10(wbins[2]/wbins[1])
+            #wbins[0] = wbins[1]-dlogw # no longer tint: 1.e-10 # set to a tiny value, to ensure we capture all small widths
+            # offsets the mean by half the log-spacing for each
+            wlist = np.logspace(np.log10(self.WMin)+dlogw/2.,np.log10(self.WMax)-dlogw/2.,self.NWbins)
+            wbins[0] -= 3 # ensures we capture low values!
+        else:
+            wbins[0] = np.log10(self.WMin)
+            wbins[1] = np.log10(self.WMax)
+            dlogw = np.log10(wbins[1]/wbins[0])
+            wlist = np.array([(self.WMax*self.WMin)**0.5])
+        self.wbins = wbins
+        self.wlist = wlist
+        self.dlogw = dlogw
+        
+        ####### generates internal width values of numerical calculation purposes #####
+        #minval = np.min([self.wlogmean - self.maxsigma*self.wlogsigma,
+        #                self.slogmean - self.maxsigma*self.slogsigma,
+        #                np.log10(self.WMin)])
+        minval = np.log10(self.WMin)-3
+        maxval = np.log10(self.WMax)
+        # I haven't decided yet where to put the value of 1000 internal bins
+        # in terms of parameters.
+        self.internal_logwvals = np.linspace(minval,maxval,self.NInternalBins)
+        
+        # initialise probability bins
+        if self.meta['WMETHOD'] == 3:
             # evaluate efficiencies at each redshift
-            self.NWbins = state.width.WNbins
             self.efficiencies = np.zeros([self.NWbins,self.NZ,self.NDM])
             self.wplist = np.zeros([self.NWbins,self.NZ])
-            self.wlist = np.zeros([self.NWbins,self.NZ])
             self.DMlist = np.zeros([self.NZ,self.NDM])
             self.mean_efficiencies = np.zeros([self.NZ,self.NDM])
+            
+            if self.backproject:
+                self.pws = np.zeros([self.NZ,self.internal_logwvals.size,self.NWbins]) #[iz,:,:] = pw
+                self.ptaus = np.zeros([self.NZ,self.internal_logwvals.size,self.NWbins]) #[iz,:,:] = ptau
             
             # we have a z-dependent scattering and width model
             for iz,z in enumerate(self.zvals):
                 pwidths,pprobs=make_widths(self, state, z=z)
                 _ = self.get_efficiency_from_wlist(pwidths,pprobs,
                                         model=width_bias, edir=edir,iz=iz)
+        self.calc_max_dm()
 
     def init_repeaters(self):
         """
@@ -216,7 +306,154 @@ class Survey:
         
         # Initialise repeater zs
         self.init_zs_reps()
-
+    
+    
+    def get_internal_coeffs(self,wlist):
+        """
+        Returns indices and coefficients for linear interpolation between
+        intrinsic width values
+        
+        wlist: np.ndarray of observed intrinsic widths or taus
+        
+        Returns:
+            iws1 (int): index of lower value
+            iws2 (int): index of upper value
+            dkws1 (float): coefficient for iws1
+            dkws2 (float): coefficient for iws2
+        """
+        
+        # convert to log-widths - the bins are in log10 space
+        logwlist = np.log10(wlist)
+        dinternal = self.internal_logwvals[1]-self.internal_logwvals[0]
+        kws=(logwlist-self.internal_logwvals[0])/dinternal
+        Bin0 = np.where(kws < 0.)[0]
+        kws[Bin0] = 0.
+        iws1=kws.astype('int')
+        iws2=iws1+1
+        dkws2=kws-iws1 # applies to izs2
+        dkws1 = 1. - dkws2
+        
+        # checks for values which are too large
+        toobigw = np.where(logwlist > self.internal_logwvals[-1])[0]
+        if len(toobigw) > 0:
+            raise ValueError("Width value ",wlist[toobigw],
+                " too large for max internal log value of ",10**self.internal_logwvals[-1])
+        
+        return iws1, iws2, dkws1, dkws2
+    
+    
+    def init_frb_bvals(self):
+        """
+        Initialise frb-by-frb weights for each value of the beam histogram, based on
+        the value of the beam that the FRB was detected in.
+        
+        Simply does this by linear interpolation
+        """
+        
+        # contains beam-dependent weights for each FRB
+        frb_bweights = np.zeros([self.NFRB,self.meta["NBINS"]])
+        
+        lbs = np.log(self.beam_b)
+        
+        for i,B in enumerate(self.frbs["B"]):
+            if B == -1: # code for "ignore it"
+                # still have to decide what to do here. Likely give equal weights?
+                frb_bweights[i,:] = 1./self.meta["NBINS"]
+            elif B > self.beam_b[-1]: # greater value than max, just use max
+                frb_bweights[i,-1] = 1.
+            elif B < self.beam_b[0]:
+                frb_bweights[i,0] = 1.
+            else:
+                # at least one value of beam_b will be greater and one lesser than B
+                iB2 = np.where(self.beam_b > B)[0][0]
+                iB1 = iB2 - 1
+                # do log-scaling
+                lB = np.log(B)
+                kB2 = (lB- lbs[iB1])/(lbs[iB2]-lbs[iB1])
+                kB1 = 1.-kB2
+                frb_bweights[i,iB1] = kB1
+                frb_bweights[i,iB2] = kB2
+        self.frb_bweights = frb_bweights
+        
+        # speedups when iterating through 1D and 2D likelihoods
+        self.frb_zbweights = frb_bweights[self.zlist,:]
+        self.frb_nozbweights = frb_bweights[self.nozlist,:]
+        
+    def init_frb_wvals(self):
+        """
+        Initialises frb width coefficients for linear interpolation
+        
+        This is for a slightly different purpose than the init widths routine
+        """
+        
+        
+        #wlist = survey.WIDTHs # measured total widths
+        nw = self.wlist.size
+        frb_wweights = np.zeros([self.NFRB,nw])
+        
+        OKw = np.where(self.WIDTHs > 0.)
+        notOKw = np.where(self.WIDTHs <= 0.)
+        
+        # equal weights for all FRBs with no measured width
+        frb_wweights[notOKw,:] = 1./nw
+        
+        # iterature through the list
+        iws1,iws2,dkws1,dkws2 = self.get_w_coeffs(self.WIDTHs[OKw])
+        frb_wweights[OKw,iws1] = dkws1
+        frb_wweights[OKw,iws2] = dkws2
+        self.frb_wweights = frb_wweights
+        
+        # speedups when iterating through 1D and 2D likelihoods
+        self.frb_zwweights = self.frb_wweights[self.zlist,:]
+        self.frb_nozwweights = self.frb_wweights[self.nozlist,:]
+        
+    def get_w_coeffs(self,wlist):
+        """
+        Returns indices and coefficients for linear interpolation between width values
+        Bin edges run from [small~1e-10, self.WMin, self.WMin + self.dlowg, ..., self.Wmax]
+        We should use bin centres to determine which linear interpolations we sit between
+        
+        wlist: np.ndarray of observed widths
+        
+        Returns:
+            iws1 (int): index of lower value
+            iws2 (int): index of upper value
+            dkws1 (float): coefficient for iws1
+            dkws2 (float): coefficient for iws2
+        """
+        
+        # convert to log-widths - the bins are in log10 space
+        logwlist = np.log10(wlist)
+        if self.NWbins == 1:
+            # only when there is a single width bin
+            nfrb = logwlist.size
+            iws1 = np.full([nfrb],0,dtype='int')
+            iws2 = iws1
+            dkws1 = np.full([nfrb],1.,dtype='float')
+            dkws2 = dkws1
+            # dkws2 is identical to 1. This over-writes 1, but ensures
+            # that order of implementation of 1 and 2 does not matter
+            return iws1, iws2, dkws1, dkws2
+        
+        # the below assumes that
+        kws=(logwlist-np.log10(self.WMin))/self.dlogw # now will assume it begins at Wmin+dlogw + 0.5
+        # forces any low values to zero
+        Bin0 = np.where(kws < 0.)[0]
+        kws[Bin0] = 0.
+        
+        iws1=kws.astype('int')
+        iws2=iws1+1
+        dkws2=kws-iws1 # applies to izs2
+        dkws1 = 1. - dkws2
+        
+        # checks for values which are too large
+        toobigw = np.where(wlist > self.WMax)[0]
+        if len(toobigw) > 0:
+            raise ValueError("Width value ",wlist[toobigw],
+                " too large for Wmax of ",self.WMax)
+        
+        return iws1, iws2, dkws1, dkws2
+    
     def randomise_DMG(self, uDMG=0.5):
         """ Change the DMG_ISM values to a random value within uDMG Gaussian uncertainty """
         
@@ -250,12 +487,12 @@ class Survey:
         # Yamasaki and Totani 2020
         elif halo_method == 1:
             no_coords = np.where(self.Gls == 1.0)[0]
-            # if np.any(np.isnan(self.XRA[no_coords])) or np.any(np.isnan(self.XDec[no_coords])):
+            # if np.any(np.isnan(self.RA[no_coords])) or np.any(np.isnan(self.Dec[no_coords])):
             #     raise ValueError('Galactic coordinates must be set if using directional dependence')
             
             if len(no_coords) != 0:
                 for i in no_coords:
-                    coords = SkyCoord(ra=self.XRA[i], dec=self.XDec[i], frame='icrs', unit="deg")
+                    coords = SkyCoord(ra=self.RA[i], dec=self.Dec[i], frame='icrs', unit="deg")
 
                     self.Gls[i] = coords.galactic.l.value
                     self.Gbs[i] = coords.galactic.b.value
@@ -283,12 +520,12 @@ class Survey:
         # Sanskriti et al. 2020
         elif halo_method == 2:
             no_coords = np.where(self.Gls == 1.0)[0]
-            # if np.any(np.isnan(self.XRA[no_coords])) or np.any(np.isnan(self.XDec[no_coords])):
+            # if np.any(np.isnan(self.XRA[no_coords])) or np.any(np.isnan(self.Dec[no_coords])):
             #     raise ValueError('Galactic coordinates must be set if using directional dependence')
             
             if len(no_coords) != 0:
                 for i in no_coords:
-                    coords = SkyCoord(ra=self.XRA[i], dec=self.XDec[i], frame='icrs', unit="deg")
+                    coords = SkyCoord(ra=self.RA[i], dec=self.Dec[i], frame='icrs', unit="deg")
                     self.Gls[i] = coords.galactic.l.value
                     self.Gbs[i] = coords.galactic.b.value
 
@@ -482,19 +719,15 @@ class Survey:
             DC = self.survey_data.params[key]
             self.meta[key] = getattr(self.survey_data[DC],key)
         
-        # over-rides survey data if applicable
-        if survey_dict is not None:
-            for key in survey_dict:
-                self.meta[key] = survey_dict[key]
-                
-         
         # Get default values from default frb data
         default_frb = survey_data.FRB()
         
         # we now populate missing fields with the default values
         for field in fields(default_frb):
             # checks to see if this is a field in metadata: if so, takes priority
-            if field.name in self.meta.keys():
+            if survey_dict is not None and field.name in survey_dict.keys():
+                default_vaue = survey_dict[field.name]
+            elif field.name in self.meta.keys():
                 default_value = self.meta[field.name]
             else:
                 default_value = getattr(default_frb, field.name)
@@ -506,7 +739,7 @@ class Survey:
                     if isinstance(val,np.ma.core.MaskedArray):
                         frb_tbl[field.name][i] = default_value
             else:
-                default_value = getattr(default_frb, field.name)
+                #default_value = getattr(default_frb, field.name)
                 frb_tbl[field.name] = default_value
                 print("WARNING: no ",field.name," found in survey",
                     "replacing with default value of ",default_value)
@@ -524,6 +757,7 @@ class Survey:
             self.frbs=self.frbs[iFRB:themax]
         
         # fills in missing coordinates if possible
+        # also converts RA and Dec strings to floats
         self.fix_coordinates(verbose=False)
         
         # Min latitude
@@ -563,6 +797,11 @@ class Survey:
             self.meta['WIDTH'] = np.median(self.frbs['WIDTH'])
             self.meta['DMG'] = np.mean(self.frbs['DMG'])
         
+        # over-rides survey data if applicable
+        if survey_dict is not None:
+            for key in survey_dict:
+                self.meta[key] = survey_dict[key]
+        
         ### processes galactic contributions
         self.process_dmg()
         
@@ -582,6 +821,20 @@ class Survey:
         self.NORM_FRB=self.meta['NORM_FRB']
         self.Gbs=self.frbs['Gb'].values
         self.Gls=self.frbs['Gl'].values
+        
+        # calculates intrinsic widths
+        # Uses the model of James et al 2025
+        # assumes we have S/N maximising widths
+        # if scattering dominates total width, expect tau = 0.816 w
+        tscale = 1.225 # scale scattering time to total width at +- 1 sigma
+        
+        TEMP = self.frbs['WIDTH'].values**2 - (tscale*self.frbs['TAU'].values)**2
+        self.OKTAU = np.where(self.frbs['TAU'].values != -1.)[0] # code for non-existent
+        toolow = np.where(TEMP <= 0.)
+        TEMP[toolow] = 0.01*self.frbs['TAU'].values[toolow]**2 # 10% of scattering width
+        iwidths = TEMP**0.5 # scale to SNR max width assuming Gaussian shape
+        self.IWIDTHs = iwidths
+        self.TAUs = self.frbs['TAU'].values
 
         # sets the 'beam' values to unity by default
         self.beam_b=np.array([1])
@@ -596,12 +849,37 @@ class Survey:
         
         print("FRB survey sucessfully initialised with ",self.NFRB," FRBs starting from", self.iFRB)
 
+    
     def fix_coordinates(self,verbose=False):
         """
         Takes and FRB, and fills out missing coordinate values
         Note that now, RA, DEC, Gl, and Gb will be present
         But their default values are None
         """
+        # converts to float if in string. Will do nothing if None
+        if isinstance(self.frbs['RA'][0],str):
+            RAs = np.zeros([len(self.frbs['RA'])])
+            for i,RA in enumerate(self.frbs['RA']):
+                RAs[i] = misc_functions.coord_string_to_deg(self.frbs['RA'][i],hr=True)
+            self.frbs['RA'] = RAs
+        
+        if isinstance(self.frbs['DEC'][0],str):
+            DECs = np.zeros([len(self.frbs['DEC'])])
+            for i,DEC in enumerate(self.frbs['DEC']):
+                DECs[i] = misc_functions.coord_string_to_deg(self.frbs['DEC'][i],hr=False)
+            self.frbs['DEC'] = DECs
+        
+        if isinstance(self.frbs['Gb'][0],str):
+            Gbs = np.zeros([len(self.frbs['Gb'])])
+            for i,Gb in enumerate(self.frbs['Gb']):
+                Gbs[i] = misc_functions.coord_string_to_deg(self.frbs['Gb'][i],hr=True)
+            self.frbs['Gb'] = Gbs
+        
+        if isinstance(self.frbs['Gl'][0],str):
+            Gls = np.zeros([len(self.frbs['Gl'])])
+            for i,Gl in enumerate(self.frbs['Gl']):
+                Gls[i] = misc_functions.coord_string_to_deg(self.frbs['Gl'][i],hr=False)
+            self.frbs['Gl'] = Gls
         
         
         for i,gl in enumerate(self.frbs['Gl']):
@@ -610,15 +888,15 @@ class Survey:
                 if self.frbs['RA'][i] is None or self.frbs['DEC'][i] is None:
                     if verbose:
                         print("WARNING: no coordinates calculable for FRB ",i)
-                else:
+                else:  
                     Gb,Gl = misc_functions.j2000_to_galactic(self.frbs['RA'][i], self.frbs['DEC'][i])
                     self.frbs[i,'Gb'] = Gb
                     self.frbs[i,'Gl'] = Gl
             elif self.frbs['RA'][i] is None or self.frbs['DEC'][i] is None:
-                RA,Dec = misc_functions.galactic_to_j2000(gl, self.frbs['Gb'][i])
+                RA,Dec = misc_functions.galactic_to_j2000(self.frbs['Gl'][i], self.frbs['Gb'][i])
                 self.frbs[i,'RA'] = RA
                 self.frbs[i,'DEC'] = Dec
-    
+            
     def process_dmg(self):
         """ Estimates galactic DM according to
         Galactic lat and lon only if not otherwise provided
@@ -673,7 +951,7 @@ class Survey:
             
         else:
             print("No beam found to initialise...")
-
+    
     def calc_max_dm(self):
         '''
         Calculates the maximum searched DM.
@@ -718,7 +996,7 @@ class Survey:
         addGalacticDM:
             - True: this routine adds in contributions from the MW Halo and ISM, i.e.
                 it acts like DMlist is an extragalactic DM
-            - False: just used the supplied DMlist
+            - False: just use the supplied DMlist
         
         edir:
             - Directory where efficiency files are contained. Only relevant if specific FRB responses are used
@@ -754,15 +1032,11 @@ class Survey:
         
         if iz is None:
             self.efficiencies=efficiencies
-            self.wplist=plist
-            self.wlist=wlist
             self.DMlist=DMlist
             mean_efficiencies=np.mean(efficiencies,axis=0)
             self.mean_efficiencies=mean_efficiencies #be careful here!!! This may not be what we want!
         else:
             self.efficiencies[:,iz,:]=efficiencies
-            self.wplist[:,iz]=plist
-            self.wlist[:,iz]=wlist
             self.DMlist[iz,:]=DMlist
             mean_efficiencies=np.mean(efficiencies,axis=0)
             self.mean_efficiencies[iz,:]=mean_efficiencies #be careful here!!! This may not be what we want!
@@ -830,7 +1104,7 @@ def calc_relative_sensitivity(DM_frb,DM,w,fbar,t_res,nu_res,Nchan=336,max_idt=No
 
     # calculates relative sensitivity to bursts as a function of DM
     # Check for Quadrature and Sammons
-    elif model == 'Quadrature' or model == 'Sammons':
+    elif model == 'Quadrature' or model == 'Sammons' or model=="StdDev":
         # constant of DM
         k_DM=4.149 #ms GHz^2 pc^-1 cm^3
         
@@ -843,20 +1117,27 @@ def calc_relative_sensitivity(DM_frb,DM,w,fbar,t_res,nu_res,Nchan=336,max_idt=No
         if dsmear==True:
             # width is the total width
             measured_dm_smearing=2*(nu_res/1.e3)*k_DM*DM_frb/(fbar/1e3)**3 #smearing factor of FRB in the band
-            uw=w**2-measured_dm_smearing**2-t_res**2 # uses the quadrature model to calculate intrinsic width uw
+            if model == "StdDev":
+                uw = w**2 - dm_smearing**2/3. - t_res**2/3.
+            else:
+                uw = w**2-measured_dm_smearing**2-t_res**2 # uses the quadrature model to calculate intrinsic width uw
             if uw < 0:
-                uw=0
+                uw=1e-2 # replace this with some fraction of minimum width?
             else:
                 uw=uw**0.5
         else:
             # w represents the intrinsic width
             uw=w
         
-        totalw = (uw**2 + dm_smearing**2 + t_res**2)**0.5
-        
+        if model == "StdDev":
+            totalw = (uw**2 + dm_smearing**2/3. + t_res**2/3.)**0.5
+            nosmearw = (uw**2 + t_res**2/3.)**0.5
+        else:
+            totalw = (uw**2 + dm_smearing**2 + t_res**2)**0.5
+            nosmearw = (uw**2 + t_res**2)**0.5
         
         # calculates relative sensitivity to bursts as a function of DM
-        if model=='Quadrature':
+        if model=='Quadrature' or model=="StdDev":
             sensitivity=totalw**-0.5
         elif model=='Sammons':
             sensitivity=0.75*(0.93*dm_smearing + uw + 0.35*t_res)**-0.5
@@ -864,10 +1145,22 @@ def calc_relative_sensitivity(DM_frb,DM,w,fbar,t_res,nu_res,Nchan=336,max_idt=No
         # implements max integer width cut.
         if max_meth != 0 and max_iw is not None:
             max_w = t_res*(max_iw+0.5)
-            toolong = np.where(totalw > max_w)[0]
-            if max_meth == 1:
+            
+            if max_meth == 1 or max_meth == 2:
+                # NOTE: for CRAFT, dm smearing already accounted for prior to width search
+                # this means that the smearing cut is DM independent
+                if nosmearw > max_w:
+                    toolong = np.arange(dm_smearing.size)
+                else:
+                    toolong = []
+                #toolong = np.where(nosmearw > max_w)[0]
+            elif max_meth == 3 or max_meth == 4:
+                # NOTE: for CRAFT, dm smearing already accounted for prior to width search
+                toolong = np.where(totalw > max_w)[0]
+                
+            if max_meth == 1 or max_meth == 3:
                 sensitivity[toolong] = MIN_THRESH # something close to zero
-            elif max_meth == 2:
+            elif max_meth == 2 or max_meth == 4:
                 # we have already reduced it by \sqrt{t}
                 # we thus add a further sqrt{t} factor
                 sensitivity[toolong] *= (max_w / totalw[toolong])**0.5
@@ -875,7 +1168,7 @@ def calc_relative_sensitivity(DM_frb,DM,w,fbar,t_res,nu_res,Nchan=336,max_idt=No
     # If model not CHIME, Quadrature or Sammons assume it is a filename
     else:
         if edir is None:
-            edir = resource_filename('zdm', 'data/Efficiencies')
+            edir = resources.files('zdm').joinpath('data/Efficiencies')
         filename = os.path.expanduser(os.path.join(edir, model + ".npy"))
         
         if not os.path.exists(filename):
@@ -887,307 +1180,11 @@ def calc_relative_sensitivity(DM_frb,DM,w,fbar,t_res,nu_res,Nchan=336,max_idt=No
 
     return sensitivity
 
-def geometric_lognormals2(lmu1,ls1,lmu2,ls2,bins=None,
-                         Ndivs=100,Nsigma=3.,plot=False,Nbins=101,
-                         ScatDist=1):
-    '''
-    Numerically evaluates the resulting distribution of y=\sqrt{x1^2+x2^2},
-    where logx1~normal and logx2~normal with log-mean lmu and 
-    log-sigma ls.
-    This is typically used for two log-normals of intrinsic
-    FRB width and scattering time
-    
-    lmu1, ls1 (float, float): log mean and log-sigma of the first distribution
-    
-    lmu2, ls2 (float, float): log-mean and log-sigma of the second distribution
-    
-    bins (np.ndarray([NBINS+1],dtype='float')): bin edges for resulting plot.
-    
-    Returns:
-        hist: histogram of probability within bins
-        chist: cumulative histogram of probability within bins
-        bins: bin edges for histogram
-    
-    '''
-    
-    #draw from both distributions
-    np.random.seed(1234)
-    
-    xvals1 = np.linspace(lmu1-Nsigma*ls1,lmu1+Nsigma*ls1,Ndivs)
-    yvals1 = pcosmic.loglognormal_dlog(xvals1,lmu1,ls1,1.)
-    yvals1 /= np.sum(yvals1)
-    
-    # xvals in ln space
-    lnlog = np.log10(np.exp(1))
-    xvals2 = np.logspace(lnlog*(lmu2-Nsigma*ls2),lnlog*(lmu2+Nsigma*ls2),Ndivs)
-    if ScatDist == 0:
-        # log uniform
-        yvals2 = np.full([Ndivs],2./Ndivs)
-    elif ScatDist == 1:
-        # lognormal
-        yvals2 = pcosmic.loglognormal_dlog(xvals2,lmu2,ls2,2.)
-        yvals2 /= np.sum(yvals2)
-    elif ScatDist == 2:
-        # upper lognormal is flat
-        yvals2 = pcosmic.loglognormal_dlog(xvals2,lmu2,ls2,2.)
-        upper = np.where(xvals2 > lmu2)[0]
-        ymax = np.max(yvals2)
-        yvals2[upper] = ymax
-        yvals2 /= np.sum(yvals2)
-    
-    xvals1 = np.exp(xvals1)
-    xvals2 = np.exp(xvals2)
-    themin = np.min([np.min(xvals1),np.min(xvals2)])
-    themax = 2**0.5 * np.max([np.max(xvals1),np.max(xvals2)])
-    
-    if bins is None:
-        #bins=np.linspace(0,np.max(ys)/4.,Nbins)
-        delta=1e-3
-        # ensures the first bin begins at 0
-        bins=np.zeros([Nbins+1])
-        bins[1:]=np.logspace(np.log10(themin)-delta,np.log10(themax)+delta,Nbins)
-    else:
-        Nbins = len(bins)-1
-    
-    # calculate widths
-    hist = np.zeros([Nbins])
-    for i,x1 in enumerate(xvals1):
-        widths = (x1**2 + xvals2**2)**0.5
-        probs = yvals1[i]*yvals2
-        h,b = np.histogram(widths,bins=bins,weights=probs)
-        hist += h
-    
-    chist=np.zeros([Nbins+1])
-    chist[1:]=np.cumsum(hist)
-    # we do not want to renormalise, since the normalisation reflects the values
-    # which are too large
-    #hist /= chist[-1]
-    chist /= chist[-1]
-    
-    return hist,chist,bins
-
-def geometric_lognormals(lmu1,ls1,lmu2,ls2,bins=None,
-                         Nrand=10000,plot=False,Nbins=101):
-    '''
-    Numerically evaluates the resulting distribution of y=\sqrt{x1^2+x2^2},
-    where logx1~normal and logx2~normal with log-mean lmu and 
-    log-sigma ls.
-    This is typically used for two log-normals of intrinsic
-    FRB width and scattering time
-    
-    lmu1, ls1 (float, float): log mean and log-sigma of the first distribution
-    
-    lmu2, ls2 (float, float): log-mean and log-sigma of the second distribution
-    
-    bins (np.ndarray([NBINS+1],dtype='float')): bin edges for resulting plot.
-    
-    Returns:
-        hist: histogram of probability within bins
-        chist: cumulative histogram of probability within bins
-        bins: bin edges for histogram
-    
-    '''
-    
-    #draw from both distributions
-    np.random.seed(1234)
-    x1s=np.random.normal(lmu1,ls1,Nrand)
-    x2s=np.random.normal(lmu2,ls2,Nrand)
-    
-    ys=(np.exp(x1s*2)+np.exp(x2s*2))**0.5
-    
-    if bins is None:
-        #bins=np.linspace(0,np.max(ys)/4.,Nbins)
-        delta=1e-3
-        # ensures the first bin begins at 0
-        bins=np.zeros([Nbins+1])
-        bins[1:]=np.logspace(np.log10(np.min(ys))-delta,np.log10(np.max(ys))+delta,Nbins)
-    hist,bins=np.histogram(ys,bins=bins)
-    chist=np.zeros([Nbins+1])
-    chist[1:]=np.cumsum(hist)
-    chist /= chist[-1]
-    
-    if plot:
-        plt.figure()
-        plt.hist(ys,bins=bins)
-        plt.xlabel('$y, Y=\\sqrt{X_1^2+X_2^2}$')
-        plt.ylabel('$P(Y=y)$')
-        plt.tight_layout()
-        plt.savefig('adding_lognormals.pdf')
-        plt.close()
-        
-        lbins=np.linspace(-3.,5.,81)
-        plt.figure()
-        plt.xlabel('$log y, Y=\\sqrt{X_1^2+X_2^2}$')
-        plt.ylabel('$P(logY=logy)$')
-        plt.hist(np.log(ys),bins=lbins)
-        plt.savefig('log_adding_lognormals.pdf')
-        plt.close()
-    
-    # renomalises - total will be less than unity, assuming some large
-    # values fall off the largest bin
-    #hist = hist/Nrand
-    return hist,chist,bins
-
-def halflognormal(logmean,logsigma,minw,maxw,nbins):
-    """
-    Generates a parameterised half-lognormal distribution.
-    This acts as a lognormal in the lower half, but
-    keeps a constant per-log-bin width in the upper half
-    """
-    
-    logmin = np.log(minw)
-    logmax = np.log(maxw)
-    logbins = np.linspace(logmin,logmax,nbins+1)
-    dlogbin = (logmax - logmin)/nbins
-    logbinmean = logbins[:-1] + dlogbin/2.
-    
-    probs = np.zeros([nbins])
-    
-    # gets weighting in smaller bins
-    args=[logmin,logmax,1.]
-    for i in np.arange(nbins):
-        weight,err=quad(pcosmic.loglognormal_dlog,logbins[i],logbins[i+1],args=args)
-        probs[i] = weight
-        if logbins[i+1] > logmean:
-            break
-    # fills up remaining bins with the peak value
-    probs[i+1:] = probs[i]
-    # normalisation
-    probs /= np.sum(pobs)
-    return probs
-        
-def make_widths(s:Survey,state,z=0.):
-    """
-    This method takes a distribution of intrinsic FRB widths 
-    (lognormal, defined by wlogmean and wlogsigma), and returns 
-    a list of w_i, p(w_i), where the w_i are i=1...N values of 
-    width, and p(w_i) are statistical weights associated with each. 
-
-    The \sum_i p(w_i) should sum to unity always. Each w_i is used 
-    to calculate a separate efficiency table.
-    
-    Args:
-        s (Survey,required): instance of survey class
-        state (state class,required): instance of the state class
-        z (float): redshift at which this is being calculated
-    
-    Returns:
-        list: list of widths
-    """
-    # variables which can be over-ridden by a survey, but which
-    # appear by default in the parameter set
-    
-    # just extracting for now to get things straight
-    nbins=state.width.WNbins
-    thresh=state.width.Wthresh
-    wlogmean=state.width.Wlogmean
-    wlogsigma=state.width.Wlogsigma
-    width_method = s.meta["WMETHOD"]
-    wmin = state.width.WMin
-    wmax = state.width.WMax
-    
-    slogmean=state.scat.Slogmean
-    slogsigma=state.scat.Slogsigma
-    sfnorm=state.scat.Sfnorm
-    sfpower=state.scat.Sfpower
-    maxsigma=state.scat.Smaxsigma
-    scatdist=state.scat.ScatDist
-    
-    # adjusts these model values according to redshift
-    wlogmean += np.log(1.+z) # scales with (1+z)
-    slogmean -= 3.*np.log(1.+z) # scales with (1+z)^-3
-    
-    # constant of DM
-    k_DM=4.149 #ms GHz^2 pc^-1 cm^3
-    
-    tres=s.meta['TRES']
-    nu_res=s.meta['FRES']
-    fbar=s.meta['FBAR']
-    
-    ###### calculate a characteristic scaling pulse width ########
-    
-    # estimates this for a DM of 100
-    DM=100
-    
-    # total smearing factor within a channel
-    dm_smearing=2*(nu_res/1.e3)*k_DM*DM/(fbar/1e3)**3 #smearing factor of FRB in the band
-    wsum=0.
-    
-    ######## generate width distribution ######
-    # arrays to hold widths and weights
-    weights=[]
-    widths=[]
-    
-    if width_method == 1 or width_method==2 or width_method==3:
-        bins = np.zeros([nbins+1])
-        logwmin = np.log10(wmin)
-        logwmax = np.log10(wmax)
-        dbin = (logwmax - logwmin)/(nbins-1.)
-        # bins ignore wmax - scale takes precedent
-        bins[1:] = np.logspace(logwmin,logwmax, nbins)
-        widths = 10**(dbin * (np.arange(nbins)-0.5) + logwmin)
-        bins[0] = 1.e-10 # a very tiny value to avoid bad things in log space
-        
-    if width_method==0:
-        # do not take a distribution, just use 1ms for everything
-        # this is done for tests, for complex surveys such as CHIME,
-        # or for estimating the properties of a single FRB
-        weights.append(1.)
-        widths.append(np.exp(wlogmean))
-    elif width_method==1:
-        # take intrinsic lognormal width distribution only
-        # normalisation of a log-normal
-        norm=(2.*np.pi)**-0.5/wlogsigma
-        args=(wlogmean,wlogsigma,norm)
-        weights = np.zeros([nbins])
-        for i in np.arange(nbins):
-            weight,err=quad(pcosmic.loglognormal_dlog,np.log(bins[i]),np.log(bins[i+1]),args=args)
-            #width=(wmin*wmax)**0.5
-            #widths.append(width)
-            weights[i] = weight #.append(weight)
-            #wsum += weight
-            #wmin = wmax
-            #wmax *= scale
-    elif width_method==2 or width_method==3:
-        # include scattering distribution. 3 means include z-dependence
-        # scale scattering time according to frequency in logspace
-        slogmean = slogmean + sfpower*np.log(fbar/sfnorm)
-        
-        # generates bins
-        
-        
-        #gets cumulative hist and bin edges
-        dist,cdist,cbins=geometric_lognormals2(wlogmean,
-                               wlogsigma,slogmean,slogsigma,Nsigma=maxsigma,
-                               ScatDist=scatdist,bins=bins)
-        weights = dist
-        
-    elif width_method==4:
-        # use specific width of FRB. This requires there to be only a single FRB in the survey
-        if s.meta['NFRB'] != 1:
-            raise ValueError("If width method in make_widths is 3 only one FRB should be specified in the survey but ", str(s.meta['NFRB']), " FRBs were specified")
-        else:
-            weights.append(1.)
-            widths.append(s.frbs['WIDTH'][0])
-    else:
-        raise ValueError("Width method in make_widths must be 0, 1 or 2, not ",width_method)
-    # check this is correct - we may wish to lose extra probability
-    # off the top, though never off the bottom
-    #weights[-1] += 1.-wsum #adds defecit here
-    weights=np.array(weights)
-    widths=np.array(widths)
-    # removes unneccesary bins
-    # cannot do this when considering z-dependent bins for consistency
-    #keep=np.where(weights>1e-4)[0]
-    #weights=weights[keep]
-    #widths=widths[keep]
-    
-    return widths,weights
 
 
 def load_survey(survey_name:str, state:parameters.State, 
                 dmvals:np.ndarray,
-                zvals:np.ndarray,
+                zvals:np.ndarray=None,
                 sdir:str=None, NFRB:int=None, 
                 nbins=None, iFRB:int=0,
                 dummy=False,
@@ -1202,7 +1199,7 @@ def load_survey(survey_name:str, state:parameters.State,
             e.g. CRAFT/FE
         state (parameters.State): Parameters for the state
         dmvals (np.ndarray): DM values
-        zvals (np.ndarray): z values
+        zvals (np.ndarray,optional): z values
         sdir (str, optional): Path to survey files. Defaults to None.
         nbins (int, optional):  Sets number of bins for Beam analysis
             [was NBeams]
@@ -1228,8 +1225,7 @@ def load_survey(survey_name:str, state:parameters.State,
         print(f"Loading survey: {survey_name}")
 
     if sdir is None:
-        sdir = os.path.join(
-            resource_filename('zdm', 'data'), 'Surveys')
+        sdir = resources.files('zdm').joinpath('data/Surveys')
 
     # Hard code real surveys
     if survey_name == 'CRAFT/FE':
@@ -1259,7 +1255,7 @@ def load_survey(survey_name:str, state:parameters.State,
                     survey_name, 
                     os.path.join(sdir, dfile), 
                      dmvals,
-                     zvals,
+                     zvals=zvals,
                      NFRB=NFRB, iFRB=iFRB,
                      edir=edir, rand_DMG=rand_DMG,
                      survey_dict = survey_dict)
@@ -1290,3 +1286,227 @@ def vet_frb_table(frb_tbl:pandas.DataFrame,
             raise ValueError(f'{field} is missing in your table!')
         elif fill:
             frb_tbl[field] = None
+
+############ We now define some width/scattering functions ############
+# These all return p(w) dlogw, and must take as arguments np.log10(widths)
+
+def quadrature_convolution(width_function, width_args, scat_function, scat_args,
+                        internal_logvals, bins, backproject = False):
+    '''
+    Numerically evaluates the resulting distribution of y=\sqrt{x1^2+x2^2},
+    where x1 is the width distribution, and x2 is the scattering distribution.
+    
+    Args:
+        width_function (float function(float,args)): function to call giving p(logw) dlogw
+        width_args (*list): arguments to pass to width function
+        scat_function  (float function(float,args)): function to call giving p(logtau) dlogtau
+        scat_args (*list): arguments to pass to scattering function
+        internal_vals (np.ndarray): numpy array of length NIbins giving internal
+                    values of log dw to use for internal calculation purposes.
+        bins (np.ndarray([NBINS+1],dtype='float')): bin edges for final width distribution
+        backproject (bool, optional): if True, calculates p(tau|totalw) and p(w|totalw)
+                for this redshift, and returns additional values.
+    Returns:
+        hist (np.ndarray): histogram of probability within bins
+        wfracs (np.ndarray,only if backproject): p(tau|tw)
+        taufracs (np.ndarray,only if backproject): p(w|tw)
+    
+    '''
+    
+    # these need to be normalised by the internal bin width
+    logbinwidth = internal_logvals[-1] - internal_logvals[-2]
+    
+    # these functions should *not* be normalsid, since some true distribution
+    # may extend beyond the range of interest. But it means that the below functions
+    # absolutely should be correctly normalised
+    
+    pw = width_function(internal_logvals, *width_args)*logbinwidth
+    ptau = scat_function(internal_logvals, *scat_args)*logbinwidth
+    
+    # adds extra bits onto the lowest bin. Does this by integrating in
+    # log space. Assumes exp(-10) is small enough!
+    lowest = internal_logvals[0] - logbinwidth/2.
+    extrapw,err = quad(width_function,lowest-10,lowest,args=width_args)
+    extraptau,err = quad(scat_function,lowest-10,lowest,args=scat_args)
+    
+    pw[0] += extrapw 
+    ptau[0] += extraptau
+    
+    linvals = 10**internal_logvals
+    
+    # calculate total widths - all done in linear domain
+    Nbins = bins.size-1
+    hist = np.zeros([Nbins])
+    for i,x1 in enumerate(linvals):
+        totalwidths = (x1**2 + linvals**2)**0.5
+        probs = pw[i]*ptau
+        h,b = np.histogram(totalwidths,bins=bins,weights=probs)
+        hist += h
+    
+    # calculate p(w) and p(tau) for each w for this z
+    if backproject:
+        # generate arrays to hold probabilities, so values of tau and
+        # w can be fit
+        wfracs = np.zeros([internal_logvals.size,Nbins])
+        taufracs = np.zeros([internal_logvals.size,Nbins])
+        
+        # maps the probabilities as a function of intrinsic
+        # width to generate a p(w|total_width) and p(tau|total_width)
+        # note that these are p(observed) values, i.e. after z-correction
+        # arrays have dimensions(Nw,Ntotal_width) so for each total
+        # width, we get the probability
+        for i,x1 in enumerate(linvals):
+            # total widths corresponding to linvals for tau/iw x1
+            totalwidths = (x1**2 + linvals**2)**0.5
+            
+            # ptau is the probability of achieving linvals, so combined
+            # probability is pw[i]*ptau
+            probs = pw[i]*ptau
+            h,b = np.histogram(totalwidths,bins=bins,weights=probs)
+            wfracs[i,:] = h
+            
+            # pw is the probability of achieving linvals, so combined
+            # probability is ptau[i] * pw
+            probs = ptau[i]*pw
+            h,b = np.histogram(totalwidths,bins=bins,weights=probs)
+            taufracs[i,:] = h
+        
+        # we need p(tau|w). This means sum for a given w must be 1!
+        wnorm = np.sum(wfracs,axis=0)
+        # where is p(tau=0 for a given w?)
+        bad = np.where(wnorm == 0.)[0]
+        wfracs[:,bad] = 1./internal_logvals.size # if a particular width value has no iw, equalise probability over all iw
+        wnorm[bad] = 1.
+        
+        tnorm = np.sum(taufracs,axis=0)
+        bad = np.where(tnorm == 0.)[0]
+        taufracs[:,bad] = 1./internal_logvals.size # if a particular width value has no possible tau, equalise probability over all tau
+        tnorm[bad] = 1.
+        
+        # normalise probabilities for each intrinsic w
+        #wfracs = (wfracs.T/wnorm).T
+        #taufracs = (taufracs.T/tnorm).T
+        wfracs = wfracs/wnorm
+        taufracs = taufracs/tnorm
+        
+        # plot some examples. This code is kept here for internal analysis purposes
+        if False:
+            plt.figure()
+            plt.plot(internal_logvals,ptau,label="Intrinsic p(tau)")
+            plt.plot(internal_logvals,pw,label="Intrinsic p(w)")
+            for ib in np.arange(Nbins):
+                plt.plot(internal_logvals,taufracs[:,ib],label="p(tau) width "+str(ib))
+                plt.plot(internal_logvals,wfracs[:,ib],label="p(w) width "+str(ib))
+                plt.plot(np.log10([bins[ib],bins[ib]]),[0,1],linestyle=":",color=plt.gca().lines[-1].get_color())
+                plt.plot(np.log10([bins[ib+1],bins[ib+1]]),[0,1],linestyle=":",color=plt.gca().lines[-1].get_color())
+                break
+            plt.yscale("log")
+            #plt.xscale("log")
+            plt.xlabel("log10 Tau [ms]")
+            plt.ylabel("p(tau |w)")
+            plt.legend()
+            plt.tight_layout()
+            plt.show()
+            plt.close()
+            # exit now, to prevent very many such plots being generated
+            exit()
+        
+        return hist,wfracs,taufracs
+    else:
+        return hist
+
+
+
+def lognormal(log10w, *args):
+    """
+    Lognormal probability distribution. Note that the x values and args
+    could theoretically be in natural log (or other) space, 
+    including linear.
+    
+    Args:
+        log10w: log base 10 of widths
+        args: vector of [logmean,logsigma] mean and std dev
+    
+    Returns:
+        result: p(logw) d logw
+    """
+    logmean = args[0]
+    logsigma = args[1]
+    norm = (2.*np.pi)**-0.5/logsigma
+    result = norm * np.exp(-0.5 * ((log10w - logmean) / logsigma) ** 2)
+    
+    return result
+    
+def halflognormal(log10w, *args):#logmean,logsigma,minw,maxw,nbins):
+    """
+    Generates a parameterised half-lognormal distribution.
+    This acts as a lognormal in the lower half, but
+    keeps a constant per-log-bin width in the upper half
+    There is nor formal way to normalise this function.
+    
+    It can also be verified that changing the normalisation of these functions
+    only changes the P(N) calculation, which should in any case be
+    separately optimised. Note however that this changes the interpretation
+    of the log-constant, which may be incorrect to within such a normalisation factor.
+    
+    Args:
+        log10w: log base 10 of widths
+        args: vector of [logmean,logsigma] mean and std dev and max value
+    
+    Returns:
+        result: p(log10w) d log10w
+    """
+    logmean = args[0]
+    logsigma = args[1]
+    logmax = args[2]
+    norm = (2.*np.pi)**-0.5/logsigma #Currently no normalisation
+    if hasattr(log10w,"__len__"):
+        large = np.where(log10w > logmean)[0]
+        
+        modlogw = np.copy(log10w) # ensures we don't change the original values
+        modlogw[large] = logmean # subs mean value in for values larger than the mean
+    else:
+        if log10w > logmean:
+            modlogw = logmean
+        else:
+            modlogw = log10w
+    
+    result = lognormal(modlogw,logmean,logsigma)
+    
+    # normalises the distribution. We note that the lower half
+    # is correctly normalised to 0.5 via the lognormal function
+    # the upper half spans the range [logmax-logmean] at amplitude
+    # norm. Hence, the total integral is
+    # 0.5 + [logmax-logmean]*norm
+    result /= (0.5 + (logmax-logmean)*norm)
+    
+    return result
+
+def constant(log10w,*args):
+    """
+    Dummy function that returns a constant of unity, down
+    to a certain minimum, below which it is zero.
+    NOTE: to include 1+z scaling here, one will need to
+    reduce the minimum width argument with z. Feature
+    to be added. Maybe have args also contain min and max values?
+    
+    Args:
+        log10w: log base 10 of widths
+        args: vector of [logmean,logsigma] mean and std dev and max width
+    
+    Returns:
+        result: p(logw) d logw
+    """
+    
+    width = args[2] - args[0]
+    if hasattr(log10w,"__len__"):
+        good = np.where(log10w > args[0])[0]
+        result = np.zeros([log10w.size])
+        result[good] = 1./width
+    else:
+        if log10w < args[0]:
+            result = np.array([0])
+        else:
+            result = np.array([1./width])
+    return result
+        

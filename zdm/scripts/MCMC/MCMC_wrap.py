@@ -16,7 +16,7 @@ import os
 import numpy as np
 
 from astropy.cosmology import Planck18
-
+import importlib.resources as resources
 from zdm import survey
 from zdm import cosmology as cos
 from zdm import loading
@@ -52,12 +52,17 @@ def main():
     parser.add_argument('-w', '--walkers', default=20, type=int, help="Number of MCMC walkers")
     parser.add_argument('-s', '--steps', default=100, type=int, help="Number of MCMC steps")
     parser.add_argument('-n', '--nthreads', default=1, type=int, help="Number of threads")
+    parser.add_argument('--Nz', default=500, type=int, help="Number of z values")
+    parser.add_argument('--Ndm', default=1400, type=int, help="Number of DM values")
+    parser.add_argument('--zmax', default=5., type=int, help="Maximum z value")
+    parser.add_argument('--dmmax', default=7000., type=int, help="Maximum DM value")
     parser.add_argument('--sdir', default=None, type=str, help="Directory containing surveys")
     parser.add_argument('--edir', default=None, type=str, help="Directory containing efficiency files")
     parser.add_argument('--outdir', default="", type=str, help="Output directory")
     parser.add_argument('--Pn', default=False, action='store_true', help="Include Pn")
     parser.add_argument('--no_psnr', default=False, action='store_true', help="Exclude psnr")
     parser.add_argument('--pNreps', default=False, action='store_true', help="Include pNreps")
+    parser.add_argument('--ptauw', default=False, action='store_true', help="Include p(tau,w)")
     parser.add_argument('--rand', default=False, action='store_true', help="Randomise DMG within uncertainty")
     parser.add_argument('--log_halo', default=False, action='store_true', help="Give a log prior on the halo instead of linear")
     parser.add_argument('--lin_host', default=False, action='store_true', help="Give a linear prior on host mean contribution")
@@ -95,17 +100,37 @@ def main():
 
     zDMgrid, zvals, dmvals = mf.get_zdm_grid(
                     state, new=True, plot=False, method='analytic', 
-                    datdir=resource_filename('zdm', 'GridData'))
+                    datdir=resources.files('zdm').joinpath('GridData'),
+                    nz=args.Nz,ndm=args.Ndm,zmax=args.zmax,dmmax=args.dmmax)
+    
+    # pass this to starting iteration
+    g0info = [zDMgrid,zvals,dmvals]
+    
+    # set z-dependent weights in surveys
+    if ('Wlogmean' in params or 'Wlogsigma' in params or \
+                    'Slogmean'  in params or 'Slogsigma' in params):
+        survey_dict = {"WMETHOD": 3}
+    else:
+        survey_dict = None
     
     if args.files is not None:
         for survey_name in args.files:
-            s = survey.load_survey(survey_name, state, dmvals, zvals,
+            if "CHIME" in survey_name:
+                use_dict = None
+            else:
+                use_dict=survey_dict
+            s = survey.load_survey(survey_name, state, dmvals, zvals=zvals, survey_dict=use_dict,
                                 sdir=args.sdir, edir=args.edir, rand_DMG=args.rand)
             surveys[0].append(s)
     
     if args.rep_surveys is not None:
         for survey_name in args.rep_surveys:
-            s = survey.load_survey(survey_name, state, dmvals, zvals,
+            if "CHIME" in survey_name:
+                use_dict = None
+            else:
+                use_dict=survey_dict
+                
+            s = survey.load_survey(survey_name, state, dmvals, zvals=zvals, survey_dict=use_dict,
                                 sdir=args.sdir, edir=args.edir, rand_DMG=args.rand)
             surveys[1].append(s)
 
@@ -114,8 +139,8 @@ def main():
         os.mkdir(args.outdir)
 
     MCMC.mcmc_runner(MCMC.calc_log_posterior, os.path.join(args.outdir, args.opfile), state, params, surveys, 
-                        nwalkers=args.walkers, nsteps=args.steps, nthreads=args.nthreads, Pn=args.Pn, pNreps=args.pNreps, 
-                        psnr=args.psnr,log_halo=args.log_halo, lin_host=args.lin_host, reset=args.reset)
+                         nwalkers=args.walkers, nsteps=args.steps, nthreads=args.nthreads, Pn=args.Pn, pNreps=args.pNreps,
+                         psnr=args.psnr, ptauw = args.ptauw, log_halo=args.log_halo, lin_host=args.lin_host,g0info=g0info, reset=args.reset)
 
 #==============================================================================
 

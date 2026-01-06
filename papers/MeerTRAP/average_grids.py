@@ -1,12 +1,6 @@
 """
-This file demonstrates how to use MCMC output to sample random walkers,
-and generate zDM grids which include the uncertainty in best-fit parameters.
-
-It requires an MCMC output to sample from - see the directory data/MCMC/
-for examples.
-
-Example input:
-python average_grids.py H0_prior10 -s MeerTRAPincoherent -n 10 -d "./"
+Iterates over the Hoffmann et al parameter set to estimate how many
+get ruled out by the z=2 scenario.
 """
 
 
@@ -25,14 +19,19 @@ from zdm import grid as zdm_grid
 import copy
 from zdm import pcosmic
 from matplotlib import pyplot as plt
+import corner
+
+
+# run with python average_grids.py --survey=MeerTRAPcoherent -b 500 -d "../../zdm/scripts/MCMC/" -o "z2limit/" -i "H0_prior10"
+# these are now defaults
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument(dest='infile',type=str,help="Input HDF5 file containing MCMC results")
-    parser.add_argument('-s', '--survey', default='CRAFT_ICS_1300')
-    parser.add_argument('-d', '--directory', default=None, type=str, help="Directory containing the HDF5 file. Defaults to zdm/mcmc/")
-    parser.add_argument('-o', '--opdir', default="", type=str, help="Output directory for files")
-    parser.add_argument('-n', default=10, type=int, help="Number of parameter sets to calculate")
+    parser.add_argument('-i', '--infile',default="H0_prior10",type=str,help="Input HDF5 file containing MCMC results")
+    parser.add_argument('-s', '--survey', default='MeerTRAPcoherent')
+    parser.add_argument('-d', '--directory', default="../../zdm/scripts/MCMC/", type=str, help="Directory containing the HDF5 file. Defaults to zdm/mcmc/")
+    parser.add_argument('-o', '--opdir', default="z2limit/", type=str, help="Output directory for files")
+    parser.add_argument('-n', default=100, type=int, help="Number of parameter sets to calculate")
     parser.add_argument('-b', '--burnin', default=500, type=int, help="Burnin to discard from infile")
     args = parser.parse_args()
 
@@ -45,7 +44,7 @@ def main():
     # Parse command line arguments
     args = parse_args()
     # Read MCMC output file
-    samples, params, config = get_samples(args)
+    samples, params, config,labels = get_samples(args)
     
     if args.opdir != "":
         opdir = args.opdir+"/"
@@ -55,9 +54,15 @@ def main():
     else:
         opdir = "./"
     dmmax = 7000.0
-    ndm = 1400
-    nz = 500
-
+    #ndm = 1400
+    #nz = 500
+    dmmax = 4000
+    zmax = 4
+    ndm = 400
+    nz = 200
+    
+    load = False
+    
     # Set up state
     state = parameters.State()
     state.set_astropy_cosmo(Planck18)
@@ -65,124 +70,51 @@ def main():
         state.update_params(config)
     
     # We explicitly load this to allow the "average grids" routine
-    # to more speedily calculate many grids
+    # to more speedily calculate many grids. This only works because we
+    # are not changing H0 or F
     grid_vals = mf.get_zdm_grid(
         state, new=True, plot=False, method='analytic', 
-        nz=nz, ndm=ndm, dmmax=dmmax,
+        nz=nz, ndm=ndm, dmmax=dmmax, zmax = zmax,
         datdir=resources.files('zdm').joinpath('GridData'))
-
+    
     # Load survey
     # If the survey is not specified, then the default is to use CRAFT_ICS_1300
     s = survey.load_survey(args.survey, state, grid_vals[2])
 
     # Calculate and average grids
     print("Calculating average grids...")
-    rates, av_rates = average_grids(samples, params, s, state, grid_vals)
+    if load:
+        good_samples = np.load(opdir+"good_samples.npy")
+        bad_samples = np.load(opdir+"bad_samples.npy")
+    else:
+        good_samples,bad_samples = average_grids(samples, params, s, state, grid_vals,opdir)
     
+    do_cornerplot(good_samples,labels,opdir+"passing_parameters.png")
+    if len(bad_samples) == 0:
+        print("Nothing is bad!")
+    else:
+        print("Bad has length ",len(bad_samples))
+
+def do_cornerplot(samples,labels,savefile):
+    """
+    Args:
+        samples (np.array):
+            Array of samples of dimensions nwalkers x nparameters.
+            Used to create the cornerplot
+        labels (list of strings):
+            Text labels for each variable, in order of appearance in samples
+        savefile (string): filename for saved cornerplot
+            
+    """
+    fig = plt.figure(figsize=(12,12))
+
+    titles = ['' for i in range(samples.shape[1])] # no titles for the plots
+    truths = None
+    corner.corner(samples,labels=labels, show_titles=True, titles=titles, 
+                  fig=fig,title_kwargs={"fontsize": 15},label_kwargs={"fontsize": 15}, 
+                  quantiles=[0.16,0.5,0.84], truths=truths);
     
-    
-    # Do plotting
-    figures.plot_grid(
-        av_rates,
-        grid_vals[1],
-        grid_vals[2],
-        name=opdir+"averaged_grid.pdf",
-        norm=3,
-        log=True,
-        label='$\\log_{10} p({\\rm DM}_{\\rm IGM} + {\\rm DM}_{\\rm host},z)$ [a.u.]',
-        project=True,
-        ylabel='${\\rm DM}_{\\rm IGM} + {\\rm DM}_{\\rm host}$',
-        zmax=3,DMmax=3000 #,
-        #Aconts=[0.01, 0.1, 0.5]
-        )
-    
-    for i, rate in enumerate(rates):
-        figures.plot_grid(
-            rate,
-            grid_vals[1],
-            grid_vals[2],
-            name=opdir+"grid" + str(i) + ".pdf",
-            norm=3,
-            log=True,
-            label='$\\log_{10} p({\\rm DM}_{\\rm IGM} + {\\rm DM}_{\\rm host},z)$ [a.u.]',
-            project=True,
-            ylabel='${\\rm DM}_{\\rm IGM} + {\\rm DM}_{\\rm host}$',
-            zmax=3,DMmax=3000#,
-            #Aconts=[0.01, 0.1, 0.5]
-            )
-        
-    
-    # do DM porojection
-    fig, ax1 = plt.subplots()
-    fig, ax2 = plt.subplots()
-    
-    ax1.set_xlabel('z')
-    ax2.set_xlabel('z')
-    ax1.set_ylabel('p(z)')
-    ax2.set_ylabel('cumulative p(z)')
-    
-    for i, rate in enumerate(rates):
-        pz = np.sum(rate,axis=1)
-        cpz = np.cumsum(pz)
-        cpz /= cpz[-1]
-        ax1.plot(grid_vals[1],pz)
-        ax2.plot(grid_vals[1],cpz)
-       
-    pz = np.sum(av_rates,axis=1)
-    ax1.plot(grid_vals[1],pz,label="mean", color="black", linewidth=3)
-    
-    cpz = np.cumsum(pz)
-    cpz /= cpz[-1]
-    ax2.plot(grid_vals[1],cpz,label="mean", color="black", linewidth=3)
-    
-    plt.sca(ax1)
-    plt.ylim(0,None)
-    plt.legend()
-    plt.tight_layout()
-    plt.savefig(opdir+"z_projection.pdf")
-    plt.close()
-    
-    plt.sca(ax2)
-    plt.ylim(0,1)
-    plt.legend()
-    plt.tight_layout()
-    plt.savefig(opdir+"cumulative_z_projection.pdf")
-    plt.close()
-        
-    # do DM porojection
-    fig, ax1 = plt.subplots()
-    fig, ax2 = plt.subplots()
-    
-    for i, rate in enumerate(rates):
-        pdm = np.sum(rate,axis=0)
-        cpdm = np.cumsum(pdm)
-        cpdm /= cpdm[-1]
-        ax1.plot(grid_vals[2],pdm)
-        ax2.plot(grid_vals[2],cpdm)
-    
-    pdm = np.sum(av_rates,axis=0)
-    ax1.plot(grid_vals[2],pdm,label="mean", color="black", linewidth=3)
-    cpdm = np.cumsum(pdm)
-    cpdm /= cpdm[-1]
-    ax2.plot(grid_vals[2],cpdm,label="mean", color="black", linewidth=3)
-    
-    plt.sca(ax1)
-    plt.ylim(0,None)
-    plt.xlabel('DM')
-    plt.ylabel('p(DM)')
-    plt.legend()
-    plt.tight_layout()
-    plt.savefig(opdir+"dm_projection.pdf")
-    plt.close()
-    
-    plt.sca(ax2)
-    plt.ylim(0,None)
-    plt.xlabel('DM')
-    plt.ylabel('p(DM)')
-    plt.legend()
-    plt.tight_layout()
-    plt.savefig(opdir+"cumulative_dm_projection.pdf")
-    plt.close()
+    plt.savefig(savefile)
     
 def get_samples(args):
     # Read in the MCMC results without the burnin
@@ -222,11 +154,13 @@ def get_samples(args):
     # If there is no .out file, then the parameters must be specified manually
     else:
         params = ["sfr_n", "alpha", "lmean", "lsigma", "lEmax", "lEmin", "gamma", "H0"]
+        labels = [r"$n_{\rm sfr}$", r"$\alpha$", r"$\log_{10}\mu_h$", r"$\log_{10}\sigma_h$",
+                    r"$\log_{10} E_{\rm max}$",r"$\log_{10}E_{\rm min}$", r"$\gamma$", r"$H_0$"]
         config = None
+    
+    return sample, params, config, labels
 
-    return sample, params, config
-
-def average_grids(samples, params, s, state, grid_vals, log_halo=False,verbose=False):
+def average_grids(samples, params, s, state, grid_vals, opdir, zFRB = 2.148, pmin=0.01,log_halo=False,verbose=False):
 
     zDMgrid = grid_vals[0]
     zvals = grid_vals[1]
@@ -234,6 +168,10 @@ def average_grids(samples, params, s, state, grid_vals, log_halo=False,verbose=F
 
     av_rates = np.zeros([len(zvals), len(dmvals)])
     rates = []
+    
+    good_samples = []
+    bad_samples = []
+    
     # Load a grid for each parameter set
     for i in range(samples.shape[0]):
         if verbose:
@@ -263,10 +201,37 @@ def average_grids(samples, params, s, state, grid_vals, log_halo=False,verbose=F
             s, copy.deepcopy(state), zDMgrid, zvals, dmvals, mask, wdist=True
         )
         
-        av_rates += grid.rates
-        rates.append(grid.rates)
+        # we take all grid values where z_grid < z_FRB, but we use the highest one
+        # as "including" the FRB, so that we round conservatively
+        iz = np.where(grid.zvals < zFRB)[0]
+        izmin = iz[-1]
         
-    av_rates = av_rates / samples.shape[1]
-    return rates, av_rates
+        # get redshift distribution
+        zdist = np.sum(grid.rates,axis=1)
+        zdist = np.cumsum(zdist)
+        zdist /= zdist[-1]
+        
+        # probability of being larger
+        pz = 1.-zdist[izmin]
+        print("Found a cumulative pz! Prob of being larger is ",pz)
+        if pz < pmin:
+            # this parameter set rules out the detection, and is incompatible
+            bad_samples.append(samples[i])
+        else:
+            # it's all OK!!! It has enough probability at high z
+            good_samples.append(samples[i])
+        
+        #av_rates += grid.rates
+        #rates.append(grid.rates)
+    
+    # we now have a list of good and bad samples
+       
+    good = np.array(good_samples)
+    bad = np.array(bad_samples)
+    np.save(opdir+"good_samples.npy",good)
+    np.save(opdir+"bad_samples.npy",bad)
+    bad=[]
+    #av_rates = av_rates / samples.shape[1]
+    return good,bad
 
 main()

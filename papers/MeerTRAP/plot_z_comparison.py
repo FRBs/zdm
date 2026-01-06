@@ -1,5 +1,5 @@
 """ 
-This script creates a redshifty comparison figure of MeerTRAP,
+This script creates a redshift comparison figure of MeerTRAP,
 ASKAP/CRACO (estimates), DSA, and CHIME
 
 

@@ -97,7 +97,7 @@ class FRB(data_class.myDataClass):
                   'Notation': '',
                   })
     WIDTH: float = field( 
-        default=0.1, 
+        default=-1, 
         metadata={'help': "Width of the event", 
                   'unit': 'ms', 
                   'Notation': '',
@@ -111,6 +111,12 @@ class FRB(data_class.myDataClass):
     Z: float = field( 
         default=-1., 
         metadata={'help': "redshift; -1 means unlocalised", 
+                  'unit': '', 
+                  'Notation': '',
+                  })
+    B: float = field( 
+        default=-1., 
+        metadata={'help': "Beam value B at point of detection. Negative means unknown.", 
                   'unit': '', 
                   'Notation': '',
                   })
@@ -146,8 +152,8 @@ class Telescope(data_class.myDataClass):
                   'Notation': '',
                   })
     NBINS: int = field(
-        default=0, 
-        metadata={'help': "Number of bins for width analysis", 
+        default=5, 
+        metadata={'help': "Number of bins for beam analysis", 
                   'unit': '', 
                   'Notation': '',
                   })
@@ -164,8 +170,8 @@ class Telescope(data_class.myDataClass):
                   'Notation': '',
                   })
     WBIAS: str = field(
-        default="Quadrature", 
-        metadata={'help': "Method to calculate width bias", 
+        default="StdDev", 
+        metadata={'help': "Method to calculate width bias. Quadrature, Sammons, or StdDev", 
                   'unit': '', 
                   'Notation': '',
                   })
