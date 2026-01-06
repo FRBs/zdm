@@ -27,6 +27,8 @@ def main():
     
     """
     
+    opdir="Configs/"
+    
     #### Initialises general zDM stuff #####
     state = parameters.State()
     # approximate best-fit values from recent analysis
@@ -51,14 +53,20 @@ def main():
         for config in ["AA4","AAstar"]:
             infile = "inputs/"+tel+config+"_ID_radius_AonT_FoVdeg2"
             label = tel+"_"+config
-            generate_sensitivity_plot(infile,state,zDMgrid, zvals, dmvals, label, freq, bw)
+            generate_sensitivity_plot(infile,state,zDMgrid, zvals, dmvals, label, freq, bw,
+                                    opdir=opdir,plotdir=opdir)
     
 def generate_sensitivity_plot(infile,state,zDMgrid, zvals, dmvals, label, freq, bw,
-                        opdir = "outputs/", plotdir = "plotdir/"):
+                        opdir = "outputs/", plotdir = "plotdir/",load=False):
     """
     generates a plot of FRB rate vs Nelements used
     """
     
+    if not os.path.exists(opdir):
+        os.mkdir(opdir)
+    if not os.path.exists(plotdir):
+        os.mkdir(plotdir)
+        
     data=np.loadtxt(infile,dtype=str)
     radius = data[:,1].astype(float)
     sense_m2K = data[:,2].astype(float)
@@ -86,7 +94,7 @@ def generate_sensitivity_plot(infile,state,zDMgrid, zvals, dmvals, label, freq, 
     TOBS0 = 365.25 #calendar year
     TOBS = fov*TOBS0/fov[0]
     
-    if True:
+    if False:
         # produces a plot of sensitivity
         plt.figure()
         p1,=plt.plot(thresh_Jyms,label="Thresh",color="blue")

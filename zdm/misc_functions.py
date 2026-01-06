@@ -50,7 +50,7 @@ def get_w_tau_dist(grid,norm=True):
     
     state=grid.state # for shorter variable names
     survey = grid.survey
-    Wmethod = survey.meta["WMETHOD"]
+    Wmethod = survey.width_method
     if Wmethod == 0:
         print("WARNING: trivial width distribution: all 1ms")
         widths = np.array([1])

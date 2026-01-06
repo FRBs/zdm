@@ -86,11 +86,10 @@ class Grid:
             self.calc_thresholds(survey.meta["THRESH"],
                              efficiencies,weights=weights)
         else:
-            # if this is the case, why calc thresholds again below?
+            # this is called when the grid is not iterating over widths internally
             efficiencies = survey.mean_efficiencies # one dimension
             weights = None
             self.calc_thresholds(survey.meta["THRESH"], efficiencies, weights=weights)
-            efficiencies=survey.mean_efficiencies
         
         # Calculate
         self.calc_pdv()
@@ -495,6 +494,23 @@ class Grid:
         self.sfr_smear = np.multiply(self.smear_grid.T, self.sfr).T
 
         self.rates = self.pdv * self.sfr_smear
+        
+    def get_rates(self):
+        """
+        Returns rates, multiplied by the relevant constant,
+        and accounting for any DM preference via a DM mask
+        """
+        
+        rates = np.zeros(self.rates.shape)
+        rates[:,:] = self.rates * 10**self.state.FRBdemo.lC
+        # multiplies by DM mask if applicable
+        if self.survey.dm_mask is not None:
+            rates = rates*self.survey.dm_mask
+        elif self.survey.max_dm is not None:
+            # in case a maximum DM is set in survey
+            if self.survey.max_idm < self.dmvals.size-1:
+                rates[:,self.survey.max_idm+1:]=0.
+        return rates
 
     def calc_thresholds(self, F0:float, 
                         eff_table, 
