@@ -9,9 +9,9 @@
         "luminosity_function": 2,
         "alpha_method": 1,
         "halo_method": 0,
-        "sigmaDMG": 0.0,
+        "sigmaDMG": 0.2,
         "sigmaHalo": 15.0,
-        "min_lat": 30.0
+        "min_lat": 20.0
     },
     "logF": {
         "DC": "cosmo",

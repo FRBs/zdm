@@ -92,25 +92,23 @@ def calc_log_posterior(param_vals, state, params, surveys_sep, Pn=False, pNreps=
         # it is easy to reach impossible regions of the parameter space. This results in math errors
         # (log(0), log(negative), sqrt(negative), divide 0 etc.) and hence we assume that these math errors
         # correspond to an impossible region of the parameter space and so set ll = -inf
-        #try:
-        if True:
-            # Set state
-            state.update_params(param_dict)
+        # try:
+        # Set state
+        state.update_params(param_dict)
 
-            surveys = surveys_sep[0] + surveys_sep[1]
+        surveys = surveys_sep[0] + surveys_sep[1]
 
-            # Recreate grids every time, but not surveys, so must update survey params
-            for i,s in enumerate(surveys):
-                
-                
-                # updates survey according to DMhalo estimates
-                if 'DMhalo' in param_dict:
-                    if log_halo:
-                        DMhalo = 10**param_dict['DMhalo']
-                    else:
-                        DMhalo = param_dict['DMhalo']
-                    s.init_DMEG(DMhalo)
-                    s.get_efficiency_from_wlist(s.DMlist,s.wlist,s.wplist,model=s.meta['WBIAS']) 
+        # Recreate grids every time, but not surveys, so must update survey params
+        for i,s in enumerate(surveys):
+
+            # updates survey according to DMhalo estimates
+            if 'DMhalo' in param_dict:
+                if log_halo:
+                    DMhalo = 10**param_dict['DMhalo']
+                else:
+                    DMhalo = param_dict['DMhalo']
+                s.init_DMEG(DMhalo)
+                s.init_widths(state)
 
             # Initialise grids
             grids = []
@@ -133,16 +131,17 @@ def calc_log_posterior(param_vals, state, params, surveys_sep, Pn=False, pNreps=
                 # for g in grids:
                 #     g.state.FRBdemo.lC = newC
 
-                # if isinstance(g, repeat_grid.repeat_Grid):
-                #     g.state.rep.RC = g.state.rep.RC / 10**oldC * 10**newC
+            # if isinstance(g, repeat_grid.repeat_Grid):
+            #     g.state.rep.RC = g.state.rep.RC / 10**oldC * 10**newC
 
-            # calculate all the likelihoods
-            llsum = 0
-            for s, grid in zip(surveys, grids):
-                ll = it.get_log_likelihood(grid,s,Pn=Pn,pNreps=pNreps)
-                llsum += ll
-                if ind_surveys:
-                    ll_list.append(ll)
+        # calculate all the likelihoods
+        llsum = 0
+        for s, grid in zip(surveys, grids):
+            ll = it.get_log_likelihood(grid,s,Pn=Pn,pNreps=pNreps,psnr=psnr)
+            llsum += ll
+
+            if ind_surveys:
+                ll_list.append(ll)
 
         #except ValueError as e:
         #    print("Error, setting likelihood to -inf: " + str(e))
@@ -152,9 +151,7 @@ def calc_log_posterior(param_vals, state, params, surveys_sep, Pn=False, pNreps=
     if np.isnan(llsum):
         print("llsum was NaN. Setting to -infinity", param_dict)    
         llsum = -np.inf
-    
-    # print("Posterior calc time: " + str(time.time()-t0) + " seconds", flush=True)
-    
+
     if ind_surveys:
         return llsum, ll_list
     else:
@@ -162,7 +159,7 @@ def calc_log_posterior(param_vals, state, params, surveys_sep, Pn=False, pNreps=
 
 #==============================================================================
 
-def mcmc_runner(logpf, outfile, state, params, surveys, grid_params, nwalkers=10, nsteps=100, nthreads=1, Pn=False, pNreps=True, log_halo=False, lin_host=False):
+def mcmc_runner(logpf, outfile, state, params, surveys, grid_params, nwalkers=10, nsteps=100, nthreads=1, Pn=False, pNreps=True, log_halo=False, lin_host=False, reset=True):
     """
     Handles the MCMC running.
 
@@ -190,7 +187,12 @@ def mcmc_runner(logpf, outfile, state, params, surveys, grid_params, nwalkers=10
     """
         
     ndim = len(params)
-    starting_guesses = []
+    backend = emcee.backends.HDFBackend(outfile+'.h5')
+
+    # Check to reset the backend or not
+    if reset or not os.path.exists(outfile+'.h5'):
+        backend.reset(nwalkers, ndim)
+        starting_guesses = []
 
     # Produce starting guesses for each parameter
     for key,val in params.items():
