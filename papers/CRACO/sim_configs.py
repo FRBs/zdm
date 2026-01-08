@@ -1,3 +1,8 @@
+"""
+This script iterates over available beam configurations
+and simulates their beam patterns
+"""
+
 import numpy as np
 import importlib.resources as resources
 import os
@@ -8,18 +13,25 @@ def main():
     Loads in unique configs, and generates beamfiles for them
     """
     
+    configfile="Logs/configs.csv"
+    sim_all_configs("BeamHistograms/",configfile,False)
+    sim_all_configs("PrimaryBeams/",configfile,True)
     
-    sim_all_configs("BeamHistograms/",False)
-    sim_all_configs("PrimaryBeams/",True)
-    
+    configfile="Logs/3ms_configs.csv"
+    sim_all_configs("BeamHistograms/",configfile,False)
+    sim_all_configs("PrimaryBeams/",configfile,True)
 
-def sim_all_configs(Bdir,primary=False):
-    
-    configs = pd.read_csv("Logs/configs.csv")# np.loadtxt("configs.dat",dtype="str")
+def sim_all_configs(Bdir,configfile,primary=False):
+    """
+    Args:
+        Bdir [string]: directory for beam data
+        configfile [string]: file for telescope configuration data
+        primary [bool]: if True, simulate primary beam only
+    """
+    configs = pd.read_csv(configfile)# np.loadtxt("configs.dat",dtype="str")
     nconfigs = len(configs)
     
     pyfile = os.path.join(resources.files('zdm'), 'beam_generator','sim_craco_beam.py')
-    
     
     for i in np.arange(nconfigs):
         
@@ -46,7 +58,7 @@ def sim_all_configs(Bdir,primary=False):
         basename = f"{Bdir}/hist_craco_{footprint}_p{fpitch:.2f}_f{freq:.1f}MHz_f{gsize:.1f}d_npix{gpix}_.npy"
         basename2 = f"./hist_craco_{footprint}_p{fpitch:.2f}_f{freq:.1f}MHz_f{gsize:.1f}d_npix{gpix}_.npy"
         basename3 = f"./craco_{footprint}_p{fpitch:.2f}_f{freq:.1f}MHz_f{gsize:.1f}d_npix{gpix}.npy"
-        if False: #os.path.exists(basename):
+        if os.path.exists(basename):
             print("Found ",basename)
         else:
             command = "python "+pyfile +" -fp " + footprint + " -p " + spitch + " -f " + sfreq[0:7] + " --primary="+str(primary)
@@ -60,6 +72,6 @@ def sim_all_configs(Bdir,primary=False):
             os.system(command)
         
     
-        exit()
+
 
 main()

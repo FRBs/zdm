@@ -20,10 +20,27 @@ matplotlib.rc('font', **font)
 
 def main():
     """
-    
+    main file, to iterate over different CRACO surveys
     """
     
-    df = pd.read_csv("Logs/craco_13ms_survey_db.weight.altaz.csv")
+    #13.8ms survey
+    print_metrics("Logs/craco_13ms_survey_db.weight.altaz.csv",frblog="Logs/CRACO_13.8ms_zdm.dmgal.altaz.mjd.csv")
+    
+    #3.4ms survey
+    print_metrics("Logs/craco_3ms_survey_db.csv",prefix="3ms_")
+    
+def print_metrics(logfile,prefix="",frblog=None):
+    """
+    Prints metrics for given logfile.
+    
+    Args:
+        logfile [string]: name of observation logfile.
+        prefix [string]: prefix to append to outouts
+        frblog [string or None]: if present, generate a cumulative plot
+                                of FRB detection rates vs observation time
+    """
+    
+    df = pd.read_csv(logfile)
     print(df.columns)
     
     LOW = np.where(df["fbar"] < 1000)[0]
@@ -33,22 +50,27 @@ def main():
     print_mean_values(df,LOW,HIGH)
     
     # produces some basic plots
-    do_basic_plots(df,LOW,HIGH)
+    do_basic_plots(df,LOW,HIGH,prefix)
     
     # plots example of sampling time effet
     plot_tsamp()
     
-    frbs = pd.read_csv("Logs/CRACO_13.8ms_zdm.dmgal.altaz.mjd.csv")
+    if frblog is not None:
+        frbs = pd.read_csv(frblog)
     
-    # produces plot of cumulative effective and normal time vs detected FRBs
-    plot_cumulative(df,LOW,HIGH,frbs,ks=True)
+        # produces plot of cumulative effective and normal time vs detected FRBs
+        plot_cumulative(df,LOW,HIGH,frbs,ks=True)
     
-    # load_frbs
-    match_values(df,frbs)
+        # load_frbs
+        match_values(df,frbs)
     
 def match_values(df,frbs):
     """
     For each frb, get slices corresponding to which observation they were found in
+    
+    Args:
+        df: pandas dataframe containing logfile info
+        frbs: pandas dataframe containing observed FRB info
     """
     scans = frbs["scan"]
     for i,scan in enumerate(scans):
@@ -62,6 +84,11 @@ def match_values(df,frbs):
 def print_mean_values(df,LOW,HIGH):
     """
     Prints mean values of various quantities
+    
+    args:
+        df: pandas dataframe containing logfile info
+        LOW [list]: indices of data frame corresponding to 900 MHz sample
+        HIGH [list]: indices of data frame corresponding to 1300 MHz sample
     """
     
     
@@ -71,9 +98,10 @@ def print_mean_values(df,LOW,HIGH):
     LTeff = np.sum(df["t_eff"][LOW])
     HTeff = np.sum(df["t_eff"][HIGH])
     print("Total time is ",Ttot/3600," with ",LTtot/3600," at low, and ",HTtot/3600," at high")
+    print("Effective time includes bandwidth, Nant, and gf; NOT beam, DM, or width")
     print("Total effective time is ",LTeff/3600," at low, and ",HTeff/3600," at high")
-    print("Mean low frequency is ",np.sum(df["tobs"][LOW]*df["fbar"][LOW])/LTtot)
-    print("Mean high frequency is ",np.sum(df["tobs"][HIGH]*df["fbar"][HIGH])/HTtot,"\n\n\n")
+    print("Mean high frequency is ",np.sum(df["tobs"][HIGH]*df["fbar"][HIGH])/HTtot)
+    print("Mean low frequency is ",np.sum(df["tobs"][LOW]*df["fbar"][LOW])/LTtot,"\n\n\n")
     
     
     # on average, we have lost 0.913 due to bandwidth
@@ -98,14 +126,19 @@ def print_mean_values(df,LOW,HIGH):
     print("High nant loss ",np.sum(df['w_nant'][HIGH]*df["tobs"][HIGH])/HTtot,"\n\n")
     
     
-    
-    # but NOT calculating width, 
-
 
 
 def plot_cumulative(df,LOW,HIGH,frbs,ks=True):
     """
     Generates some cumulative plots
+    
+    args:
+        df: pandas dataframe containing logfile info
+        LOW [list]: indices of data frame corresponding to 900 MHz sample
+        HIGH [list]: indices of data frame corresponding to 1300 MHz sample
+        frbs: pandas dataframe giving FRB info
+        ks [bool]: if True, perform a ks test on the two distributions
+                    for consistency
     """
     
     teff = df["t_eff"]*df["bfactors"]
@@ -180,14 +213,15 @@ def plot_cumulative(df,LOW,HIGH,frbs,ks=True):
     plt.savefig("Plots/raw_cumulative_fig.png")
     plt.close()
     
-def do_basic_plots(df,LOW,HIGH):
+def do_basic_plots(df,LOW,HIGH,prefix):
     """
     Produces basic plots
     
     Args:
         df: pandas dataframe containing info
-        LOW: indices correspomnding to low frequencies
+        LOW: indices corresponding to low frequencies
         HIGH: indices corresponding to high frequencies
+        prefix [string]: prefix for outputs
         
     """
     
@@ -199,7 +233,7 @@ def do_basic_plots(df,LOW,HIGH):
     plt.hist(df["nant"],bins=bins,weights=df["tobs"]/3600)
     plt.xlim(14,26)
     plt.tight_layout()
-    plt.savefig("Plots/Nant_hist.png")
+    plt.savefig("Plots/"+prefix+"Nant_hist.png")
     plt.close()
     
     #### Bandwidth ####
@@ -212,7 +246,7 @@ def do_basic_plots(df,LOW,HIGH):
     plt.hist(df["nchans"],bins=bins,weights=df["tobs"]/3600)
     #plt.xlim(14,26)
     plt.tight_layout()
-    plt.savefig("Plots/bw_hist.png")
+    plt.savefig("Plots/"+prefix+"bw_hist.png")
     plt.close()
     
     ##### central frequency ###
@@ -223,7 +257,7 @@ def do_basic_plots(df,LOW,HIGH):
     plt.hist(df["fbar"],bins=bins,weights=df["tobs"]/3600)
     plt.xlim(750,1500)
     plt.tight_layout()
-    plt.savefig("Plots/Fbar_hist.png")
+    plt.savefig("Plots/"+prefix+"Fbar_hist.png")
     plt.close()
     
     
@@ -237,7 +271,7 @@ def do_basic_plots(df,LOW,HIGH):
     plt.hist(df["goodfrac"],bins=bins,weights=df["nsamples"]*df["tsamp"]/3600)
     #plt.xlim(14,26)
     plt.tight_layout()
-    plt.savefig("Plots/gf_hist.png")
+    plt.savefig("Plots/"+prefix+"gf_hist.png")
     plt.close()
     
     plt.figure()
@@ -248,7 +282,7 @@ def do_basic_plots(df,LOW,HIGH):
     plt.hist(df["goodfrac"][HIGH],bins=bins,weights=df["nsamples"][HIGH]*df["tsamp"][HIGH]/3600,label="1300 MHz")
     plt.legend()
     plt.tight_layout()
-    plt.savefig("Plots/gf_hist_by_freq.png")
+    plt.savefig("Plots/"+prefix+"gf_hist_by_freq.png")
     plt.close()
     
     

@@ -2,6 +2,7 @@
 
 import numpy as np
 import pandas as pd
+import os
 from matplotlib import pyplot as plt
 
 def main():
@@ -9,20 +10,42 @@ def main():
     Reads in CRACO log file, extracts unique configurations,
     produces observation time for each unique configuration
     """
-    
-    df = read_logfile(infile = "Logs/craco_13ms_survey_db.weight.altaz.csv")
+    infile = "Logs/craco_13ms_survey_db.weight.altaz.csv"
+    df = read_logfile(infile = infile)
     
     # adds statistical weighting factors
     # turn on if extra info is not yet generated
-    #opfile = "Logs/craco_13ms_survey_db.weight.altaz.csv"
-    #df = add_columns(df,opfile) 
+    df = add_columns(df,infile) 
     
     # gets unique configurations
-    get_unique(df)
-
+    logfile="Logs/configs.csv"
+    if not os.path.exists(logfile):
+        get_unique(df,logfile)
+    
+    
+    ##### 3.4ms survey ####
+    
+    infile = "Logs/craco_3ms_survey_db.csv"
+    df = read_logfile(infile = infile)
+    
+    # adds statistical weighting factors
+    # turn on if extra info is not yet generated
+    df = add_columns(df,infile) 
+    
+    # gets unique configurations
+    # gets unique configurations
+    logfile="Logs/3ms_configs.csv"
+    if not os.path.exists(logfile):
+        get_unique(df,logfile)
+    
+    
+    
 def add_columns(df,opfile):
     """
     Adds statistical weighting factors and other derived data
+    Args:
+        df: pandas dataframe containing observation info
+        opfile [string]: name of the output logfile
     """
     
     
@@ -63,6 +86,11 @@ def add_columns(df,opfile):
 def read_logfile(infile = "Logs/craco_13ms_survey_db.csv"):
     """
     read logfile
+    Args:
+        infile [string]: name of logfile
+    
+    Returns:
+        df: pandas dataframe containing log info
     """
     
     df = pd.read_csv(infile)
@@ -70,9 +98,13 @@ def read_logfile(infile = "Logs/craco_13ms_survey_db.csv"):
     #print(df.columns)
     return df
     
-def get_unique(df):
+def get_unique(df,opfile):
     """
-     gets unique combinations of footprint, frequency, and pitch
+    gets unique combinations of footprint, frequency, and pitch
+    
+    Args:
+        df: pandas dataframe containing log info
+        opfile: name of output file
     """
     
     footprints = np.unique(df["footprint"])
@@ -124,5 +156,7 @@ def get_unique(df):
             "Teff": wtotal}
     
     df = pd.DataFrame(data)
-    df.to_csv("Logs/configs.csv",index=False)
+    df.to_csv(opfile,index=False)
+
+
 main()

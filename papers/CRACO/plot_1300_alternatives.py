@@ -3,10 +3,7 @@ This script  plots the resulting redshift and dm distributions
 from various alternative hypothertical CRACO setups,
 in order to estimate the effects on the system
 
-Results:
-    For Jordan Halo model:
-        CHIME: 1300: 5.07 worse width, same DM
-        Updated: 3.43
+This one is limited to 1300 MHz observations
 
 """
 import os
@@ -38,7 +35,9 @@ from matplotlib import pyplot as plt
 import importlib.resources as resources
 
 def main():
-    
+    """
+    Main function - it loads in various surveys, and calculates their rates.
+    """
     # in case you wish to switch to another output directory
     
     opdir="TestSurveys/"
@@ -57,9 +56,11 @@ def main():
     
     # Initialise surveys and grids
     sdir = resources.files('zdm').joinpath('../papers/CRACO/TestSurveys')
-    names=['CRAFT_CRACO_1300','CRAFT_CRACO_1300_w1.28','CRAFT_CRACO_1300_nodm',]
-    labels = ["CRACO 1300 MHz","$t_{\\rm samp} = 1.28$ ms","All DMs searched"]
-    linestyles=["-","-.","--",":","-"]
+    names=['CRAFT_CRACO_1300','CRAFT_CRACO_1300_w1.28','CRAFT_CRACO_1300_nodm',
+            'CRAFT_CRACO_1300_3ms','CRAFT_CRACO_1300_3ms_alldm','CRAFT_CRACO_1300_3ms_at_1.28_alldm']
+    labels = ["CRACO 1300 MHz","$t_{\\rm samp} = 1.28$ ms","All DMs searched",
+                "3.4 ms","3.4ms all DM"," at 1.28ms"]
+    linestyles=["-","-.","--",":","-","-.","--",":","-"]
     nz=400
     zmax=4
     ndm=500
@@ -156,14 +157,24 @@ def main():
             plt.savefig("Plots/CRACO1300_dmcomparison2.png")
             
     plt.sca(ax1)
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig("Plots/CRACO1300_zcomparison.png")
     plt.close()
     
     plt.sca(ax2)
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig("Plots/CRACO1300_dmcomparison.png")
     plt.close()
     
 def plot_efficiencies(gs,ss):
     """
-    Does some efficiency plots
+    Makes some efficiency plots
+    
+    Args:
+        gs [list of grids]: grid objects to plot
+        ss [ list of surveys]: survey objects to plot
     """
     ###### plots efficiencies ######
     plt.figure()
@@ -202,6 +213,9 @@ def plot_efficiencies(gs,ss):
 def check_FE(state):
     """
     Checks FRB rate compared to Fly's Eye rate, which is the most reliable and consistent
+    
+    Args:
+        state: zDM state object, to be used for Fly's Eye rate calculation
     """
     ###### Checks normalisation ######
     ss,gs = loading.surveys_and_grids(

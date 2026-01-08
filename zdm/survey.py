@@ -1,8 +1,37 @@
-# ###############################################
-# This file defines a class to hold an FRB survey
-# Essentially, this is relevant when multiple
-# FRBs are discovered by the same instrument
-# ##############################################
+"""
+FRB Survey class for modeling telescope observations.
+
+This module provides the Survey class, which encapsulates all properties of an
+FRB survey including instrument characteristics, beam patterns, detection
+efficiencies, and detected FRB data.
+
+The Survey class handles:
+- Loading survey definition files (ECSV format) with FRB metadata
+- Beam pattern modeling and solid angle calculations
+- Detection efficiency as a function of DM and width
+- DM budget calculations (Galactic, halo, host contributions)
+- Threshold calculations for FRB detection
+
+Survey Definition Files
+-----------------------
+Survey files are stored in `zdm/data/Surveys/` and contain:
+- Header metadata: telescope parameters, beam settings, frequency, etc.
+- FRB table: TNS name, DM, position, width, fluence for each detection
+
+Example
+-------
+>>> from zdm import survey
+>>> from zdm.parameters import State
+>>> state = State()
+>>> dmvals = np.linspace(0, 3000, 1000)
+>>> s = survey.Survey(state, 'CRAFT/ICS', 'CRAFT_ICS.ecsv', dmvals)
+>>> s.NFRB  # Number of FRBs
+10
+>>> s.DMEGs  # Extragalactic DM values
+array([...])
+
+Author: C.W. James
+"""
 
 import numpy as np
 import os
@@ -33,30 +62,61 @@ from astropy.coordinates import SkyCoord
 MIN_THRESH = 1e-10
 
 class Survey:
-    def __init__(self, state, survey_name:str, 
-                 filename:str, 
-                 dmvals:np.ndarray,
-                 zvals:np.ndarray=None,
-                 NFRB:int=None, 
-                 iFRB:int=0,
+    """Represents an FRB survey with instrument properties and detected FRBs.
+
+    The Survey class is the primary interface for defining telescope
+    characteristics and loading FRB detections. It computes detection
+    efficiencies across the DM-width-fluence parameter space.
+
+    Attributes
+    ----------
+    name : str
+        Survey identifier (e.g., 'CRAFT/ICS', 'Parkes/Mb').
+    NFRB : int
+        Number of FRBs in the survey.
+    DMEGs : ndarray
+        Extragalactic DM values for detected FRBs.
+    Zs : ndarray or None
+        Redshifts for localized FRBs (None if unknown).
+    meta : dict
+        Survey metadata from file header.
+    efficiencies : ndarray
+        Detection efficiency grid as function of DM and width.
+    """
+
+    def __init__(self, state, survey_name: str,
+                 filename: str,
+                 dmvals: np.ndarray,
+                 zvals: np.ndarray = None,
+                 NFRB: int = None,
+                 iFRB: int = 0,
                  edir=None,
                  rand_DMG=False,
                  survey_dict=None):
-        """ Init an FRB Survey class
+        """Initialize an FRB Survey.
 
-        Args:
-            state (_type_): _description_
-            survey_name (str): 
-                Name of the survey
-            filename (str): _description_
-            dmvals (np.ndarray): Extragalactic DM values at which to calculate efficiencies
-            zvals  (np.ndarray): Redshift values at which to calculate efficiencies
-            NFRB (int, optional): _description_. Defaults to None.
-            iFRB (int, optional): _description_. Defaults to 0.
-            edir (str, optional): Location of efficiency files
-            rand_DMG (bool): If true randomise the DMG values within uncertainty
-            survey_dict (dict, optional): Dict of survey data meta-parameters to over-ride
-                            values in the survey file
+        Parameters
+        ----------
+        state : parameters.State
+            State object containing model parameters.
+        survey_name : str
+            Identifier for the survey (e.g., 'CRAFT/ICS').
+        filename : str
+            Path to survey definition file (ECSV format).
+        dmvals : ndarray
+            Extragalactic DM grid values for efficiency calculations.
+        zvals : ndarray, optional
+            Redshift grid values. Required for some width methods.
+        NFRB : int, optional
+            Limit number of FRBs loaded from file.
+        iFRB : int, optional
+            Starting index for FRB selection. Default is 0.
+        edir : str, optional
+            Directory containing pre-computed efficiency files.
+        rand_DMG : bool, optional
+            If True, randomize Galactic DM within uncertainty. Default False.
+        survey_dict : dict, optional
+            Override survey metadata parameters.
         """
         # Proceed
         self.state = state

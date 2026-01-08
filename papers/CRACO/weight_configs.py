@@ -1,3 +1,11 @@
+"""
+This script takes in all simulated configs,
+and adds them together with appropriate weights to
+create an average beamshape.
+
+It also adds the beam sensitivity values to the logfile
+"""
+
 import numpy as np
 import importlib.resources as resources
 import os
@@ -7,14 +15,37 @@ def main():
     Loads in unique configs, and generates beamfiles for them,
     weighted by the time on sky
     """
-    # turn on add to add beamfactors column
-    gen_weighted_beams("BeamHistograms/","FinalBeams/",add=False)
-    # turn on this to generate files for the primary beam
-    gen_weighted_beams("PrimaryBeams/","PrimaryBeams/")
-
-def gen_weighted_beams(indir,opdir,add=False):  
     
-    configs = pd.read_csv("Logs/configs.csv")# np.loadtxt("configs.dat",dtype="str")
+    print("######## Generating beamfile for 13.8ms mode ######## ")
+    configfile="Logs/configs.csv"
+    logfile="Logs/craco_13ms_survey_db.weight.altaz.csv"
+    # turn on add to add beamfactors column
+    gen_weighted_beams("BeamHistograms/","FinalBeams/",configfile,logfile,add=False)
+    # turn on this to generate files for the primary beam
+    gen_weighted_beams("PrimaryBeams/","PrimaryBeams/",configfile,logfile,add=False)
+    
+    #### 3ms background #####
+    print("######## Generating beamfile for 3.4ms mode ######## ")
+    configfile="Logs/3ms_configs.csv"
+    logfile="Logs/craco_3ms_survey_db.csv"
+    # turn on add to add beamfactors column
+    gen_weighted_beams("BeamHistograms/","FinalBeams/",configfile,logfile,add=True,prefix="3ms_")
+    # turn on this to generate files for the primary beam
+    gen_weighted_beams("PrimaryBeams/","PrimaryBeams/",configfile,logfile,add=False,prefix="3ms_")
+
+def gen_weighted_beams(indir,opdir,configfile,logfile,add=False,prefix=""):  
+    """
+    Generates summed beams over all configurations
+    
+    Args:
+        indir [string]: input directory for the beam footprint data
+        opdir [string]: output directory
+        configfile [string]: name of file containing configuration logs
+        logfile [string]: name of file containing logs of all observations
+        add [bool]: if true, add weights to the log file
+        prefix [string]: prefix to apply to output
+    """
+    configs = pd.read_csv(configfile)# np.loadtxt("configs.dat",dtype="str")
     nconfigs = len(configs)
     
     pyfile = os.path.join(resources.files('zdm'), 'beam_generator','sim_craco_beam.py')
@@ -26,8 +57,8 @@ def gen_weighted_beams(indir,opdir,add=False):
     bfactors = bcentres**1.5
     
     fcut = 1100
-    name1="CRACO_900_hist.npy"
-    name2="CRACO_1300_hist.npy"
+    name1=prefix+"CRACO_900_hist.npy"
+    name2=prefix+"CRACO_1300_hist.npy"
     t1=0.
     t2=0.
     h1 = np.zeros([nbins])
@@ -93,25 +124,29 @@ def gen_weighted_beams(indir,opdir,add=False):
     np.save(opdir+name1,h1)
     np.save(opdir+name2,h2)
     
-    print("Total effective sensitivity of beam1 is ",np.sum(bfactors*h1))
-    print("Total effective sensitivity of beam2 is ",np.sum(bfactors*h2))
+    print("Total effective sensitivity of 900 MHz beam is ",np.sum(bfactors*h1))
+    print("Total effective sensitivity of 1300 MHz beam is ",np.sum(bfactors*h2))
     
     bfs = np.array(bfs)
-    df = pd.read_csv("Logs/configs.csv")
+    df = pd.read_csv(configfile)
     df["bfactors"]=bfs
-    df.to_csv("Logs/configs.csv",index=False)
+    df.to_csv(configfile,index=False)
     
     # adds beam factors to the  configs file
     if add:
-        add_beamfactors()
+        add_beamfactors(configfile,logfile)
     
-def add_beamfactors():
+def add_beamfactors(configfile,logfile):
     """
     Adds relative beam factors as weighting to data
+    
+    Args:
+        configfile [string]: name of file containing configuration logs
+        logfile [string]: name of file containing logs of all observations
     """
     
-    dfc = pd.read_csv("Logs/configs.csv")
-    df = pd.read_csv("Logs/craco_13ms_survey_db_with_weights.csv")
+    dfc = pd.read_csv(configfile)
+    df = pd.read_csv(logfile)
     nobs = len(df)
     bfs = np.zeros([nobs])
     
@@ -137,5 +172,5 @@ def add_beamfactors():
     
     df["bfactors"]=bfs
     
-    df.to_csv("Logs/craco_13ms_survey_db_with_weightsB.csv",index=False)
+    df.to_csv(logfile)
 main()
