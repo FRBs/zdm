@@ -1,4 +1,18 @@
-""" Items related to dataclasses """
+"""
+Base dataclass utilities for parameter management.
+
+This module provides base classes used by the parameter dataclasses
+in the zdm package. These provide common functionality for serialization,
+dictionary access, and parameter metadata handling.
+
+Classes
+-------
+myDataClass
+    Base class for parameter dataclasses with metadata access methods.
+myData
+    Base class for composite data objects containing multiple dataclasses.
+"""
+
 import numpy as np
 import json
 import pandas

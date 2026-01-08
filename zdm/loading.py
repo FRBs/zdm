@@ -1,4 +1,21 @@
-""" Load up the Real data """
+"""
+High-level functions for loading surveys and initializing analysis state.
+
+This module provides convenience functions for setting up zdm analysis,
+including loading survey data and creating properly configured State objects.
+
+Main Functions
+--------------
+- `set_state`: Create a State object with best-fit or default parameters
+- `load_survey`: Load a single survey from file
+- `load_CHIME`, `load_Parkes`, etc.: Survey-specific loaders
+
+Example
+-------
+>>> from zdm import loading
+>>> state = loading.set_state()
+>>> surveys, grids = loading.surveys_and_grids()
+"""
 
 # It should be possible to remove all the matplotlib calls from this
 # but in the current implementation it is not removed.
@@ -15,7 +32,27 @@ from zdm import figures
 
 from IPython import embed
 
+
 def set_state(alpha_method=1, cosmo=Planck18):
+    """Create a State object with default or best-fit parameters.
+
+    Initializes a State with parameters appropriate for FRB z-DM analysis.
+    Parameter values depend on the chosen alpha_method.
+
+    Parameters
+    ----------
+    alpha_method : int, optional
+        Method for handling spectral index alpha.
+        0: Spectral index interpretation with k-correction.
+        1: Rate interpretation with (1+z)^alpha evolution (default).
+    cosmo : astropy.cosmology.Cosmology, optional
+        Astropy cosmology to use. Default is Planck18.
+
+    Returns
+    -------
+    parameters.State
+        Initialized State object with all parameters set.
+    """
 
     ############## Initialise parameters ##############
     state = parameters.State()

@@ -1,3 +1,18 @@
+"""
+Miscellaneous utility functions for the zdm package.
+
+This module contains various helper functions used throughout the zdm package
+including grid initialization, parameter updates, probability calculations,
+and other common operations.
+
+Main Functions
+--------------
+- `make_zDMgrid`: Initialize z-DM probability grids
+- `get_zdm_grids`: Create grids for multiple surveys
+- `update_grid`: Update grid with new parameter values
+- `interpolate_grid`: Interpolate grid values
+"""
+
 import os
 import sys
 import numpy as np
