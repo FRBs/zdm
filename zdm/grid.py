@@ -39,7 +39,7 @@ from zdm import pcosmic
 from zdm import io
 import time
 import warnings
-
+import importlib.resources as resources
 
 class Grid:
     """2D grid for computing FRB detection rates as a function of z and DM.
@@ -541,17 +541,20 @@ class Grid:
             exit()
         
         if self.survey.survey_data.observing.Z_FRACTION is not None:
-            sdir = os.path.join(resource_filename('zdm', 'data'), 'Optical')
-            self.linear_interpolation(np.load(sdir+"/fz_24.7.npy"),np.load(sdir+"/zvals.npy"),self.survey.survey_data.observing.Z_FRACTION)
-            self.fz=np.load(sdir+"/"+self.survey.survey_data.observing.Z_FRACTION+"_fz.npy")
-            self.sfr*=self.fz
+            fdir = str(resources.files('zdm').joinpath('data/optical'))
+            ffile = fdir + "/fz_"+str(self.survey.survey_data.observing.Z_FRACTION)+".npy"
+            zfile = fdir + "/z_"+str(self.survey.survey_data.observing.Z_FRACTION)+".npy"
+            self.construct_fz(ffile,zfile)
+            self.sfr *= self.fz
 
         self.sfr_smear = np.multiply(self.smear_grid.T, self.sfr).T
-
+        
+        # below could pass more parameters internally, but this may not
+        # be the final implementation
         self.rates = self.pdv * self.sfr_smear
-
-        if self.state.photo.smearing is True:
-            self.smear_z(self.rates)
+        self.zsigma = self.survey.survey_data.observing.Z_PHOTO
+        if self.zsigma > 0.:
+            self.smear_zgrid = self.smear_z(self.rates,self.zsigma)
             self.rates=self.smear_zgrid
         
     def get_rates(self):
@@ -786,9 +789,13 @@ class Grid:
                 pdv = np.multiply(wb_fraction.T, self.dV).T
                 rate = pdv * self.sfr_smear
                 
-                if self.state.photo.smearing is True:
-                    self.smear_z(rate)
-                    rate=np.copy(self.smear_zgrid)
+                # We do not implement photo-z smearing here
+                # the MC generates truth values of parameters
+                # smearing can be done very simple afterwards
+                # this smears the
+                #if self.survey.observing.Z_PHOTO > 1.:
+                #    rate = self.smear_z(rate,self.survey.observing.Z_PHOTO)
+                #    #rate=np.copy(self.smear_zgrid)
 
                 rates.append(rate)
                 pwb[i * nw + j] = np.sum(rate)
@@ -1249,28 +1256,52 @@ class Grid:
         #
         return updated
     
-    def smear_z(self,array):
+    def smear_z(self,array,zsigma):
+        """
+        smears the z-grid according to a specified photometric error
+        """
         r,c=array.shape
-        sigma=self.state.photo.sigma*len(self.zvals)/max(self.zvals)
+        # get sigma in grid units
+        sigma=zsigma/(self.dz)
         smear_size=int(self.state.photo.sigma_width*sigma)
         smear_size=smear_size-smear_size%2+1
         smear_arr=np.linspace(-(smear_size-1)/2,(smear_size-1)//2,smear_size)
+        
+        # makes the approximation of taking the central value in the bin.
         smear_arr=np.exp(-(smear_arr**2)/(2*(sigma**2)))
-        #smear_arr=random.normal(loc=1,scale=self.state.photo.sigma,size=(smear_size))
+        #normalise
         smear_arr/=np.sum(smear_arr)
-        if not hasattr(self,"smear_zgrid"):
-            self.smear_zgrid=np.zeros([r,c])
+        
+        smear_zgrid=np.zeros([r,c])
         for i in range(c):
-            self.smear_zgrid[:,i]=np.convolve(array[:,i],smear_arr,mode="same")
-
-    def linear_interpolation(self,fz,z,name):
-        path = os.path.join(resource_filename('zdm', 'data'), 'Optical')
-        newz=np.copy(self.zvals)
-        newfz=np.zeros(len(newz))
-        for i in range(len(newz)):
-            j2=np.where(z>newz[i])[0][0]
-            j1=j2+1
-            newfz[i]=fz[j1]+(newz[i]-z[j1])*(fz[j2]-fz[j1])/(z[j2]-z[j1])
-        np.save(path+"/"+name+"_fz",newfz)
-        np.save(path+"/"+name+"_z",newz)
+            smear_zgrid[:,i]=np.convolve(array[:,i],smear_arr,mode="same")
+        
+        return smear_zgrid
+        
+    def construct_fz(self,ffile,zfile):
+        """
+        linearly interpolates passed fz values onto own zvals array
+        
+        Args:
+            ffile (string): file containing fraction of hosts seen at given redshift
+            zfile(string): file containing z values of above
+        """
+        fz = np.load(ffile)
+        z = np.load(zfile)
+        
+        from scipy.interpolate import interp1d
+        f=interp1d(z,fz,kind="linear",bounds_error=False)
+        newfz=f(self.zvals)
+        
+        # check for unphysical values
+        toolow = np.where(newfz < 0.)
+        newfz[toolow] = 0
+        toohigh = np.where(newfz > 1.)
+        newfz[toohigh] = 1.
+        
+        self.fz = newfz
+        
+            
+        #np.save(path+"/"+name+"_fz",newfz)
+        #np.save(path+"/"+name+"_z",newz)
 

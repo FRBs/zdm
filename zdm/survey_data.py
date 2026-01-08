@@ -299,10 +299,13 @@ class Observing(data_class.myDataClass):
                   'unit': 'pc/cm**3',
                   'Notation': '',
                   })
-
     Z_FRACTION:str =field(
             default=None,
             metadata={'help':"Fraction of visible FRBs at a redshift"}
+            )
+    Z_PHOTO:float =field(
+            default=0.,
+            metadata={'help':"Gaussian photometric error on redshifts"}
             )
 
 class SurveyData(data_class.myData):

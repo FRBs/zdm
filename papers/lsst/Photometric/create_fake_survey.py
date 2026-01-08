@@ -24,34 +24,34 @@ def create_fake_survey(smearing=False):
     sdir = str(resources.files('zdm').joinpath('data/Surveys'))
     opdir="./" # directory to place fake surveys in. Here!
     
-    IntroStr="""# %ECSV 1.0
-    # ---
-    # datatype:
-    # - {name: TNS, datatype: string}
-    # - {name: DM, datatype: float64}
-    # - {name: RA, datatype: string}
-    # - {name: DEC, datatype: string}
-    # - {name: Z, datatype: float64}
-    # - {name: SNR, datatype: float64}
-    # - {name: WIDTH, datatype: float64}
-    # - {name: Gl, unit: deg, datatype: float64}
-    # - {name: Gb, unit: deg, datatype: float64}
-    # - {name: DMG, datatype: float64}
-    # - {name: FBAR, datatype: float64}
-    # - {name: BW, datatype: float64}
-    # meta: !!omap
-    # - {survey_data: '{"observing": {"NORM_FRB": 17,"TOBS": 64.68,"MAX_IW": 8, "MAXWMETH": 2},
-    #                   "telescope": {"BEAM": "CRACO_900", "DMMASK": "craco_900_mask.npy",
-    #                                 "DIAM": 12.0, "NBEAMS": 1, "NBINS": 5, "FBAR": 906,
-    #                                 "TRES": 13.8, "FRES": 1.0, "THRESH": 1.01}}'}\n"""
+    Prefix="""# %ECSV 1.0
+# ---
+# datatype:
+# - {name: TNS, datatype: string}
+# - {name: DM, datatype: float64}
+# - {name: RA, datatype: string}
+# - {name: DEC, datatype: string}
+# - {name: Z, datatype: float64}
+# - {name: SNR, datatype: float64}
+# - {name: WIDTH, datatype: float64}
+# - {name: Gl, unit: deg, datatype: float64}
+# - {name: Gb, unit: deg, datatype: float64}
+# - {name: DMG, datatype: float64}
+# - {name: FBAR, datatype: float64}
+# - {name: BW, datatype: float64}
+# meta: !!omap
+# - {survey_data: '{"observing": {"NORM_FRB": 17,"TOBS": 64.68,"MAX_IW": 8, "MAXWMETH": 2"""
+# we need to split the obs string into two so we can insert the zfraction as required
+    Suffix="""},
+#                   "telescope": {"BEAM": "CRACO_900", "DMMASK": "craco_900_mask.npy",
+#                                 "DIAM": 12.0, "NBEAMS": 1, "NBINS": 5, "FBAR": 906,
+#                                 "TRES": 13.8, "FRES": 1.0, "THRESH": 1.01}}'}\n"""
     
     #param_dict={'sfr_n': 0.21, 'alpha': 0.11, 'lmean': 2.18, 'lsigma': 0.42, 'lEmax': 41.37,
     #            'lEmin': 39.47, 'gamma': -1.04, 'H0': 70.23, 'halo_method': 0, 'sigmaDMG': 0.0, 'sigmaHalo': 0.0,'lC': -7.61}
     
     # use default state
     state=states.load_state(case="HoffmannHalo25",scat=None,rep=None)
-    #state.set_astropy_cosmo(Planck18)
-    #state.update_params(param_dict)
 
     name=['CRAFT_CRACO_900']
     
@@ -62,7 +62,7 @@ def create_fake_survey(smearing=False):
     samples=gs.GenMCSample(100)
     zvals=np.zeros(len(samples))
     fp=open(opdir+"Spectroscopic.ecsv","w+")
-    fp.write(IntroStr)
+    fp.write(Prefix+Suffix)
     fp.write("TNS        DM             RA      DEC         Z                 SNR                   WIDTH        Gl      Gb     DMG           FBAR     BW\n")
     for i in range(len(samples)):
         fp.write('{0:5}'.format(str(i)))
@@ -89,7 +89,7 @@ def create_fake_survey(smearing=False):
                 zvals[i]=samples[i][0]
             
             fp=open(opdir+"Smeared.ecsv","w+")
-            fp.write(IntroStr)
+            fp.write(Prefix+', "Z_PHOTO": 0.03'+Suffix)
             fp.write("TNS        DM             RA      DEC         Z                 SNR                   WIDTH        Gl      Gb     DMG           FBAR     BW\n")
             smear_error=random.normal(loc=0,scale=sigma,size=100)
             newvals=zvals+smear_error
@@ -115,8 +115,10 @@ def create_fake_survey(smearing=False):
     
     fp=open(opdir+"zFrac.ecsv","w+")
     fp1=open(opdir+"Smeared_and_zFrac.ecsv","w+")
-    fp.write(IntroStr)
-    fp1.write(IntroStr)
+    
+    fp.write(Prefix+', "Z_FRACTION": 24.7'+Suffix)
+    fp1.write(Prefix+', "Z_FRACTION": 24.7, "Z_PHOTO": 0.03'+Suffix)
+    
     fp.write("TNS        DM             RA      DEC         Z                 SNR                   WIDTH        Gl      Gb     DMG           FBAR     BW\n")
     fp1.write("TNS        DM             RA      DEC         Z                 SNR                   WIDTH        Gl      Gb     DMG           FBAR     BW\n")
     for i in range(len(samples)):

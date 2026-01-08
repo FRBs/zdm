@@ -130,6 +130,7 @@ class Survey:
         # Load up
         self.process_survey_file(filename, NFRB, iFRB, min_lat=state.analysis.min_lat,
                         dmg_cut=state.analysis.DMG_cut,survey_dict = survey_dict)
+        
         # Check if repeaters or not and set relevant parameters
         # Now done in loading
         # self.repeaters=False

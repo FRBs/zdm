@@ -27,6 +27,8 @@ import importlib.resources as resources
 from scipy.interpolate import CubicSpline
 from scipy import stats
 import matplotlib
+import importlib.resources as resources
+
 
 defaultsize=18
 ds=4
@@ -37,9 +39,11 @@ matplotlib.rc('font', **font)
 
 #r-band limits 24.7, 27.5(single visit, 10 year, these are 5 sigma limits)
 
-def main(opdir="Data/"):
+def main():
     
     plotdir="Plots/"
+    opdir="Data/"
+    optdir = str(resources.files('zdm').joinpath('data/optical'))+"/"
     
     meerkat_z,meerkat_mr,meerkat_w = read_meerkat()
     
@@ -115,20 +119,19 @@ def main(opdir="Data/"):
                 fz0[i] = norm.cdf(Rlim0)
                 fz1[i] = norm.cdf(Rlim1)
                 fz2[i] = norm.cdf(Rlim2)
-        np.save(opdir+"fz_19.8.npy",fz0)
-        np.save(opdir+"fz_24.7.npy",fz1)
-        np.save(opdir+"fz_27.5.npy",fz2)
+        np.save(optdir+"fz_19.8.npy",fz0)
+        np.save(optdir+"fz_24.7.npy",fz1)
+        np.save(optdir+"fz_27.5.npy",fz2)
         np.save(opdir+"Rhist.npy",Rhist)
         np.save(opdir+"Rvals.npy",Rvals)
         np.save(opdir+"Rbars.npy",Rbars)
     else:
-        fz0 = np.load(opdir+"fz_19.8.npy")
-        fz1 = np.load(opdir+"fz_24.7.npy")
-        fz2 = np.load(opdir+"fz_27.5.npy")
+        fz0 = np.load(optdir+"fz_19.8.npy")
+        fz1 = np.load(optdir+"fz_24.7.npy")
+        fz2 = np.load(optdir+"fz_27.5.npy")
         Rhist = np.load(opdir+"Rhist.npy")
         Rvals = np.load(opdir+"Rvals.npy")
         Rbars = np.load(opdir+"Rbars.npy")
-    
     
     plt.figure()
     plt.xlabel("z")
@@ -187,6 +190,9 @@ def main(opdir="Data/"):
             pz2 = pz*fz2
             
             np.save(opdir+"zvals.npy",g.zvals)
+            np.save(optdir+"z_19.8.npy",g.zvals)
+            np.save(optdir+"z_24.7.npy",g.zvals)
+            np.save(optdir+"z_27.5.npy",g.zvals)
             np.save(opdir+prefixes[i]+"_pz.npy",pz)
             np.save(opdir+prefixes[i]+"_fpz0.npy",pz0)
             np.save(opdir+prefixes[i]+"_fpz1.npy",pz1)
