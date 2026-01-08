@@ -84,7 +84,6 @@ def load_state(case="HoffmannHalo25",scat=None,rep=None):
     
     # update with relevant values
     state.update_param_dict(vparams)
-    
     return state
 
 def set_reps(vparams,rep):
@@ -377,7 +376,7 @@ def set_updated_scat(vparams):
     
     
     if not 'scat' in vparams:
-        vparams['width'] = {}
+        vparams['scat'] = {}
     vparams['scat'] = {}
     vparams['scat']['Slogmean'] = -1.3
     vparams['scat']['Slogsigma'] = 0.2

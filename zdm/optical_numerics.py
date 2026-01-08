@@ -29,6 +29,7 @@ def function(x,args):
     ss = args[1]
     gs=args[2]
     model=args[3]
+    POxcut=args[4] # either None, or a cut such as 0.9
     
     # initialises model to the priors
     # generates one per grid, due to possible different zvals
@@ -41,7 +42,8 @@ def function(x,args):
     # we re-normalise the sum of PUs by NFRB
     
     # prevents infinite plots being created
-    stat = calculate_goodness_statistic(NFRB,AppMags,AppMagPriors,ObsMags,ObsPosteriors,sumPUobs,sumPUprior,plotfile=None)
+    stat = calculate_goodness_statistic(NFRB,AppMags,AppMagPriors,ObsMags,ObsPosteriors,
+                sumPUobs,sumPUprior,plotfile=None,POxcut=POxcut)
     
     return stat
 
@@ -179,7 +181,8 @@ def calc_path_priors(frblist,ss,gs,wrappers,verbose=True,usemodel=True):
     return nfitted,AppMags,allMagPriors,allObsMags,allPOx,allPU,allPUx,sumPU,sumPUx
 
 
-def calculate_goodness_statistic(NFRB,AppMags,AppMagPriors,ObsMags,ObsPosteriors,PUobs,PUprior,plotfile=None):
+def calculate_goodness_statistic(NFRB,AppMags,AppMagPriors,ObsMags,ObsPosteriors,PUobs,
+                                PUprior,plotfile=None,POxcut=None):
     """
     Calculates a ks-like statistics to be proxy for goodness-of-fit
     We must set each AppMagPriors to 1.-PUprior at the limiting magnitude for each observation,
@@ -196,7 +199,8 @@ def calculate_goodness_statistic(NFRB,AppMags,AppMagPriors,ObsMags,ObsPosteriors
         ObsPosteriors: list of posterior values corresponding to ObsMags
         PUobs: posterior on unseen probability
         PUprior: prior on PU
-        Plotfile: set to name of output file for comparison plot
+        plotfile: set to name of output file for comparison plot
+        POxcut: if not None, cut data to fixed POx. Used to simulate current techniques
     
     Returns:
         k-like statistic of biggest obs/prior difference
@@ -205,14 +209,26 @@ def calculate_goodness_statistic(NFRB,AppMags,AppMagPriors,ObsMags,ObsPosteriors
     # we calculate a probability using a cumulative distribution
     prior_dist = np.cumsum(AppMagPriors)
     
-    # the above is normalised to NFRB. We now divide it by this
-    # might want to be careful here, and preserve this normalisation
-    prior_dist /= NFRB #((NFRB-PUprior)/NFRB) / prior_dist[-1]
+    if POxcut is not None:
+        # cuts data to "good" FRBs only
+        OK = np.where(ObsPosteriors > POxcut)[0]
+        Ndata = len(OK)
+        ObsMags = ObsMags[OK]
+        ObsPosteriors = np.full([Ndata],1.) # effectively sets these to unity
     
     
+    # makes a cdf in units of AppMags, with observations ObsMags weighted by ObsPosteriors
     obs_dist = make_cdf(AppMags,ObsMags,ObsPosteriors,norm=False)
     
-    obs_dist /= NFRB
+    if POxcut is not None:
+        # current techniques just assume we have the full distribution
+        obs_dist /= obs_dist[-1]
+        prior_dist /= prior_dist[-1]
+    else:
+        # the above is normalised to NFRB. We now divide it by this
+        # might want to be careful here, and preserve this normalisation
+        obs_dist /= NFRB
+        prior_dist /= NFRB #((NFRB-PUprior)/NFRB) / prior_dist[-1]
     
     # we calculate something like the k-statistic. Includes NFRB normalisation
     diff = obs_dist - prior_dist

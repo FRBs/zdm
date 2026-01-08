@@ -59,7 +59,9 @@ def main():
     ss,gs = loading.surveys_and_grids(survey_names=names)
     
     modelname = "loudas"
-    opdir = modelname+"_output/"
+    opdir = modelname+"_0.9_output/"
+    POxcut = None # set to e.g. 0.9 to reject FRBs with lower posteriors when doing model comparisons
+    
     if not os.path.exists(opdir):
         os.mkdir(opdir)
     
@@ -78,7 +80,7 @@ def main():
     
     
     # initialise aguments to minimisation function
-    args=[frblist,ss,gs,model]
+    args=[frblist,ss,gs,model,POxcut]
     Nparams = len(x0)
     bounds = [(0,1)]*Nparams
     
@@ -155,8 +157,11 @@ def main():
             #outfile = None
             model.init_args(sfr)
             wrappers = on.make_wrappers(model,gs)
-            NFRB,AppMags,AppMagPriors,ObsMags,ObsPosteriors,PUprior,PUobs,sumPUprior,sumPUobs = on.calc_path_priors(frblist,ss,gs,wrappers,verbose=False)
-            stat = on.calculate_goodness_statistic(NFRB,AppMags,AppMagPriors,ObsMags,ObsPosteriors,sumPUobs,sumPUprior,plotfile=outfile)
+            NFRB,AppMags,AppMagPriors,ObsMags,ObsPosteriors,PUprior,\
+                PUobs,sumPUprior,sumPUobs = on.calc_path_priors(frblist,
+                                                                ss,gs,wrappers,verbose=False)
+            stat = on.calculate_goodness_statistic(NFRB,AppMags,AppMagPriors,ObsMags,ObsPosteriors,sumPUobs,
+                        sumPUprior,plotfile=outfile,POxcut=POxcut)
             stats[istat] = stat
         outfile = opdir+"scan_sfr.png"
         plt.figure()

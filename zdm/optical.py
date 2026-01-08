@@ -373,7 +373,7 @@ class loudas_model:
             rmag_centers = np.array(hf['rmag_centers'])
             p_mr_sfr = np.array(hf['p_mr_sfr'])
             p_mr_mass = np.array(hf['p_mr_mass'])
-        
+            
             # normalise these probabilities such that the bins sum to unity
             p_mr_sfr = (p_mr_sfr.T / np.sum(p_mr_sfr,axis=1)).T
             p_mr_mass = (p_mr_mass.T / np.sum(p_mr_mass,axis=1)).T
@@ -980,6 +980,17 @@ class model_wrapper:
 
 
 ################# Useful functions not associated with a class #########
+
+
+def load_marnoch_data():
+        """
+        Loads the Marnoch et al data on r-band magnitudes from FRB hosts
+        """
+        from astropy.table import Table
+        datafile="magnitudes_and_probabilities_vlt-fors2_R-SPECIAL.ecsv"
+        infile =  os.path.join(resources.files('zdm'), 'data', 'optical', datafile)
+        table = Table.read(infile, format='ascii.ecsv')
+        return table
 
 def get_pz_prior(grid, DM):
     """

@@ -87,8 +87,28 @@ def calc_path_priors():
     plt.legend()
     plt.tight_layout()
     plt.savefig(opdir+"loudas_model_mags.png")
-    plt.close() 
+    plt.close()
     
+    
+    ###### Gives examples for fsfr at weird values #####
+    
+    plt.figure()
+    plt.xlabel("$m_r$")
+    plt.ylabel("p(m_r | z=0.5)$")
+    
+    fsfrs = np.linspace(-2,3,6) # extrapolates to weird values
+    z=0.5
+    mrbins = np.linspace(0,40,401)
+    rbc = (mrbins[1:] + mrbins[:-1])/2.
+    for i,fsfr in enumerate(fsfrs):
+        model2.init_args(fsfr)
+        pmr = model2.get_pmr_gz(mrbins,z)
+        plt.plot(rbc,pmr,label="$f_{\\rm sfr} = $"+str(fsfr)[:5])
+    plt.xlim(15,30)
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(opdir+"loudas_fsfr_interpolation.png")
+    plt.close()
     
     # set up basic histogram of p(mr) distribution
     mrbins = np.linspace(0,30,301)
