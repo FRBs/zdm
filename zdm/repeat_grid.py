@@ -1,41 +1,42 @@
-
 """
-Class definition for repeating FRBs.
+Grid extension for repeating FRB population modeling.
 
-Input:
-    A grid, as well as a time-per-field.
-    We have two calculation methods: exact and MC.
-    MCs take a very long time to converge on the average (guess:10^4 iterations?)
-    Exact only calculates <singles> and <repeaters>
-    Repetition parameters Rmin, Rmax, and Rgamma are stored in grid.state
-        - Rmin: Minimum repetition rate of repeaters
-        - Rmax: Maximum repetition rate of repeaters
-        - Rgamma: *Differential* number of repeaters: dN/dR ~ R^Rgamma
+This module provides the repeat_Grid class, which extends the base Grid class
+to handle repeating FRB populations. It models the expected number of single
+detections and repeated detections given a distribution of repeater rates.
 
-Some notes regarding time dilation:
-    
-    #1: dVdtau
-        grid.py includes the time-dilation effect, dVdtau, in grid.dV.
-        We need to undo this: the number of repeaters does not change
-        with dtau, just the rate per repeater. Hence, all instances
-        of dV need to have an extra multiple of (1+z) attached, to undo
-        the time-dilation effect.
-    
-    #2: Rmult. When alpha method == 1, we use "rate scaling". This means
-            that the rate *per repeater* must change with frequency,
-            since otherwise the number of progenitors is frequency-
-            dependent, which is nonsense. This should be handled
-            under "Rmult", and implies two corrections:
-                - correct from nominal frequency to central frequency
-                - correct for (1+z) factor
-    
-    #3: sfr factor
-        grid.sfr, if alpha_method=0, includes the rate scaling with alpha
-        However, here we use this to calculate the number of progenitors,
-        thus we must calculate sfr from first principles if alpha_method=1.
-        This is now handled by assigning self.use_sfr to be self.sfr
-        when alpha_method=0, or it is recalculated if alpha_method=1
-        
+Key Concepts
+------------
+- Repeater rate distribution: dN/dR ~ R^Rgamma for R in [Rmin, Rmax]
+- Single bursts: First detections from repeaters (and possibly non-repeaters)
+- Repeat bursts: Subsequent detections from the same source
+
+Time Dilation Effects
+---------------------
+1. **dVdtau**: The base grid uses time-dilated volume elements. For repeater
+   counts, we need the undilated volume (number of sources doesn't change).
+
+2. **Rmult**: For alpha_method=1 (rate scaling), the per-source rate changes
+   with frequency, requiring corrections for central frequency and redshift.
+
+3. **SFR factor**: Source evolution must be recalculated for alpha_method=1
+   since we're counting progenitors, not burst rates.
+
+Parameters
+----------
+Repetition parameters are stored in state.rep:
+- Rmin: Minimum repeater rate (bursts/day)
+- Rmax: Maximum repeater rate (bursts/day)
+- Rgamma: Power-law index of rate distribution
+
+Example
+-------
+>>> from zdm import repeat_grid
+>>> rg = repeat_grid.repeat_Grid(survey, state, ...)
+>>> n_singles = rg.exact_singles  # Expected single detections
+>>> n_repeats = rg.exact_reps     # Expected repeat detections
+
+Author: C.W. James
 """
 
 from zdm import grid
