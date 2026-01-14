@@ -48,7 +48,7 @@ def main():
     meerkat_z,meerkat_mr,meerkat_w = read_meerkat()
     
     # we should re-do this shortly.
-    Load=False
+    Load=True
     repeaters=False
     Test=False # do this for very simplified data
     Scat=False # do not use updated scattering model
@@ -138,7 +138,7 @@ def main():
     plt.ylabel("fraction visible")
     plt.plot(zvals,fz1,label="$m_{r}^{\\rm lim}=24.7$")
     plt.plot(zvals,fz2,label="$m_{r}^{\\rm lim}=27.5$",linestyle="--")
-    plt.ylim(0,1)
+    plt.ylim(0,1.05)
     plt.xlim(0,6)
     plt.legend()
     plt.tight_layout()
@@ -205,8 +205,8 @@ def main():
         
         plt.plot(zvals,pz/norm,label=labels[i],linestyle="-")
         #plt.plot(zvals,pz0/norm,linestyle="-.",color=plt.gca().lines[-1].get_color())
-        plt.plot(zvals,pz1/norm,linestyle="--",color=plt.gca().lines[-1].get_color())
-        plt.plot(zvals,pz2/norm,linestyle=":",color=plt.gca().lines[-1].get_color())
+        plt.plot(zvals,pz1/norm,linestyle="--",color=plt.gca().lines[-1].get_color(),label='   single visit')
+        plt.plot(zvals,pz2/norm,linestyle=":",color=plt.gca().lines[-1].get_color(),label='   10 yr co-adds')
         
         print("For survey ",prefixes[i]," number of FRBs will be ",np.sum(pz),np.sum(pz0),np.sum(pz1),\
                 np.sum(pz2),np.sum(pz0)/np.sum(pz),np.sum(pz1)/np.sum(pz),np.sum(pz2)/np.sum(pz))
@@ -230,7 +230,7 @@ def main():
     plt.sca(ax1)
     plt.ylim(0,1.02)
     plt.xlim(0,5)
-    plt.legend()
+    plt.legend(fontsize=16)
     plt.tight_layout()
     plt.savefig(plotdir+"lsst_pz.png")
     plt.close()

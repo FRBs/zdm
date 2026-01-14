@@ -28,10 +28,10 @@ def main():
     state=states.load_state(case="HoffmannHalo25",scat=None,rep=None)
     sdir = resources.files('zdm').joinpath('../papers/lsst/Photometric')
     names = ["Spectroscopic","Smeared","zFrac","Smeared_and_zFrac"]
-    
+    xlabels = ["$z_{\\rm spec}$","$z_{\\rm photo}$","$z_{\\rm spec}$","$z_{\\rm photo}$"]
     ss,gs = loading.surveys_and_grids(
         survey_names=names,repeaters=False,init_state=state,sdir=sdir)
-    plot_grids(gs,ss,"./")
+    plot_grids(gs,ss,"./",xlabels)
     
 
 #==============================================================================
@@ -47,8 +47,9 @@ Imports:
     outdir = output directory
     val = parameter value for this grid
 """
-def plot_grids(grids, surveys, outdir):
-    for g,s in zip(grids, surveys):
+def plot_grids(grids, surveys, outdir,xlabels):
+    for i,g in enumerate(grids):
+        s = surveys[i]
         zvals=[]
         dmvals=[]
         nozlist=[]
@@ -72,6 +73,7 @@ def plot_grids(grids, surveys, outdir):
             norm=3,
             log=True,
             label="$\\log_{10} p({\\rm DM}_{\\rm EG},z)$ [a.u.]",
+            xlabel=xlabels[i],
             project=False,
             FRBDMs=frbdmvals,
             FRBZs=frbzvals,

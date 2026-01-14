@@ -30,6 +30,7 @@ def plot_grid(
     log=True,
     name="temp.pdf",
     label='$\\log_{10}p(DM_{\\rm EG},z)$',
+    xlabel="z",
     ylabel="${\\rm DM}_{\\rm EG}$ (pc cm$^{-3}$)",
     logrange=4,
     project=False,
@@ -73,6 +74,7 @@ def plot_grid(
         log (bool, optional): Plot P(z,DM) in log space
         name (str, optional): Outfile name
         label (str, optional): Colourbar label
+        xlabel (str,optional): Label on x axis of plot
         ylabel (str,optional): Label on y axis of plot
         logrange(float,optional): range in logspace of the z axis (defaults to 4)
         project (bool, optional): Add projections of P(z) and P(DM)
@@ -183,7 +185,7 @@ def plot_grid(
     
     plt.sca(ax1)
     
-    plt.xlabel("z")
+    plt.xlabel(xlabel)
     plt.ylabel(ylabel)
     
     nz, ndm = zDMgrid.shape

@@ -42,7 +42,7 @@ def main():
     # up to the user to get thius order right! Use e.g.
     # python run_H0_slice.py -n 10 --min=50 --max=100 -f Spectroscopic Smeared zFrac Smeared_and_zFrac
     
-    s_names=["All hosts, spec-zs","$\\sigma_z=0.03$","$m_r^{\\rm lim}=24.7$","$\\sigma_z=0.03,~m_r^{\\rm lim}=24.7$"]
+    s_names=["All hosts, spec-zs","$\\sigma_z=0.035$","$m_r^{\\rm lim}=24.7$","$\\sigma_z=0.035,~m_r^{\\rm lim}=24.7$"]
     plt.clf()
     llsum = np.zeros(ll_lists.shape[0])
     FWHM=[]
