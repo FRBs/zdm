@@ -1,5 +1,31 @@
-### this file includes various routines to iterate /maximise / minimise
-# values on a zdm grid
+"""
+Likelihood calculation routines for z-DM grids.
+
+This module provides functions for computing log-likelihoods of FRB survey
+data given model predictions from a Grid object. These likelihoods are used
+for parameter estimation via MCMC or maximum likelihood methods.
+
+The main likelihood components include:
+- p(DM, z): Probability of observed DM and redshift (if localized)
+- p(N): Poisson probability of total number of FRBs detected
+- p(SNR): Signal-to-noise ratio distribution
+- p(w, tau): Width and scattering time distributions
+
+Main Functions
+--------------
+- `get_log_likelihood`: Compute total log-likelihood for a grid/survey pair
+- `calc_likelihoods_1D`: Likelihood for 1D (DM only) FRB data
+- `calc_likelihoods_2D`: Likelihood for 2D (DM + z) localized FRBs
+
+Example
+-------
+>>> from zdm import iteration
+>>> ll = iteration.get_log_likelihood(grid, survey)
+>>> print(f"Log-likelihood: {ll}")
+
+Author: C.W. James
+"""
+
 import os
 import time
 from IPython.terminal.embed import embed
@@ -15,19 +41,35 @@ from zdm import repeat_grid as zdm_repeat_grid
 
 
 def get_log_likelihood(grid, s, norm=True, psnr=True, Pn=False, pNreps=True, ptauw=False, pwb=False):
-    """
-    Returns the likelihood for the grid given the survey.
+    """Compute total log-likelihood for a grid given survey data.
 
-    Inputs:
-        grid    =   Grid used
-        s       =   Survey to compare with the grid
-        norm    =   Normalise
-        psnr    =   Include psnr in likelihood
-        Pn      =   Include Pn in likelihood
-        ptauw   =   Include p(tau,width)
-    
-    Outputs:
-        llsum   =   Total loglikelihood for the grid
+    This is the main likelihood function used for parameter estimation.
+    It combines multiple likelihood components depending on what data
+    is available (DM only, localized z, SNR, etc.).
+
+    Parameters
+    ----------
+    grid : Grid or repeat_Grid
+        Grid object containing model predictions.
+    s : Survey
+        Survey object containing FRB observations.
+    norm : bool, optional
+        If True, include normalization terms. Default True.
+    psnr : bool, optional
+        If True, include SNR distribution likelihood. Default True.
+    Pn : bool, optional
+        If True, include Poisson likelihood for total number. Default False.
+    pNreps : bool, optional
+        If True, include number of repeaters likelihood. Default True.
+    ptauw : bool, optional
+        If True, include p(tau, width) likelihood. Default False.
+    pwb : bool, optional
+        If True, include width/beam likelihood. Default False.
+
+    Returns
+    -------
+    float
+        Total log-likelihood value.
     """
 
     if isinstance(grid, zdm_repeat_grid.repeat_Grid):

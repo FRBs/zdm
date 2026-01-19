@@ -1,13 +1,33 @@
 """
-File: MCMC.py
+MCMC parameter estimation for FRB z-DM analysis.
+
+This module provides functions for running Markov Chain Monte Carlo (MCMC)
+parameter estimation using the emcee package. It interfaces with the zdm
+likelihood calculations to explore the parameter space and constrain
+FRB population and cosmological parameters.
+
+Main Functions
+--------------
+- `calc_log_posterior`: Compute log-posterior for a parameter vector
+- `run_mcmc`: Execute MCMC sampling with emcee
+- `get_initial_walkers`: Initialize walker positions
+
+Features
+--------
+- Uniform priors with configurable bounds
+- Optional log/linear priors for specific parameters (DMhalo, host DM)
+- Support for multiple surveys and repeater populations
+- Grid re-initialization on each evaluation for parameter exploration
+
+Example
+-------
+>>> from zdm import MCMC
+>>> params = {'gamma': {'min': -2.5, 'max': -0.5}, ...}
+>>> sampler = MCMC.run_mcmc(state, params, surveys, nwalkers=32, nsteps=1000)
+>>> samples = sampler.get_chain(flat=True)
+
 Author: Jordan Hoffmann
 Date: 06/12/23
-Purpose: 
-    Contains functions used for MCMC runs of the zdm code. MCMC_wrap.py is the 
-    main function which does the calling and this holds functions which do the 
-    MCMC analysis.
-
-    This function re-initialises the grids on every run
 """
 
 import numpy as np
@@ -33,28 +53,43 @@ import os
 
 def calc_log_posterior(param_vals, state, params, surveys_sep, Pn=False, pNreps=True, psnr=True, ptauw=False,
                 log_halo=False, lin_host=False, ind_surveys=False, g0info=None):
-    """
-    Calculates the log posterior for a given set of parameters. Assumes uniform
-    priors between the minimum and maximum values provided in 'params'.
+    """Calculate log-posterior probability for a parameter vector.
 
-    Inputs:
-        param_vals  (np.array)      =   Array of the parameter values for this step
-        state       (params.state)  =   State object to modify
-        params      (dictionary)    =   Parameter names, min and max values
-        surveys_sep (list)          =   surveys_sep[0] : list of non-repeater surveys
-                                        surveys_sep[1] : list of repeater surveys
-        grid_params (dictionary)    =   nz, ndm, dmmax
-        Pn          (bool)          =   Include Pn or not
-        pNreps      (bool)          =   Include p(N repeaters) or not
-        ptauw       (bool)          =   Include p(tau,w) or not
-        log_halo    (bool)          =   Use a log uniform prior on DMhalo
-        lin_host    (bool)          =   Use a linear uniform prior on host mean
-        ind_surveys (bool)          =   Return likelihoods for each survey
-        g0info      (list)          =   List of [zDMgrid, zvals, DMvals] Passed to use as speedup if needed
-    
-    Outputs:
-        llsum       (double)        =   Total log likelihood for param_vals which is equivalent
-                                        to log posterior (un-normalised) due to uniform priors
+    This is the main function called by emcee samplers. It evaluates the
+    log-posterior (proportional to log-likelihood for uniform priors) by
+    building grids and computing likelihoods for all surveys.
+
+    Parameters
+    ----------
+    param_vals : ndarray
+        Array of parameter values for this MCMC step.
+    state : parameters.State
+        State object to be updated with new parameter values.
+    params : dict
+        Dictionary defining parameters to vary. Each key is a parameter name,
+        with value dict containing 'min' and 'max' for prior bounds.
+    surveys_sep : list
+        Two-element list: [non_repeater_surveys, repeater_surveys].
+    Pn : bool, optional
+        Include Poisson likelihood for total number of FRBs. Default False.
+    pNreps : bool, optional
+        Include likelihood for number of repeaters. Default True.
+    ptauw : bool, optional
+        Include p(tau, width) likelihood. Default False.
+    log_halo : bool, optional
+        Use log-uniform prior on DMhalo. Default False.
+    lin_host : bool, optional
+        Use linear-uniform prior on host DM mean. Default False.
+    ind_surveys : bool, optional
+        If True, return list of individual survey likelihoods. Default False.
+    g0info : list, optional
+        Pre-computed [zDMgrid, zvals, DMvals] for speedup.
+
+    Returns
+    -------
+    float or tuple
+        Log-posterior value. Returns -inf if parameters outside prior bounds.
+        If ind_surveys=True, returns (llsum, ll_list) with individual likelihoods.
     """
 
     # t0 = time.time()
