@@ -1,7 +1,7 @@
 #!/bin/bash
-#SBATCH --job-name=dsa_meerkat_reps
-#SBATCH --output=../../mcmc/dsa_meerkat_reps.out
-#SBATCH --ntasks=20
+#SBATCH --job-name=reps_test
+#SBATCH --output=../../mcmc/reps_test.out
+#SBATCH --ntasks=10
 #SBATCH --time=24:00:00
 #SBATCH --export=NONE
 # SBATCH --mem=100GB
@@ -23,7 +23,7 @@ source $ZDM/.venv/bin/activate
 
 cd $ZDM/zdm
 
-outfile="mcmc/dsa_meerkat_reps"
+outfile="mcmc/reps_test"
 walkers=40
 steps=3000
 
@@ -41,6 +41,6 @@ echo "Walkers: $walkers"
 echo "Steps: $steps"
 
 # command="python scripts/MCMC/MCMC_wrap.py -f $surveys -p data/MCMC/params.json -o $outfile -w $walkers -s $steps"
-command="python scripts/MCMC/MCMC_wrap.py -f $surveys -r $rep_surveys -p data/MCMC/params4.json -o $outfile -w $walkers -s $steps"
+command="python scripts/MCMC/MCMC_wrap.py -f $surveys -r $rep_surveys -p data/MCMC/params4.json -o $outfile -w $walkers -s $steps --reset"
 echo $command
 $command
