@@ -127,7 +127,8 @@ def calc_log_posterior(param_vals, state, params, surveys_sep, Pn=False, pNreps=
         # it is easy to reach impossible regions of the parameter space. This results in math errors
         # (log(0), log(negative), sqrt(negative), divide 0 etc.) and hence we assume that these math errors
         # correspond to an impossible region of the parameter space and so set ll = -inf
-        # try:
+        #try:
+        
         # Set state
         state.update_params(param_dict)
 
@@ -135,7 +136,8 @@ def calc_log_posterior(param_vals, state, params, surveys_sep, Pn=False, pNreps=
 
         # Recreate grids every time, but not surveys, so must update survey params
         for i,s in enumerate(surveys):
-
+            
+            
             # updates survey according to DMhalo estimates
             if 'DMhalo' in param_dict:
                 if log_halo:
@@ -143,28 +145,40 @@ def calc_log_posterior(param_vals, state, params, surveys_sep, Pn=False, pNreps=
                 else:
                     DMhalo = param_dict['DMhalo']
                 s.init_DMEG(DMhalo)
-                s.init_widths(state)
-
-            # Initialise grids
-            grids = []
-            if len(surveys_sep[0]) != 0:
-                zDMgrid, zvals,dmvals = mf.get_zdm_grid(
-                    state, new=True, plot=False, method='analytic', 
-                    nz=grid_params['nz'], ndm=grid_params['ndm'], dmmax=grid_params['dmmax'],
-                    datdir=resource_filename('zdm', 'GridData'))
-
-                # generates zdm grid
-                grids += mf.initialise_grids(surveys_sep[0], zDMgrid, zvals, dmvals, state, wdist=True, repeaters=False)
-            
-            if len(surveys_sep[1]) != 0:
-                # generates zdm grid
-                grids += mf.initialise_grids(surveys_sep[1], zDMgrid, zvals, dmvals, state, wdist=True, repeaters=True)
-            
-            # Minimse the constant accross all surveys
-            if Pn:
-                newC, llC = it.minimise_const_only(None, grids, surveys, update=True)
-                # for g in grids:
-                #     g.state.FRBdemo.lC = newC
+                
+            if ('Wlogmean' in param_dict or 'Wlogsigma' in param_dict or \
+                'Slogmean'  in param_dict or 'Slogsigma' in param_dict):
+                state.scat.Sbackproject = True
+                s.init_widths(state=state)
+            elif 'DMhalo' in param_dict:
+                # this would get re-done within init_widths above, so only do this
+                # if it has *not* been recalculated
+                s.do_efficiencies() #get_efficiency_from_wlist(s.wlist,s.wplist,model=s.meta['WBIAS']) 
+        
+        # Initialise grids
+        grids = []
+        
+        # gets new zDM grid if F and H0 in the param_dict
+        if 'H0' in param_dict or 'logF' in param_dict or g0info is None:
+            datdir = resources.files('zdm').joinpath('GridData')
+            zDMgrid, zvals,dmvals = mf.get_zdm_grid(
+                state, new=True, plot=False, method='analytic',
+                datdir=datdir)
+            g0info = [zDMgrid, zvals,dmvals]
+        
+        if len(surveys_sep[0]) != 0:
+            # generates zdm grid
+            grids += mf.initialise_grids(surveys_sep[0], zDMgrid, zvals, dmvals, state, wdist=True, repeaters=False)
+        
+        if len(surveys_sep[1]) != 0:
+            # generates zdm grid
+            grids += mf.initialise_grids(surveys_sep[1], zDMgrid, zvals, dmvals, state, wdist=True, repeaters=True)
+        
+        # Minimse the constant accross all surveys
+        if Pn:
+            newC, llC = it.minimise_const_only(None, grids, surveys, update=True)
+            # for g in grids:
+            #     g.state.FRBdemo.lC = newC
 
             # if isinstance(g, repeat_grid.repeat_Grid):
             #     g.state.rep.RC = g.state.rep.RC / 10**oldC * 10**newC
@@ -172,9 +186,8 @@ def calc_log_posterior(param_vals, state, params, surveys_sep, Pn=False, pNreps=
         # calculate all the likelihoods
         llsum = 0
         for s, grid in zip(surveys, grids):
-            ll = it.get_log_likelihood(grid,s,Pn=Pn,pNreps=pNreps,psnr=psnr)
+            ll = it.get_log_likelihood(grid,s,Pn=Pn,pNreps=pNreps,psnr=psnr,ptauw=ptauw)
             llsum += ll
-
             if ind_surveys:
                 ll_list.append(ll)
 
@@ -186,7 +199,9 @@ def calc_log_posterior(param_vals, state, params, surveys_sep, Pn=False, pNreps=
     if np.isnan(llsum):
         print("llsum was NaN. Setting to -infinity", param_dict)    
         llsum = -np.inf
-
+    
+    # print("Posterior calc time: " + str(time.time()-t0) + " seconds", flush=True)
+    
     if ind_surveys:
         return llsum, ll_list
     else:
@@ -194,7 +209,9 @@ def calc_log_posterior(param_vals, state, params, surveys_sep, Pn=False, pNreps=
 
 #==============================================================================
 
-def mcmc_runner(logpf, outfile, state, params, surveys, grid_params, nwalkers=10, nsteps=100, nthreads=1, Pn=False, pNreps=True, log_halo=False, lin_host=False, reset=True):
+def mcmc_runner(logpf, outfile, state, params, surveys, nwalkers=10, nsteps=100, nthreads=1, Pn=False,
+                pNreps=True, psnr=True, ptauw = False, log_halo=False, lin_host=False, ind_surveys=False, g0info=None,
+                reset=False):
     """
     Handles the MCMC running.
 
@@ -222,12 +239,7 @@ def mcmc_runner(logpf, outfile, state, params, surveys, grid_params, nwalkers=10
     """
         
     ndim = len(params)
-    backend = emcee.backends.HDFBackend(outfile+'.h5')
-
-    # Check to reset the backend or not
-    if reset or not os.path.exists(outfile+'.h5'):
-        backend.reset(nwalkers, ndim)
-        starting_guesses = []
+    starting_guesses = []
 
     # Produce starting guesses for each parameter
     for key,val in params.items():
@@ -247,9 +259,23 @@ def mcmc_runner(logpf, outfile, state, params, surveys, grid_params, nwalkers=10
         exists = False # if resetting, ignore that a file exists
     
     start = time.time()
-    with mp.Pool() as pool:
-        sampler = emcee.EnsembleSampler(nwalkers, ndim, logpf, args=[state, params, surveys, grid_params, Pn, pNreps, log_halo, lin_host], backend=backend, pool=pool)
-        sampler.run_mcmc(starting_guesses, nsteps, progress=True)
+    
+    # may or may not be needed
+    #os.environ["OMP_NUM_THREADS"] = "1"
+    import multiprocessing as mp
+    Pool = mp.get_context('fork').Pool
+    
+    
+    
+    with Pool() as pool: # could add mp.Pool(ntrheads=5) or Pool = None
+        sampler = emcee.EnsembleSampler(nwalkers, ndim, logpf, args=[state, params, surveys, Pn, pNreps, psnr,
+                                        ptauw, log_halo, lin_host, ind_surveys, g0info], backend=backend, pool=pool)
+        if exists:
+            # start from last saved position
+            sampler.run_mcmc(None, nsteps, progress=True)
+        else:
+            # start from new random guesses
+            sampler.run_mcmc(starting_guesses, nsteps, progress=True)
     end = time.time()
     print("Total time taken: " + str(end - start))
     

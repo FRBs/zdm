@@ -246,8 +246,8 @@ class Survey:
             wlist = np.logspace(np.log10(self.WMin)+dlogw/2.,np.log10(self.WMax)-dlogw/2.,self.NWbins)
             wbins[0] -= 3 # ensures we capture low values!
         else:
-            wbins[0] = np.log10(self.WMin)
-            wbins[1] = np.log10(self.WMax)
+            wbins[0] = self.WMin
+            wbins[1] = self.WMax
             dlogw = np.log10(wbins[1]/wbins[0])
             wlist = np.array([(self.WMax*self.WMin)**0.5])
         self.wbins = wbins
@@ -811,7 +811,7 @@ class Survey:
         # Pandas resolves None to Nan
         if len(self.frbs["Z"])>0:
             
-            self.Zs=self.frbs["Z"].values
+            self.Zs=np.array(self.frbs["Z"].values).astype('float')
             # checks for any redhsifts identically equal to zero
             #exactly zero can be bad... only happens in MC generation
             # 0.001 is chosen as smallest redshift in original fit
