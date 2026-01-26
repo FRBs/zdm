@@ -329,21 +329,15 @@ def distanceFraction(zD, zS):
     Ds = cosmo.angular_diameter_distance(zS)
     return Dds/Ds
 
-def redshiftScaling(zD,zS,zMap):
-    coefficient = distanceFraction(zD,zS)/distanceFraction(zD,zMap)
-    return coefficient
-
-def lensingPDF(mu, zD, zS, beami, surveyName):
-    x = np.load(str(surveyName)+'mus.npy')
-    yFull = np.load(str(surveyName)+'pmus.npy')
+def lensingPDF(mu, zD, zS, bPosNum, beami, opdir):
+    formatted_redshift = "{:03.2f}".format(zS)
+    x = np.load(opdir+'mux.npy')
+    yFull = np.load(opdir+'pmux_BP_'+str(bPosNum)+str(formatted_redshift)+'.npy')
     if np.sum(np.isnan(yFull[:,beami]))==len(yFull[:,beami]):
         return np.ones(len(mu))*np.nan
-    zMap = 1
+    zMap = 9
     y = yFull[:,beami]
-    zCoefficient = redshiftScaling(zD,zS,zMap)
-    xScaled = x+np.log10(zCoefficient)
-    yScaled = y/zCoefficient
-    interpFunc = interpolate.interp1d(xScaled,yScaled, bounds_error=False, fill_value=0)
+    interpFunc = interpolate.interp1d(x,y, bounds_error=False, fill_value=0)
     return interpFunc(np.log10(mu))
 
 def vector_cum_lensed_power_law(Eth,*params):
@@ -357,7 +351,9 @@ def vector_cum_lensed_power_law(Eth,*params):
     zvals=params[4]
     beami = params[5]
     surveyName = params[6]
-    zD = 0.545
+    zD = params[7]
+    opdir = params[8]
+    bPosNum = params[9]
     #print(Eth, Emin, Emax, gamma)
     logEn = np.log(Emin)
     logEx = np.log(Emax)
@@ -369,13 +365,13 @@ def vector_cum_lensed_power_law(Eth,*params):
     #print(len(logERange), len(logMu))
     result = np.zeros(Eth.shape)
     for i in range(len(zvals)):
-        if zD < zvals[i]:
-            probGrid = lensingPDF(np.e**logMu, zD, zvals[i], beami, surveyName)
+        if zD < np.round(zvals[i],2):
+            probGrid = lensingPDF(np.e**logMu, zD, zvals[i], bPosNum, beami, opdir)
             if np.sum(np.isnan(probGrid))==len(probGrid):
                 result[i,:]=vector_cum_power_law(Eth[i,:],*params)
             else:
                 phiGrid = vector_diff_power_law(np.e**logERange, *params)
-                phiL = np.convolve(probGrid, phiGrid)*logSpacing
+                phiL = np.convolve(probGrid*(np.e**logMu), phiGrid)*logSpacing
                 logE_muRange = np.arange(logEn-2, np.amax(logERange)+np.amax(logMu),logSpacing)
                 #print(np.amin(np.e**logE_muRange), np.amax(np.e**logE_muRange))
                 phiLCumConv = np.cumsum(np.flip((np.e**logE_muRange)*phiL*logSpacing))

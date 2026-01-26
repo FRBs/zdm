@@ -53,11 +53,14 @@ def main():
     state.host.lsigma = 0.57
     state.host.lmean = 2.22
     state.FRBdemo.lC = 4.86
-    state.energy.luminosity_function=4
+    state.energy.luminosity_function=0
     
     
     s,g = loading.survey_and_grid(survey_name=name,
         NFRB=None,sdir=sdir,init_state=state)
+
+    np.save('zvals', g.zvals)
+    np.save('dmvals', g.dmvals)
 
     np.save('ratesUnlensed', g.rates)
     

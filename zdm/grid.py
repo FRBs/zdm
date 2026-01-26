@@ -18,7 +18,7 @@ class Grid:
     It also assumes a linear uniform grid.
     """
 
-    def __init__(self, survey, state, zDMgrid, zvals, dmvals, smear_mask, wdist):
+    def __init__(self, survey, opdir, bPosNum, state, zDMgrid, zvals, dmvals, smear_mask, wdist, cluster, clusterRedshift):
         """
         Class constructor.
 
@@ -58,7 +58,7 @@ class Grid:
         #   THESE SHOULD BE THE SAME ORDER AS self.update()
         self.parse_grid(zDMgrid.copy(), zvals.copy(), dmvals.copy())
         self.calc_dV()
-        self.smear_dm(smear_mask.copy())
+        self.smear_dm(smear_mask.copy(), cluster)
         if wdist:
             efficiencies = survey.efficiencies  # two dimensions
             weights = survey.wplist
@@ -71,13 +71,13 @@ class Grid:
         # Warning -- THRESH could be different for each FRB, but we don't treat it that way
         thresh = survey.meta["THRESH"]
         # was np.median(survey.frbs['THRESH'])
-        self.calc_thresholds(thresh,
+        self.calc_thresholds(survey, thresh,
                              efficiencies,
                              weights=weights)
         # Calculate
-        self.calc_pdv()
+        self.calc_pdv(bPosNum=bPosNum, opdir=opdir, clusterRedshift=clusterRedshift)
         self.set_evolution()  # sets star-formation rate scaling with z - here, no evoltion...
-        self.calc_rates()  # includes sfr smearing factors and pdv mult
+        self.calc_rates(cluster)  # includes sfr smearing factors and pdv mult
 
     def init_luminosity_functions(self):
         """ Set the luminsoity function for FRB energetics """
@@ -236,7 +236,7 @@ class Grid:
                 self.nuObs / self.nuRef
                 ) ** -self.state.energy.alpha  # alpha positive, nuObs<nuref, expected rate increases
 
-    def calc_pdv(self, beam_b=None, beam_o=None):
+    def calc_pdv(self, bPosNum =0, opdir='', clusterRedshift=np.nan, beam_b=None, beam_o=None):
         """ Calculates the rate per cell.
         Assumed model: a power-law between Emin and Emax (erg)
                        with slope gamma.
@@ -282,63 +282,64 @@ class Grid:
             main_beam_b = np.log10(main_beam_b)
 
         for i, b in enumerate(main_beam_b):
-            for j, w in enumerate(self.eff_weights):
+            for j in range(len(self.eff_weights[:,i,0])):
                 # using log10 space conversion
                 if self.use_log10:
-                    thresh = new_thresh[j, :, :] - b
+                    thresh = new_thresh[j, i, :, :] - b
                 else:  # original
-                    thresh = self.thresholds[j, :, :] / b
+                    thresh = self.thresholds[j, i, :, :] / b
 
                 if j == 0:
                     if self.luminosity_function == 4:
                         print('we are doing the lensing!') 
                         self.b_fractions[:, :, i] = (
                             self.beam_o[i]
-                            * w
+                            * self.eff_weights[j,i,:]
                             * self.array_cum_lf(
                                 thresh, Emin, Emax, self.state.energy.gamma, self.use_log10,
-                                self.zvals, i, self.survey.name
-                            )
-                        )
+                                self.zvals, i, self.survey.name, clusterRedshift, opdir, bPosNum
+                            ).T
+                        ).T
                     else:
                         self.b_fractions[:, :, i] = (
                             self.beam_o[i]
-                            * w
+                            * self.eff_weights[j,i,:]
                             * self.array_cum_lf(
                                 thresh, Emin, Emax, self.state.energy.gamma, self.use_log10
-                            )
-                        )
+                            ).T
+                        ).T
                 else:
                     if self.luminosity_function == 4:
                         print('we are doing the lensing!') 
                         self.b_fractions[:, :, i] += (
                             self.beam_o[i]
-                            * w
+                            * self.eff_weights[j,i,:]
                             * self.array_cum_lf(
                                 thresh, Emin, Emax, self.state.energy.gamma, self.use_log10,
-                                self.zvals, i, self.survey.name
-                            )
-                        )
+                                self.zvals, i, self.survey.name, clusterRedshift, opdir, bPosNum
+                            ).T
+                        ).T
                     else:
                         self.b_fractions[:, :, i] += (
                             self.beam_o[i]
-                            * w
+                            * self.eff_weights[j,i,:]
                             * self.array_cum_lf(
                                 thresh, Emin, Emax, self.state.energy.gamma, self.use_log10
-                            )
-                    )
-                    np.save('thresh'+str(i)+str(j),thresh)
+                            ).T
+                    ).T
 
 
         # here, b-fractions are unweighted according to the value of b.
+        #here we sum over the fractions, for cluster per beam increment spread postpone this
         self.fractions = np.sum(
             self.b_fractions, axis=2
         )  # sums over b-axis [ we could ignore this step?]
         np.save('selffractionsLens', self.fractions)
+        #check algebraically if its ok to do this multiplication after cluster smearing
         self.pdv = np.multiply(self.fractions.T, self.dV).T
         print(np.sum(self.pdv),'+++++++')
 
-    def calc_rates(self):
+    def calc_rates(self, cluster):
         """ multiplies the rate per cell with the appropriate pdm plot """
 
         try:
@@ -359,10 +360,18 @@ class Grid:
             print("WARNING: no volumetric probability pdv yet calculated")
             exit()
 
-        self.sfr_smear = np.multiply(self.smear_grid.T, self.sfr).T
-        self.rates = self.pdv * self.sfr_smear
+        if cluster:
+            tempRates = np.zeros([self.grid.shape[0], self.grid.shape[1], len(self.beam_b)])
+            for i in range(len(self.beam_b)):
+                self.sfr_smear = np.multiply(self.smear_grid[:,:,i].T, self.sfr).T
+                tempRates[:,:,i] = (self.b_fractions[:,:,i].T*self.dV).T*self.sfr_smear
+            self.rates = np.sum(tempRates,axis=2)
+        else:
+            self.sfr_smear = np.multiply(self.smear_grid.T, self.sfr).T
+            self.rates = self.pdv * self.sfr_smear
+        
 
-    def calc_thresholds(self, F0:float, 
+    def calc_thresholds(self, survey, F0:float, 
                         eff_table, 
                         bandwidth=1e9, 
                         nuRef=1.3e9, weights=None):
@@ -394,7 +403,7 @@ class Grid:
         else:  # multiple FRB widths: dimensions nW x NDM
             self.nthresh = eff_table.shape[0]
             if weights is not None:
-                if weights.size != self.nthresh:
+                if weights.shape[0] != self.nthresh:
                     raise ValueError(
                         "Dimension of weights must equal first dimension of efficiency table"
                     )
@@ -402,13 +411,13 @@ class Grid:
                 raise ValueError(
                     "For a multidimensional efficiency table, please set relative weights"
                 )
-            self.eff_weights = weights / np.sum(weights)  # normalises this!
+            self.eff_weights = weights / np.sum(weights,0)  # normalises this!
             self.eff_table = eff_table
         Eff_thresh = F0 / self.eff_table
 
-        self.EF(self.state.energy.alpha, bandwidth)  # sets FtoE values - could have been done *WAY* earlier
+        self.EF(self.state.energy.alpha, self.bandwidth)  # sets FtoE values - could have been done *WAY* earlier
 
-        self.thresholds = np.zeros([self.nthresh, self.zvals.size, self.dmvals.size])
+        self.thresholds = np.zeros([self.nthresh, survey.beam_b.size, self.zvals.size, self.dmvals.size])
 
         # Performs an outer multiplication of conversion from fluence to energy.
         # The FtoE array has one value for each redshift.
@@ -416,9 +425,11 @@ class Grid:
         # FRB width (nthresh) and DM.
         # We loop over nthesh and generate a NDM x Nz array for each
         for i in np.arange(self.nthresh):
-            self.thresholds[i,:,:] = np.outer(self.FtoE, Eff_thresh[i,:])
+            for j in range(len(survey.beam_b)):
+                #self.thresholds[i,j,:,:] = np.outer(self.FtoE, Eff_thresh[i,:])
+                self.thresholds[i,j,:,:] = (self.FtoE*(Eff_thresh[i,:,:,j])).T
             
-    def smear_dm(self, smear:np.ndarray):  # ,mean:float,sigma:float):
+    def smear_dm(self, smear:np.ndarray, cluster):  # ,mean:float,sigma:float):
         """ Smears DM using the supplied array.
         Example use: DMX contribution
 
@@ -432,26 +443,43 @@ class Grid:
         ls = smear.size
         lz, ldm = self.grid.shape
 
-        if not hasattr(self, "smear_grid"):
-            self.smear_grid = np.zeros([lz, ldm])
-        self.smear = smear
+        if cluster:
+            self.smear_grid = np.zeros([lz, ldm, len(self.beam_b)])
+            for j in range(len(self.beam_b)):
+                for i in np.arange(lz):
+                    # we need to get the length of mode='same', BUT
+                    # we do not want it 'centred', hence must make cut on full
+                    if smear.ndim == 3:
+                        self.smear_grid[i, :, j] = np.convolve(
+                            self.grid[i, :], smear[i, :, j], mode="full"
+                        )[0:ldm]
+                    else:
+                        raise ValueError(
+                            "Wrong number of dimensions for cluster DM smearing ", smear.shape
+                        )
+            
 
-        # this method is O~7 times faster than the 'brute force' above for large arrays
-        for i in np.arange(lz):
-            # we need to get the length of mode='same', BUT
-            # we do not want it 'centred', hence must make cut on full
-            if smear.ndim == 1:
-                self.smear_grid[i, :] = np.convolve(
-                    self.grid[i, :], smear, mode="full"
-                )[0:ldm]
-            elif smear.ndim == 2:
-                self.smear_grid[i, :] = np.convolve(
-                    self.grid[i, :], smear[i, :], mode="full"
-                )[0:ldm]
-            else:
-                raise ValueError(
-                    "Wrong number of dimensions for DM smearing ", smear.shape
-                )
+        else:
+            if not hasattr(self, "smear_grid"):    #for cluster do n_beam incremement smearing arrays
+                self.smear_grid = np.zeros([lz, ldm])
+            self.smear = smear
+    
+            # this method is O~7 times faster than the 'brute force' above for large arrays
+            for i in np.arange(lz):
+                # we need to get the length of mode='same', BUT
+                # we do not want it 'centred', hence must make cut on full
+                if smear.ndim == 1:
+                    self.smear_grid[i, :] = np.convolve(
+                        self.grid[i, :], smear, mode="full"
+                    )[0:ldm]
+                elif smear.ndim == 2:
+                    self.smear_grid[i, :] = np.convolve(
+                        self.grid[i, :], smear[i, :], mode="full"
+                    )[0:ldm]
+                else:
+                    raise ValueError(
+                        "Wrong number of dimensions for DM smearing ", smear.shape
+                    )
 
     def get_p_zgdm(self, DMs: np.ndarray):
         """ Calcuates the probability of redshift given a DM

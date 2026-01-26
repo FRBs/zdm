@@ -16,6 +16,10 @@ import json
 
 
 from ne2001 import density
+import magnificationMapper
+from astropy.io import fits
+from astropy import wcs
+from astropy import units as u
 
 from zdm import beams, parameters
 from zdm import pcosmic
@@ -474,8 +478,14 @@ class OldSurvey:
 
 class Survey:
     def __init__(self, state, survey_name:str, 
+                 opdir,
+                 bPosNum,
                  filename:str, 
                  dmvals:np.ndarray,
+                 zvals:np.ndarray,
+                 cluster,
+                 clusterRedshift, 
+                 lensing,
                  NFRB:int=None, 
                  iFRB:int=0):
         """ Init an FRB Survey class
@@ -507,10 +517,36 @@ class Survey:
                        method=beam_method, 
                        plot=False, 
                        thresh=beam_thresh) # tells the survey to use the beam file
+        if cluster:
+            xProbScat = np.load(opdir+'xProbScat.npy')
+            probScat = np.zeros([len(xProbScat),len(zvals),self.meta['NBINS']])
+            fractionUnscattered = np.zeros([len(zvals),self.meta['NBINS']])
+            for j in range(len(zvals)):
+                formatted_redshift = "{:03.2f}".format(zvals[j]) 
+                probScat[:,j,:] = np.load(opdir+'probScat_BP_'+str(bPosNum)+str(formatted_redshift)+'.npy')
+                fractionUnscattered[j,:] = np.load(opdir+'fractionUnscattered_BP_'+str(bPosNum)+str(formatted_redshift)+'.npy') 
+        else:
+            xProbScat=np.nan
+            probScat = np.ones([1,len(zvals),len(self.beam_b)])*np.nan
+            fractionUnscattered = np.ones([len(zvals),self.meta['NBINS']])
         # Efficiency: width_method passed through "self" here
-        pwidths,pprobs=make_widths(self, state)
-        _ = self.get_efficiency_from_wlist(dmvals,
-                                       pwidths,pprobs,model=width_bias) 
+        pwidths = np.zeros([state.width.Wbins, len(self.beam_b), len(zvals)]) 
+        pprobs = np.zeros([state.width.Wbins, len(self.beam_b), len(zvals)]) 
+        for i in range(len(self.beam_b)):
+            for j in range(len(zvals)):
+                pwidths[:,i,j],pprobs[:,i,j] = make_widths(
+                                                    self, 
+                                                    state, 
+                                                    xProbScat,
+                                                    probScat[:,j,i], 
+                                                    fractionUnscattered[j,i]
+                                                )
+        _ = self.get_efficiency_from_wlist(
+                    dmvals,
+                    pwidths,
+                    pprobs,
+                    zvals,
+                    model=width_bias) 
 
     def init_DMEG(self,DMhalo):
         """ Calculates extragalactic DMs assuming halo DM """
@@ -702,7 +738,7 @@ class Survey:
         else:
             print("No beam found to initialise...")
 
-    def get_efficiency_from_wlist(self,DMlist,wlist,plist, 
+    def get_efficiency_from_wlist(self,DMlist,wlist,plist,zvals,
                                   model="Quadrature", 
                                   addGalacticDM=True):
         """ Gets efficiency to FRBs
@@ -728,21 +764,25 @@ class Survey:
             - False: just used the supplied DMlist
         
         """
-        efficiencies=np.zeros([wlist.size,DMlist.size])
-        
+        #pwidths = np.zeros([state.wbins, len(self.beam_b), len(zvals)]) 
+        print(wlist.size, DMlist.size, zvals.size, self.beam_b.size)
+        efficiencies=np.zeros([wlist.shape[0], DMlist.size, zvals.size, self.beam_b.size])
+        print(self.beam_b.shape) 
         if addGalacticDM:
             toAdd = self.DMhalo + self.meta['DMG']
         else:
             toAdd = 0.
         
-        for i,w in enumerate(wlist):
-            efficiencies[i,:]=calc_relative_sensitivity(
-                None,DMlist+toAdd,w,
-                self.meta['FBAR'],
-                self.meta['TRES'],
-                self.meta['FRES'],
-                model=model,
-                dsmear=False)
+        for j in range(len(zvals)):
+            for k in range(len(self.beam_b)):
+                for i,w in enumerate(wlist[:,k,j]):
+                    efficiencies[i,:,j,k]=calc_relative_sensitivity(
+                    None,DMlist+toAdd,w,
+                    self.meta['FBAR'],
+                    self.meta['TRES'],
+                    self.meta['FRES'],
+                    model=model,
+                    dsmear=False)
         # keep an internal record of this
         self.efficiencies=efficiencies
         self.wplist=plist
@@ -807,6 +847,8 @@ def calc_relative_sensitivity(DM_frb,DM,w,fbar,t_res,nu_res,model='Quadrature',d
     
     # total smearing factor within a channel
     dm_smearing=2*(nu_res/1.e3)*k_DM*DM/(fbar/1e3)**3 #smearing factor of FRB in the band
+    #dm_smearing=2*(nu_res/1.e3)*k_DM*(DM-2000)/(fbar/1e3)**3 #smearing factor coherently dedispersed
+   # dm_smearing = DM*0
     
     # this assumes that what we see are measured widths including all the smearing factors
     # hence we must first adjust for this prior to estimating the DM-dependence
@@ -831,8 +873,8 @@ def calc_relative_sensitivity(DM_frb,DM,w,fbar,t_res,nu_res,model='Quadrature',d
     return sensitivity
     
 
-def geometric_lognormals(lmu1,ls1,lmu2,ls2,bins=None,
-                         Nrand=10000,plot=False,Nbins=101):
+def geometric_lognormals(lmu1,ls1,lmu2,ls2, xProbScat, probScat, fractionUnscattered,
+                         bins=None, Nrand=10000,plot=False,Nbins=101):
     '''
     Numerically evaluates the resulting distribution of y=\sqrt{x1^2+x2^2},
     where logx1~normal and logx2~normal with log-mean lmu and 
@@ -857,8 +899,18 @@ def geometric_lognormals(lmu1,ls1,lmu2,ls2,bins=None,
     np.random.seed(1234)
     x1s=np.random.normal(lmu1,ls1,Nrand)
     x2s=np.random.normal(lmu2,ls2,Nrand)
+    x3s=np.zeros(Nrand)
+    if np.sum(probScat) > 0:
+        if np.abs(np.sum(probScat)-1)>0:
+            if np.abs(np.sum(probScat)-1)<1e-3:
+                probScat = probScat/np.sum(probScat)
+        for i in range(Nrand - int(Nrand*fractionUnscattered)):
+            try :
+                x3s[i] = np.random.choice(xProbScat, p=probScat)
+            except Exception as e:
+                print(e, np.sum(probScat), fractionUnscattered)
     
-    ys=(np.exp(x1s*2)+np.exp(x2s*2))**0.5
+    ys=(np.exp(x1s*2)+np.exp(x2s*2)+x3s**2)**0.5
     
     if bins is None:
         #bins=np.linspace(0,np.max(ys)/4.,Nbins)
@@ -894,7 +946,7 @@ def geometric_lognormals(lmu1,ls1,lmu2,ls2,bins=None,
     #hist = hist/Nrand
     return hist,chist,bins
     
-def make_widths(s:Survey,state):
+def make_widths(s:Survey,state, xProbScat, probScat, fractionUnscattered):
     """
     This method takes a distribution of intrinsic FRB widths 
     (lognormal, defined by wlogmean and wlogsigma), and returns 
@@ -996,7 +1048,11 @@ def make_widths(s:Survey,state):
         dist,cdist,cbins=geometric_lognormals(wlogmean,
                                               wlogsigma,
                                               slogmean,
-                                              slogsigma)
+                                              slogsigma, 
+                                              xProbScat,
+                                              probScat,
+                                              fractionUnscattered,
+                                              )
         
         # In the below, imin1 and imin2 are the two indices bracketing the minimum
         # bin, while imax1 and imax2 bracket the upper max bin
@@ -1043,16 +1099,23 @@ def make_widths(s:Survey,state):
     weights[-1] += 1.-wsum #adds defecit here
     weights=np.array(weights)
     widths=np.array(widths)
+
     # removes unneccesary bins
-    keep=np.where(weights>1e-4)[0]
-    weights=weights[keep]
-    widths=widths[keep]
+    #keep=np.where(weights>1e-4)[0]
+    #weights=weights[keep]
+    #widths=widths[keep]
     
     return widths,weights
 
 
 def load_survey(survey_name:str, state:parameters.State, 
+                opdir,
+                bPosNum,
                 dmvals:np.ndarray,
+                cluster,
+                clusterRedshift, 
+                zvals,
+                lensing,
                 sdir:str=None, NFRB:int=None, 
                 nbins=None, iFRB:int=0, original:bool=False,
                 dummy=False):
@@ -1140,11 +1203,20 @@ def load_survey(survey_name:str, state:parameters.State,
             _ = srvy.get_efficiency_from_wlist(dmvals,pwidths,pprobs,
                                             model=width_bias) 
     else:                                
-        srvy = Survey(state, 
-                         survey_name, 
-                         os.path.join(sdir, dfile), 
-                         dmvals,
-                         NFRB=NFRB, iFRB=iFRB)
+        srvy = Survey(
+                state=state, 
+                survey_name = survey_name, 
+                opdir = opdir,
+                bPosNum = bPosNum,
+                filename = os.path.join(sdir, dfile), 
+                dmvals = dmvals,
+                cluster = cluster,
+                clusterRedshift = clusterRedshift, 
+                zvals = zvals,
+                lensing = lensing,
+                NFRB=NFRB, 
+                iFRB=iFRB
+        )
     return srvy
 
 def refactor_old_survey_file(survey_name:str, outfile:str, 
