@@ -847,6 +847,8 @@ def calc_relative_sensitivity(DM_frb,DM,w,fbar,t_res,nu_res,model='Quadrature',d
     
     # total smearing factor within a channel
     dm_smearing=2*(nu_res/1.e3)*k_DM*DM/(fbar/1e3)**3 #smearing factor of FRB in the band
+    #dm_smearing=2*(nu_res/1.e3)*k_DM*(DM-2000)/(fbar/1e3)**3 #smearing factor coherently dedispersed
+   # dm_smearing = DM*0
     
     # this assumes that what we see are measured widths including all the smearing factors
     # hence we must first adjust for this prior to estimating the DM-dependence
@@ -903,10 +905,12 @@ def geometric_lognormals(lmu1,ls1,lmu2,ls2, xProbScat, probScat, fractionUnscatt
             if np.abs(np.sum(probScat)-1)<1e-3:
                 probScat = probScat/np.sum(probScat)
         for i in range(Nrand - int(Nrand*fractionUnscattered)):
-            x3s[i] = np.random.choice(xProbScat, p=probScat)
+            try :
+                x3s[i] = np.random.choice(xProbScat, p=probScat)
+            except Exception as e:
+                print(e, np.sum(probScat), fractionUnscattered)
     
-    
-    ys=(np.exp(x1s*2)+np.exp(x2s*2)+x3s)**0.5
+    ys=(np.exp(x1s*2)+np.exp(x2s*2)+x3s**2)**0.5
     
     if bins is None:
         #bins=np.linspace(0,np.max(ys)/4.,Nbins)

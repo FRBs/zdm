@@ -294,7 +294,7 @@ def get_cluster_dm_mask(survey, opdir, bPosNum, dmvals, zvals, mask, clusterReds
                 else:
                     interpFunc = scipy.interpolate.interp1d(DMThresh[:-1], pdms[:,i], bounds_error=False, fill_value=0)
                     clusterConv = interpFunc(dmvals)
-                    new_mask[j,:,i] = np.convolve(mask[j,:],clusterConv/np.sum(clusterConv), mode='Full')[:mask.shape[1]]
+                    new_mask[j,:,i] = np.convolve(mask[j,:],clusterConv/np.sum(clusterConv), mode='full')[:mask.shape[1]]
             else:
                 new_mask[j,:,i] = mask[j,:]
     return new_mask 
