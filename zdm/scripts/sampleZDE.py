@@ -14,9 +14,6 @@ from zdm import pcosmic
 from zdm import iteration as it
 from zdm.craco import loading
 from zdm import io
-from magnificationMapper import normalisedLensFuncsAcrossBeam
-from astropy.io import fits
-from astropy import wcs
 import astropy
 from astropy import units as u
 from astropy import constants as const
@@ -24,6 +21,10 @@ import pickle
 import numpy as np
 from zdm import survey
 from matplotlib import pyplot as plt
+import scipy.stats
+from astropy.cosmology import Planck18 as cosmo
+from scipy.interpolate import interp1d
+
 
 def renormalise(enorm,emin,emax,gamma):
     oldNorm = (emin**gamma-emax**gamma)
@@ -31,7 +32,7 @@ def renormalise(enorm,emin,emax,gamma):
     renormFactor = oldNorm/newNorm #multiply existing rates by this
     return renormFactor
 
-def rollFRBSample(grid, N,renormEnergy=1e39):
+def rollFRBSample(Ugrid, N,renormEnergy=1e39):
     renormF = renormalise(renormEnergy, 10**Ugrid.state.energy.lEmin,10**Ugrid.state.energy.lEmax, np.asarray([Ugrid.state.energy.gamma]))
     zdmMesh = np.meshgrid(Ugrid.dmvals,Ugrid.zvals)
     tempBase = Ugrid.rates*10**Ugrid.state.FRBdemo.lC*renormF[0]*1024
@@ -49,7 +50,7 @@ def main(gamma, n, save_grid=False):
     # in case you wish to switch to another output directory
     #opdir = "Localised_FRBs/"
     #clusterRedshift = 0.38
-    opdir = "~/"
+    opdir = "./"
 
     # Initialise surveys and grids
 
@@ -74,9 +75,9 @@ def main(gamma, n, save_grid=False):
 
     z,d,e = rollFRBSample(g, N_frbs)
 
-    np.save(opdir+'Unlensedthresh5Gamma'+str("{:.2f}".format(gamma))+'SFRn'+str("{:.2f}".format(n))+'N'+str(N_frb)+'sampleRedshift',z)
-    np.save(opdir+'Unlensedthresh5Gamma'+str("{:.2f}".format(gamma))+'SFRn'+str("{:.2f}".format(n))+'N'+str(N_frb)+'sampleDM',d)
-    np.save(opdir+'Unlensedthresh5Gamma'+str("{:.2f}".format(gamma))+'SFRn'+str("{:.2f}".format(n))+'N'+str(N_frb)+'sampleEnergy',e)
+    np.save(opdir+'Unlensedthresh5Gamma'+str("{:.2f}".format(gamma))+'SFRn'+str("{:.2f}".format(n))+'N'+str(N_frbs)+'sampleRedshift',z)
+    np.save(opdir+'Unlensedthresh5Gamma'+str("{:.2f}".format(gamma))+'SFRn'+str("{:.2f}".format(n))+'N'+str(N_frbs)+'sampleDM',d)
+    np.save(opdir+'Unlensedthresh5Gamma'+str("{:.2f}".format(gamma))+'SFRn'+str("{:.2f}".format(n))+'N'+str(N_frbs)+'sampleEnergy',e)
    
     
     
@@ -90,6 +91,6 @@ def main(gamma, n, save_grid=False):
 if __name__ == "__main__":
     gamma=-1
     nsfr = 1
-    N_frbs
+    N_frbs=1000
     main(gamma, nsfr, N_frbs)
 
