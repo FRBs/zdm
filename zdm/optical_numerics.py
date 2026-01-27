@@ -167,18 +167,19 @@ def calc_path_priors(frblist,ss,gs,wrappers,verbose=True,usemodel=True):
         # extracts priors as function of absolute magnitude for this grid and DMEG
         MagPriors = wrapper.priors
         
-        mag_limit=26  # might not be correct. TODO! Should be in FRB object
+        # defunct now
+        #mag_limit=26  # might not be correct. TODO! Should be in FRB object
         
         # calculates unseen prior
         if usemodel:
-            PU = wrapper.estimate_unseen_prior(mag_limit)
+            PU = wrapper.estimate_unseen_prior()
         else:
             PU = 0.1
             MagPriors[:] = 1./len(MagPriors) # log-uniform priors when no model used
         
         # sets magnitude priors to zero when they are above the magnitude limit
-        bad = np.where(AppMags > mag_limit)[0]
-        MagPriors[bad] = 0.
+        #bad = np.where(AppMags > mag_limit)[0]
+        #MagPriors[bad] = 0.
         
         P_O,P_Ox,P_Ux,ObsMags,ptbl = run_path(frb,usemodel=usemodel,PU = PU)
         

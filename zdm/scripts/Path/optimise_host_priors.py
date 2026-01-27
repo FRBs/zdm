@@ -13,7 +13,7 @@ contributions using zDM to set priors for apparent magnitudes.
 WARNING2: To do this properly also requires inputting the posterior POx
 for host galaxies into zDM! This simulation does not do that either.
 
-WARNING3: this program takes O~1 hr to run
+WARNING3: this program can take a while to run, if optimising the simple model.
 """
 
 
