@@ -31,6 +31,7 @@ from zdm import cosmology as cos
 from zdm import parameters
 from zdm import loading
 from zdm import optical_numerics as on
+from zdm import states
 
 # other FRB library imports
 import astropath.priors as pathpriors
@@ -52,15 +53,20 @@ def main():
     # be re-fed into FRB surveys. However, it will be difficult to do this
     # with very limited redshift estimates. That might require posterior
     # estimates of redshift given the observed galaxies. Maybe.
-    state = parameters.State()
+    state = states.load_state("HoffmannHalo25",scat=None,rep=None)
+    #state = parameters.State()
     cos.set_cosmology(state)
     cos.init_dist_measures()
     names=['CRAFT_ICS_892','CRAFT_ICS_1300','CRAFT_ICS_1632']
-    ss,gs = loading.surveys_and_grids(survey_names=names)
+    ss,gs = loading.surveys_and_grids(survey_names=names,init_state=state)
     
     modelname = "loudas"
+    modelname = "simple"
+    
     opdir = modelname+"_0.9_output/"
     POxcut = None # set to e.g. 0.9 to reject FRBs with lower posteriors when doing model comparisons
+    
+    
     
     if not os.path.exists(opdir):
         os.mkdir(opdir)
@@ -69,8 +75,12 @@ def main():
     # Initialisation of model
     # simple host model
     if modelname=="simple":
-        model = opt.simple_host_model()
-        x0 = model.AbsPrior
+        opstate = op.OpticalState()
+        opstate.simple.AppModelID = 1 # sets to include k-correction
+        opstate.simple.k = 1.
+        model = opt.simple_host_model(opstate)
+        x0 = model.get_args()
+        
     elif modelname=="loudas":
         #### case of Loudas model
         model = opt.loudas_model()
@@ -79,8 +89,13 @@ def main():
         print("Unrecognised host model ", modelname)
     
     
+    # setting istat=0 means using a ks statistic to fit p(m_r)
+    istat=0
+    # setting istat=1 means using a maximum likelihood estimator
+    istat=1
+    
     # initialise aguments to minimisation function
-    args=[frblist,ss,gs,model,POxcut]
+    args=[frblist,ss,gs,model,POxcut,istat]
     Nparams = len(x0)
     bounds = [(0,1)]*Nparams
     
@@ -141,7 +156,7 @@ def main():
         plt.xlabel("Absolute magnitude, $M_r$")
         plt.ylabel("$p(M_r)$")
         plt.plot(model.AbsMags,model.AbsMagWeights/np.max(model.AbsMagWeights),label="interpolation")
-        plt.plot(model.ModelBins,x/np.max(x),marker="o",linestyle="",label="Model Parameters")
+        plt.plot(model.ModelBins,x[1:]/np.max(x[1:]),marker="o",linestyle="",label="Model Parameters")
         plt.legend()
         plt.tight_layout()
         plt.savefig(opdir+"best_fit_absolute_magnitudes.pdf")
@@ -171,7 +186,9 @@ def main():
         plt.tight_layout()
         plt.savefig(outfile)
         plt.close()
-    
+
+
+
 def make_cdf_for_plotting(xvals,weights=None):
     """
     Creates a cumulative distribution function

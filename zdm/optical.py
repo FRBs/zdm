@@ -498,8 +498,13 @@ class simple_host_model:
         if self.opstate.AppModelID == 0:
             if verbose:
                 print("Initialising simple luminosity function")
-            # must take arguments of (absoluteMag,z)
+            # must take arguments of (absoluteMag,k,z)
             self.CalcApparentMags = SimpleApparentMags
+        elif self.opstate.AppModelID == 1:
+            if verbose:
+                print("Initialising k-corrected luminosity function")
+            # must take arguments of (absoluteMag,k,z)
+            self.CalcApparentMags = SimplekApparentMags
         else:
             raise ValueError("Model ",self.opstate.AppModelID," not implemented")
         
@@ -524,15 +529,36 @@ class simple_host_model:
         # could perhaps use init args for this?
         if self.opstate.AbsPriorMeth==0:
             # uniform prior in log space of absolute magnitude
-            Absprior = np.full([self.ModelNBins],1./self.NAbsBins)
+            AbsPrior = np.full([self.ModelNBins],1./self.NAbsBins)
         else:
             # other methods to be added as required
             raise ValueError("Luminosity prior method ",self.opstate.AbsPriorMeth," not implemented")
         
-        self.init_args(Absprior)
+        # enforces normalisation of the prior to unity
+        self.AbsPrior = AbsPrior/np.sum(AbsPrior)
+        
+        # k-correction
+        self.k = self.opstate.k
+        
+        # this maps the weights from the parameter file to the absoluate magnitudes use
+        # internally within the program. We now initialise this during an "init"
+        self.init_abs_mag_weights()
         
         # the below is done for the wrapper function
         #self.ZMAP = False # records that we need to initialise this
+    
+    def get_args(self):
+        """
+        function to return args as a vector in the form of init_args
+        """
+        
+        if self.opstate.AppModelID == 0:
+            args = self.AbsPrior
+        elif self.opstate.AppModelID == 1:
+            args = np.zeros([self.ModelNBins+1])
+            args[1:] = self.AbsPrior
+            args[0] = self.k
+        return args
     
     def init_abs_bins(self):
         """
@@ -559,18 +585,26 @@ class simple_host_model:
         self.MagBins = MagBins
         self.dMag = dMag
         self.AbsMags = AbsMags
+        
     
-    def init_args(self,AbsPrior):
+    def init_args(self,Args):
         """
         Initialises prior on absolute magnitude of galaxies according to the method.
         
         Args:
-            - AbsPrior (list of floats): The prior on absolute magnitudes
+            - Args (list of floats): The prior on absolute magnitudes
                         to set for this model
+                        IF AppModelID == 1, then interpret the first as the k-correction
         
         """
         # Eventually, incorporate the AbsPrior vector into SimpleParams
         #self.opstate = OpticalState.SimpleParams
+        
+        if self.opstate.AppModelID == 0:
+            AbsPrior=Args
+        elif self.opstate.AppModelID == 1:
+            AbsPrior=Args[1:]
+            self.k = Args[0]
         
         # enforces normalisation of the prior to unity
         self.AbsPrior = AbsPrior/np.sum(AbsPrior)
@@ -629,7 +663,10 @@ class simple_host_model:
         """
         
         # mapping of apparent to absolute magnitude
-        mrvals = self.CalcApparentMags(self.AbsMags,z) # works with scalar z
+        if self.opstate.AppModelID == 0:
+            mrvals = self.CalcApparentMags(self.AbsMags,z) # works with scalar z
+        elif self.opstate.AppModelID == 1:
+            mrvals = self.CalcApparentMags(self.AbsMags,self.k,z) # works with scalar z
         
         
         # creates weighted histogram of apparent magnitudes,
@@ -753,6 +790,9 @@ class model_wrapper:
         # higher level state defining optical parameters
         self.OpticalState = model.OpticalState
         
+        self.pU_mean = self.OpticalState.id.pU_mean
+        self.pU_width = self.OpticalState.id.pU_width
+        
         # specific substate of the model
         self.opstate = model.opstate
         
@@ -857,7 +897,13 @@ class model_wrapper:
         
         # stores knowledge of the DM used to calculate the priors
         self.prior_DM = DM
-        self.priors = priors
+        self.raw_priors = priors
+        
+        pUgm = pU_g_mr = pogm(self.AppMags,self.pU_mean,self.pU_width)
+        
+        self.priors = self.raw_priors * (1.-pUgm)
+        self.PU = self.raw_priors * pUgm
+        
         
         # sets the PATH user function to point to its own
         pathpriors.USR_raw_prior_Oi = self.path_raw_prior_Oi
@@ -892,9 +938,9 @@ class model_wrapper:
         
         
         return papps,pz    
-
     
-    def estimate_unseen_prior(self,mag_limit):
+    
+    def estimate_unseen_prior(self):
         """
         Calculates PU, the prior that an FRB host galaxy of a
         particular DM is unseen in the optical image
@@ -916,9 +962,18 @@ class model_wrapper:
         
         """
         
-        invisible = np.where(self.AppMags > mag_limit)[0]
+        # smooth cutoff
+        #pU_g_mr = pogm(self.AppMags,mean,width)
         
-        PU = np.sum(self.priors[invisible])
+        # simple hard cutoff - now redundant
+        #invisible = np.where(self.AppMags > mag_limit)[0]
+        
+        #PU = np.sum(pU_g_mr * self.priors)
+        
+        #PU = np.sum(self.priors[invisible])
+        
+        # we now pre-calculate this at the init raw path prior stage
+        PU = np.sum(self.PU)
         
         return PU
     
@@ -1023,6 +1078,57 @@ def get_pz_prior(grid, DM):
     pz = kdm1 * grid.rates[:,idm1] + kdm2 * grid.rates[:,idm2]
     pz = pz/np.sum(pz,axis=0)
     return pz
+
+
+def SimplekApparentMags(Abs,k,zs):
+    """
+    Function to convert galaxy absolue to apparent magnitudes.
+    Same as simple apparent mags, but allows for a k-correction.
+    
+    Nominally, magnitudes are r-band magnitudes, but this function
+    is so simple it doesn't matter.
+    
+    Just applies a distance correction - no k-correction.
+    
+    Args:
+        Abs (float or array of floats): intrinsic galaxy luminosities 
+        k (float): k-correction
+        zs (float or array of floats): redshifts of galaxies
+    
+    Returns:
+        ApparentMags: NAbs x NZ array of magnitudes, where these
+                        are the dimensions of the inputs
+    """
+    
+    # calculates luminosity distances (Mpc)
+    lds = cos.dl(zs)
+    
+    # finds distance relative to absolute magnitude distance
+    dabs = 1e-5 # in units of Mpc
+    
+    # k-corrections
+    kcorrs = (1+zs)**k
+    
+    # relative magnitude
+    dMag = 2.5*np.log10((lds/dabs)**(2)) + 2.5*np.log10(kcorrs)
+    
+    
+    
+    
+    if np.isscalar(zs) or np.isscalar(Abs):
+        # just return the product, be it scalar x scalar,
+        # scalar x array, or array x scalar
+        # this also ensures that the dimensions are as expected
+        
+        ApparentMags = Abs + dMag
+    else:
+        # Convert to multiplication so we can use
+        # numpy.outer
+        temp1 = 10**Abs
+        temp2 = 10**dMag
+        ApparentMags = np.outer(temp1,temp2)
+        ApparentMags = np.log10(ApparentMags)
+    return ApparentMags
 
 def SimpleApparentMags(Abs,zs):
     """
@@ -1172,90 +1278,6 @@ frblist=['FRB20180924B','FRB20181112A','FRB20190102C','FRB20190608B',
 
 
 
-def run_path(name,PU=0.1,usemodel = False, sort = False):
-    """
-    evaluates PATH on an FRB
-    
-    absolute [bool]: if True, treats rel_error as an absolute value
-        in arcseconds
-    """
-    from frb.frb import FRB
-    from astropath.priors import load_std_priors
-    from astropath.path import PATH
-    
-    ######### Loads FRB, and modifes properties #########
-    my_frb = FRB.by_name(name)
-    
-    # do we even still need this? I guess not, but will keep it here just in case
-    my_frb.set_ee(my_frb.sig_a,my_frb.sig_b,my_frb.eellipse['theta'],
-                my_frb.eellipse['cl'],True)
-    
-    # reads in galaxy info
-    ppath = os.path.join(resources.files('frb'), 'data', 'Galaxies', 'PATH')
-    pfile = os.path.join(ppath, f'{my_frb.frb_name}_PATH.csv')
-    ptbl = pandas.read_csv(pfile)
-    
-    # Load prior
-    priors = load_std_priors()
-    prior = priors['adopted'] # Default
-    
-    theta_new = dict(method='exp', 
-                    max=priors['adopted']['theta']['max'], 
-                    scale=0.5)
-    prior['theta'] = theta_new
-    
-    # change this to something depending on the FRB DM
-    prior['U']=PU
-    
-    candidates = ptbl[['ang_size', 'mag', 'ra', 'dec', 'separation']]
-    
-    this_path = PATH()
-    this_path.init_candidates(candidates.ra.values,
-                         candidates.dec.values,
-                         candidates.ang_size.values,
-                         mag=candidates.mag.values)
-    this_path.frb = my_frb
-    
-    frb_eellipse = dict(a=my_frb.sig_a,
-                    b=my_frb.sig_b,
-                    theta=my_frb.eellipse['theta'])
-    
-    this_path.init_localization('eellipse', 
-                            center_coord=this_path.frb.coord,
-                            eellipse=frb_eellipse)
-    
-    # this results in a prior which is uniform in log space
-    # when summed over all galaxies with the same magnitude
-    if usemodel:
-        this_path.init_cand_prior('user', P_U=prior['U'])
-    else:
-        this_path.init_cand_prior('inverse', P_U=prior['U'])
-        
-    # this is for the offset
-    this_path.init_theta_prior(prior['theta']['method'], 
-                            prior['theta']['max'],
-                            prior['theta']['scale'])
-    
-    P_O=this_path.calc_priors() 
-    
-    # Calculate p(O_i|x)
-    debug = True
-    P_Ox,P_U = this_path.calc_posteriors('fixed', 
-                         box_hwidth=10., 
-                         max_radius=10., 
-                         debug=debug)
-    mags = candidates['mag']
-    
-    if sort:
-        indices = np.argsort(P_Ox)
-        P_O = P_O[indices]
-        P_Ox = P_Ox[indices]
-        mags = mags[indices]
-    
-    return P_O,P_Ox,P_U,mags
-
-
-
 
 def plot_frb(name,ralist,declist,plist,opfile):
     """
@@ -1320,4 +1342,25 @@ def plot_frb(name,ralist,declist,plist,opfile):
 
 
 
-
+def pogm(mag,mean,width):
+    """
+    Function to describe probability of identifying a galaxy in
+    an optical image as a function of its magnitude
+    
+    Args:
+        mag (float or array of floats): magnitude(s) at which
+            to evaluate the function
+        mean: magnitude at which the probability is 50%
+        width: characteristic width of transition from 0-50 and
+            50-100 %
+    """
+    
+    # converts to a number relative to the mean. Will be weird for mags < 0.
+    diff = (mag-mean)/width
+    
+    # converts the diff to a power of 10
+    pmr = 1.-1./(1+np.exp(diff))
+    
+    return pmr
+    
+    

@@ -55,7 +55,7 @@ class SimpleParams(data_class.myDataClass):
                   })
     AppModelID: int = field( 
         default=0, 
-        metadata={'help': "Model for converting absolute to apparent magnitudes. 0: no k-correction. Others to be implemented.",
+        metadata={'help': "Model for converting absolute to apparent magnitudes. 0: no k-correction. 1: with k-correctionOthers to be implemented.",
                   'unit': '', 
                   'Notation': '',
                   })
@@ -64,6 +64,12 @@ class SimpleParams(data_class.myDataClass):
         metadata={'help': "Model for describing absolute magnitudes. 0: Simple histogram of absolute magnitudes. 1: spline interpolation of histogram.",
                   'unit': '', 
                   'Notation': '',
+                  })
+    k: float = field( 
+        default=0., 
+        metadata={'help': "k-correction",
+                  'unit': '', 
+                  'Notation': 'k',
                   })
 
 
@@ -119,6 +125,24 @@ class LoudasParams(data_class.myDataClass):
 
 
 @dataclass
+class Identification(data_class.myDataClass):
+    """
+    # parameters for identifying galaxies in an image
+    """
+    pU_mean: float = field( 
+        default=26.385, 
+        metadata={'help': "Magnitude at which pU|mr is 0.5", 
+                  'unit': '', 
+                  'Notation': '',
+                  })
+    pU_width: float = field( 
+        default=0.279, 
+        metadata={'help': "Width of pU|mr distribution in ln space", 
+                  'unit': '', 
+                  'Notation': '',
+                  })
+
+@dataclass
 class Apparent(data_class.myDataClass):
     """
     # parameters for apparent mags - used by wrapper
@@ -156,6 +180,7 @@ class OpticalState(data_class.myData):
         self.simple = SimpleParams()
         self.loudas = LoudasParams()
         self.app = Apparent()
+        self.id = Identification()
         
 
     def update_param(self, param:str, value):

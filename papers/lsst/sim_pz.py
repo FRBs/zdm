@@ -48,7 +48,7 @@ def main():
     meerkat_z,meerkat_mr,meerkat_w = read_meerkat()
     
     # we should re-do this shortly.
-    Load=True
+    Load=False
     repeaters=False
     Test=False # do this for very simplified data
     Scat=False # do not use updated scattering model

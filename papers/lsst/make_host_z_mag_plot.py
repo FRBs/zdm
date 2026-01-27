@@ -107,13 +107,13 @@ def make_host_plot(model,opfile):
         sig2us[i] = mrvals[sig2u]
     
     plt.figure()
-    plt.plot(zvals,medians,linestyle="-",color="red",label="Mean")
+    plt.plot(zvals,medians,linestyle="-",color="red",label="Mean $m_r$")
     plt.plot(zvals,sig1ds,linestyle="--",color=plt.gca().lines[-1].get_color(),label="67% C.I.")
     plt.plot(zvals,sig1us,linestyle="--",color=plt.gca().lines[-1].get_color())
     plt.plot(zvals,sig2ds,linestyle=":",color=plt.gca().lines[-1].get_color(),label="95% C.I.")
     plt.plot(zvals,sig2us,linestyle=":",color=plt.gca().lines[-1].get_color())
     plt.xlabel("z")
-    plt.ylabel("$m_r$")
+    plt.ylabel("$m$")
     
     z,mr,w = g.read_craft()
     OK = np.where(w>= 0.5)[0]
@@ -127,13 +127,14 @@ def make_host_plot(model,opfile):
     OK = np.where(w>= 0.5)[0]
     plt.scatter(z[OK],mr[OK],marker='o',label="DSA",s=20)
     
+    zmax=2
     plt.ylim(10,30)
-    plt.xlim(0,1.5)
+    plt.xlim(0,zmax)
     
     Rlim1=24.7
     Rlim2=27.5
-    plt.plot([0,1.5],[Rlim1,Rlim1],linestyle=":",color="black")
-    plt.plot([0,1.5],[Rlim2,Rlim2],linestyle=":",color="black")
+    plt.plot([0,zmax],[Rlim1,Rlim1],linestyle=":",color="black")
+    plt.plot([0,zmax],[Rlim2,Rlim2],linestyle=":",color="black")
     plt.text(0.1,Rlim1+0.2,"$m_r^{\\rm lim}=$"+str(Rlim1))
     plt.text(0.1,Rlim2+0.2,"$m_r^{\\rm lim}=$"+str(Rlim2))
     

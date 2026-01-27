@@ -17,6 +17,7 @@ from matplotlib import pyplot as plt
 # imports from the "FRB" series
 from zdm import optical as opt
 from zdm import optical_params as op
+from zdm import optical_numerics as on
 from zdm import loading
 from zdm import cosmology as cos
 from zdm import parameters
@@ -111,8 +112,9 @@ def calc_path_priors():
     plt.close()
     
     # set up basic histogram of p(mr) distribution
-    mrbins = np.linspace(0,30,301)
+    mrbins = np.linspace(0,40,401)
     mrvals=(mrbins[:-1]+mrbins[1:])/2.
+    dmr = mrbins[1]-mrbins[0]
     
     model3 = opt.marnoch_model()
     
@@ -120,29 +122,32 @@ def calc_path_priors():
     styles=["-","--",":","-."]
     
     plt.figure()
-    flist=[0,1.]
+    flist=[0,1]
     
-    for z in [0.1,0.5,2]:
+    for i,z in enumerate([0.1,0.5,2.0]):
         
         # simple model
         pmr = model1.get_pmr_gz(mrbins,z)
         pmr /= np.sum(pmr)
-        plt.plot(mrvals,pmr,label="Simple: z = "+str(z),linestyle=styles[0])
+        
+        plt.plot(mrvals,pmr/dmr,label="z = "+str(z)+"; Naive",linestyle=styles[0])
         
         # Loudas model dependencies
         for i,fsfr in enumerate(flist):
             model2.init_args(fsfr)
             pmr = model2.get_pmr_gz(mrbins,z)
             pmr /= np.sum(pmr)
-            plt.plot(mrvals,pmr,label = "z = "+str(z)+", $f_{\\rm sfr}$ = "+str(fsfr),
+            plt.plot(mrvals,pmr/dmr,label = "              $f_{\\rm sfr}$ = "+str(fsfr),
                 linestyle=styles[i+1],color=plt.gca().lines[-1].get_color())
         
         pmr = model3.get_pmr_gz(mrbins,z)
-        plt.plot(mrvals,pmr,label = "Marnoch: z = "+str(z),linestyle=styles[3],
+        plt.plot(mrvals,pmr/dmr,label = "              Marnoch",linestyle=styles[3],
             color=plt.gca().lines[-1].get_color())
         
-    plt.xlabel("Optical magnitude $m_r$")
-    plt.ylabel("p(m_r|z)")
+    plt.xlabel("Apparent magnitude $m_r$")
+    plt.ylabel("$p(m_r|z)$")
+    plt.xlim(10,40)
+    plt.ylim(0,0.35)
     plt.tight_layout()
     plt.legend()
     plt.savefig(opdir+"all_model_apparent_mags.png")
@@ -163,6 +168,12 @@ def calc_path_priors():
     wrapper1 = opt.model_wrapper(model1,g.zvals) # simple
     wrapper2 = opt.model_wrapper(model2,g.zvals) # loudas with fsfr=0
     wrapper3 = opt.model_wrapper(model3,g.zvals) # loudas with fsfr=0
+    
+    # simply illustrates how one might change the probabilities of
+    # observaing a galaxy of a given magnitude
+    wrapper1.pU_mean = 26.385
+    wrapper1.pU_width = 0.279
+    
     
     # do this once per "model" objects
     #pathpriors.USR_raw_prior_Oi = wrapper1.path_raw_prior_Oi
@@ -236,7 +247,7 @@ def calc_path_priors():
         DMEG = s.DMEGs[imatch]
         
         # original calculation
-        P_O1,P_Ox1,P_Ux1,mags1 = opt.run_path(frb,usemodel=False,PU=0.1)
+        P_O1,P_Ox1,P_Ux1,mags1,ptbl = on.run_path(frb,usemodel=False,PU=0.1)
         
         # record this info
         if maglist[0] is None:
@@ -249,9 +260,9 @@ def calc_path_priors():
         
         # simple model
         wrapper1.init_path_raw_prior_Oi(DMEG,g)
-        PU2 = wrapper1.estimate_unseen_prior(mag_limit=26) # might not be correct
+        PU2 = wrapper1.estimate_unseen_prior() # might not be correct
         pathpriors.USR_raw_prior_Oi = wrapper1.path_raw_prior_Oi
-        P_O2,P_Ox2,P_Ux2,mags2 = opt.run_path(frb,usemodel=True,PU = PU2)
+        P_O2,P_Ox2,P_Ux2,mags2,ptbl = on.run_path(frb,usemodel=True,PU = PU2)
         
         
         for imag,mag in enumerate(mags2):
@@ -275,9 +286,9 @@ def calc_path_priors():
         model2.init_args(fSFR)
         wrapper2.init_zmapping(g.zvals)
         wrapper2.init_path_raw_prior_Oi(DMEG,g)
-        PU3 = wrapper2.estimate_unseen_prior(mag_limit=26) # might not be correct
+        PU3 = wrapper2.estimate_unseen_prior() # might not be correct
         pathpriors.USR_raw_prior_Oi = wrapper2.path_raw_prior_Oi
-        P_O3,P_Ox3,P_Ux3,mags3 = opt.run_path(frb,usemodel=True,PU = PU3)
+        P_O3,P_Ox3,P_Ux3,mags3,ptbl = on.run_path(frb,usemodel=True,PU = PU3)
         
         # record this info
         if maglist[2] is None:
@@ -293,9 +304,9 @@ def calc_path_priors():
         model2.init_args(fSFR)
         wrapper2.init_zmapping(g.zvals)
         wrapper2.init_path_raw_prior_Oi(DMEG,g)
-        PU4 = wrapper2.estimate_unseen_prior(mag_limit=26) # might not be correct limit
+        PU4 = wrapper2.estimate_unseen_prior() # might not be correct limit
         pathpriors.USR_raw_prior_Oi = wrapper2.path_raw_prior_Oi
-        P_O4,P_Ox4,P_Ux4,mags4 = opt.run_path(frb,usemodel=True,PU = PU4)
+        P_O4,P_Ox4,P_Ux4,mags4,ptbl = on.run_path(frb,usemodel=True,PU = PU4)
         
         # record this info
         if maglist[3] is None:
@@ -308,9 +319,9 @@ def calc_path_priors():
         # Marnoch model
         wrapper3.init_zmapping(g.zvals)
         wrapper3.init_path_raw_prior_Oi(DMEG,g)
-        PU5 = wrapper3.estimate_unseen_prior(mag_limit=26) # might not be correct limit
+        PU5 = wrapper3.estimate_unseen_prior() # might not be correct limit
         pathpriors.USR_raw_prior_Oi = wrapper3.path_raw_prior_Oi
-        P_O5,P_Ox5,P_Ux5,mags5 = opt.run_path(frb,usemodel=True,PU = PU5)
+        P_O5,P_Ox5,P_Ux5,mags5,ptbl = on.run_path(frb,usemodel=True,PU = PU5)
         
         # record this info
         if maglist[4] is None:

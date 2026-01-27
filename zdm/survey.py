@@ -245,8 +245,8 @@ class Survey:
             wlist = np.logspace(np.log10(self.WMin)+dlogw/2.,np.log10(self.WMax)-dlogw/2.,self.NWbins)
             wbins[0] -= 3 # ensures we capture low values!
         else:
-            wbins[0] = np.log10(self.WMin)
-            wbins[1] = np.log10(self.WMax)
+            wbins[0] = self.WMin
+            wbins[1] = self.WMax
             dlogw = np.log10(wbins[1]/wbins[0])
             wlist = np.array([(self.WMax*self.WMin)**0.5])
         self.wbins = wbins
@@ -939,11 +939,12 @@ class Survey:
         for field in fields(default_frb):\
             # checks to see if this is a field in metadata: if so, takes priority
             if survey_dict is not None and field.name in survey_dict.keys():
-                default_vaue = survey_dict[field.name]
+                default_value = survey_dict[field.name]
             elif field.name in self.meta.keys():
                 default_value = self.meta[field.name]
             else:
                 default_value = getattr(default_frb, field.name)
+            
             # now checks for missing data, fills with the default value
             if field.name in frb_tbl.columns:
                 
