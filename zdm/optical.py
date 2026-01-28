@@ -899,10 +899,10 @@ class model_wrapper:
         self.prior_DM = DM
         self.raw_priors = priors
         
-        pUgm = pU_g_mr = pogm(self.AppMags,self.pU_mean,self.pU_width)
+        pU = pUgm(self.AppMags,self.pU_mean,self.pU_width)
         
-        self.priors = self.raw_priors * (1.-pUgm)
-        self.PU = self.raw_priors * pUgm
+        self.priors = self.raw_priors * (1.-pU)
+        self.PU = self.raw_priors * pU
         
         
         # sets the PATH user function to point to its own
@@ -1342,10 +1342,10 @@ def plot_frb(name,ralist,declist,plist,opfile):
 
 
 
-def pogm(mag,mean,width):
+def pUgm(mag,mean,width):
     """
-    Function to describe probability of identifying a galaxy in
-    an optical image as a function of its magnitude
+    Function to describe probability of a galaxy being unidentified
+    in an optical image as a function of its magnitude
     
     Args:
         mag (float or array of floats): magnitude(s) at which
@@ -1359,8 +1359,8 @@ def pogm(mag,mean,width):
     diff = (mag-mean)/width
     
     # converts the diff to a power of 10
-    pmr = 1.-1./(1+np.exp(diff))
+    pU = 1./(1+np.exp(diff))
     
-    return pmr
+    return pU
     
     

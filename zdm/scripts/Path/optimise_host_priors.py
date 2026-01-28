@@ -63,7 +63,7 @@ def main():
     modelname = "loudas"
     modelname = "simple"
     
-    opdir = modelname+"_0.9_output/"
+    opdir = modelname+"_output/"
     POxcut = None # set to e.g. 0.9 to reject FRBs with lower posteriors when doing model comparisons
     
     
@@ -80,11 +80,14 @@ def main():
         opstate.simple.k = 1.
         model = opt.simple_host_model(opstate)
         x0 = model.get_args()
+        Nparams = len(x0)
+        bounds = [(-5,5)]+[(0,1)]*(Nparams-1)
         
     elif modelname=="loudas":
         #### case of Loudas model
         model = opt.loudas_model()
         x0 = [0.5]
+        bounds=[(-3,3)] # large range
     else:
         print("Unrecognised host model ", modelname)
     
@@ -92,34 +95,25 @@ def main():
     # setting istat=0 means using a ks statistic to fit p(m_r)
     istat=0
     # setting istat=1 means using a maximum likelihood estimator
-    istat=1
+    #istat=1
     
     # initialise aguments to minimisation function
     args=[frblist,ss,gs,model,POxcut,istat]
-    Nparams = len(x0)
-    bounds = [(0,1)]*Nparams
     
     # "function" is the function that performs the comparison of
     # predictions to outcomes. It's where all the magic happens
+    
     result = minimize(on.function,x0 = x0,args=args,bounds = bounds)
-    
-    # Recording the current spline best-fit here
-    #x = [0.00000000e+00 0.00000000e+00 7.05155614e-02 8.39235326e-01
-    #    3.27794398e-01 1.00182186e-03 0.00000000e+00 3.46702511e-04
-    #    2.17040011e-03 9.72472750e-04]
-    
-    # recording the current non-spline best fit here
-    #x = [ 1.707e-04,  8.649e-02,  9.365e-01,  9.996e-01,  2.255e-01,\
-    #         3.493e-02,  0.000e+00,  0.000e+00,  0.000e+00,  1.000e-01]
-    #x = np.array(x)
-    
     print("Best fit result is ",result.x)
     x = result.x
+    # saves result
+    np.save(opdir+"/best_fit_params.npy",x)
     
     # analyses final result
     if modelname == "simple":
         # renormalise distribution in parameters
         x /= np.sum(x)
+    
     
     # initialises arguments
     model.init_args(x)
@@ -127,13 +121,16 @@ def main():
     outfile = opdir+"best_fit_apparent_magnitudes.png"
     wrappers = on.make_wrappers(model,gs)
     NFRB,AppMags,AppMagPriors,ObsMags,ObsPosteriors,PUprior,PUobs,sumPUprior,sumPUobs = on.calc_path_priors(frblist,ss,gs,wrappers,verbose=False)
-    stat = on.calculate_goodness_statistic(NFRB,AppMags,AppMagPriors,ObsMags,ObsPosteriors,sumPUobs,sumPUprior,plotfile=outfile)
+    stat = on.calculate_ks_statistic(NFRB,AppMags,AppMagPriors,ObsMags,ObsPosteriors,sumPUobs,sumPUprior,plotfile=outfile)
     
     # calculates the original PATH result
     outfile = opdir+"original_fit_apparent_magnitudes.png"
     NFRB2,AppMags2,AppMagPriors2,ObsMags2,ObsPosteriors2,PUprior2,PUobs2,sumPUprior2,sumPUobs2 = on.calc_path_priors(frblist,ss,gs,wrappers,verbose=False,usemodel=False)
-    stat = on.calculate_goodness_statistic(NFRB,AppMags,AppMagPriors,ObsMags,ObsPosteriors,sumPUobs,sumPUprior,plotfile=outfile)
+    stat = on.calculate_ks_statistic(NFRB,AppMags2,AppMagPriors2,ObsMags2,ObsPosteriors2,sumPUobs2,sumPUprior2,plotfile=outfile)
     
+    # flattens lists of lists
+    ObsPosteriors = [x for xs in ObsPosteriors for x in xs]
+    ObsPosteriors2 = [x for xs in ObsPosteriors2 for x in xs]
     
     # plots original vs updated posteriors
     plt.figure()
@@ -175,7 +172,7 @@ def main():
             NFRB,AppMags,AppMagPriors,ObsMags,ObsPosteriors,PUprior,\
                 PUobs,sumPUprior,sumPUobs = on.calc_path_priors(frblist,
                                                                 ss,gs,wrappers,verbose=False)
-            stat = on.calculate_goodness_statistic(NFRB,AppMags,AppMagPriors,ObsMags,ObsPosteriors,sumPUobs,
+            stat = on.calculate_likelihood_statistic(NFRB,AppMags,AppMagPriors,ObsMags,ObsPosteriors,sumPUobs,
                         sumPUprior,plotfile=outfile,POxcut=POxcut)
             stats[istat] = stat
         outfile = opdir+"scan_sfr.png"

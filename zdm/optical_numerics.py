@@ -39,11 +39,8 @@ def function(x,args):
     
     # initialises model to the priors
     # generates one per grid, due to possible different zvals
-    
     model.init_args(x)
     wrappers = make_wrappers(model,gs)
-    
-    print("calculating arguments ",x)
     
     NFRB,AppMags,AppMagPriors,ObsMags,ObsPosteriors,PUprior,PUobs,sumPUprior,sumPUobs = calc_path_priors(frblist,ss,gs,wrappers,verbose=False)
     
@@ -172,16 +169,18 @@ def calc_path_priors(frblist,ss,gs,wrappers,verbose=True,usemodel=True):
         
         # calculates unseen prior
         if usemodel:
-            PU = wrapper.estimate_unseen_prior()
+            P_U = wrapper.estimate_unseen_prior()
         else:
-            PU = 0.1
+            P_U = 0.1
             MagPriors[:] = 1./len(MagPriors) # log-uniform priors when no model used
+        
+        
         
         # sets magnitude priors to zero when they are above the magnitude limit
         #bad = np.where(AppMags > mag_limit)[0]
         #MagPriors[bad] = 0.
         
-        P_O,P_Ox,P_Ux,ObsMags,ptbl = run_path(frb,usemodel=usemodel,PU = PU)
+        P_O,P_Ox,P_Ux,ObsMags,ptbl = run_path(frb,usemodel=usemodel,P_U = P_U)
         
         if i==0:
             allgals = ptbl
@@ -205,9 +204,9 @@ def calc_path_priors(frblist,ss,gs,wrappers,verbose=True,usemodel=True):
         allPOx.append(P_Ox)
         allMagPriors.append(MagPriors)
         
-        sumPU += PU
+        sumPU += P_U
         sumPUx += P_Ux
-        allPU.append(PU)
+        allPU.append(P_U)
         allPUx.append(P_Ux)
     
     
@@ -216,7 +215,7 @@ def calc_path_priors(frblist,ss,gs,wrappers,verbose=True,usemodel=True):
     # saves all galaxies
     if not os.path.exists("allgalaxies.csv"):
         subset.to_csv("allgalaxies.csv",index=False)
-    exit()
+    
     return nfitted,AppMags,allMagPriors,allObsMags,allPOx,allPU,allPUx,sumPU,sumPUx
 
 
@@ -274,7 +273,7 @@ def calculate_ks_statistic(NFRB,AppMags,AppMagPriors,ObsMags,ObsPosteriors,PUobs
     
     Inputs:
         AppMags: array listing apparent magnitudes
-        AppMagPrior: array giving prior on AppMags
+        AppMagPriors: list of lists giving priors on AppMags for each FRB
         ObsMags: list of observed magnitudes
         ObsPosteriors: list of posterior values corresponding to ObsMags
         PUobs: posterior on unseen probability
@@ -285,9 +284,10 @@ def calculate_ks_statistic(NFRB,AppMags,AppMagPriors,ObsMags,ObsPosteriors,PUobs
     Returns:
         k-like statistic of biggest obs/prior difference
     """
-    
-    # creates flattened lists
-    fAppMagPrios = np.array(flatten(AppMagPriors))
+    # sums the apparent mag priors over all FRBs to create a cumulative distribution
+    fAppMagPriors = np.zeros([len(AppMags)])
+    for i,amp in enumerate(AppMagPriors):
+        fAppMagPriors += amp
     
     fObsPosteriors = np.array(flatten(ObsPosteriors))
     
@@ -338,12 +338,15 @@ def calculate_ks_statistic(NFRB,AppMags,AppMagPriors,ObsMags,ObsPosteriors,PUobs
 
 
 
-def run_path(name,PU=0.1,usemodel = False, sort = False):
+def run_path(name,P_U=0.1,usemodel = False, sort=False):
     """
     evaluates PATH on an FRB
     
-    absolute [bool]: if True, treats rel_error as an absolute value
-        in arcseconds
+    Args:
+        P_U [float]: unseen prior
+        usemodel [bool]: if True, use user-defined P_O|x model
+        sort [bool]: if True, sort candidates by posterior
+    
     """
     from frb.frb import FRB
     from astropath.priors import load_std_priors
@@ -374,7 +377,7 @@ def run_path(name,PU=0.1,usemodel = False, sort = False):
     prior['theta'] = theta_new
     
     # change this to something depending on the FRB DM
-    prior['U']=PU
+    prior['U']=P_U
     
     candidates = ptbl[['ang_size', 'mag', 'ra', 'dec', 'separation']]
     
@@ -405,11 +408,11 @@ def run_path(name,PU=0.1,usemodel = False, sort = False):
                             prior['theta']['max'],
                             prior['theta']['scale'])
     
-    P_O=this_path.calc_priors() 
+    P_O=this_path.calc_priors()
     
     # Calculate p(O_i|x)
     debug = True
-    P_Ox,P_U = this_path.calc_posteriors('fixed', 
+    P_Ox,P_Ux = this_path.calc_posteriors('fixed', 
                          box_hwidth=10., 
                          max_radius=10., 
                          debug=debug)
@@ -421,5 +424,5 @@ def run_path(name,PU=0.1,usemodel = False, sort = False):
         P_Ox = P_Ox[indices]
         mags = mags[indices]
     
-    return P_O,P_Ox,P_U,mags,ptbl
+    return P_O,P_Ox,P_Ux,mags,ptbl
 
