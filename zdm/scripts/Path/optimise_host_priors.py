@@ -36,6 +36,15 @@ from zdm import states
 # other FRB library imports
 import astropath.priors as pathpriors
 
+import matplotlib
+
+defaultsize=14
+ds=4
+font = {'family' : 'Helvetica',
+        'weight' : 'normal',
+        'size'   : defaultsize}
+matplotlib.rc('font', **font)
+
 
 def main():
     """
@@ -54,19 +63,27 @@ def main():
     # with very limited redshift estimates. That might require posterior
     # estimates of redshift given the observed galaxies. Maybe.
     state = states.load_state("HoffmannHalo25",scat=None,rep=None)
-    #state = parameters.State()
+    
     cos.set_cosmology(state)
     cos.init_dist_measures()
+    
+    # loads zDM grids
     names=['CRAFT_ICS_892','CRAFT_ICS_1300','CRAFT_ICS_1632']
     ss,gs = loading.surveys_and_grids(survey_names=names,init_state=state)
     
-    modelname = "loudas"
+    
+    ######## Determnine which statistic to use in optimisation ########
+    # setting istat=0 means using a ks statistic to fit p(m_r)
+    # setting istat=1 means using a maximum likelihood estimator
+    istat=1
+    dok = True # turn on k-correction or not
+    
+    # determines which model to use
+    #modelname = "loudas"
     modelname = "simple"
     
     opdir = modelname+"_output/"
     POxcut = None # set to e.g. 0.9 to reject FRBs with lower posteriors when doing model comparisons
-    
-    
     
     if not os.path.exists(opdir):
         os.mkdir(opdir)
@@ -76,12 +93,25 @@ def main():
     # simple host model
     if modelname=="simple":
         opstate = op.OpticalState()
-        opstate.simple.AppModelID = 1 # sets to include k-correction
-        opstate.simple.k = 1.
+        
+        if dok:
+            Nparams = opstate.simple.NModelBins+1
+            opstate.simple.AppModelID = 1 # sets to include k-correction
+            opstate.simple.k = 0.5 # for some reason, this just doesn't make much difference to results
+            bounds = [(-25,25)]+[(0,1)]*(Nparams-1)
+        else:
+            Nparams = opstate.simple.NModelBins
+            # bins now give log-space values, hence -5,2 is range of 10^7
+            if opstate.simple.AbsModelID == 3:
+                base=(-5,2) # log space
+            else:
+                base=(0,1) # linear space
+            bounds = [base]*(Nparams)
+            opstate.simple.AppModelID = 0 # no k-correction
+        
         model = opt.simple_host_model(opstate)
         x0 = model.get_args()
-        Nparams = len(x0)
-        bounds = [(-5,5)]+[(0,1)]*(Nparams-1)
+        
         
     elif modelname=="loudas":
         #### case of Loudas model
@@ -91,11 +121,6 @@ def main():
     else:
         print("Unrecognised host model ", modelname)
     
-    
-    # setting istat=0 means using a ks statistic to fit p(m_r)
-    istat=0
-    # setting istat=1 means using a maximum likelihood estimator
-    #istat=1
     
     # initialise aguments to minimisation function
     args=[frblist,ss,gs,model,POxcut,istat]
@@ -109,19 +134,19 @@ def main():
     # saves result
     np.save(opdir+"/best_fit_params.npy",x)
     
-    # analyses final result
-    if modelname == "simple":
-        # renormalise distribution in parameters
-        x /= np.sum(x)
-    
-    
     # initialises arguments
     model.init_args(x)
     
     outfile = opdir+"best_fit_apparent_magnitudes.png"
     wrappers = on.make_wrappers(model,gs)
     NFRB,AppMags,AppMagPriors,ObsMags,ObsPosteriors,PUprior,PUobs,sumPUprior,sumPUobs = on.calc_path_priors(frblist,ss,gs,wrappers,verbose=False)
+    
+    # calculates a maximum-likelihood statistic
+    stat = on.calculate_likelihood_statistic(NFRB,AppMags,AppMagPriors,ObsMags,ObsPosteriors,PUobs,PUprior,plotfile=outfile)
+    
+    # calculates a KS-like statistic
     stat = on.calculate_ks_statistic(NFRB,AppMags,AppMagPriors,ObsMags,ObsPosteriors,sumPUobs,sumPUprior,plotfile=outfile)
+    
     
     # calculates the original PATH result
     outfile = opdir+"original_fit_apparent_magnitudes.png"
@@ -145,46 +170,6 @@ def main():
     plt.savefig(opdir+"Scatter_plot_comparison.png")
     plt.close()
     
-    ####### Plots that only make sense for specific models ########3
-    
-    if modelname == "simple":
-        # plots final result on absolute magnitudes
-        plt.figure()
-        plt.xlabel("Absolute magnitude, $M_r$")
-        plt.ylabel("$p(M_r)$")
-        plt.plot(model.AbsMags,model.AbsMagWeights/np.max(model.AbsMagWeights),label="interpolation")
-        plt.plot(model.ModelBins,x[1:]/np.max(x[1:]),marker="o",linestyle="",label="Model Parameters")
-        plt.legend()
-        plt.tight_layout()
-        plt.savefig(opdir+"best_fit_absolute_magnitudes.pdf")
-        plt.close()
-        
-    if modelname == "loudas":
-        
-        NSFR=41
-        stats = np.zeros([NSFR])
-        SFRs = np.linspace(0,4,NSFR)
-        for istat,sfr in enumerate(SFRs):
-            outfile = opdir+"ks_test_sfr_"+str(sfr)+".png"
-            #outfile = None
-            model.init_args(sfr)
-            wrappers = on.make_wrappers(model,gs)
-            NFRB,AppMags,AppMagPriors,ObsMags,ObsPosteriors,PUprior,\
-                PUobs,sumPUprior,sumPUobs = on.calc_path_priors(frblist,
-                                                                ss,gs,wrappers,verbose=False)
-            stat = on.calculate_likelihood_statistic(NFRB,AppMags,AppMagPriors,ObsMags,ObsPosteriors,sumPUobs,
-                        sumPUprior,plotfile=outfile,POxcut=POxcut)
-            stats[istat] = stat
-        outfile = opdir+"scan_sfr.png"
-        plt.figure()
-        plt.plot(SFRs,stats,marker="o")
-        plt.xlabel("$f_{\\rm sfr}$")
-        plt.ylabel("ks statistic (lower is better)")
-        plt.tight_layout()
-        plt.savefig(outfile)
-        plt.close()
-
-
 
 def make_cdf_for_plotting(xvals,weights=None):
     """

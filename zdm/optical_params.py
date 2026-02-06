@@ -30,7 +30,7 @@ class SimpleParams(data_class.myDataClass):
                   'Notation': '',
                   })
     Absmax: float = field( 
-        default=0., 
+        default=-10., 
         metadata={'help': "Maximum host absolute magnitude", 
                   'unit': 'M_r^{max}', 
                   'Notation': '',
@@ -61,7 +61,7 @@ class SimpleParams(data_class.myDataClass):
                   })
     AbsModelID: int = field( 
         default=1, 
-        metadata={'help': "Model for describing absolute magnitudes. 0: Simple histogram of absolute magnitudes. 1: spline interpolation of histogram.",
+        metadata={'help': "Model for describing absolute magnitudes. 0: Simple histogram of absolute magnitudes. 1: linear interpolation, 2: spline interpolation of histogram, 3: spline interpolation in log space",
                   'unit': '', 
                   'Notation': '',
                   })

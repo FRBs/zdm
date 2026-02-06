@@ -52,8 +52,10 @@ def function(x,args):
                 sumPUobs,sumPUprior,plotfile=None,POxcut=POxcut)
     elif istat==1:
         stat = calculate_likelihood_statistic(NFRB,AppMags,AppMagPriors,ObsMags,ObsPosteriors,
-                sumPUobs,sumPUprior,plotfile=None,POxcut=POxcut)
-        
+                PUobs,PUprior,plotfile=None,POxcut=POxcut)
+        # need to construct stat so that small values are good! Log-likelihood being good means large!
+        stat *= -1
+    
     return stat
 
 def make_wrappers(model,grids):
@@ -88,7 +90,7 @@ def make_cdf(xs,ys,ws,norm = True):
     return cdf
     
 
-def calc_path_priors(frblist,ss,gs,wrappers,verbose=True,usemodel=True):
+def calc_path_priors(frblist,ss,gs,wrappers,verbose=True,usemodel=True,P_U=0.1):
     """
     Inner loop. Gets passed model parameters, but assumes everything is
     initialsied from there.
@@ -120,6 +122,7 @@ def calc_path_priors(frblist,ss,gs,wrappers,verbose=True,usemodel=True):
     # new version recording one list per FRB. For max likelihood functionality
     allObsMags = []
     allPOx = []
+    allPO = []
     allMagPriors = []
     
     sumPU = 0.
@@ -127,6 +130,9 @@ def calc_path_priors(frblist,ss,gs,wrappers,verbose=True,usemodel=True):
     allPU = []
     allPUx = []
     nfitted = 0
+    
+    frbs=[]
+    dms=[]
     
     for i,frb in enumerate(frblist):
         # interates over the FRBs. "Do FRB"
@@ -143,44 +149,59 @@ def calc_path_priors(frblist,ss,gs,wrappers,verbose=True,usemodel=True):
                 # this is the survey to be used
                 g=gs[j]
                 s = ss[j]
-                wrapper = wrappers[j]
+                if usemodel:
+                    wrapper = wrappers[j]
+                jmatch = j
+                frbs.append(frb)
                 break
         
-        if imatch is None:
-            if verbose:
-                print("Could not find ",frb," in any survey")
-            continue
+            if imatch is None:
+                if verbose:
+                    print("Could not find ",frb," in any survey")
+                continue
         
         nfitted += 1
         
-        AppMags = wrapper.AppMags
+        if usemodel:
+            AppMags = wrapper.AppMags
+        else:
+            AppMags = None
         
+        # record this info  
         DMEG = s.DMEGs[imatch]
-        # this is where the particular survey comes into it
+        dms.append(DMEG)
         
-        # Must be priors on magnitudes for this FRB
-        wrapper.init_path_raw_prior_Oi(DMEG,g)
+        if usemodel:
+            
+            # this is where the particular survey comes into it
+            # Must be priors on magnitudes for this FRB
+            wrapper.init_path_raw_prior_Oi(DMEG,g)
         
-        # extracts priors as function of absolute magnitude for this grid and DMEG
-        MagPriors = wrapper.priors
-        
+            # extracts priors as function of absolute magnitude for this grid and DMEG
+            MagPriors = wrapper.priors
+        else:
+            MagPriors = None
+            
         # defunct now
         #mag_limit=26  # might not be correct. TODO! Should be in FRB object
         
         # calculates unseen prior
         if usemodel:
             P_U = wrapper.estimate_unseen_prior()
-        else:
-            P_U = 0.1
-            MagPriors[:] = 1./len(MagPriors) # log-uniform priors when no model used
+        #MagPriors[:] = 1./len(MagPriors) # log-uniform priors when no model used
         
-        
-        
-        # sets magnitude priors to zero when they are above the magnitude limit
-        #bad = np.where(AppMags > mag_limit)[0]
-        #MagPriors[bad] = 0.
         
         P_O,P_Ox,P_Ux,ObsMags,ptbl = run_path(frb,usemodel=usemodel,P_U = P_U)
+        
+        # kept here for debugging
+        if False:
+            print("P_U is ",P_U)
+            print("P_O is ",P_O)
+            print("P_Ox is ",P_Ox)
+            plt.figure()
+            plt.plot(AppMags,MagPriors)
+            plt.show()
+            plt.close()
         
         if i==0:
             allgals = ptbl
@@ -189,19 +210,10 @@ def calc_path_priors(frblist,ss,gs,wrappers,verbose=True,usemodel=True):
         
         ObsMags = np.array(ObsMags)
         
-        # old version creating a 1D list
-        #if allObsMags is None:
-        #    allObsMags = ObsMags
-        #    allPOx = P_Ox
-        #    allMagPriors = MagPriors
-        #else:
-        #    allObsMags = np.append(allObsMags,ObsMags)
-        #    allPOx = np.append(allPOx,P_Ox)
-        #    allMagPriors += MagPriors
-        
         # new version creating a list of lists
         allObsMags.append(ObsMags)
         allPOx.append(P_Ox)
+        allPO.append(P_O)
         allMagPriors.append(MagPriors)
         
         sumPU += P_U
@@ -209,49 +221,67 @@ def calc_path_priors(frblist,ss,gs,wrappers,verbose=True,usemodel=True):
         allPU.append(P_U)
         allPUx.append(P_Ux)
     
-    
     subset = allgals[['frb','mag','VLT_FORS2_R']].copy()
     
     # saves all galaxies
     if not os.path.exists("allgalaxies.csv"):
         subset.to_csv("allgalaxies.csv",index=False)
     
-    return nfitted,AppMags,allMagPriors,allObsMags,allPOx,allPU,allPUx,sumPU,sumPUx
+    return nfitted,AppMags,allMagPriors,allObsMags,allPO,allPOx,allPU,allPUx,sumPU,sumPUx,frbs,dms
 
 
 def calculate_likelihood_statistic(NFRB,AppMags,AppMagPriors,ObsMags,ObsPosteriors,PUobs,
                                 PUprior,plotfile=None,POxcut=None):
     """
     Calculates a likelihood for each of the FRBs, and returns the log-likelihood.
-    We must set each AppMagPriors to 1.-PUprior at the limiting magnitude for each observation,
-    and sum the ObsPosteriors to be equal to 1.-PUobs at that magnitude.
-    Then these are what gets summed.
     
-    This can be readily done by combining all ObsMags and ObsPosteriors into a single long list,
-    since this should already be correctly normalised. Priors require their own weight.
+    The inputs are in two categories. One is a form of lists of lists, where there is one list for
+    each FRB, and one entry in that list for each host galaxy candidate. Size is NFRB x NCAND
+    
+    The other input is where the length of the list matches the internal array size used to
+    calculate priors on host magnitudes. Size is either NMAG or NFRBxNMAG
     
     Inputs:
-        AppMags: array listing apparent magnitudes
-        AppMagPrior: array giving prior on AppMags
-        ObsMags: list of observed magnitudes
-        ObsPosteriors: list of posterior values corresponding to ObsMags
-        PUobs: posterior on unseen probability
-        PUprior: prior on PU
+        AppMags [array of floats: NMAG]: array listing apparent magnitudes used to calculate priors
+        AppMagPrior [array of floats NFRB xNMAG]: array giving prior on AppMags
+        ObsMags: list of lists of floats giving observed magnitudes m_r of host candidates 
+        ObsPosteriors: list of lists float of posterior values P(O|x) corresponding to ObsMags
+        PUobs [float]: posterior on unseen probability
+        PUprior [float]: prior on PU
         plotfile: set to name of output file for comparison plot
         POxcut: if not None, cut data to fixed POx. Used to simulate current techniques
     
     Returns:
-        k-like statistic of biggest obs/prior difference
+        log likelihood of the observation
     """
-    
     # calculates log-likelihood of observation
     stat=0
+    
     for i in np.arange(NFRB):
         # sums the likelihoods over each galaxy: p(xi|oi)*p(oi)/Pfield
-        sumpost = np.sum(ObsPosteriors[i])
+        
+        # calculate the factor by which the p...|x probabilities have been rescaled.
+        # allows us to undo this effect
+        rescale = PUobs[i]/PUprior[i]
+        # the problem is that the posteriors have been rescaled by some factor
+        # we do not want this! Hence, we work out the rescale factor by comparing
+        # the rescale on the unseen prior. Then we undo this factor
+        # (Note: PUobs / rescale = PUprior, hence must divide)
+        sumpost = np.sum(ObsPosteriors[i])/rescale+PUprior[i]
+        
+        if False:
+            plt.figure()
+            plt.plot(AppMags,AppMagPriors[i]/np.max(AppMagPriors[i]),label="priors from model")
+            for j,mag in enumerate(ObsMags[i]):
+                plt.scatter(ObsMags[i],ObsPosteriors[i],label="posteriors")
+           
+            print("Sum gives ",sumpost, " of which PU is ",PUprior[i])
+            plt.show()
+            plt.close()
         ll = np.log10(sumpost)
         stat += ll
     
+        
     return stat
 
 def flatten(xss):
@@ -261,7 +291,7 @@ def flatten(xss):
     return [x for xs in xss for x in xs]
 
 def calculate_ks_statistic(NFRB,AppMags,AppMagPriors,ObsMags,ObsPosteriors,PUobs,
-                                PUprior,plotfile=None,POxcut=None):
+                                PUprior,plotfile=None,POxcut=None,plotlabel=None,abc=None,tag=""):
     """
     Calculates a ks-like statistic to be proxy for goodness-of-fit
     We must set each AppMagPriors to 1.-PUprior at the limiting magnitude for each observation,
@@ -280,14 +310,18 @@ def calculate_ks_statistic(NFRB,AppMags,AppMagPriors,ObsMags,ObsPosteriors,PUobs
         PUprior: prior on PU
         plotfile: set to name of output file for comparison plot
         POxcut: if not None, cut data to fixed POx. Used to simulate current techniques
+        abc [None]: add label, e.g. (a), to upper left
+        tag [string]: string to prefix labels
     
     Returns:
         k-like statistic of biggest obs/prior difference
     """
     # sums the apparent mag priors over all FRBs to create a cumulative distribution
     fAppMagPriors = np.zeros([len(AppMags)])
+    
     for i,amp in enumerate(AppMagPriors):
         fAppMagPriors += amp
+    
     
     fObsPosteriors = np.array(flatten(ObsPosteriors))
     
@@ -325,10 +359,28 @@ def calculate_ks_statistic(NFRB,AppMags,AppMagPriors,ObsMags,ObsPosteriors,PUobs
         plt.figure()
         plt.xlabel("Apparent magnitude $m_r$")
         plt.ylabel("Cumulative host galaxy distribution")
+        plt.ylim(0,1)
+        
+        # calcs lowest x that is essentially at max
+        ixmax = np.where(prior_dist > prior_dist[-1]*0.999)[0][0]
+        # rounds it up to multiple of 5
+        xmax = 5 * (int(AppMags[ixmax]/5.)+1)
+        ixmin = np.where(prior_dist < 0.01)[0][-1]
+        xmin = 5*(int(AppMags[ixmin]/5.))
+        plt.xlim(xmin,xmax)
+        
         #cx,cy = make_cdf_for_plotting(ObsMags,weights=ObsPosteriors)
-        plt.plot(AppMags,obs_dist,label="Observed")
-        plt.plot(AppMags,prior_dist,label="Prior")
+        plt.plot(AppMags,obs_dist,label=tag+"Observed",color="black")
+        plt.plot(AppMags,prior_dist,label=tag+"Prior",linestyle=":")
         plt.legend()
+        
+        # adds label to plot
+        if plotlabel is not None:
+            plt.text((xmin+xmax)/2.,0.05,plotlabel)
+        
+        if abc is not None:
+            plt.text(0.02,0.9,abc,fontsize=16, transform=plt.gcf().transFigure)
+        
         plt.tight_layout()
         plt.savefig(plotfile)
         plt.close()
@@ -336,7 +388,117 @@ def calculate_ks_statistic(NFRB,AppMags,AppMagPriors,ObsMags,ObsPosteriors,PUobs
     
     return stat
 
-
+def make_cumulative_plots(NMODELS,NFRB,AppMags,AppMagPriors,ObsMags,ObsPosteriors,PUobs,
+                                PUprior,plotfile,plotlabel,POxcut=None,abc=None,onlyobs=None):
+    """
+    Creates cumulative plots of KS-like behaviour for multiple fit outcomes
+    
+    Inputs: see "calculate_ks_statistic" except:
+        - NMODELS (int): number of models to plot
+        - abc remains unchanged
+        - NFRB remains unchanged
+        - plotfile remains unchanged
+        - onlyobs (int): if not None, only plot observed distribution for this case
+        - all other parameters have a leading dimension of NMODELS
+    
+    Inputs from "calculate_ks_statistic" with extra NMODELS dimension:
+        AppMags: array listing apparent magnitudes
+        AppMagPriors: list of lists giving priors on AppMags for each FRB
+        ObsMags: list of observed magnitudes
+        ObsPosteriors: list of posterior values corresponding to ObsMags
+        PUobs: posterior on unseen probability
+        PUprior: prior on PU
+        POxcut: if not None, cut data to fixed POx. Used to simulate current techniques
+    
+    Returns:
+        None
+    """
+    
+    # arrays to hold created observed and prior distributions
+    prior_dists = []
+    obs_dists = []
+    
+    # loops over models to create prior distributions
+    for imodel in np.arange(NMODELS):
+        # sums the apparent mag priors over all FRBs to create a cumulative distribution
+        fAppMagPriors = np.zeros([len(AppMags[imodel])])
+    
+        for i,amp in enumerate(AppMagPriors[imodel]):
+            fAppMagPriors += amp
+    
+        fObsPosteriors = np.array(flatten(ObsPosteriors[imodel]))
+        
+        fObsMags = np.array(flatten(ObsMags[imodel]))
+    
+        # we calculate a probability using a cumulative distribution
+        prior_dist = np.cumsum(fAppMagPriors)
+        
+        if POxcut is not None:
+            # cuts data to "good" FRBs only
+            OK = np.where(fObsPosteriors > POxcut)[0]
+            Ndata = len(OK)
+            fObsMags = fObsMags[OK]
+            fObsPosteriors = np.full([Ndata],1.) # effectively sets these to unity
+    
+        
+        # makes a cdf in units of AppMags, with observations ObsMags weighted by ObsPosteriors
+        obs_dist = make_cdf(AppMags[imodel],fObsMags,fObsPosteriors,norm=False)
+        
+        if POxcut is not None:
+            # current techniques just assume we have the full distribution
+            obs_dist /= obs_dist[-1]
+            prior_dist /= prior_dist[-1]
+        else:
+            # the above is normalised to NFRB. We now divide it by this
+            # might want to be careful here, and preserve this normalisation
+            obs_dist /= NFRB[imodel]
+            prior_dist /= NFRB[imodel] #((NFRB-PUprior)/NFRB) / prior_dist[-1]
+        
+        # we calculate something like the k-statistic. Includes NFRB normalisation
+        diff = obs_dist - prior_dist
+        stat = np.max(np.abs(diff))
+        
+        obs_dists.append(obs_dist)
+        prior_dists.append(prior_dist)
+        
+    # plotting!
+    plt.figure()
+    plt.xlabel("Apparent magnitude $m_r$")
+    plt.ylabel("Cumulative host galaxy distribution")
+    plt.ylim(0,1)
+    
+    for imodel in np.arange(NMODELS):
+        
+        # calcs lowest x that is essentially at max
+        ixmax = np.where(prior_dist > prior_dist[-1]*0.999)[0][0]
+        # rounds it up to multiple of 5
+        xmax = 5 * (int(AppMags[imodel][ixmax]/5.)+1)
+        ixmin = np.where(prior_dist < 0.001)[0][-1]
+        xmin = 5*(int(AppMags[imodel][ixmin]/5.))
+        
+        # sets this for each one - yes, it's random which is which, oh well!
+        plt.xlim(xmin,xmax)
+        
+        #cx,cy = make_cdf_for_plotting(ObsMags,weights=ObsPosteriors)
+        plt.plot(AppMags[imodel],prior_dists[imodel],label=plotlabel[imodel]+": Prior",
+                        linestyle=":")
+        if onlyobs is None or onlyobs == imodel:
+            if onlyobs is not None:
+                color='black'
+            else:
+                color=plt.gca().lines[-1].get_color()
+            plt.plot(AppMags[imodel],obs_dists[imodel],label=plotlabel[imodel]+": Observed",
+                        color=color)
+            
+            
+    if abc is not None:
+        plt.text(0.02,0.9,abc,fontsize=16, transform=plt.gcf().transFigure)
+    plt.legend(loc="upper left")
+    plt.tight_layout()
+    plt.savefig(plotfile)
+    plt.close()
+    
+    return None
 
 def run_path(name,P_U=0.1,usemodel = False, sort=False):
     """
@@ -364,6 +526,11 @@ def run_path(name,P_U=0.1,usemodel = False, sort=False):
     pfile = os.path.join(ppath, f'{my_frb.frb_name}_PATH.csv')
     ptbl = pandas.read_csv(pfile)
     
+    
+    if name=="FRB20181112A":
+        print(ptbl)
+        exit()
+    
     ngal = len(ptbl)
     ptbl["frb"] = np.full([ngal],name)
     
@@ -388,8 +555,8 @@ def run_path(name,P_U=0.1,usemodel = False, sort=False):
                          mag=candidates.mag.values)
     this_path.frb = my_frb
     
-    frb_eellipse = dict(a=my_frb.sig_a,
-                    b=my_frb.sig_b,
+    frb_eellipse = dict(a=np.abs(my_frb.sig_a),
+                    b=np.abs(my_frb.sig_b),
                     theta=my_frb.eellipse['theta'])
     
     this_path.init_localization('eellipse', 
@@ -416,6 +583,7 @@ def run_path(name,P_U=0.1,usemodel = False, sort=False):
                          box_hwidth=10., 
                          max_radius=10., 
                          debug=debug)
+    
     mags = candidates['mag']
     
     if sort:

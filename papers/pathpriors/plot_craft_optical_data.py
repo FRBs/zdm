@@ -110,7 +110,22 @@ def main():
     plt.tight_layout()
     plt.savefig("Figures/ang_mag.png")
     plt.close()
-
+    
+    
+    
+    # creates a plot to check the normalisation of driver et al
+    
+    plt.figure()
+    
+    plt.xlim(10,30)
+    plt.ylim(-2,6)
+    
+    mags = np.linspace(10,30,21)
+    driver = chance.driver_sigma(mags)
+    plt.plot(mags,np.log10(driver*3600*3600/2),color="black")
+    plt.tight_layout()
+    plt.savefig("driver_test.png")
+    plt.close()
 
 def int_driver(bins):
     """

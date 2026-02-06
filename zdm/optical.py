@@ -500,11 +500,13 @@ class simple_host_model:
                 print("Initialising simple luminosity function")
             # must take arguments of (absoluteMag,k,z)
             self.CalcApparentMags = SimpleApparentMags
+            self.CalcAbsoluteMags = SimpleAbsoluteMags
         elif self.opstate.AppModelID == 1:
             if verbose:
                 print("Initialising k-corrected luminosity function")
             # must take arguments of (absoluteMag,k,z)
             self.CalcApparentMags = SimplekApparentMags
+            self.CalcAbsoluteMags = SimplekAbsoluteMags
         else:
             raise ValueError("Model ",self.opstate.AppModelID," not implemented")
         
@@ -513,7 +515,13 @@ class simple_host_model:
                 print("Describing absolute mags with N independent bins")
         elif self.opstate.AbsModelID == 1:
             if verbose:
+                print("Describing absolute mags with linear interpoilation of N points")
+        elif self.opstate.AbsModelID == 2:
+            if verbose:
                 print("Describing absolute mags with spline interpoilation of N points")
+        elif self.opstate.AbsModelID == 3:
+            if verbose:
+                print("Describing absolute mags with spline interpoilation of N log points")
         else:
             raise ValueError("Model ",self.opstate.AbsModelID," not implemented")
         
@@ -632,7 +640,7 @@ class simple_host_model:
             dbin = (self.Absmax - self.Absmin)/ModelNBins
             ModelBins = np.linspace(self.Absmin+dbin/2.,self.Absmax-dbin/2.,ModelNBins)
             
-        elif self.AbsModelID == 1:
+        else:
             # bins on edges
             ModelBins = np.linspace(self.Absmin,self.Absmax,ModelNBins)
         
@@ -662,26 +670,61 @@ class simple_host_model:
            pmr: probability for each of the bins (length: N) 
         """
         
-        # mapping of apparent to absolute magnitude
-        if self.opstate.AppModelID == 0:
-            mrvals = self.CalcApparentMags(self.AbsMags,z) # works with scalar z
-        elif self.opstate.AppModelID == 1:
-            mrvals = self.CalcApparentMags(self.AbsMags,self.k,z) # works with scalar z
-        
-        
-        # creates weighted histogram of apparent magnitudes,
-        # using model weights from wmap (which are fixed for all z)
-        hist,bins = np.histogram(mrvals,weights=self.AbsMagWeights,bins=mrbins)
-        
-        #smoothing function - just to flatten the params
-        NS=10
-        smoothf = self.gauss(mrvals[0:NS] - np.average(mrvals[0:NS]))
-        smoothf /= np.sum(smoothf)
-        smoothed = np.convolve(hist,smoothf,mode="same")
-        
-        #smoothed=hist. Not sure yet if smoothing is the right thing to do!
-        pmr = smoothed
-        
+        old = False
+        if old:
+            # mapping of apparent to absolute magnitude
+            if self.opstate.AppModelID == 0:
+                mrvals = self.CalcApparentMags(self.AbsMags,z) # works with scalar z
+            elif self.opstate.AppModelID == 1:
+                mrvals = self.CalcApparentMags(self.AbsMags,self.k,z) # works with scalar z
+            
+            # creates weighted histogram of apparent magnitudes,
+            # using model weights from wmap (which are fixed for all z)
+            hist,bins = np.histogram(mrvals,weights=self.AbsMagWeights,bins=mrbins)
+            
+            #smoothing function - just to flatten the params
+            NS=10
+            smoothf = self.gauss(mrvals[0:NS] - np.average(mrvals[0:NS]))
+            smoothf /= np.sum(smoothf)
+            smoothed = np.convolve(hist,smoothf,mode="same")
+            
+            #smoothed=hist. Not sure yet if smoothing is the right thing to do!
+            pmr = smoothed
+        else:
+            # probability density at bin centre
+            mrbars = (mrbins[:-1] + mrbins[1:])/2.
+            
+            # get absolute magnitudes corresponding to these apparent magnitudes
+            if self.opstate.AppModelID == 0:
+                Mrvals = self.CalcAbsoluteMags(mrbars,z) # works with scalar z
+            elif self.opstate.AppModelID == 1:
+                Mrvals = self.CalcAbsoluteMags(mrbars,self.k,z) # works with scalar z
+            
+            # linear interpolation
+            # note that dMr = dmr, so we just map probability densities
+            
+            kmag2s = (Mrvals - self.Absmin)/self.dMag
+            imag1s = np.floor(kmag2s).astype('int')
+            kmag2s -= imag1s
+            kmag1s = 1.-kmag2s
+            imag2s = imag1s+1
+            
+            # guards against things that are too low
+            toolow = np.where(imag1s < 0)[0]
+            imag1s[toolow]=0
+            kmag1s[toolow]=1
+            imag2s[toolow]=1
+            kmag2s[toolow]=0
+            
+            # guards against things that are too high
+            toohigh = np.where(imag2s >= self.NAbsBins)[0]
+            imag1s[toohigh]=self.NAbsBins-2
+            kmag1s[toohigh]=0
+            imag2s[toohigh]=self.NAbsBins-1
+            kmag2s[toohigh]=1.
+            
+            pmr = self.AbsMagWeights[imag1s] * kmag1s + self.AbsMagWeights[imag2s] * kmag2s
+            
         # # NOTE: these should NOT be re-normalised, since the normalisation reflects
         # true magnitudes which fall off the apparent magnitude histogram.
         return pmr
@@ -691,7 +734,7 @@ class simple_host_model:
         simple Gaussian smoothing function
         """
         return np.exp(-0.5*(x-mu)**2/sigma**2)
-        
+    
     def init_abs_mag_weights(self):
         """
         Assigns a weight to each of the absolute magnitudes
@@ -714,6 +757,11 @@ class simple_host_model:
             
             weights = self.AbsPrior[self.imags]
         elif self.AbsModelID == 1:
+            # linear interpolation
+            # gives mapping from model bins to mag bins
+            weights = np.interp(self.AbsMags,self.ModelBins,self.AbsPrior)
+            
+        elif self.AbsModelID == 2:
             # As above, but with spline interpolation of model.
             # coefficients span full range
             cs = CubicSpline(self.ModelBins,self.AbsPrior)
@@ -730,10 +778,14 @@ class simple_host_model:
             if iLastNonzero < self.AbsPrior.size - 1:
                 toohigh = np.where(self.AbsMags > self.ModelBins[iLastNonzero+1])
                 weights[toohigh] = 0.
+        elif self.AbsModelID == 3:
+            # As above, but splines interpolate in *log* space
+            cs = CubicSpline(self.ModelBins,self.AbsPrior)
+            weights = cs(self.AbsMags)
+            weights = 10**weights
             
         else:
             raise ValueError("This weighting scheme not yet implemented")
-        
         
         
         # renormalises the weights, so all internal apparent mags sum to unit
@@ -850,12 +902,14 @@ class model_wrapper:
         
         for i,z in enumerate(zvals):
             # use the model to calculate p(mr|z) for range of z-values
-            # this is then stored in an array
-            p_mr_z[:,i] = self.model.get_pmr_gz(self.AppBins,z)
-            
+            # this is then stored in an array.
+            # NOTE! This could become un-normalised due to
+            # interpolation falling off the edge
+            # hence, we normalise it
+            this_p_mr_z = self.model.get_pmr_gz(self.AppBins,z)
+            this_p_mr_z /= np.sum(this_p_mr_z)
+            p_mr_z[:,i] = this_p_mr_z
         self.p_mr_z = p_mr_z
-        
-        
         
         # records that this has been initialised
         self.ZMAP = True
@@ -902,8 +956,8 @@ class model_wrapper:
         pU = pUgm(self.AppMags,self.pU_mean,self.pU_width)
         
         self.priors = self.raw_priors * (1.-pU)
-        self.PU = self.raw_priors * pU
-        
+        self.PUdist = self.raw_priors * pU
+        self.PU = np.sum(self.PUdist)
         
         # sets the PATH user function to point to its own
         pathpriors.USR_raw_prior_Oi = self.path_raw_prior_Oi
@@ -973,9 +1027,9 @@ class model_wrapper:
         #PU = np.sum(self.priors[invisible])
         
         # we now pre-calculate this at the init raw path prior stage
-        PU = np.sum(self.PU)
+        #PU = np.sum(self.PU)
         
-        return PU
+        return self.PU
     
     def path_raw_prior_Oi(self,mags,ang_sizes,Sigma_ms):
         """
@@ -1012,6 +1066,9 @@ class model_wrapper:
             # calculate the bins in apparent magnitude prior
             kmag2 = (mag - self.Appmin)/self.dAppmag
             imag1 = int(np.floor(kmag2))
+            imag2 = imag1 + 1
+            kmag2 -= imag1 #residual; float
+            kmag1 = 1.-kmag2
             
             # careful with interpolation - priors are for magnitude bins
             # with bin edges give by Appmin + N dAppmag.
@@ -1023,8 +1080,13 @@ class model_wrapper:
             #imag2 = imag1+1
             #prior = kmag1*self.priors[imag1] + kmag2*self.priors[imag2]
             
-            # very simple - just gives probability for bin it's in
-            Oi = self.priors[imag1]
+            # simple linear interpolation
+            Oi = self.priors[imag1] * kmag1 + self.priors[imag2] * kmag2
+            
+            # correct normalisation - otherwise, priors are defined to sum
+            # such that \sum priors = 1; here, we need \int priors dm = 1
+            Oi /= self.dAppmag 
+            
             Oi /= Sigma_ms[i] # normalise by host counts
             Ois.append(Oi)
         
@@ -1109,10 +1171,10 @@ def SimplekApparentMags(Abs,k,zs):
     # k-corrections
     kcorrs = (1+zs)**k
     
+    dk = 2.5*np.log10(kcorrs) #i.e., 2.5*k*np.log10(1+z)
+    
     # relative magnitude
-    dMag = 2.5*np.log10((lds/dabs)**(2)) + 2.5*np.log10(kcorrs)
-    
-    
+    dMag = 2.5*np.log10((lds/dabs)**(2)) + dk
     
     
     if np.isscalar(zs) or np.isscalar(Abs):
@@ -1129,6 +1191,99 @@ def SimplekApparentMags(Abs,k,zs):
         ApparentMags = np.outer(temp1,temp2)
         ApparentMags = np.log10(ApparentMags)
     return ApparentMags
+
+def SimplekAbsoluteMags(App,k,zs):
+    """
+    Function to convert galaxy apparent to absolute magnitudes.
+    Same as simple absolute mags mags, but allows for a k-correction.
+    
+    Nominally, magnitudes are r-band magnitudes, but this function
+    is so simple it doesn't matter.
+    
+    Just applies a distance correction - no k-correction.
+    
+    Args:
+        App (float or array of floats): apparent galaxy luminosities 
+        k (float): k-correction
+        zs (float or array of floats): redshifts of galaxies
+    
+    Returns:
+        AbsoluteMags: NAbs x NZ array of magnitudes, where these
+                        are the dimensions of the inputs
+    """
+    
+    # calculates luminosity distances (Mpc)
+    lds = cos.dl(zs)
+    
+    # finds distance relative to absolute magnitude distance
+    dabs = 1e-5 # in units of Mpc
+    
+    # k-corrections
+    kcorrs = (1+zs)**k
+    
+    dk = 2.5*np.log10(kcorrs)
+    
+    # relative magnitude
+    dMag = 2.5*np.log10((lds/dabs)**(2)) + dk
+    
+    
+    if np.isscalar(zs) or np.isscalar(Abs):
+        # just return the product, be it scalar x scalar,
+        # scalar x array, or array x scalar
+        # this also ensures that the dimensions are as expected
+        
+        AbsoluteMags = App - dMag
+    else:
+        # Convert to multiplication so we can use
+        # numpy.outer
+        temp1 = 10**App
+        temp2 = 10**-dMag
+        AbsoluteMags = np.outer(temp1,temp2)
+        AbsoluteMags = np.log10(ApparentMags)
+    return AbsoluteMags
+
+def SimpleAbsoluteMags(App,zs):
+    """
+    Function to convert galaxy apparent to absolute magnitudes.
+    
+    Nominally, magnitudes are r-band magnitudes, but this function
+    is so simple it doesn't matter.
+    
+    Just applies a distance correction - no k-correction.
+    
+    Args:
+        App (float or array of floats): apparent galaxy luminosities
+        zs (float or array of floats): redshifts of galaxies
+    
+    Returns:
+        AbsoluteMags: NAbs x NZ array of magnitudes, where these
+                        are the dimensions of the inputs
+    """
+    
+    # calculates luminosity distances (Mpc)
+    lds = cos.dl(zs)
+    
+    # finds distance relative to absolute magnitude distance
+    dabs = 1e-5 # in units of Mpc
+    
+    # relative magnitude
+    dMag = 2.5*np.log10((lds/dabs)**(2))
+    
+    
+    if np.isscalar(zs) or np.isscalar(Abs):
+        # just return the product, be it scalar x scalar,
+        # scalar x array, or array x scalar
+        # this also ensures that the dimensions are as expected
+        
+        AbsoluteMags = App - dMag
+    else:
+        # Convert to multiplication so we can use
+        # numpy.outer
+        temp1 = 10**App
+        temp2 = 10**-dMag
+        AbsoluteMags = np.outer(temp1,temp2)
+        AbsoluteMags = np.log10(ApparentMags)
+    return AbsoluteMags
 
 def SimpleApparentMags(Abs,zs):
     """
@@ -1150,13 +1305,10 @@ def SimpleApparentMags(Abs,zs):
     
     # calculates luminosity distances (Mpc)
     lds = cos.dl(zs)
-    
-    # finds distance relative to absolute magnitude distance
-    dabs = 1e-5 # in units of Mpc
+    lds_pc = lds*1e6
     
     # relative magnitude
-    dMag = 2.5*np.log10((lds/dabs)**2)
-    
+    dMag = 5*np.log10(lds_pc) - 5
     
     if np.isscalar(zs) or np.isscalar(Abs):
         # just return the product, be it scalar x scalar,
@@ -1356,7 +1508,7 @@ def pUgm(mag,mean,width):
     """
     
     # converts to a number relative to the mean. Will be weird for mags < 0.
-    diff = (mag-mean)/width
+    diff = (mean-mag)/width
     
     # converts the diff to a power of 10
     pU = 1./(1+np.exp(diff))
