@@ -42,6 +42,7 @@ def main():
     ######### List of all ICS FRBs for which we can run PATH #######
     # hard-coded list of FRBs with PATH data in ice paper
     frblist=opt.frblist
+    frblist.remove('FRB20230731A') # too reddened
     
     # Initlisation of zDM grid
     # Eventually, this should be part of the loop, i.e. host IDs should
@@ -78,7 +79,7 @@ def main():
     args=[frblist,ss,gs,model,POxcut,istat]
     
     # turn minimise on to re-perform the minimusation. But it's already been done
-    minimise=False
+    minimise=True
     if minimise:
         result = minimize(on.function,x0 = x0,args=args,bounds = bounds)
         print("Best fit result is f_sfr = ",result.x)
@@ -87,15 +88,15 @@ def main():
         np.save(opdir+"/best_fit_params.npy",x)
     else:
         # replace later
-        x=[1.68]
+        x=[1.49]
         print("using previous result of f_sfr = ",x)
     
     # initialises arguments
     model.init_args(x)
     
-    outfile = opdir+"best_fit_apparent_magnitudes.png"
+    outfile = opdir+"loudas_best_fit_apparent_magnitudes.png"
     wrappers = on.make_wrappers(model,gs)
-    NFRB,AppMags,AppMagPriors,ObsMags,ObsPosteriors,PUprior,PUobs,sumPUprior,sumPUobs = on.calc_path_priors(frblist,ss,gs,wrappers,verbose=False)
+    NFRB,AppMags,AppMagPriors,ObsMags,ObsPriors,ObsPosteriors,PUprior,PUobs,sumPUprior,sumPUobs,frbs,dms = on.calc_path_priors(frblist,ss,gs,wrappers,verbose=False)
     llstat = on.calculate_likelihood_statistic(NFRB,AppMags,AppMagPriors,ObsMags,ObsPosteriors,PUobs,PUprior,plotfile=outfile)
     
     ksstat = on.calculate_ks_statistic(NFRB,AppMags,AppMagPriors,ObsMags,ObsPosteriors,sumPUobs,sumPUprior,plotfile=outfile)
@@ -114,11 +115,11 @@ def main():
     sumPUpriorlist = []
     sumPUobslist = []
     
-    for f_sfr in [1.68,0,1]:
+    for f_sfr in [1.49,0,1]:
         x=[f_sfr]
         model.init_args(x)
         wrappers = on.make_wrappers(model,gs)
-        NFRB,AppMags,AppMagPriors,ObsMags,ObsPosteriors,PUprior,PUobs,sumPUprior,sumPUobs = on.calc_path_priors(frblist,ss,gs,wrappers,verbose=False)
+        NFRB,AppMags,AppMagPriors,ObsMags,ObsPriors,ObsPosteriors,PUprior,PUobs,sumPUprior,sumPUobs,frbs,dms = on.calc_path_priors(frblist,ss,gs,wrappers,verbose=False)
         
         NFRBlist.append(NFRB)
         AppMagslist.append(AppMags)
@@ -131,7 +132,8 @@ def main():
         sumPUobslist.append(sumPUobs)
     
     NMODELS = 3
-    plotlabels=["$f_{\\rm sfr} = 1.68$","$f_{\\rm sfr} = 0$", "$f_{\\rm sfr} = 1$"]
+    
+    plotlabels=["$f_{\\rm sfr} = 1.49$","$f_{\\rm sfr} = 0$", "$f_{\\rm sfr} = 1$"]
     plotfile = opdir+"loudas_f0_1_best_comparison.png"
     on.make_cumulative_plots(NMODELS,NFRBlist,AppMagslist,AppMagPriorslist,ObsMagslist,ObsPosteriorslist,
                             PUobslist,PUpriorlist,plotfile,plotlabels,POxcut=None,onlyobs=0,abc="(b)")
@@ -144,8 +146,8 @@ def main():
         
         model.init_args([sfr])
         wrappers = on.make_wrappers(model,gs)
-        NFRB,AppMags,AppMagPriors,ObsMags,ObsPosteriors,PUprior,\
-        PUobs,sumPUprior,sumPUobs = on.calc_path_priors(frblist,ss,gs,wrappers,verbose=False)
+        NFRB,AppMags,AppMagPriors,ObsMags,ObsPriors,ObsPosteriors,PUprior,\
+        PUobs,sumPUprior,sumPUobs,frbs,dms = on.calc_path_priors(frblist,ss,gs,wrappers,verbose=False)
         stat = on.calculate_likelihood_statistic(NFRB,AppMags,AppMagPriors,ObsMags,ObsPosteriors,PUobs,
                         PUprior,plotfile=outfile,POxcut=POxcut)
         stats[istat] = stat
@@ -155,7 +157,7 @@ def main():
     plt.xlabel("$f_{\\rm sfr}$")
     plt.ylabel("$\\log_{10} \\mathcal{L}(f_{\\rm sfr})$")
     plt.xlim(0,3)
-    plt.ylim(46,52)
+    plt.ylim(48,53)
     plt.tight_layout()
     plt.savefig(outfile)
     plt.close()

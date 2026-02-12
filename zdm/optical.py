@@ -1031,6 +1031,47 @@ class model_wrapper:
         
         return self.PU
     
+    def path_base_prior(self,mags):
+        """
+        Calculates base magnitude prior. Does NOT include
+        galaxy density factor
+        """
+        ngals = len(mags)
+        Ois = []
+        for i,mag in enumerate(mags):
+            
+            #print(mag)
+            # calculate the bins in apparent magnitude prior
+            kmag2 = (mag - self.Appmin)/self.dAppmag
+            imag1 = int(np.floor(kmag2))
+            imag2 = imag1 + 1
+            kmag2 -= imag1 #residual; float
+            kmag1 = 1.-kmag2
+            
+            # careful with interpolation - priors are for magnitude bins
+            # with bin edges give by Appmin + N dAppmag.
+            # We probably want to smooth this eventually due to minor
+            # numerical tweaks
+            
+            #kmag2 -= imag1
+            #kmag1 = 1.-kmag2
+            #imag2 = imag1+1
+            #prior = kmag1*self.priors[imag1] + kmag2*self.priors[imag2]
+            
+            # simple linear interpolation
+            Oi = self.priors[imag1] * kmag1 + self.priors[imag2] * kmag2
+            
+            # correct normalisation - otherwise, priors are defined to sum
+            # such that \sum priors = 1; here, we need \int priors dm = 1
+            Oi /= self.dAppmag 
+            
+            Ois.append(Oi)
+        
+        Ois = np.array(Ois)
+        return Ois
+        
+        
+    
     def path_raw_prior_Oi(self,mags,ang_sizes,Sigma_ms):
         """
         Function to pass to astropath module
@@ -1088,6 +1129,7 @@ class model_wrapper:
             Oi /= self.dAppmag 
             
             Oi /= Sigma_ms[i] # normalise by host counts
+            
             Ois.append(Oi)
         
         Ois = np.array(Ois)
@@ -1421,7 +1463,7 @@ def matchFRB(TNSname,survey):
 frblist=['FRB20180924B','FRB20181112A','FRB20190102C','FRB20190608B',
         'FRB20190611B','FRB20190711A','FRB20190714A','FRB20191001A',
         'FRB20191228A','FRB20200430A','FRB20200906A','FRB20210117A',
-        'FRB20210320C','FRB20210807D','FRB20211127I','FRB20211203C',
+        'FRB20210320C','FRB20210807D','FRB20210912A','FRB20211127I','FRB20211203C',
         'FRB20211212A','FRB20220105A','FRB20220501C',
         'FRB20220610A','FRB20220725A','FRB20220918A',
         'FRB20221106A','FRB20230526A','FRB20230708A', 

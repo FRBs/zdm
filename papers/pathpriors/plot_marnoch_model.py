@@ -42,6 +42,7 @@ def main():
     ######### List of all ICS FRBs for which we can run PATH #######
     # hard-coded list of FRBs with PATH data in ice paper
     frblist=opt.frblist
+    frblist.remove('FRB20230731A') # too reddened
     
     # Initlisation of zDM grid
     # Eventually, this should be part of the loop, i.e. host IDs should
@@ -71,9 +72,9 @@ def main():
     
     model = opt.marnoch_model()
     
-    outfile = opdir+"best_fit_apparent_magnitudes.png"
+    outfile = opdir+"marnoch_best_fit_apparent_magnitudes.png"
     wrappers = on.make_wrappers(model,gs)
-    NFRB,AppMags,AppMagPriors,ObsMags,ObsPosteriors,PUprior,PUobs,sumPUprior,sumPUobs = on.calc_path_priors(frblist,ss,gs,wrappers,verbose=False)
+    NFRB,AppMags,AppMagPriors,ObsMags,ObsPriors,ObsPosteriors,PUprior,PUobs,sumPUprior,sumPUobs,frbs,dms = on.calc_path_priors(frblist,ss,gs,wrappers,verbose=False)
     llstat = on.calculate_likelihood_statistic(NFRB,AppMags,AppMagPriors,ObsMags,ObsPosteriors,PUobs,PUprior,plotfile=outfile)
     
     ksstat = on.calculate_ks_statistic(NFRB,AppMags,AppMagPriors,ObsMags,ObsPosteriors,sumPUobs,

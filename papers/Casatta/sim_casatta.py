@@ -39,7 +39,8 @@ def main():
     # we can keep this constant - it smears DM due to host DM
     mask = pcosmic.get_dm_mask(dmvals, (state.host.lmean, state.host.lsigma), zvals, plot=False)
     
-    sim = True
+    # gets constant of total FRB rate to normalise to
+    renorm = get_constant(state,zDMgrid,zvals,dmvals,mask)
     
     threshs = np.zeros([nsims])
     dailys = np.zeros([nsims])
@@ -47,13 +48,15 @@ def main():
     pdms = np.zeros([nsims,dmvals.size])
     
     for isim in np.arange(nsims):
-        daily,pz,pdm,thresh = sim_casatta(df.iloc[isim],state,zDMgrid, zvals, dmvals,mask)
+        daily,pz,pdm,thresh = sim_casatta(df.iloc[isim],state,zDMgrid,zvals,dmvals,mask)
         dailys[isim]=daily
         pzs[isim,:]=pz
         pdms[isim,:]=pdm
         threshs[isim] = thresh
-        print("Done simulation ",isim, "daily rate ",daily)
+        print("Done simulation ",isim, " of ", nsims,", daily rate ",daily*renorm)
     
+    # modifies rates according to expectations
+    dailys *= renorm
     np.save("threshs.npy",threshs)
     np.save("dailys.npy",dailys)
     np.save("pzs.npy",pzs)
@@ -117,20 +120,6 @@ def sim_casatta(df,state,zDMgrid, zvals, dmvals, mask):
     survey_dict = {"THRESH": THRESH, "TOBS": 1, "FBAR": float(fMHz), "BW": float(BW), "DIAM": DIAM,
                     "FRES": float(fres), "TRES": float(tres)}
     
-    #uncomment this to calculate the rates for Fly's Eye
-    if False:
-        s = survey.load_survey("CRAFT_class_I_and_II", state, dmvals, zvals=zvals)
-        
-        g = zdm_grid.Grid(s, copy.deepcopy(state), zDMgrid, zvals, dmvals, mask, wdist=True)
-        
-        predicted = np.sum(g.rates)* s.TOBS * 10**state.FRBdemo.lC
-        expected = s.NORM_FRB
-        
-        print("expected ",expected,predicted)
-        
-        exit()
-    
-    
     survey_name = "casatta_base"
     s = survey.load_survey(survey_name, state, dmvals, zvals=zvals, survey_dict=survey_dict, sdir=sdir)
     
@@ -143,7 +132,32 @@ def sim_casatta(df,state,zDMgrid, zvals, dmvals, mask):
     pdm = np.sum(g.rates,axis=0)* 10**state.FRBdemo.lC
     
     return daily,pz,pdm,THRESH
+
+def get_constant(state,zDMgrid, zvals, dmvals, mask):
+    """
+    gets a normalising constant for this state
     
+    Args:
+        df: dataframe containing info for this version of casatta
+        state: zdm state object
+        zDMgrid: underlying zDM grid giving p(DMcosmic|z)
+        zvals: redshift values of grid
+        dmvals: DM values of grid
+        mask: DM smearing mask for grid based on DMhost
+    """
+    # I am here choosing to renomalise by the CRAFT ICS 892 MHz rates
+    #norm_survey = "CRAFT_class_I_and_II"
+    norm_survey = "CRAFT_ICS_892"
+    s = survey.load_survey(norm_survey, state, dmvals, zvals=zvals)
+    g = zdm_grid.Grid(s, copy.deepcopy(state), zDMgrid, zvals, dmvals, mask, wdist=True)
+        
+    predicted = np.sum(g.rates) * s.TOBS * 10**state.FRBdemo.lC
+    observed = s.NORM_FRB
+    
+    renorm =  observed/predicted
+    print("Calculated renomalisation constant as ",renorm)
+    return renorm
+
 main()
     
     

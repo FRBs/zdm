@@ -928,10 +928,20 @@ class Survey:
         
         
         # Meta -- for convenience for now;  best to migrate away from this
+        default_telescope = survey_data.Telescope()
+        
         for key in self.survey_data.params:
             DC = self.survey_data.params[key]
-            self.meta[key] = getattr(self.survey_data[DC],key)
-            
+            if DC == "telescope":
+                value = getattr(self.survey_data[DC],key)
+                if value == getattr(default_telescope,key):
+                    # using default value - check if the FRBs have this
+                    if key in frb_tbl.columns:
+                        value = np.mean(frb_tbl[key])
+                self.meta[key] = value
+            else:
+                self.meta[key] = getattr(self.survey_data[DC],key)
+        
         # Get default values from default frb data
         default_frb = survey_data.FRB()
         
@@ -947,8 +957,8 @@ class Survey:
             
             # now checks for missing data, fills with the default value
             if field.name in frb_tbl.columns:
-                
-                # iterate over fields, checking if they are populated
+                # iterate over fields, checking if they are populated.
+                # only replaces values that are []
                 for i,val in enumerate(frb_tbl[field.name]):
                     if isinstance(val,np.ma.core.MaskedArray):
                         frb_tbl[field.name][i] = default_value

@@ -47,7 +47,7 @@ def main():
     dz = zvals[1]-zvals[0]
     plt.xlabel("z")
     plt.ylabel("p(z) [FRBs / day / z]")
-    plt.ylim(1e-3,1e5)
+    plt.ylim(1e-1,1e7)
     for isim in np.arange(nsims):
         plt.plot(zvals,pzs[isim,:]/dz,label=df["Array_name"][isim])
     plt.legend(fontsize=4)
@@ -58,7 +58,7 @@ def main():
     
     plt.figure()
     plt.yscale("log")
-    plt.ylim(1e-6,1e2)
+    plt.ylim(1e-4,1e4)
     # multiplies by DM width
     ddm = dmvals[1]-dmvals[0]
     
@@ -66,6 +66,7 @@ def main():
     plt.ylabel("p(DM) [FRBs /day /pc cm$^{-3}$]")
     for isim in np.arange(nsims):
         plt.plot(dmvals,pdms[isim,:]/ddm,label=df["Array_name"][isim])
+        print("Daily rate for sim ",isim,": ",df["Array_name"][isim], " is ",dailys[isim])
     plt.legend(fontsize=4)
     plt.tight_layout()
     plt.savefig("all_pdm.png")
@@ -80,9 +81,10 @@ def main():
     plt.ylabel("Daily rate")
     plt.xscale("log")
     plt.yscale("log")
-    plt.scatter(dailys,FOM)
-    \
-    plt.plot([1e-5,1e4],[0.05,5e7],color="black",label="1-1 line",linestyle="--")
+    plt.scatter(FOM,dailys)
+    plt.ylim(1e-4,1e8)
+    
+    plt.plot([1e-2,1e8],[1e-3,1e7],color="black",label="1-1 line",linestyle="--")
     plt.legend()
     plt.tight_layout()
     plt.savefig("FOM.png")

@@ -43,7 +43,7 @@ def main():
     
     # approximate best-fit values from recent analysis
     # best-fit from Jordan et al
-    state = states.load_state("HoffmannHalo25",scat="updated",rep=None)
+    state = states.load_state("HoffmannHalo25")#,scat="updated",rep=None)
     
     if not os.path.exists(opdir):
         os.mkdir(opdir)
@@ -85,32 +85,40 @@ def main():
     """
     
     
-    names=['CRAFT_CRACO_900',
-            'CRAFT_CRACO_900_imp2.3_div8',
-            'CRAFT_CRACO_900_imp2.4_div8',
-            'CRAFT_CRACO_900_imp2.4_div8_primary',
-            'CRAFT_CRACO_900_imp_all'
-            ]
-    labels = ["CRACO 900 MHz",
-               "1: $t_{\\rm res}=1.7$ ms",
-                "2: $\\nu_{\\rm res} = 167$ kHz",
-                "3: Perfect imaging",
-                "4: $T_{\\rm sys}=20^{\\circ}$ K"]
-    linestyles=["-",":","--","-.","-"]
-    
     nz=400
     zmax=4
     ndm=500
     dmmax=5000
     
+    # purely to get normalisation - relative to CRAFT ICS
+    names = ['CRAFT_ICS_892']
+    #names = ['CRAFT_class_I_and_II']
     ss,gs = loading.surveys_and_grids(survey_names=names,repeaters=False,
-                                    init_state=state,sdir=sdir,
+                                    init_state=state,
                                     zmax=zmax,nz=nz,dmmax=dmmax,ndm=ndm) 
     
     
-    ##### prints total relative rates #####
-    for i,n in enumerate(names):
-        print("Total rate for survey ",labels[i]," is ",np.sum(gs[i].rates)/np.sum(gs[0].rates))
+    rate = np.sum(gs[0].get_rates())
+    # normalises rate to actual observed rate
+    actual_rate = ss[0].NORM_FRB/ss[0].TOBS
+    multiplier = actual_rate/rate
+    print("Calculated rate multiplier of ",multiplier)
+    
+    names=['CRAFT_CRACO_900',
+            'CRAFT_CRACO_900_imp1',
+            'CRAFT_CRACO_900_imp2.4_div8_primary',
+            'CRAFT_CRACO_900_imp_all'
+            ]
+    labels = ["CRACO 900 MHz",
+               "1: $T_{\\rm sys}=20^{\\circ}$ K PAFs",
+                "2: Perfect CRACO",
+                "3: Perfect CRACO + $T_{\\rm sys}=25^{\\circ}$ K PAFs"]
+    linestyles=["-",":","--","-.","-",":","--"]
+    
+    
+    ss,gs = loading.surveys_and_grids(survey_names=names,repeaters=False,
+                                    init_state=state,sdir=sdir,
+                                    zmax=zmax,nz=nz,dmmax=dmmax,ndm=ndm) 
     
     
     
@@ -156,7 +164,7 @@ def main():
         #    zmax=zmax,DMmax=DMmax,Aconts=[0.01,0.1,0.5])
         
         rates = gs[i].get_rates() #gs[i].rates * 10**g.state.FRBdemo.lC 
-        rate = np.sum(rates)
+        rate = np.sum(rates)*multiplier
         allrates.append(rate)
         pz = np.sum(rates,axis=1)
         pz /= dz
@@ -167,12 +175,12 @@ def main():
         pzs.append(pz)
         pdms.append(pdm)
     
-    inorm=4
+    inorm=3
     for i,g in enumerate(gs):
         pz = pzs[i]/np.max(pzs[inorm])
         pdm = pdms[i]/np.max(pdms[inorm])
         
-        print("Relative rate for ",names[i]," is ",allrates[i]/allrates[0]," per day")
+        print("Rate for ",names[i]," is ",allrates[i], "(relative rate: ",allrates[i]/allrates[0],") per day")
         
         plt.sca(ax1)
         plt.plot(zvals,pz,label=labels[i],linestyle=linestyles[i])
@@ -183,15 +191,18 @@ def main():
         
                
     plt.sca(ax1)
-    plt.legend(fontsize=12)
+    plt.savefig("ATNF_2030/nolegend_improved_zs.png")
+    plt.legend(fontsize=12,loc="upper right")
     plt.tight_layout()
-    plt.savefig("ImprovedSurveys/improved_zs.png")
+    plt.savefig("ATNF_2030/improved_zs.png")
     plt.close()
     
     plt.sca(ax2)
-    plt.legend(fontsize=12)
     plt.tight_layout()
-    plt.savefig("ImprovedSurveys/improved_dms.png")
+    plt.savefig("ATNF_2030/nolegend_improved_dms.png")
+    plt.legend(fontsize=12,loc="upper right")
+    plt.tight_layout()
+    plt.savefig("ATNF_2030/improved_dms.png")
     plt.close()
     
 def plot_efficiencies(gs,ss):
@@ -241,6 +252,7 @@ def check_FE(state):
         survey_names=["CRAFT_class_I_and_II"],repeaters=False,init_state=state) # should be equal to actual number of FRBs, but for this purpose it doesn't matter
     
     rate = np.sum(gs[0].rates) * 10**gs[0].state.FRBdemo.lC  * ss[0].TOBS
+    
     print("Expected number for Fly's Eys is ",rate," per day")
     print("c.f. actual number: ",ss[0].NORM_FRB)
     

@@ -46,6 +46,8 @@ def main():
     ######### List of all ICS FRBs for which we can run PATH #######
     # hard-coded list of FRBs with PATH data in ice paper
     frblist=opt.frblist
+    frblist.remove('FRB20230731A') # too reddened
+    
     
     # Initlisation of zDM grid
     # Eventually, this should be part of the loop, i.e. host IDs should
@@ -53,9 +55,11 @@ def main():
     # with very limited redshift estimates. That might require posterior
     # estimates of redshift given the observed galaxies. Maybe.
     state = states.load_state("HoffmannHalo25",scat=None,rep=None)
-    #state = parameters.State()
+    
+    # initialise cosmology
     cos.set_cosmology(state)
     cos.init_dist_measures()
+    
     names=['CRAFT_ICS_892','CRAFT_ICS_1300','CRAFT_ICS_1632']
     ss,gs = loading.surveys_and_grids(survey_names=names,init_state=state)
     
@@ -120,17 +124,18 @@ def main():
     else:
         # hard-coded best fit parameters from running optimisation
         if not dok:
-            x = [0.,0.,0.,0.18691816,0.99999953,0.44064664,0.,0.,0.,0.]
+            print("Need to re-run this!")
+            exit()
         else:
-            x = [-2.29467289 ,0. , 0. , 0. ,0.1109831,0.72688895, 1. , 0. , 0. , 0. , 0.]
-    
+            x = [-2.28795519,0.,0.,0.,0.11907231,0.84640048,0.99813815,0.,0.,0.,0.]
     # initialises best-fit arguments
     model.init_args(x)
     
     ############# Generate a KS-like plot showing the best fits ####################
-    outfile = opdir+"best_fit_apparent_magnitudes.png"
+    outfile = opdir+"simple_best_fit_apparent_magnitudes.png"
     wrappers = on.make_wrappers(model,gs)
-    NFRB,AppMags,AppMagPriors,ObsMags,ObsPosteriors,PUprior,PUobs,sumPUprior,sumPUobs = on.calc_path_priors(frblist,ss,gs,wrappers,verbose=False)
+    NFRB,AppMags,AppMagPriors,ObsMags,ObsPriors,ObsPosteriors,PUprior,PUobs,sumPUprior,sumPUobs,frbs,dms = on.calc_path_priors(frblist,ss,gs,wrappers,verbose=False)
+    
     llstat = on.calculate_likelihood_statistic(NFRB,AppMags,AppMagPriors,ObsMags,ObsPosteriors,PUobs,PUprior,plotfile=outfile)
     ksstat = on.calculate_ks_statistic(NFRB,AppMags,AppMagPriors,ObsMags,ObsPosteriors,sumPUobs,
                                     sumPUprior,plotfile=outfile,abc="(c)",tag="naive: ",)
@@ -147,7 +152,7 @@ def main():
         x[0] = kcorr
         model.init_args(x)
         wrappers = on.make_wrappers(model,gs)
-        NFRB,AppMags,AppMagPriors,ObsMags,ObsPosteriors,PUprior,PUobs,sumPUprior,sumPUobs = on.calc_path_priors(frblist,ss,gs,wrappers,verbose=False)
+        NFRB,AppMags,AppMagPriors,ObsMags,ObsPriors,ObsPosteriors,PUprior,PUobs,sumPUprior,sumPUobs,frbs,dms = on.calc_path_priors(frblist,ss,gs,wrappers,verbose=False)
         stat = on.calculate_likelihood_statistic(NFRB,AppMags,AppMagPriors,ObsMags,ObsPosteriors,PUobs,PUprior)
         stats[i] = stat
     
@@ -157,14 +162,13 @@ def main():
     plt.xlabel('$k$')
     plt.ylabel('$\\log_{10} \\mathcal{L} (k)$')
     plt.tight_layout()
-    plt.savefig('pkvalue.png')
+    plt.savefig(opdir+'/pkvalue.png')
     plt.close()
     
     
     # calculates the original PATH result
     outfile = opdir+"original_fit_apparent_magnitudes.png"
-    NFRB2,AppMags2,AppMagPriors2,ObsMags2,ObsPosteriors2,PUprior2,PUobs2,sumPUprior2,sumPUobs2 = on.calc_path_priors(frblist,ss,gs,wrappers,verbose=False,usemodel=False)
-    stat = on.calculate_ks_statistic(NFRB,AppMags2,AppMagPriors2,ObsMags2,ObsPosteriors2,sumPUobs2,sumPUprior2,plotfile=outfile)
+    NFRB2,AppMags2,AppMagPriors2,ObsMags2,ObsPriors2,ObsPosteriors2,PUprior2,PUobs2,sumPUprior2,sumPUobs2,frbs,dms = on.calc_path_priors(frblist,ss,gs,wrappers,verbose=False,usemodel=False)
     
     # flattens lists of lists
     ObsPosteriors = [x for xs in ObsPosteriors for x in xs]

@@ -12,6 +12,11 @@ import pandas
 
 from zdm import optical as op
 
+from frb.frb import FRB
+from astropath.priors import load_std_priors
+from astropath.path import PATH
+from frb.associate import frbassociate
+    
 def function(x,args):
     """
     This is a function for input into the scipi.optimize.minimise routine.
@@ -42,7 +47,7 @@ def function(x,args):
     model.init_args(x)
     wrappers = make_wrappers(model,gs)
     
-    NFRB,AppMags,AppMagPriors,ObsMags,ObsPosteriors,PUprior,PUobs,sumPUprior,sumPUobs = calc_path_priors(frblist,ss,gs,wrappers,verbose=False)
+    NFRB,AppMags,AppMagPriors,ObsMags,ObsPriors,ObsPosteriors,PUprior,PUobs,sumPUprior,sumPUobs,frbs,dms = calc_path_priors(frblist,ss,gs,wrappers,verbose=False)
     
     # we re-normalise the sum of PUs by NFRB
     
@@ -88,8 +93,8 @@ def make_cdf(xs,ys,ws,norm = True):
     if norm:
         cdf /= cdf[-1]
     return cdf
-    
 
+    
 def calc_path_priors(frblist,ss,gs,wrappers,verbose=True,usemodel=True,P_U=0.1):
     """
     Inner loop. Gets passed model parameters, but assumes everything is
@@ -193,6 +198,11 @@ def calc_path_priors(frblist,ss,gs,wrappers,verbose=True,usemodel=True,P_U=0.1):
         
         P_O,P_Ox,P_Ux,ObsMags,ptbl = run_path(frb,usemodel=usemodel,P_U = P_U)
         
+        
+        # replaces PO value with raw PO value, i.e. excluding the driver sigma
+        if usemodel:
+            P_O = wrapper.path_base_prior(ObsMags)
+            
         # kept here for debugging
         if False:
             print("P_U is ",P_U)
@@ -500,6 +510,34 @@ def make_cumulative_plots(NMODELS,NFRB,AppMags,AppMagPriors,ObsMags,ObsPosterior
     
     return None
 
+    
+
+def get_cand_properties(frblist):
+    """
+    Returns properties of galaxy candidates for FRBs
+    
+    Args:
+        frblist: list of strings giving FRB names
+    
+    Returns:
+        all_candidates: list of pandas dataframes containing candidate info
+    """
+    
+    all_candidates=[]
+    for i,name in enumerate(frblist):
+    
+        ######### Loads FRB, and modifes properties #########
+        my_frb = FRB.by_name(name)
+        #this_path = frbassociate.FRBAssociate(my_frb, max_radius=10.)
+        
+        # reads in galaxy info
+        ppath = os.path.join(resources.files('frb'), 'data', 'Galaxies', 'PATH')
+        pfile = os.path.join(ppath, f'{my_frb.frb_name}_PATH.csv')
+        ptbl = pandas.read_csv(pfile)
+        candidates = ptbl[['ang_size', 'mag', 'ra', 'dec', 'separation']]
+        all_candidates.append(candidates)
+    return all_candidates
+        
 def run_path(name,P_U=0.1,usemodel = False, sort=False):
     """
     evaluates PATH on an FRB
@@ -510,26 +548,23 @@ def run_path(name,P_U=0.1,usemodel = False, sort=False):
         sort [bool]: if True, sort candidates by posterior
     
     """
-    from frb.frb import FRB
-    from astropath.priors import load_std_priors
-    from astropath.path import PATH
     
     ######### Loads FRB, and modifes properties #########
     my_frb = FRB.by_name(name)
+    this_path = frbassociate.FRBAssociate(my_frb, max_radius=10.)
     
-    # do we even still need this? I guess not, but will keep it here just in case
-    my_frb.set_ee(my_frb.sig_a,my_frb.sig_b,my_frb.eellipse['theta'],
-                my_frb.eellipse['cl'],True)
+    
+    # do NOT do the below method!
+    #
+    
+    # do NOT do the below!!
+    #my_frb.set_ee(my_frb.sig_a,my_frb.sig_b,my_frb.eellipse['theta'],
+    #            my_frb.eellipse['cl'],True)
     
     # reads in galaxy info
     ppath = os.path.join(resources.files('frb'), 'data', 'Galaxies', 'PATH')
     pfile = os.path.join(ppath, f'{my_frb.frb_name}_PATH.csv')
     ptbl = pandas.read_csv(pfile)
-    
-    
-    if name=="FRB20181112A":
-        print(ptbl)
-        exit()
     
     ngal = len(ptbl)
     ptbl["frb"] = np.full([ngal],name)
@@ -548,7 +583,8 @@ def run_path(name,P_U=0.1,usemodel = False, sort=False):
     
     candidates = ptbl[['ang_size', 'mag', 'ra', 'dec', 'separation']]
     
-    this_path = PATH()
+    
+    #this_path = PATH()
     this_path.init_candidates(candidates.ra.values,
                          candidates.dec.values,
                          candidates.ang_size.values,
@@ -569,7 +605,7 @@ def run_path(name,P_U=0.1,usemodel = False, sort=False):
         this_path.init_cand_prior('user', P_U=prior['U'])
     else:
         this_path.init_cand_prior('inverse', P_U=prior['U'])
-        
+    
     # this is for the offset
     this_path.init_theta_prior(prior['theta']['method'], 
                             prior['theta']['max'],
