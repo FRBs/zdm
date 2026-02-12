@@ -28,14 +28,17 @@ font = {'family' : 'Helvetica',
         'size'   : defaultsize}
 matplotlib.rc('font', **font)
 
-def main():
+def main(istart=0):
     """
     Main routine to create plots and extract characteristic parameters
+    
+    istart tells us which count to begin on
     """
-    ll_lists=np.load("ll_lists.npy")
-    vals = np.load("h0vals.npy")
+    ll_lists=np.load("H0/ll_lists.npy")
+    vals = np.load("H0/h0vals.npy")
     
     nh,ns = ll_lists.shape
+    ns = 4 # hard-code to plot CRACO only!
     
     plt.figure()
     linestyles=["-","--",":","-."]
@@ -48,7 +51,7 @@ def main():
     FWHM=[]
     for i in np.arange(ns):
         
-        lls = ll_lists[:, i]
+        lls = ll_lists[:, i+istart]
         
         lls[lls < -1e10] = -np.inf
         lls[np.argwhere(np.isnan(lls))] = -np.inf
@@ -59,8 +62,14 @@ def main():
         lls=10**lls
         index1=np.where(lls>=0.5)[0][0]
         index2=np.where(lls>=0.5)[0][-1]
-        root1=vals[index1-1]-(0.5-lls[index1-1])*(vals[index1]-vals[index1-1])/(lls[index1]-lls[index1-1])
-        root2=vals[index2]-(0.5-lls[index2])*(vals[index2+1]-vals[index2])/(lls[index2+1]-lls[index2])
+        
+        root1 = vals[index1-1] * (lls[index1]-0.5)/(lls[index1]-lls[index1-1])\
+                + vals[index1] * (0.5-lls[index1-1])/(lls[index1]-lls[index1-1])
+        root2 = vals[index2+1] * (lls[index2]-0.5)/(lls[index2]-lls[index2+1])\
+                + vals[index2] * (0.5-lls[index2+1])/(lls[index2]-lls[index2+1])
+                
+        #root1=vals[index1-1]-(0.5-lls[index1-1])*(vals[index1]-vals[index1-1])/(lls[index1]-lls[index1-1])
+        #root2=vals[index2]-(0.5-lls[index2])*(vals[index2+1]-vals[index2])/(lls[index2+1]-lls[index2])
         FWHM.append(root2-root1)
         # plt.figure()
         # plt.clf()
@@ -93,11 +102,16 @@ def main():
     #plt.legend(loc='upper left')
     plt.legend(fontsize=10)
     plt.tight_layout()
-    plt.savefig("H0_scan_linear.png")
+    if istart==0:
+        plt.savefig("H0_scan_linear.png")
+    else:
+        plt.savefig("MeerKAT_H0_scan_linear.png")
     percentage=(FWHM/FWHM[0]-1)*100
     for i,name in enumerate(s_names):
         print(name," FWHM is ",FWHM[i]," frac is ",percentage[i])
     #print("FWHM:Spectroscopic,Photometric,zFrac,Photometric+zfrac\n",FWHM,percentage)
     
-
-main()
+print("Results for CRACO")
+main(istart=0)
+print("\n\nResults for MeerTRAP")
+main(istart=4)

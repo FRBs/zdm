@@ -1221,8 +1221,10 @@ class Survey:
             max_dmeg = max_dm - np.median(self.DMhalos + self.DMGs)
             max_idm = np.where(self.dmvals < max_dmeg)[0][-1]
             self.max_idm = max_idm
+            self.max_dmeg = max_dmeg
         else:
             self.max_idm = None
+            self.max_dmeg = None
 
     def get_efficiency_from_wlist(self,wlist,plist, 
                                   model="Quadrature", 

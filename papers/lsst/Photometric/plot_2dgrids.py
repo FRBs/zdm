@@ -20,7 +20,7 @@ from numpy import random
 import matplotlib.pyplot as plt
 import time
 
-def main():
+def main(Survey="CRACO",zmax=3,DMmax=3000):
     """
     Plots 2D zDM grids
     """
@@ -28,10 +28,12 @@ def main():
     state=states.load_state(case="HoffmannHalo25",scat=None,rep=None)
     sdir = resources.files('zdm').joinpath('../papers/lsst/Photometric')
     names = ["Spectroscopic","Smeared","zFrac","Smeared_and_zFrac"]
+    for i,name in enumerate(names):
+        names[i] = Survey+"/"+name
     xlabels = ["$z_{\\rm spec}$","$z_{\\rm photo}$","$z_{\\rm spec}$","$z_{\\rm photo}$"]
     ss,gs = loading.surveys_and_grids(
         survey_names=names,repeaters=False,init_state=state,sdir=sdir)
-    plot_grids(gs,ss,"./",xlabels)
+    plot_grids(gs,ss,"./",xlabels,DMmax=DMmax,zmax=zmax)
     
 
 #==============================================================================
@@ -47,7 +49,7 @@ Imports:
     outdir = output directory
     val = parameter value for this grid
 """
-def plot_grids(grids, surveys, outdir,xlabels):
+def plot_grids(grids, surveys, outdir,xlabels,zmax=3,DMmax=3000):
     for i,g in enumerate(grids):
         s = surveys[i]
         zvals=[]
@@ -78,9 +80,10 @@ def plot_grids(grids, surveys, outdir,xlabels):
             FRBDMs=frbdmvals,
             FRBZs=frbzvals,
             Aconts=[0.01, 0.1, 0.5],
-            zmax=3.0,
-            DMmax=3000,
+            zmax=zmax,
+            DMmax=DMmax,
             # DMlines=nozlist,
         )
 
-main()
+main(Survey="CRACO")
+main(Survey="MeerTRAP",zmax=4,DMmax=4000)

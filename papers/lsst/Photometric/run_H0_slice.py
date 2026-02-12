@@ -23,7 +23,7 @@ import time
 def main():
     """
     run with:
-    python run_H0_slice.py -n 10 --min=50 --max=100 -f Smeared zFrac Spectroscopic Smeared_and_zFrac
+    python run_H0_slice.py -n 10 --min=50 --max=100 -f CRACO/Smeared CRACO/zFrac CRACO/Spectroscopic CRACO/Smeared_and_zFrac MeerTRAP/Smeared MeerTRAP/zFrac MeerTRAP/Spectroscopic MeerTRAP/Smeared_and_zFrac
     
     """
     t0 = time.time()
@@ -60,7 +60,7 @@ def main():
     # state.update_param('halo_method', 1)
     # state.update_param(args.param, vals[0])
     
-    outdir = 'cube/' + 'H0' + '/'
+    outdir = 'H0/'
     if not os.path.exists(outdir):
         os.makedirs(outdir)
 
@@ -76,8 +76,8 @@ def main():
         
     
     ll_lists = np.asarray(ll_lists)
-    np.save("ll_lists.npy",ll_lists)
-    np.save("h0vals.npy",vals)
+    np.save(outdir+"ll_lists.npy",ll_lists)
+    np.save(outdir+"h0vals.npy",vals)
 
 #==============================================================================
 """

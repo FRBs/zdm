@@ -15,7 +15,12 @@ from numpy import random
 import matplotlib.pyplot as plt
 import time
 
+
 def main():
+    """
+    Run with:
+    python run_H0_slice.py -n 91 --min=60 --max=90 -f CRACO/Spectroscopic CRACO/Smeared CRACO/zFrac CRACO/Smeared_and_zFrac MeerTRAP/Spectroscopic MeerTRAP/Smeared MeerTRAP/zFrac MeerTRAP/Smeared_and_zFrac
+    """
     
     t0 = time.time()
     parser = argparse.ArgumentParser()

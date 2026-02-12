@@ -1,5 +1,9 @@
 import os
-import statistics
+from matplotlib import pyplot as plt
+from numpy import random
+import numpy as np
+from matplotlib import pyplot as plt
+import importlib.resources as resources
 
 from astropy.cosmology import Planck18
 from zdm import cosmology as cos
@@ -12,40 +16,29 @@ from zdm import loading
 from zdm import io
 from zdm import optical as opt
 from zdm import states
-
-from matplotlib import pyplot as plt
-from numpy import random
-import numpy as np
 from zdm import survey
-from matplotlib import pyplot as plt
-import importlib.resources as resources
 
-def create_fake_survey(smearing=False):
+
+def create_fake_survey(smearing=False,Survey="CRACO"):
+    """
+    Creates four fake survey files
+    """
     sdir = str(resources.files('zdm').joinpath('data/Surveys'))
-    opdir="./" # directory to place fake surveys in. Here!
     
-    Prefix="""# %ECSV 1.0
-# ---
-# datatype:
-# - {name: TNS, datatype: string}
-# - {name: DM, datatype: float64}
-# - {name: RA, datatype: string}
-# - {name: DEC, datatype: string}
-# - {name: Z, datatype: float64}
-# - {name: SNR, datatype: float64}
-# - {name: WIDTH, datatype: float64}
-# - {name: Gl, unit: deg, datatype: float64}
-# - {name: Gb, unit: deg, datatype: float64}
-# - {name: DMG, datatype: float64}
-# - {name: FBAR, datatype: float64}
-# - {name: BW, datatype: float64}
-# meta: !!omap
-# - {survey_data: '{"observing": {"NORM_FRB": 17,"TOBS": 64.68,"MAX_IW": 8, "MAXWMETH": 2"""
-# we need to split the obs string into two so we can insert the zfraction as required
-    Suffix="""},
-#                   "telescope": {"BEAM": "CRACO_900", "DMMASK": "craco_900_mask.npy",
-#                                 "DIAM": 12.0, "NBEAMS": 1, "NBINS": 5, "FBAR": 906,
-#                                 "TRES": 13.8, "FRES": 1.0, "THRESH": 1.01}}'}\n"""
+    if Survey == "CRACO":
+        Prefix,Suffix = load_craco_text()
+        name=['CRAFT_CRACO_900']
+        opdir="./CRACO/" # directory to place fake surveys in. Here!
+    elif Survey == "MeerTRAP":
+        Prefix,Suffix = load_meertrap_text()
+        name=['MeerTRAPcoherent']
+        opdir="./MeerTRAP/" # directory to place fake surveys in. Here!
+    else:
+        raise ValueError("Survey ",Survey," not recognised")
+    
+    # make output directories
+    if not os.path.isdir(opdir):
+        os.mkdir(opdir)
     
     #param_dict={'sfr_n': 0.21, 'alpha': 0.11, 'lmean': 2.18, 'lsigma': 0.42, 'lEmax': 41.37,
     #            'lEmin': 39.47, 'gamma': -1.04, 'H0': 70.23, 'halo_method': 0, 'sigmaDMG': 0.0, 'sigmaHalo': 0.0,'lC': -7.61}
@@ -53,7 +46,7 @@ def create_fake_survey(smearing=False):
     # use default state
     state=states.load_state(case="HoffmannHalo25",scat=None,rep=None)
 
-    name=['CRAFT_CRACO_900']
+    
     
     ss,gs=loading.surveys_and_grids(survey_names=name,repeaters=False,init_state=state,sdir=sdir)
     gs=gs[0]
@@ -110,7 +103,12 @@ def create_fake_survey(smearing=False):
             fp.close()
     
     frac_path = str(resources.files('zdm').joinpath('../papers/lsst/Data'))
-    fz=np.load(frac_path+"/fz_24.7.npy")[0:500]
+    
+    if Survey == "CRACO":
+        fz=np.load(frac_path+"/fz_24.7.npy")[0:500]
+    elif Survey == "MeerTRAP":
+        fz=np.load(frac_path+"/fz_27.5.npy")[0:500]                                                                 
+    
     zs=np.load(frac_path+"/zvals.npy")[0:500]
     
     fp=open(opdir+"zFrac.ecsv","w+")
@@ -158,4 +156,68 @@ def create_fake_survey(smearing=False):
     fp1.close()
 
 
-create_fake_survey(True)
+def load_meertrap_text():
+    """
+    returns CRACO prefixes and suffixes
+    """
+    
+    
+    Prefix="""# %ECSV 1.0
+# ---
+# datatype:
+# - {name: TNS, datatype: string}
+# - {name: DM, datatype: float64}
+# - {name: RA, datatype: string}
+# - {name: DEC, datatype: string}
+# - {name: Z, datatype: float64}
+# - {name: SNR, datatype: float64}
+# - {name: WIDTH, datatype: float64}
+# - {name: Gl, unit: deg, datatype: float64}
+# - {name: Gb, unit: deg, datatype: float64}
+# - {name: DMG, datatype: float64}
+# - {name: FBAR, datatype: float64}
+# - {name: BW, datatype: float64}
+# meta: !!omap
+# - {survey_data: '{"observing": {"NORM_FRB": 1,"TOBS": 317.5"""
+# we need to split the obs string into two so we can insert the zfraction as required
+    Suffix="""},
+#                   "telescope": {"BEAM": "MeerTRAP_coherent_log",
+#                        "BTHRESH": 0.25,"NBEAMS": 1,"NBINS": 5,
+#                        "FRES":0.836,"THRESH":0.069,
+#                        "TRES": 0.30624, "FBAR":1284}}'}\n"""
+
+    return Prefix, Suffix
+
+def load_craco_text():
+    """
+    returns CRACO prefixes and suffixes
+    """
+    
+    
+    Prefix="""# %ECSV 1.0
+# ---
+# datatype:
+# - {name: TNS, datatype: string}
+# - {name: DM, datatype: float64}
+# - {name: RA, datatype: string}
+# - {name: DEC, datatype: string}
+# - {name: Z, datatype: float64}
+# - {name: SNR, datatype: float64}
+# - {name: WIDTH, datatype: float64}
+# - {name: Gl, unit: deg, datatype: float64}
+# - {name: Gb, unit: deg, datatype: float64}
+# - {name: DMG, datatype: float64}
+# - {name: FBAR, datatype: float64}
+# - {name: BW, datatype: float64}
+# meta: !!omap
+# - {survey_data: '{"observing": {"NORM_FRB": 17,"TOBS": 64.68,"MAX_IW": 8, "MAXWMETH": 2"""
+# we need to split the obs string into two so we can insert the zfraction as required
+    Suffix="""},
+#                   "telescope": {"BEAM": "CRACO_900", "DMMASK": "craco_900_mask.npy",
+#                                 "DIAM": 12.0, "NBEAMS": 1, "NBINS": 5, "FBAR": 906,
+#                                 "TRES": 13.8, "FRES": 1.0, "THRESH": 1.01}}'}\n"""
+
+    return Prefix, Suffix
+    
+create_fake_survey(True,Survey="CRACO")
+create_fake_survey(True,Survey="MeerTRAP")
