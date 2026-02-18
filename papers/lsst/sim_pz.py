@@ -56,6 +56,8 @@ def main():
     Rlim0 = 19.8 # existing magnitude limits
     Rlim1 = 24.7
     Rlim2 = 27.5
+    Rlim3 = 23.0 #decals
+    
     
     names=['CRAFT_CRACO_1300','MeerTRAPcoherent','SKA_mid']
     labels=["ASKAP CRACO", "MeerKAT","SKA-Mid"]
@@ -96,9 +98,11 @@ def main():
         fz0 = np.zeros([nz])
         fz1 = np.zeros([nz])
         fz2 = np.zeros([nz])
+        fz3 = np.zeros([nz])
         iz0 = np.where(Rbars < Rlim0)[-1]
         iz1 = np.where(Rbars < Rlim1)[-1]
         iz2 = np.where(Rbars < Rlim2)[-1]
+        iz3 = np.where(Rbars < Rlim3)[-1]
         
         for i,z in enumerate(zvals):
             if z < Rzvals[0]:
@@ -119,9 +123,12 @@ def main():
                 fz0[i] = norm.cdf(Rlim0)
                 fz1[i] = norm.cdf(Rlim1)
                 fz2[i] = norm.cdf(Rlim2)
+                fz3[i] = norm.cdf(Rlim3)
         np.save(optdir+"fz_19.8.npy",fz0)
         np.save(optdir+"fz_24.7.npy",fz1)
         np.save(optdir+"fz_27.5.npy",fz2)
+        np.save(optdir+"fz_23.0.npy",fz3)
+        
         np.save(opdir+"Rhist.npy",Rhist)
         np.save(opdir+"Rvals.npy",Rvals)
         np.save(opdir+"Rbars.npy",Rbars)
