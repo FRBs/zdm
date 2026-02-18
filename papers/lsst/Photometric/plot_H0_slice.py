@@ -65,9 +65,11 @@ def main(istart=0):
         
         root1 = vals[index1-1] * (lls[index1]-0.5)/(lls[index1]-lls[index1-1])\
                 + vals[index1] * (0.5-lls[index1-1])/(lls[index1]-lls[index1-1])
+        
         root2 = vals[index2+1] * (lls[index2]-0.5)/(lls[index2]-lls[index2+1])\
                 + vals[index2] * (0.5-lls[index2+1])/(lls[index2]-lls[index2+1])
-                
+        
+        
         #root1=vals[index1-1]-(0.5-lls[index1-1])*(vals[index1]-vals[index1-1])/(lls[index1]-lls[index1-1])
         #root2=vals[index2]-(0.5-lls[index2])*(vals[index2+1]-vals[index2])/(lls[index2+1]-lls[index2])
         FWHM.append(root2-root1)

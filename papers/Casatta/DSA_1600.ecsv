@@ -1,0 +1,16 @@
+# %ECSV 1.0
+# ---
+# datatype:
+# - {name: TNS, datatype: string}
+# - {name: DM, datatype: float64}
+# - {name: DMG, unit: pc / cm3, datatype: float64}
+# - {name: SNR, datatype: float64}
+# - {name: Z, datatype: float64}
+# meta: !!omap
+# - {survey_data: '{"observing": {"MAX_LOC_DMEG": -1},
+#                   "telescope": {"BMETHOD": 0, "BTHRESH": 0.5, "DIAM": 6.0,
+#                       "NBEAMS": 1,"NBINS": 5, "FBAR": 1350.0, "FRES": 0.244141,
+#                       "TRES": 0.262144, "SNRTHRESH": 8.5, "BW": 1300.0, "THRESH": 0.013}}'}
+# schema: astropy-2.0
+TNS    DM     DMG   SNR     Z
+DUMMY 491.554 37.3 133.33  -1.

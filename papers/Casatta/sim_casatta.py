@@ -49,14 +49,14 @@ def main():
     
     for isim in np.arange(nsims):
         daily,pz,pdm,thresh = sim_casatta(df.iloc[isim],state,zDMgrid,zvals,dmvals,mask)
-        dailys[isim]=daily
-        pzs[isim,:]=pz
-        pdms[isim,:]=pdm
+        dailys[isim]=daily*renorm
+        pzs[isim,:]=pz*renorm
+        pdms[isim,:]=pdm*renorm
         threshs[isim] = thresh
         print("Done simulation ",isim, " of ", nsims,", daily rate ",daily*renorm)
     
     # modifies rates according to expectations
-    dailys *= renorm
+    
     np.save("threshs.npy",threshs)
     np.save("dailys.npy",dailys)
     np.save("pzs.npy",pzs)

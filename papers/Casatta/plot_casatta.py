@@ -17,6 +17,10 @@ def main():
     """
     plots casatta simulation results
     """
+    
+    # this factor did NOT multiply pzs and pdms because I'm an idiot and forgot
+    # daily rates are correct
+    
     df = read_casatta_params()
     nsims,ncols = df.shape
     
