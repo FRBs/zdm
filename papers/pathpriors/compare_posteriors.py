@@ -1,8 +1,10 @@
 """
-This file fits the simple (naive) model to CRAFT ICDS observations.
+This file fits the simple (naive) model to CRAFT ICS observations.
 It fits a model of absolute galaxy magnitude distributions,
 uses zDM to predict redshifts and hence apparent magntidues,
 runs PATH using that prior, and tries to get priors to match posteriors.
+
+It also geenrates host z-mr plots
 
 """
 
@@ -93,7 +95,7 @@ def main():
     NFRB1,AppMags1,AppMagPriors1,ObsMags1,ObsPrior1,ObsPosteriors1,PUprior1,PUobs1,sumPUprior1,sumPUobs1,frbs,dms = on.calc_path_priors(frblist,ss,gs,wrappers,verbose=False)
     
     fObsPosteriors1 = on.flatten(ObsPosteriors1)
-    plt.scatter(fObsPosteriors2,fObsPosteriors1,label="Marnoch",marker='s')
+    plt.scatter(fObsPosteriors2,fObsPosteriors1,label="Marnoch23",marker='s')
     
     
     with open("posteriors/marnoch.txt",'w') as f:
@@ -106,12 +108,13 @@ def main():
     ####### Model 2: Loudas ########
     
     model = opt.loudas_model()
-    model.init_args([1.49]) # best-fit arguments
+    xbest = np.load("loudas_output/best_fit_params.npy")
+    model.init_args(xbest) # best-fit arguments
     wrappers = on.make_wrappers(model,gs)
     NFRB3,AppMags3,AppMagPriors3,ObsMags3,ObsPrior3,ObsPosteriors3,PUprior3,PUobs3,sumPUprior3,sumPUobs3,frbs,dms = on.calc_path_priors(frblist,ss,gs,wrappers,verbose=False)
     
     fObsPosteriors3 = on.flatten(ObsPosteriors3)
-    plt.scatter(fObsPosteriors2,fObsPosteriors3,label="Loudas",marker='x')
+    plt.scatter(fObsPosteriors2,fObsPosteriors3,label="Loudas25",marker='x')
     
     with open("posteriors/loudas.txt",'w') as f:
         for i,frb in enumerate(frbs):
@@ -128,14 +131,17 @@ def main():
     # sets optical state to use simple linear interpolation
     opstate.simple.AbsModelID = 1 # linear interpolation
     opstate.simple.AppModelID = 1 # include k-correction
-    opstate
+    opstate.simple.NModelBins = 6
+    opstate.simple.Absmin = -25
+    opstate.simple.Absmax = -15
     model = opt.simple_host_model(opstate)
     
     # retrieve default initial arguments in vector form
-    x = [-2.28795519,  0.,  0. , 0. , 0.11907231,0.84640048,0.99813815 , 0., 0. , 0. , 0. ]
+    xbest = np.load("simple_output/best_fit_params.npy")
+    #x = [-2.28795519,  0.,  0. , 0. , 0.11907231,0.84640048,0.99813815 , 0., 0. , 0. , 0. ]
     
     # initialises best-fit arguments
-    model.init_args(x)
+    model.init_args(xbest)
     
     ############# Generate a KS-like plot showing the best fits ####################
     wrappers = on.make_wrappers(model,gs)

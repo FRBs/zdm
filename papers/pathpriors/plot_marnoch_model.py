@@ -78,7 +78,7 @@ def main():
     llstat = on.calculate_likelihood_statistic(NFRB,AppMags,AppMagPriors,ObsMags,ObsPosteriors,PUobs,PUprior,plotfile=outfile)
     
     ksstat = on.calculate_ks_statistic(NFRB,AppMags,AppMagPriors,ObsMags,ObsPosteriors,sumPUobs,
-                                    sumPUprior,plotfile=outfile,abc="(a)",tag="Marnoch: ")
+                                    sumPUprior,plotfile=outfile,abc="(a)",tag="Marnoch23: ")
     
     print("Best-fit stats of the Marnoch model are ll=",llstat," ks = ",ksstat)
     

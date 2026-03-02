@@ -24,13 +24,13 @@ class SimpleParams(data_class.myDataClass):
     """
     # None of the fields should start with an X
     Absmin: float = field( 
-        default=-30, 
+        default=-25, 
         metadata={'help': "Minimum host absolute magnitude", 
                   'unit': 'M_r^{min}', 
                   'Notation': '',
                   })
     Absmax: float = field( 
-        default=-10., 
+        default=-15., 
         metadata={'help': "Maximum host absolute magnitude", 
                   'unit': 'M_r^{max}', 
                   'Notation': '',

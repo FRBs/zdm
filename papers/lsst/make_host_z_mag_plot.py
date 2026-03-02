@@ -3,6 +3,8 @@ Plots the expected magnitude-z relation for various FRB host galaxy models
 
 Adds points corresponding to known hosts
 
+We actually do this for best-fitting models from the PATH paper
+
 """
 
 #standard Python imports
@@ -41,9 +43,16 @@ def make_zmr_plots():
         os.mkdir(opdir)
     
     # model 1: simple model
-    model1 = opt.simple_host_model()
-    absprior = [0,0,0.0705, 0.839, 0.328, 0.001,0,0,0,0]
-    model1.init_args(absprior)
+    opstate = op.OpticalState()
+    # sets optical state to use simple linear interpolation
+    opstate.simple.AbsModelID = 1 # linear interpolation
+    opstate.simple.AppModelID = 1 # include k-correction
+    opstate.simple.NModelBins = 6
+    opstate.simple.Absmin = -25
+    opstate.simple.Absmax = -15
+    model1 = opt.simple_host_model(opstate)
+    xbest = np.load("../pathpriors/simple_output/best_fit_params.npy")
+    model1.init_args(xbest)
     
     
     # this is from an initial estimate. Currently, no way to enter this into the opstate. To do.
@@ -56,18 +65,24 @@ def make_zmr_plots():
     model3=opt.loudas_model()
     model3.init_args(1.)
     
-    # model from Lachlan
-    model4=opt.marnoch_model()
+    xbest = np.load("../pathpriors/loudas_output/best_fit_params.npy")
+    model4=opt.loudas_model()
+    model4.init_args(xbest)
     
-    models=[model1,model2,model3,model4]
-    labels=["simple","sfr0","sfr1","marnoch"]
+    # model from Lachlan
+    model5=opt.marnoch_model()
+    
+    models=[model1,model2,model3,model4,model5]
+    labels=["naive","sfr0","sfr1","loudas","marnoch"]
+    labels2=["(c) Naive","sfr0","sfr1","(b) Loudas25","(a) Marnoch23"]
     
     for i,model in enumerate(models):
         opfile = opdir+labels[i]+"_zmr.png"
-        make_host_plot(model,opfile)
+        
+        make_host_plot(model,labels2[i],opfile)
     
 
-def make_host_plot(model,opfile):
+def make_host_plot(model,label,opfile):
     """
     generates a plot showing the magnitude and redshift of a bunch of FRB host galaxies
     
@@ -76,7 +91,7 @@ def make_host_plot(model,opfile):
         opfile: string labelling the plotfile
     """
     
-    nz=200
+    nz=50
     zmax=2
     zmin = zmax/nz
     zvals = np.linspace(zmin,zmax,nz)
@@ -131,12 +146,15 @@ def make_host_plot(model,opfile):
     plt.ylim(10,30)
     plt.xlim(0,zmax)
     
-    Rlim1=24.7
-    Rlim2=27.5
-    plt.plot([0,zmax],[Rlim1,Rlim1],linestyle=":",color="black")
-    plt.plot([0,zmax],[Rlim2,Rlim2],linestyle=":",color="black")
-    plt.text(0.1,Rlim1+0.2,"$m_r^{\\rm lim}=$"+str(Rlim1))
-    plt.text(0.1,Rlim2+0.2,"$m_r^{\\rm lim}=$"+str(Rlim2))
+    print("label is ",label)
+    plt.text(0.04,29,label)
+    
+    #Rlim1=24.7
+    #Rlim2=27.5
+    #plt.plot([0,zmax],[Rlim1,Rlim1],linestyle=":",color="black")
+    #plt.plot([0,zmax],[Rlim2,Rlim2],linestyle=":",color="black")
+    #plt.text(0.1,Rlim1+0.2,"$m_r^{\\rm lim}=$"+str(Rlim1))
+    #plt.text(0.1,Rlim2+0.2,"$m_r^{\\rm lim}=$"+str(Rlim2))
     
     plt.legend()
     plt.tight_layout()

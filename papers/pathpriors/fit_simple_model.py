@@ -12,6 +12,7 @@ import os
 import numpy as np
 from matplotlib import pyplot as plt
 from scipy.optimize import minimize
+from scipy.stats import chi2
 
 # imports from the "FRB" series
 from zdm import optical as opt
@@ -75,7 +76,7 @@ def main():
     # set to e.g. 0.9 to reject FRBs with lower posteriors when doing model comparisons
     POxcut = None
     
-    opdir = modelname+"_output/"
+    opdir = "simple_output/"
     
     
     if not os.path.exists(opdir):
@@ -87,6 +88,9 @@ def main():
     opstate = op.OpticalState()
     # sets optical state to use simple linear interpolation
     opstate.simple.AbsModelID = 1
+    opstate.simple.NModelBins = 6
+    opstate.simple.Absmin = -25
+    opstate.simple.Absmax = -15
     
     # sets up initial bounds on variables
     if dok:
@@ -114,7 +118,7 @@ def main():
     args=[frblist,ss,gs,model,POxcut,istat]
     
     # set to false to just use hard-coded best fit parameters
-    minimise=False
+    minimise=True
     if minimise:
         result = minimize(on.function,x0 = x0,args=args,bounds = bounds)
         print("Best fit result is ",result.x)
@@ -123,11 +127,8 @@ def main():
         np.save(opdir+"/best_fit_params.npy",x)
     else:
         # hard-coded best fit parameters from running optimisation
-        if not dok:
-            print("Need to re-run this!")
-            exit()
-        else:
-            x = [-2.28795519,0.,0.,0.,0.11907231,0.84640048,0.99813815,0.,0.,0.,0.]
+        x = np.load(opdir+"best_fit_params.npy")
+        
     # initialises best-fit arguments
     model.init_args(x)
     
@@ -142,25 +143,62 @@ def main():
     
     print("Best-fit stats of the naive model are ll=",llstat," ks = ",ksstat)
     
+    # we determine the range of k which are compatible at 1,2,3 sigma using Wilks' theorem
+    # this states that 2*log(L(k)-L(k=0)) should be distributed according to a chi2 distribution
+    # with one degree of freedom
     
     ############ k-correction figure ############3
     # we generate a plot showing the convergence on k, i.e. how/why we get a best fit
-    nk=21
+    llbest = llstat
+    nk=101
     kvals = np.linspace(-5,5,nk)
     stats = np.zeros([nk])
+    pvalues = np.zeros([nk])
+    dlls = np.zeros([nk])
     for i,kcorr in enumerate(kvals):
+        if not minimise:
+            break
         x[0] = kcorr
         model.init_args(x)
         wrappers = on.make_wrappers(model,gs)
         NFRB,AppMags,AppMagPriors,ObsMags,ObsPriors,ObsPosteriors,PUprior,PUobs,sumPUprior,sumPUobs,frbs,dms = on.calc_path_priors(frblist,ss,gs,wrappers,verbose=False)
         stat = on.calculate_likelihood_statistic(NFRB,AppMags,AppMagPriors,ObsMags,ObsPosteriors,PUobs,PUprior)
         stats[i] = stat
+        dll = 2.*(llbest-stat) * np.log(10) # stat returned in log base 10, needs to be natural log
+        p_wilks = 1.-chi2.cdf(dll,1)
+        pvalues[i] = p_wilks
+        dlls[i] = dll
+    
+    if minimise:
+        # save data if doing this for the first time
+        np.save(opdir+"/llk.npy",stats)
+        np.save(opdir+"/pvalues.npy",pvalues)
+        np.save(opdir+"/kvals.npy",kvals)
+        np.save(opdir+"/dlls.npy",dlls)
+    else:
+        # else, load it
+        stats = np.load(opdir+"/llk.npy")
+        pvalues = np.load(opdir+"/pvalues.npy")
+        kvals = np.load(opdir+"/kvals.npy")
+        dlls = np.load(opdir+"/dlls.npy")
+    
+    for i,k in enumerate(kvals):
+        print("p-value of ",k," is ",pvalues[i])
     
     plt.figure()
-    plt.plot(kvals,stats)
+    l1,=plt.plot(kvals,stats,label="$\\log_{10} \\mathcal{L} (k)$")
     #plt.yscale('log')
     plt.xlabel('$k$')
     plt.ylabel('$\\log_{10} \\mathcal{L} (k)$')
+    #plt.legend()
+    
+    ax2 = plt.gca().twinx()
+    l2,=ax2.plot(kvals,pvalues,color="black",linestyle=":",label="p-value")
+    plt.yscale('log')
+    plt.ylabel('p-value')
+    plt.ylim(1e-3,1.)
+    plt.legend(handles=[l1,l2],labels=["$\\log_{10} \\mathcal{L} (k)$","p-value"],loc="lower right")
+    
     plt.tight_layout()
     plt.savefig(opdir+'/pkvalue.png')
     plt.close()
@@ -207,7 +245,6 @@ def main():
     plt.savefig(opdir+"best_fit_absolute_magnitudes.png")
     plt.close()
 
-    
-
 
 main()
+

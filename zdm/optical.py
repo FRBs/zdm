@@ -111,7 +111,6 @@ class marnoch_model:
         """
         Returns parameters of the host magnitude distribution as a function of redshift
         """
-        #FRBlist=["FRB20180301A FRB20180916B FRB20190520B FRB20201124A FRB20210410D FRB20121102A FRB20180924B FRB20181112A FRB20190102C FRB20190608B FRB20190611B FRB20190711A FRB20190714A FRB20191001A FRB20200430A FRB20200906A FRB20210117A FRB20210320C FRB20210807D FRB20211127I FRB20211203C FRB20211212A FRB20220105A]
         
         table = self.table
         colnames = table.colnames
@@ -580,7 +579,6 @@ class simple_host_model:
         Absmax = self.opstate.Absmax
         NAbsBins = self.opstate.NAbsBins
         
-        
         self.Absmin = Absmin
         self.Absmax = Absmax
         self.NAbsBins = NAbsBins  
@@ -702,6 +700,7 @@ class simple_host_model:
             
             # linear interpolation
             # note that dMr = dmr, so we just map probability densities
+            
             
             kmag2s = (Mrvals - self.Absmin)/self.dMag
             imag1s = np.floor(kmag2s).astype('int')
@@ -1460,13 +1459,15 @@ def matchFRB(TNSname,survey):
 
 
 # this defines the ICS FRBs for which we have PATH info
+# notes: FRB20230731A and 'FRB20230718A' are too reddened, so are removed
+# still aiming to follow up frb20240208A and frb20240318A
 frblist=['FRB20180924B','FRB20181112A','FRB20190102C','FRB20190608B',
         'FRB20190611B','FRB20190711A','FRB20190714A','FRB20191001A',
         'FRB20191228A','FRB20200430A','FRB20200906A','FRB20210117A',
         'FRB20210320C','FRB20210807D','FRB20210912A','FRB20211127I','FRB20211203C',
         'FRB20211212A','FRB20220105A','FRB20220501C',
         'FRB20220610A','FRB20220725A','FRB20220918A',
-        'FRB20221106A','FRB20230526A','FRB20230708A', 
+        'FRB20221106A','FRB20230526A','FRB20230708A',
         'FRB20230731A','FRB20230902A','FRB20231226A','FRB20240201A',
         'FRB20240210A','FRB20240304A','FRB20240310A']
 

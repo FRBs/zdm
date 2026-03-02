@@ -8,6 +8,7 @@ import os
 import numpy as np
 from matplotlib import pyplot as plt
 from scipy.optimize import minimize
+from scipy.stats import chi2
 
 # imports from the "FRB" series
 from zdm import optical as opt
@@ -88,17 +89,19 @@ def main():
         np.save(opdir+"/best_fit_params.npy",x)
     else:
         # replace later
-        x=[1.49]
+        x=[3]
         print("using previous result of f_sfr = ",x)
     
     # initialises arguments
     model.init_args(x)
+    bestx=x[0]
+    xstring = f"{bestx:.1f}"
     
     outfile = opdir+"loudas_best_fit_apparent_magnitudes.png"
     wrappers = on.make_wrappers(model,gs)
     NFRB,AppMags,AppMagPriors,ObsMags,ObsPriors,ObsPosteriors,PUprior,PUobs,sumPUprior,sumPUobs,frbs,dms = on.calc_path_priors(frblist,ss,gs,wrappers,verbose=False)
     llstat = on.calculate_likelihood_statistic(NFRB,AppMags,AppMagPriors,ObsMags,ObsPosteriors,PUobs,PUprior,plotfile=outfile)
-    
+    llbest = llstat
     ksstat = on.calculate_ks_statistic(NFRB,AppMags,AppMagPriors,ObsMags,ObsPosteriors,sumPUobs,sumPUprior,plotfile=outfile)
     
     print("Best-fit stats of the Loudas model are ll=",llstat," ks = ",ksstat)
@@ -115,7 +118,7 @@ def main():
     sumPUpriorlist = []
     sumPUobslist = []
     
-    for f_sfr in [1.49,0,1]:
+    for f_sfr in [bestx,0,1]:
         x=[f_sfr]
         model.init_args(x)
         wrappers = on.make_wrappers(model,gs)
@@ -133,7 +136,7 @@ def main():
     
     NMODELS = 3
     
-    plotlabels=["$f_{\\rm sfr} = 1.49$","$f_{\\rm sfr} = 0$", "$f_{\\rm sfr} = 1$"]
+    plotlabels=["$f_{\\rm sfr} = "+xstring+"$", "$f_{\\rm sfr} = 0$", "$f_{\\rm sfr} = 1$"]
     plotfile = opdir+"loudas_f0_1_best_comparison.png"
     on.make_cumulative_plots(NMODELS,NFRBlist,AppMagslist,AppMagPriorslist,ObsMagslist,ObsPosteriorslist,
                             PUobslist,PUpriorlist,plotfile,plotlabels,POxcut=None,onlyobs=0,abc="(b)")
@@ -142,8 +145,12 @@ def main():
     NSFR=31
     stats = np.zeros([NSFR])
     SFRs = np.linspace(0,3,NSFR)
+    pvalues = np.zeros([NSFR])
+    dlls = np.zeros([NSFR])
+    
     for istat,sfr in enumerate(SFRs):
-        
+        if not minimise:
+            break
         model.init_args([sfr])
         wrappers = on.make_wrappers(model,gs)
         NFRB,AppMags,AppMagPriors,ObsMags,ObsPriors,ObsPosteriors,PUprior,\
@@ -151,13 +158,44 @@ def main():
         stat = on.calculate_likelihood_statistic(NFRB,AppMags,AppMagPriors,ObsMags,ObsPosteriors,PUobs,
                         PUprior,plotfile=outfile,POxcut=POxcut)
         stats[istat] = stat
+        dll = 2.*(llbest-stat) * np.log(10) # stat returned in log base 10, needs to be natural log
+        p_wilks = 1.-chi2.cdf(dll,1)
+        pvalues[istat] = p_wilks
+        dlls[istat] = dll
+    
+    if minimise:
+        # save data if doing this for the first time
+        np.save(opdir+"/llk.npy",stats)
+        np.save(opdir+"/pvalues.npy",pvalues)
+        np.save(opdir+"/dlls.npy",dlls)
+    else:
+        # else, load it
+        stats = np.load(opdir+"/llk.npy")
+        pvalues = np.load(opdir+"/pvalues.npy")
+        dlls = np.load(opdir+"/dlls.npy")
+    
+    # print values
+    for i,f in enumerate(SFRs):
+        print("p-value of ",f," is ",pvalues[i])
+    
+    
     outfile = opdir+"scan_sfr.png"
+    
     plt.figure()
-    plt.plot(SFRs,stats,marker="o")
+    l1,=plt.plot(SFRs,stats,marker="o")
     plt.xlabel("$f_{\\rm sfr}$")
     plt.ylabel("$\\log_{10} \\mathcal{L}(f_{\\rm sfr})$")
     plt.xlim(0,3)
-    plt.ylim(48,53)
+    plt.ylim(44,53)
+    
+    ax2 = plt.gca().twinx()
+    l2,=ax2.plot(SFRs,pvalues,color="black",linestyle=":",label="p-value")
+    plt.yscale('log')
+    plt.ylabel('p-value')
+    plt.ylim(1e-3,1.)
+    
+    plt.legend(handles=[l1,l2],labels=["$\\log_{10} \\mathcal{L} (f_{\\rm sfr})$","p-value"],loc="lower right")
+    
     plt.tight_layout()
     plt.savefig(outfile)
     plt.close()
