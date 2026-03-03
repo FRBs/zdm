@@ -594,6 +594,7 @@ class Survey:
         self.frb_zbweights = frb_bweights[self.zlist,:]
         self.frb_nozbweights = frb_bweights[self.nozlist,:]
         
+        
     def init_frb_wvals(self):
         """
         Initialises frb width coefficients for linear interpolation
@@ -906,7 +907,17 @@ class Survey:
                 else:
                     self.nDs = 3
             
-
+        # initialise rep-dependent beam and width weights
+        self.frb_zbweights_singles = self.frb_bweights[self.zsingles,:]
+        self.frb_zbweights_reps = self.frb_bweights[self.zreps,:]
+        self.frb_nozbweights_singles = self.frb_bweights[self.nozsingles,:]
+        self.frb_nozbweights_reps = self.frb_bweights[self.nozreps,:]
+        
+        self.frb_zwweights_singles = self.frb_wweights[self.zsingles,:]
+        self.frb_zwweights_reps = self.frb_wweights[self.zreps,:]
+        self.frb_nozwweights_singles = self.frb_wweights[self.nozsingles,:]
+        self.frb_nozwweights_reps = self.frb_wweights[self.nozreps,:]
+        
     def process_survey_file(self,filename:str, 
                             NFRB:int=None,
                             iFRB:int=0,

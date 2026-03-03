@@ -201,6 +201,8 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,
         if survey.nozreps is not None:
             DMobs=survey.DMEGs[survey.nozreps]
             nozlist=survey.nozreps
+            bweights = survey.frb_nozbweights_reps
+            wweights = survey.frb_nozwweights_reps
         else:
             raise ValueError("No non-localised singles in this survey, cannot calculate 1D likelihoods")
     elif grid_type == 2: 
@@ -208,6 +210,8 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,
         if survey.nozsingles is not None:
             DMobs=survey.DMEGs[survey.nozsingles]
             nozlist=survey.nozsingles
+            bweights = survey.frb_nozbweights_singles
+            wweights = survey.frb_nozwweights_singles
         else:
             raise ValueError("No non-localised repeaters in this survey, cannot calculate 1D likelihoods")
     else: 
@@ -215,6 +219,8 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,
         if survey.nozlist is not None:
             DMobs=survey.DMEGs[survey.nozlist]
             nozlist=survey.nozlist
+            bweights = survey.frb_nozbweights
+            wweights = survey.frb_nozwweights
         else:
             raise ValueError("No non-localised FRBs in this survey, cannot calculate 1D likelihoods")
     
@@ -470,6 +476,7 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,
         # this has shape nz,nFRB - FRBs could come from any z-value
         nb = survey.beam_b.size
         nw,nz,nfrb = Eths.shape
+        
         zpsnr=np.zeros([nz,nfrb])
         # numpy flattens this to the order of [z0frb0,z0f1,z0f2,...,z1f0,...]
         # zpsnr = zpsnr.flatten()
@@ -568,7 +575,6 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,
             # we have previously go "tomult": which is calculated *only* for ptauw
             # this should be done for all cases, not just ptauw
             
-            
             psnrbws = psnrbws.reshape([nb,nw,nz,nfrb]) # holds psnr_gbw * p(b,w,) for each b,w bin
             psnr_gbws = psnr_gbws.reshape([nb,nw,nz,nfrb]) # holds psnr_gbw * p(b,w,) for each b,w bin
             pbws = pbws.reshape([nb,nw,nz,nfrb]) # holds p(bw given z,dm) for each b,w, bin
@@ -587,9 +593,9 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,
                 for j,w in enumerate(grid.eff_weights):
                     # multiplies by the width and beam weights for that FRB. These are pre-calculated in the survey
                     # each component below is a vector over nfrb
-                    psnrbw += psnrbws[i,j,:,:]*survey.frb_nozbweights[:,i]*survey.frb_nozwweights[:,j] # multiply last axis
-                    psnr_gbw += psnr_gbws[i,j,:,:]*survey.frb_nozbweights[:,i]*survey.frb_nozwweights[:,j] # multiply last axis
-                    pbw += pbws[i,j,:,:]*survey.frb_nozbweights[:,i]*survey.frb_nozwweights[:,j] # multiply last axis for all z
+                    psnrbw += psnrbws[i,j,:,:]*bweights[:,i]*wweights[:,j] # multiply last axis
+                    psnr_gbw += psnr_gbws[i,j,:,:]*bweights[:,i]*wweights[:,j] # multiply last axis
+                    pbw += pbws[i,j,:,:]*bweights[:,i]*wweights[:,j] # multiply last axis for all z
             
             # normalises pbw by normalised sum over all b,w. This gives dual p(b,w) for each FRB
             # pwb_norm is 2D. pbw is 2D. Should work!
@@ -598,21 +604,21 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,
             
             # psnr_gbws needs no normalisation, provided weights in each dimension sum to unity. But we check here just to be sure
             # the division is along the last (FRB) axis
-            psnr_gbw = psnr_gbw / (np.sum(survey.frb_nozbweights,axis=1) * np.sum(survey.frb_nozwweights,axis=1))
-            psnrbw = psnrbw / (np.sum(survey.frb_nozbweights,axis=1) * np.sum(survey.frb_nozwweights,axis=1))
+            psnr_gbw = psnr_gbw / (np.sum(bweights,axis=1) * np.sum(wweights,axis=1))
+            psnrbw = psnrbw / (np.sum(bweights,axis=1) * np.sum(wweights,axis=1))
             
             
             # calculates p(w) values
             # then normalises probability over all pbw
             for j,w in enumerate(grid.eff_weights):
-                pw[:,:] += pw_norm[j,:,:]*survey.frb_nozwweights[:,j]
+                pw[:,:] += pw_norm[j,:,:]*wweights[:,j]
             pw = pw/pwb_norm
             
             
             # calculates p(b) values.
             # then normalised probability over all pbw
             for i,b in enumerate(survey.beam_b):
-                pb[:,:] += pb_norm[i,:,:]*survey.frb_nozbweights[:,i]
+                pb[:,:] += pb_norm[i,:,:]*bweights[:,i]
             pb = pb/pwb_norm
             
             # calculates p(b|w,z,dM), using p(b|w) p(w) = p(b,w)
@@ -817,6 +823,8 @@ def calc_likelihoods_2D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,p
             DMobs=survey.DMEGs[survey.zreps]
             Zobs=survey.Zs[survey.zreps]
             zlist=survey.zreps
+            bweights = survey.frb_zbweights_reps
+            wweights = survey.frb_zwweights_reps
         else:
             raise ValueError("No localised singles in this survey, cannot calculate 1D likelihoods")
     elif grid_type == 2: 
@@ -825,6 +833,8 @@ def calc_likelihoods_2D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,p
             DMobs=survey.DMEGs[survey.zsingles]
             Zobs=survey.Zs[survey.zsingles]
             zlist=survey.zsingles
+            bweights = survey.frb_zbweights_singles
+            wweights = survey.frb_zwweights_singles
         else:
             raise ValueError("No localised repeaters in this survey, cannot calculate 1D likelihoods")
     else: 
@@ -833,6 +843,8 @@ def calc_likelihoods_2D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,p
             DMobs=survey.DMEGs[survey.zlist]
             Zobs=survey.Zs[survey.zlist]
             zlist=survey.zlist
+            bweights = survey.frb_zbweights
+            wweights = survey.frb_zwweights
         else:
             raise ValueError("No nlocalised FRBs in this survey, cannot calculate 1D likelihoods")
 
@@ -1296,9 +1308,9 @@ def calc_likelihoods_2D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,p
                     # multiplies by the width and beam weights for that FRB. These are pre-calculated in the survey
                     # each component below is a vector over nfrb
                     
-                    psnrbw += psnrbws[i,j,:]*survey.frb_zbweights[:,i]*survey.frb_zwweights[:,j]
-                    psnr_gbw += psnr_gbws[i,j,:] *survey.frb_zbweights[:,i]*survey.frb_zwweights[:,j]
-                    pbw += pbws[i,j,:]*survey.frb_zbweights[:,i]*survey.frb_zwweights[:,j]
+                    psnrbw += psnrbws[i,j,:]*zbweights[:,i]*zwweights[:,j]
+                    psnr_gbw += psnr_gbws[i,j,:] *zbweights[:,i]*zwweights[:,j]
+                    pbw += pbws[i,j,:]*zbweights[:,i]*zwweights[:,j]
                     
             
             # normalises pbw by normalised sum over all b,w. This gives dual p(b,w) for each FRB
@@ -1306,19 +1318,19 @@ def calc_likelihoods_2D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,p
             psnrbw = psnrbw / pwb_norm
             
             # psnr_gbws needs no normalisation, provided weights in each dimension sum to unity. But we check here just to be sure
-            psnr_gbw = psnr_gbw / (np.sum(survey.frb_zbweights,axis=1) * np.sum(survey.frb_zwweights,axis=1))
-            psnrbw = psnrbw / (np.sum(survey.frb_zbweights,axis=1) * np.sum(survey.frb_zwweights,axis=1))
+            psnr_gbw = psnr_gbw / (np.sum(zbweights,axis=1) * np.sum(zwweights,axis=1))
+            psnrbw = psnrbw / (np.sum(zbweights,axis=1) * np.sum(zwweights,axis=1))
             
             # calculates p(w) values
             # then normalises probability over all pbw
             for j,w in enumerate(grid.eff_weights):
-                pw[:] += pw_norm[j,:]*survey.frb_zwweights[:,j]
+                pw[:] += pw_norm[j,:]*zwweights[:,j]
             pw = pw/pwb_norm
             
             # calculates p(b) values.
             # then normalised probability over all pbw
             for i,b in enumerate(survey.beam_b):
-                pb[:] += pb_norm[i,:]*survey.frb_zbweights[:,i]
+                pb[:] += pb_norm[i,:]*zbweights[:,i]
             pb = pb/pwb_norm
             
             # calculates p(b|w,z,dM), using p(b|w) p(w) = p(b,w)
