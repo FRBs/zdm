@@ -7,6 +7,10 @@ evolution of galaxy spectra.
 
 We then evaluate P(O|x) for CRAFT FRBs in the CRAFT 1300 MHz survey
 
+It's not the simplest script, but it should show how to do a whole bunch of stuff
+
+NOTE: this does NOT use the best-fit distributions form the recent paper.
+
 """
 
 #standard Python imports
@@ -24,6 +28,16 @@ from zdm import parameters
 from zdm import loading
 
 import astropath.priors as pathpriors
+
+
+import matplotlib
+
+defaultsize=14
+ds=4
+font = {'family' : 'Helvetica',
+        'weight' : 'normal',
+        'size'   : defaultsize}
+matplotlib.rc('font', **font)
 
 
 def calc_path_priors():
@@ -95,8 +109,8 @@ def calc_path_priors():
     
     plt.figure()
     plt.xlabel("$m_r$")
-    plt.ylabel("p(m_r | z=0.5)$")
-    
+    plt.ylabel("$P(m_r | z=0.5)$")
+    styles=["-","--",":","-.","-","--",":","-."]
     fsfrs = np.linspace(-2,3,6) # extrapolates to weird values
     z=0.5
     mrbins = np.linspace(0,40,401)
@@ -104,8 +118,10 @@ def calc_path_priors():
     for i,fsfr in enumerate(fsfrs):
         model2.init_args(fsfr)
         pmr = model2.get_pmr_gz(mrbins,z)
-        plt.plot(rbc,pmr,label="$f_{\\rm sfr} = $"+str(fsfr)[:5])
+        pmr /= np.sum(pmr)*(rbc[1]-rbc[0])
+        plt.plot(rbc,pmr,label="$f_{\\rm sfr} = $"+str(fsfr)[:5],linestyle=styles[i])
     plt.xlim(15,30)
+    plt.ylim(0.,0.6)
     plt.legend()
     plt.tight_layout()
     plt.savefig(opdir+"loudas_fsfr_interpolation.png")
@@ -247,7 +263,7 @@ def calc_path_priors():
         DMEG = s.DMEGs[imatch]
         
         # original calculation
-        P_O1,P_Ox1,P_Ux1,mags1,ptbl = on.run_path(frb,usemodel=False,PU=0.1)
+        P_O1,P_Ox1,P_Ux1,mags1,ptbl = on.run_path(frb,usemodel=False,P_U=0.1)
         
         # record this info
         if maglist[0] is None:
@@ -262,7 +278,7 @@ def calc_path_priors():
         wrapper1.init_path_raw_prior_Oi(DMEG,g)
         PU2 = wrapper1.estimate_unseen_prior() # might not be correct
         pathpriors.USR_raw_prior_Oi = wrapper1.path_raw_prior_Oi
-        P_O2,P_Ox2,P_Ux2,mags2,ptbl = on.run_path(frb,usemodel=True,PU = PU2)
+        P_O2,P_Ox2,P_Ux2,mags2,ptbl = on.run_path(frb,usemodel=True,P_U = PU2)
         
         
         for imag,mag in enumerate(mags2):
@@ -288,7 +304,7 @@ def calc_path_priors():
         wrapper2.init_path_raw_prior_Oi(DMEG,g)
         PU3 = wrapper2.estimate_unseen_prior() # might not be correct
         pathpriors.USR_raw_prior_Oi = wrapper2.path_raw_prior_Oi
-        P_O3,P_Ox3,P_Ux3,mags3,ptbl = on.run_path(frb,usemodel=True,PU = PU3)
+        P_O3,P_Ox3,P_Ux3,mags3,ptbl = on.run_path(frb,usemodel=True,P_U = PU3)
         
         # record this info
         if maglist[2] is None:
@@ -306,7 +322,7 @@ def calc_path_priors():
         wrapper2.init_path_raw_prior_Oi(DMEG,g)
         PU4 = wrapper2.estimate_unseen_prior() # might not be correct limit
         pathpriors.USR_raw_prior_Oi = wrapper2.path_raw_prior_Oi
-        P_O4,P_Ox4,P_Ux4,mags4,ptbl = on.run_path(frb,usemodel=True,PU = PU4)
+        P_O4,P_Ox4,P_Ux4,mags4,ptbl = on.run_path(frb,usemodel=True,P_U = PU4)
         
         # record this info
         if maglist[3] is None:
@@ -321,7 +337,7 @@ def calc_path_priors():
         wrapper3.init_path_raw_prior_Oi(DMEG,g)
         PU5 = wrapper3.estimate_unseen_prior() # might not be correct limit
         pathpriors.USR_raw_prior_Oi = wrapper3.path_raw_prior_Oi
-        P_O5,P_Ox5,P_Ux5,mags5,ptbl = on.run_path(frb,usemodel=True,PU = PU5)
+        P_O5,P_Ox5,P_Ux5,mags5,ptbl = on.run_path(frb,usemodel=True,P_U = PU5)
         
         # record this info
         if maglist[4] is None:

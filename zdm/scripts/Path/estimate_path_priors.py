@@ -13,6 +13,7 @@ from matplotlib import pyplot as plt
 
 # imports from the "FRB" series
 from zdm import optical as opt
+from zdm import optical_numerics as on
 from zdm import loading
 from zdm import cosmology as cos
 from zdm import parameters
@@ -34,20 +35,17 @@ def calc_path_priors():
     state = parameters.State()
     cos.set_cosmology(state)
     cos.init_dist_measures()
-    model = opt.host_model()
+    model = opt.marnoch_model()
     name='CRAFT_ICS_1300'
     ss,gs = loading.surveys_and_grids(survey_names=[name])
     g = gs[0]
     s = ss[0]
     # must be done once for any fixed zvals
-    model.init_zmapping(g.zvals)
+    wrapper = opt.model_wrapper(model,g.zvals)
     
     # do this only for a particular FRB
     # it gives a prior on apparent magnitude and pz
     #AppMagPriors,pz = model.get_posterior(g,DMlist)
-    
-    # do this once per "model" objects
-    pathpriors.USR_raw_prior_Oi = model.path_raw_prior_Oi
     
     allmags = None
     allPOx = None
@@ -68,12 +66,16 @@ def calc_path_priors():
         
         DMEG = s.DMEGs[imatch]
         
-        # original calculation
-        P_O1,P_Ox1,P_Ux1,mags1 = opt.run_path(frb,model,usemodel=False,PU=0.1)
+        #
         
-        model.init_path_raw_prior_Oi(DMEG,g)
-        PU = model.estimate_unseen_prior(mag_limit=26) # might not be correct
-        P_O2,P_Ox2,P_Ux2,mags2 = opt.run_path(frb,model,usemodel=True,PU = PU)
+        # original calculation
+        P_O1,P_Ox1,P_Ux1,mags1,ptbl = on.run_path(frb,usemodel=False,P_U=0.1)
+        
+        # initialises wrapper to give p(mr|DMEG) for p(z|DM) grid predictions
+        wrapper.init_path_raw_prior_Oi(DMEG,g)
+        PU = wrapper.estimate_unseen_prior()
+        
+        P_O2,P_Ox2,P_Ux2,mags2,ptbl = on.run_path(frb,usemodel=True,P_U = PU)
         
         if False:
             # compares outcomes
@@ -95,8 +97,8 @@ def calc_path_priors():
             allmags = np.append(allmags,mags2)
             allPOx = np.append(allPOx,P_Ox2)
     
-    Nbins = int(model.Appmax - model.Appmin)+1
-    bins = np.linspace(model.Appmin,model.Appmax,Nbins)
+    Nbins = int(wrapper.Appmax - wrapper.Appmin)+1
+    bins = np.linspace(wrapper.Appmin,wrapper.Appmax,Nbins)
     plt.figure()
     plt.hist(allmags,weights = allPOx, bins = bins,label="Posterior")
     plt.legend()

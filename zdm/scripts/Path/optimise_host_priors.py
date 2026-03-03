@@ -128,18 +128,22 @@ def main():
     # "function" is the function that performs the comparison of
     # predictions to outcomes. It's where all the magic happens
     
-    result = minimize(on.function,x0 = x0,args=args,bounds = bounds)
-    print("Best fit result is ",result.x)
-    x = result.x
-    # saves result
-    np.save(opdir+"/best_fit_params.npy",x)
+    minimise=True
+    if minimise:
+        result = minimize(on.function,x0 = x0,args=args,bounds = bounds)
+        print("Best fit result is ",result.x)
+        x = result.x
+        # saves result
+        np.save(opdir+"/best_fit_params.npy",x)
+    else:
+        x = np.load(opdir+"/best_fit_params.npy")
     
     # initialises arguments
     model.init_args(x)
     
     outfile = opdir+"best_fit_apparent_magnitudes.png"
     wrappers = on.make_wrappers(model,gs)
-    NFRB,AppMags,AppMagPriors,ObsMags,ObsPosteriors,PUprior,PUobs,sumPUprior,sumPUobs = on.calc_path_priors(frblist,ss,gs,wrappers,verbose=False)
+    NFRB,AppMags,AppMagPriors,ObsMags,ObsPriors,ObsPosteriors,PUprior,PUobs,sumPUprior,sumPUobs,frbs,dms = on.calc_path_priors(frblist,ss,gs,wrappers,verbose=False)
     
     # calculates a maximum-likelihood statistic
     stat = on.calculate_likelihood_statistic(NFRB,AppMags,AppMagPriors,ObsMags,ObsPosteriors,PUobs,PUprior,plotfile=outfile)
@@ -150,8 +154,9 @@ def main():
     
     # calculates the original PATH result
     outfile = opdir+"original_fit_apparent_magnitudes.png"
-    NFRB2,AppMags2,AppMagPriors2,ObsMags2,ObsPosteriors2,PUprior2,PUobs2,sumPUprior2,sumPUobs2 = on.calc_path_priors(frblist,ss,gs,wrappers,verbose=False,usemodel=False)
-    stat = on.calculate_ks_statistic(NFRB,AppMags2,AppMagPriors2,ObsMags2,ObsPosteriors2,sumPUobs2,sumPUprior2,plotfile=outfile)
+    NFRB2,AppMags2,AppMagPriors2,ObsMags2,ObsPriors2,ObsPosteriors2,PUprior2,PUobs2,sumPUprior2,sumPUobs2,frbs,dms = on.calc_path_priors(frblist,ss,gs,wrappers,verbose=False,usemodel=False)
+    # currently, calculating KS statistics does not work/make sense for original path. need to re-think this
+    #stat = on.calculate_ks_statistic(NFRB,AppMags,AppMagPriors2,ObsMags2,ObsPosteriors2,sumPUobs2,sumPUprior2,plotfile=outfile)
     
     # flattens lists of lists
     ObsPosteriors = [x for xs in ObsPosteriors for x in xs]

@@ -543,6 +543,7 @@ def run_path(name,P_U=0.1,usemodel = False, sort=False):
     evaluates PATH on an FRB
     
     Args:
+        name [string]: TNS name of FRB
         P_U [float]: unseen prior
         usemodel [bool]: if True, use user-defined P_O|x model
         sort [bool]: if True, sort candidates by posterior
