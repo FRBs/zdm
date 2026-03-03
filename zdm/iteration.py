@@ -192,8 +192,9 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,
     
     if ptauw:
         if not survey.backproject:
-            print("WARNING: cannot calculate ptauw for this survey, please initialised backproject")
-    
+            raise ValueError("Cannot calculate ptauw for this survey, please initialised backproject")
+            
+        
     # Determine which array to perform operations on and initialise
     if grid_type == 1: 
         rates = grid.exact_reps 

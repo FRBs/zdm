@@ -1169,6 +1169,8 @@ class Survey:
                 savename=None
             b2,o2=beams.simplify_beam(logb,omegab,self.meta["NBINS"],
                                       savename=savename,method=method,thresh=thresh)
+            # there is a chance that this method alters the expected number of bins. Reset it!~
+            self.meta["NBINS"] = len(o2)
             self.beam_b=b2
             self.beam_o=o2
             self.do_beam=True
