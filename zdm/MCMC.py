@@ -51,7 +51,7 @@ from zdm import repeat_grid
 import os
 #==============================================================================
 
-def calc_log_posterior(param_vals, state, params, surveys_sep, Pn=False, pNreps=True, psnr=True, ptauw=False,
+def calc_log_posterior(param_vals, state, params, surveys_sep, Pn=False, pNreps=True, psnr=True, ptauw=False, pwb=False,
                 log_halo=False, lin_host=False, ind_surveys=False, g0info=None):
     """Calculate log-posterior probability for a parameter vector.
 
@@ -76,6 +76,8 @@ def calc_log_posterior(param_vals, state, params, surveys_sep, Pn=False, pNreps=
         Include likelihood for number of repeaters. Default True.
     ptauw : bool, optional
         Include p(tau, width) likelihood. Default False.
+    pwb : bool, optional
+        Include individual beam likelihoods. Default False.
     log_halo : bool, optional
         Use log-uniform prior on DMhalo. Default False.
     lin_host : bool, optional
@@ -177,16 +179,11 @@ def calc_log_posterior(param_vals, state, params, surveys_sep, Pn=False, pNreps=
         # Minimse the constant accross all surveys
         if Pn:
             newC, llC = it.minimise_const_only(None, grids, surveys, update=True)
-            # for g in grids:
-            #     g.state.FRBdemo.lC = newC
-
-            # if isinstance(g, repeat_grid.repeat_Grid):
-            #     g.state.rep.RC = g.state.rep.RC / 10**oldC * 10**newC
 
         # calculate all the likelihoods
         llsum = 0
         for s, grid in zip(surveys, grids):
-            ll = it.get_log_likelihood(grid,s,Pn=Pn,pNreps=pNreps,psnr=psnr,ptauw=ptauw)
+            ll = it.get_log_likelihood(grid,s,Pn=Pn,pNreps=pNreps,psnr=psnr,ptauw=ptauw,pwb=pwb)
             llsum += ll
             if ind_surveys:
                 ll_list.append(ll)
@@ -210,7 +207,7 @@ def calc_log_posterior(param_vals, state, params, surveys_sep, Pn=False, pNreps=
 #==============================================================================
 
 def mcmc_runner(logpf, outfile, state, params, surveys, nwalkers=10, nsteps=100, nthreads=1, Pn=False,
-                pNreps=True, psnr=True, ptauw = False, log_halo=False, lin_host=False, ind_surveys=False, g0info=None,
+                pNreps=True, psnr=True, ptauw=False, pwb=False, log_halo=False, lin_host=False, ind_surveys=False, g0info=None,
                 reset=False):
     """
     Handles the MCMC running.
@@ -269,7 +266,7 @@ def mcmc_runner(logpf, outfile, state, params, surveys, nwalkers=10, nsteps=100,
     
     with Pool() as pool: # could add mp.Pool(ntrheads=5) or Pool = None
         sampler = emcee.EnsembleSampler(nwalkers, ndim, logpf, args=[state, params, surveys, Pn, pNreps, psnr,
-                                        ptauw, log_halo, lin_host, ind_surveys, g0info], backend=backend, pool=pool)
+                                        ptauw, pwb, log_halo, lin_host, ind_surveys, g0info], backend=backend, pool=pool)
         if exists:
             # start from last saved position
             sampler.run_mcmc(None, nsteps, progress=True)

@@ -61,7 +61,8 @@ def main():
     parser.add_argument('--outdir', default="", type=str, help="Output directory")
     parser.add_argument('--Pn', default=False, action='store_true', help="Include Pn")
     parser.add_argument('--no_psnr', default=False, action='store_true', help="Exclude psnr")
-    parser.add_argument('--pNreps', default=False, action='store_true', help="Include pNreps")
+    parser.add_argument('--no_pNreps', default=False, action='store_true', help="Exclude pNreps")
+    parser.add_argument('--pwb', default=False, action='store_true', help="Include individual beam values")
     parser.add_argument('--ptauw', default=False, action='store_true', help="Include p(tau,w)")
     parser.add_argument('--rand', default=False, action='store_true', help="Randomise DMG within uncertainty")
     parser.add_argument('--log_halo', default=False, action='store_true', help="Give a log prior on the halo instead of linear")
@@ -74,6 +75,7 @@ def main():
         print("-p and -o flags are required")
         exit()
     args.psnr = not args.no_psnr
+    args.pNreps = not args.no_pNreps
 
     # Select from dictionary the necessary parameters to be changed        
     with open(args.pfile) as f:
@@ -89,6 +91,8 @@ def main():
 
     print('Pn:', args.Pn)
     print('psnr:', args.psnr)
+    print('ptauw:', args.ptauw)
+    print('pwb:', args.pwb)
     print('log_halo:', args.log_halo)
     print('lin_host:', args.lin_host)
 
@@ -140,7 +144,7 @@ def main():
 
     MCMC.mcmc_runner(MCMC.calc_log_posterior, os.path.join(args.outdir, args.opfile), state, params, surveys, 
                          nwalkers=args.walkers, nsteps=args.steps, nthreads=args.nthreads, Pn=args.Pn, pNreps=args.pNreps,
-                         psnr=args.psnr, ptauw = args.ptauw, log_halo=args.log_halo, lin_host=args.lin_host,g0info=g0info, reset=args.reset)
+                         psnr=args.psnr, ptauw=args.ptauw, pwb=args.pwb, log_halo=args.log_halo, lin_host=args.lin_host,g0info=g0info, reset=args.reset)
 
 #==============================================================================
 
