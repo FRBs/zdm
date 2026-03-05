@@ -7,6 +7,7 @@ ASKAP/CRACO (estimates), DSA, and CHIME
 import os
 
 from astropy.cosmology import Planck18
+import importlib.resources as resources
 from zdm import cosmology as cos
 from zdm import misc_functions
 from zdm import parameters
@@ -59,7 +60,7 @@ def main():
         os.mkdir(opdir)
     
     # Initialise surveys and grids
-    sdir = os.path.join(resource_filename('zdm', 'data'), 'Surveys')
+    sdir = resources.files('zdm').joinpath('zdm/data/Surveys/')
     names=["MeerTRAPcoherent","DSA","CRAFT_ICS_1300"]
     
     state = parameters.State()
@@ -116,7 +117,7 @@ def main():
     for i in np.arange(NDECBINS):
         cname="CHIME_decbin_"+str(i)+"_of_6"
         cnames.append(cname)
-    survey_dir = os.path.join(resource_filename('zdm', 'data'), 'Surveys/CHIME/')
+    survey_dir = resources.files('zdm').joinpath('zdm/data/Surveys/CHIME/')
     css,cgs = loading.surveys_and_grids(survey_names=cnames, init_state=state, rand_DMG=False,sdir = survey_dir, repeaters=True)
     
     # compiles sums over all six declination bins
@@ -136,7 +137,7 @@ def main():
 
     ###### Get list of z and dm for DSA, CRAFT and CHIME localised FRBs #####
     ICS_names=["CRAFT_ICS_892", "CRAFT_ICS_1632"]
-    ics_ss, ics_gs = loading.surveys_and_grids(survey_names=ICS_names, init_state=state)
+    ics_ss, ics_gs = loading.surveys_and_grids(survey_names=ICS_names, sdir=sdir, init_state=state)
 
     dsa_Zs = ss[1].Zs[ss[1].zlist]
     dsa_DMs = ss[1].DMEGs[ss[1].zlist]
@@ -184,7 +185,7 @@ def main():
     name = names[0]
     
     # Do the plotting
-    misc_functions.plot_grid_2(g.rates,g.zvals,g.dmvals,
+    misc_functions.plot_grid(g.rates,g.zvals,g.dmvals,
         name=opdir+name+"_zDM.pdf",norm=3,log=True,
         label='$\\log_{10} p({\\rm DM}_{\\rm IGM} + {\\rm DM}_{\\rm host},z)$ [a.u.]',
         project=False,ylabel='${\\rm DM}_{\\rm IGM} + {\\rm DM}_{\\rm host}$',
@@ -245,7 +246,8 @@ def main():
     plt.ylim(0,1)
     plt.legend(loc="lower right")
     plt.tight_layout()
-    plt.savefig(opdir+"pz_comparison.pdf")
+    #plt.savefig(opdir+"pz_comparison.pdf")
+    plt.show()
     plt.close()
     
 

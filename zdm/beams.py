@@ -47,7 +47,8 @@ def load_beam(prefix):
         which the calculation has been performed.
     
     """
-    basedir = os.path.join(files('zdm'), 'data', 'BeamData')
+    #basedir = os.path.join(files('zdm'), 'data', 'BeamData')
+    basedir = files('zdm').joinpath('zdm/data/BeamData/')
     #basedir=beams_path
     logb=np.load(os.path.join(basedir,prefix+'_bins.npy'))
     # standard, gets best beam estimates: no truncation
