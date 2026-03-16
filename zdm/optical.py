@@ -841,6 +841,7 @@ class model_wrapper:
         # higher level state defining optical parameters
         self.OpticalState = model.OpticalState
         
+        #parameters defining chance of identifying a galaxy with magnitude m
         self.pU_mean = self.OpticalState.id.pU_mean
         self.pU_width = self.OpticalState.id.pU_width
         
@@ -1127,7 +1128,10 @@ class model_wrapper:
             # such that \sum priors = 1; here, we need \int priors dm = 1
             Oi /= self.dAppmag 
             
-            Oi /= Sigma_ms[i] # normalise by host counts
+            # modify sigma_ms by P(m|O)
+            pogm = (1.-pUgm(mag,self.pU_mean,self.pU_width))
+            numerator = Sigma_ms[i] * pogm
+            Oi /= numerator # normalise by host counts
             
             Ois.append(Oi)
         
@@ -1468,7 +1472,7 @@ frblist=['FRB20180924B','FRB20181112A','FRB20190102C','FRB20190608B',
         'FRB20211212A','FRB20220105A','FRB20220501C',
         'FRB20220610A','FRB20220725A','FRB20220918A',
         'FRB20221106A','FRB20230526A','FRB20230708A',
-        'FRB20230731A','FRB20230902A','FRB20231226A','FRB20240201A',
+        'FRB20230902A','FRB20231226A','FRB20240201A',
         'FRB20240210A','FRB20240304A','FRB20240310A']
 
 

@@ -83,6 +83,7 @@ def main():
     minimise=True
     if minimise:
         result = minimize(on.function,x0 = x0,args=args,bounds = bounds)
+        
         print("Best fit result is f_sfr = ",result.x)
         x = result.x
         # saves result
@@ -186,7 +187,7 @@ def main():
     plt.xlabel("$f_{\\rm sfr}$")
     plt.ylabel("$\\log_{10} \\mathcal{L}(f_{\\rm sfr})$")
     plt.xlim(0,3)
-    plt.ylim(44,53)
+    plt.ylim(40,48)
     
     ax2 = plt.gca().twinx()
     l2,=ax2.plot(SFRs,pvalues,color="black",linestyle=":",label="p-value")

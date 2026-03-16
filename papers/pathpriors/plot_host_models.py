@@ -110,15 +110,15 @@ def calc_path_priors():
                 plt.plot(mrvals,pmr/dmr,label = "Loudas25 ($f_{\\rm sfr}$ = "+str(fsfr)+")",
                     linestyle=styles[j+1])
             else:
-                plt.plot(mrvals,pmr/dmr,linestyle=styles[j+2],\
+                plt.plot(mrvals,pmr/dmr,linestyle=styles[j+1],\
                         color=plt.gca().lines[j+2].get_color())
         
         
         
     plt.xlabel("Apparent magnitude $m_r$")
     plt.ylabel("$P(m_r|z)$")
-    plt.text(17.5,0.28,"$z=0.1$")
-    plt.text(22,0.28,"$z=1.0$")
+    plt.text(17.5,0.285,"$z=0.1$")
+    plt.text(22,0.285,"$z=1.0$")
     plt.xlim(12.5,30)
     plt.ylim(0,0.4)
     plt.legend(loc="upper right",ncol=2)

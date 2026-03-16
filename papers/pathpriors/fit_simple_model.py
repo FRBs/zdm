@@ -47,8 +47,6 @@ def main():
     ######### List of all ICS FRBs for which we can run PATH #######
     # hard-coded list of FRBs with PATH data in ice paper
     frblist=opt.frblist
-    frblist.remove('FRB20230731A') # too reddened
-    
     
     # Initlisation of zDM grid
     # Eventually, this should be part of the loop, i.e. host IDs should
@@ -139,7 +137,7 @@ def main():
     
     llstat = on.calculate_likelihood_statistic(NFRB,AppMags,AppMagPriors,ObsMags,ObsPosteriors,PUobs,PUprior,plotfile=outfile)
     ksstat = on.calculate_ks_statistic(NFRB,AppMags,AppMagPriors,ObsMags,ObsPosteriors,sumPUobs,
-                                    sumPUprior,plotfile=outfile,abc="(c)",tag="naive: ",)
+                                    sumPUprior,plotfile=outfile,abc="(c)",tag="Naive: ",)
     
     print("Best-fit stats of the naive model are ll=",llstat," ks = ",ksstat)
     

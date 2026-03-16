@@ -399,7 +399,8 @@ def calculate_ks_statistic(NFRB,AppMags,AppMagPriors,ObsMags,ObsPosteriors,PUobs
     return stat
 
 def make_cumulative_plots(NMODELS,NFRB,AppMags,AppMagPriors,ObsMags,ObsPosteriors,PUobs,
-                                PUprior,plotfile,plotlabel,POxcut=None,abc=None,onlyobs=None):
+                                PUprior,plotfile,plotlabel,POxcut=None,abc=None,onlyobs=None,
+                                greyscale=[],addpriorlabel=True):
     """
     Creates cumulative plots of KS-like behaviour for multiple fit outcomes
     
@@ -419,7 +420,8 @@ def make_cumulative_plots(NMODELS,NFRB,AppMags,AppMagPriors,ObsMags,ObsPosterior
         PUobs: posterior on unseen probability
         PUprior: prior on PU
         POxcut: if not None, cut data to fixed POx. Used to simulate current techniques
-    
+        greyscale (list of ints): if present, defines which models to plot as background greyscales
+        addpriorlabel (bool): if True, add "prior" to label of priors
     Returns:
         None
     """
@@ -427,6 +429,7 @@ def make_cumulative_plots(NMODELS,NFRB,AppMags,AppMagPriors,ObsMags,ObsPosterior
     # arrays to hold created observed and prior distributions
     prior_dists = []
     obs_dists = []
+    linestyles=[":","--","-.","-"]
     
     # loops over models to create prior distributions
     for imodel in np.arange(NMODELS):
@@ -479,6 +482,24 @@ def make_cumulative_plots(NMODELS,NFRB,AppMags,AppMagPriors,ObsMags,ObsPosterior
     
     for imodel in np.arange(NMODELS):
         
+        if onlyobs is None or onlyobs == imodel:
+            if onlyobs is not None:
+                color = 'black'
+                label = "Observed" # don't sub-label, since this stands in for all observed
+            else:
+                color=plt.gca().lines[-1].get_color()
+                label = plotlabel[imodel]+": Observed"
+            
+            plt.plot(AppMags[imodel],obs_dists[imodel],label=label,
+                        color=color)
+        
+        # adds gryescale 'background' plots of observed distributions
+        if imodel in greyscale:
+            plt.plot(AppMags[imodel],obs_dists[imodel],color="gray")
+            # add these in greyscale, to highlight they are 'background' plots
+            # this option never used, but experimented with.
+            
+        
         # calcs lowest x that is essentially at max
         ixmax = np.where(prior_dist > prior_dist[-1]*0.999)[0][0]
         # rounds it up to multiple of 5
@@ -490,27 +511,24 @@ def make_cumulative_plots(NMODELS,NFRB,AppMags,AppMagPriors,ObsMags,ObsPosterior
         plt.xlim(xmin,xmax)
         
         #cx,cy = make_cdf_for_plotting(ObsMags,weights=ObsPosteriors)
-        plt.plot(AppMags[imodel],prior_dists[imodel],label=plotlabel[imodel]+": Prior",
-                        linestyle=":")
-        if onlyobs is None or onlyobs == imodel:
-            if onlyobs is not None:
-                color='black'
-            else:
-                color=plt.gca().lines[-1].get_color()
-            plt.plot(AppMags[imodel],obs_dists[imodel],label=plotlabel[imodel]+": Observed",
-                        color=color)
+        if addpriorlabel:
+            label = plotlabel[imodel]+": Prior"
+        else:
+            label = plotlabel[imodel]
+        
+        plt.plot(AppMags[imodel],prior_dists[imodel],label=label,
+                        linestyle=linestyles[imodel%4])
+        
             
             
     if abc is not None:
         plt.text(0.02,0.9,abc,fontsize=16, transform=plt.gcf().transFigure)
-    plt.legend(loc="upper left")
+    plt.legend(fontsize=12,loc="upper left")
     plt.tight_layout()
     plt.savefig(plotfile)
     plt.close()
     
     return None
-
-    
 
 def get_cand_properties(frblist):
     """
@@ -537,7 +555,7 @@ def get_cand_properties(frblist):
         candidates = ptbl[['ang_size', 'mag', 'ra', 'dec', 'separation']]
         all_candidates.append(candidates)
     return all_candidates
-        
+
 def run_path(name,P_U=0.1,usemodel = False, sort=False):
     """
     evaluates PATH on an FRB
@@ -553,14 +571,6 @@ def run_path(name,P_U=0.1,usemodel = False, sort=False):
     ######### Loads FRB, and modifes properties #########
     my_frb = FRB.by_name(name)
     this_path = frbassociate.FRBAssociate(my_frb, max_radius=10.)
-    
-    
-    # do NOT do the below method!
-    #
-    
-    # do NOT do the below!!
-    #my_frb.set_ee(my_frb.sig_a,my_frb.sig_b,my_frb.eellipse['theta'],
-    #            my_frb.eellipse['cl'],True)
     
     # reads in galaxy info
     ppath = os.path.join(resources.files('frb'), 'data', 'Galaxies', 'PATH')
@@ -584,12 +594,27 @@ def run_path(name,P_U=0.1,usemodel = False, sort=False):
     
     candidates = ptbl[['ang_size', 'mag', 'ra', 'dec', 'separation']]
     
+    # implements a correction to their relative magnitudes.
+    # note that order is R, then I, then g
+    if "VLT_FORS2_R" in ptbl:
+        mags = np.array(candidates.mag.values)
+    elif "VLT_FORS2_I" in ptbl:
+        mags = np.array(candidates.mag.values) + 0.65
+    elif "VLT_FORS2_g" in ptbl:
+        mags = np.array(candidates.mag.values) - 0.65
+    elif "GMOS_S_i" in ptbl:
+        mags = np.array(candidates.mag.values) + 0.65
+    elif "LRIS_I" in ptbl:
+        mags = np.array(candidates.mag.values) + 0.65
+    else:
+        raise ValueError("Cannot implement colour correction")
+        
     
     #this_path = PATH()
     this_path.init_candidates(candidates.ra.values,
                          candidates.dec.values,
                          candidates.ang_size.values,
-                         mag=candidates.mag.values)
+                         mag=mags)
     this_path.frb = my_frb
     
     frb_eellipse = dict(a=np.abs(my_frb.sig_a),
@@ -621,7 +646,8 @@ def run_path(name,P_U=0.1,usemodel = False, sort=False):
                          max_radius=10., 
                          debug=debug)
     
-    mags = candidates['mag']
+    # mags already defined above
+    #mags = candidates['mag']
     
     if sort:
         indices = np.argsort(P_Ox)

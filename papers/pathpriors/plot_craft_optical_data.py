@@ -1,5 +1,7 @@
 """
-This file generates plots of the CRAFT host galaxy candidates
+This file generates plots of the CRAFT host galaxy candidates.
+
+Output is placed in Figures
 """
 
 
