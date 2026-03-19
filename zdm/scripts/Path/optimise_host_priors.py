@@ -1,19 +1,50 @@
 """
-This file illustrates how to optimise the host prior
-distribution by fitting to CRAFT ICS optical observations.
-It fits a model of absolute galaxy magnitude distributions,
-uses zDM to predict redshifts and hence apparent magntidues,
-runs PATH using that prior, and tries to get priors to match posteriors.
+Optimise FRB host galaxy magnitude priors using zdm predictions and PATH.
 
-WARNING: this is NOT the optimal method! That would require using
-a catalogue of galaxies to sample from to generate fake optical fields.
-But nonetheless, this tests the power of estimating FRB host galaxy
-contributions using zDM to set priors for apparent magnitudes.
+This script fits a parametric model of FRB host galaxy absolute magnitude
+distributions to the CRAFT ICS optical observations. It works by:
 
-WARNING2: To do this properly also requires inputting the posterior POx
-for host galaxies into zDM! This simulation does not do that either.
+1. Initialising zdm grids for the three CRAFT ICS survey bands (892, 1300,
+   and 1632 MHz) using the HoffmannHalo25 parameter state.
+2. Constructing a host galaxy model (``simple`` or ``loudas``) that predicts
+   apparent r-band magnitudes by convolving the absolute magnitude distribution
+   with the zdm p(z|DM_EG) redshift prior, optionally including a k-correction.
+3. Running PATH with those zdm-derived apparent magnitude priors to obtain
+   posterior host association probabilities P_Ox for each CRAFT ICS FRB.
+4. Optimising the model parameters with ``scipy.optimize.minimize`` by
+   minimising either a maximum-likelihood statistic or a KS-like goodness-of-fit
+   statistic against the observed PATH posteriors.
 
-WARNING3: this program can take a while to run, if optimising the simple model.
+After optimisation the script:
+
+- Saves the best-fit parameters to ``<modelname>_output/best_fit_params.npy``.
+- Plots the predicted vs observed apparent magnitude distributions for the
+  best-fit model (``best_fit_apparent_magnitudes.png``).
+- Re-runs PATH with the original (flat) priors for comparison and produces a
+  scatter plot of best-fit vs original posteriors
+  (``Scatter_plot_comparison.png``).
+
+Limitations
+-----------
+- The optimal approach would sample galaxy candidates from a real photometric
+  catalogue to construct proper optical fields; this script uses a parametric
+  model instead.
+- Host identification posteriors (P_Ox) are not fed back into the zdm
+  likelihood; a self-consistent joint fit is not performed.
+- Runtime can be significant when optimising the ``simple`` model (10 free
+  parameters by default).
+
+Usage
+-----
+Set ``minimise = True`` (default) to run the optimiser, or ``False`` to load
+previously saved parameters from ``<modelname>_output/best_fit_params.npy``.
+Switch between host models by changing ``modelname`` to ``"simple"`` or
+``"loudas"``.
+
+Requirements
+------------
+- ``astropath`` package (PATH implementation)
+- ``frb`` package (FRB utilities and optical data)
 """
 
 
@@ -48,13 +79,40 @@ matplotlib.rc('font', **font)
 
 def main():
     """
-    Main function
-    Contains outer loop to iterate over parameters
-    
+    Optimise host galaxy magnitude model parameters and compare with baseline PATH.
+
+    Workflow:
+
+    1. Load the CRAFT ICS FRB list and initialise zdm grids for the 892, 1300,
+       and 1632 MHz survey bands using the HoffmannHalo25 cosmological/FRB state.
+    2. Select a host magnitude model (``"simple"`` or ``"loudas"``) and configure
+       its parameter bounds and initial values.
+    3. If ``minimise=True``, call ``scipy.optimize.minimize`` with
+       ``on.function`` as the objective, minimising either the maximum-likelihood
+       statistic (``istat=1``) or the KS-like statistic (``istat=0``) over all
+       CRAFT ICS FRBs. Best-fit parameters are saved to
+       ``<modelname>_output/best_fit_params.npy``.
+    4. Re-evaluate PATH at the best-fit parameters and compute both the
+       likelihood and KS statistics; save the apparent magnitude comparison
+       plot to ``<modelname>_output/best_fit_apparent_magnitudes.png``.
+    5. Re-run PATH with the original flat priors (``usemodel=False``) and save
+       a scatter plot comparing original vs best-fit P_Ox posteriors to
+       ``<modelname>_output/Scatter_plot_comparison.png``.
+
+    Configuration knobs (edit at the top of the function body):
+
+    - ``istat``: 0 = KS statistic, 1 = maximum-likelihood statistic.
+    - ``dok``: whether to include a k-correction in the apparent magnitude model.
+    - ``modelname``: ``"simple"`` for the parametric histogram model or
+      ``"loudas"`` for the Loudas single-parameter model.
+    - ``POxcut``: optional float (e.g. 0.9) to exclude low-confidence FRBs
+      from the model comparison.
+    - ``minimise``: set to ``False`` to skip optimisation and load saved
+      parameters instead.
     """
     
     ######### List of all ICS FRBs for which we can run PATH #######
-    # hard-coded list of FRBs with PATH data in ice paper
+    # hard-coded list of FRBs with PATH data in ICE paper
     frblist=opt.frblist
     
     # Initlisation of zDM grid
@@ -176,11 +234,31 @@ def main():
     plt.close()
     
 
-def make_cdf_for_plotting(xvals,weights=None):
+def make_cdf_for_plotting(xvals, weights=None):
     """
-    Creates a cumulative distribution function
-    
-    xvals,yvals: values of data points
+    Build a step-function CDF suitable for plotting.
+
+    Converts an array of data values (and optional weights) into paired
+    (x, y) arrays that trace the cumulative distribution as a staircase,
+    with two points per input value so that horizontal steps are rendered
+    correctly by matplotlib.
+
+    Parameters
+    ----------
+    xvals : np.ndarray
+        1-D array of data values. Will be sorted in ascending order.
+    weights : np.ndarray, optional
+        1-D array of weights with the same length as ``xvals``. If provided,
+        the CDF is computed as the normalised cumulative sum of the sorted
+        weights. If ``None``, a uniform CDF over ``N`` points is used,
+        with steps at ``0, 1/N, 2/N, ..., 1``.
+
+    Returns
+    -------
+    cx : np.ndarray
+        x-coordinates of the staircase CDF (length ``2 * N``).
+    cy : np.ndarray
+        y-coordinates of the staircase CDF (length ``2 * N``).
     """
     N = xvals.size
     cx = np.zeros([2*N])
