@@ -26,6 +26,7 @@ _MOCK_MODULES = [
     'astropath.path',
     'frb',
     'frb.frb',
+    'frb.dm',
     'frb.associate',
     'ne2001',
 ]
