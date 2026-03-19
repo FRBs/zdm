@@ -10,7 +10,7 @@ Architecture
 ------------
 The module is built around a two-layer design:
 
-**Host magnitude models** — each describes the intrinsic absolute
+**Host magnitude models** each describes the intrinsic absolute
 magnitude distribution of FRB host galaxies, p(M_r), and can convert
 it to an apparent magnitude distribution p(m_r | z) at a given
 redshift. Three models are provided:
@@ -31,7 +31,7 @@ redshift. Three models are provided:
   Marnoch et al. 2023 (MNRAS 525, 994), using cubic splines for the
   redshift-dependent mean and standard deviation.
 
-**``model_wrapper``** — a survey-independent wrapper around any host
+**``model_wrapper``** a survey-independent wrapper around any host
 model. Given a zdm ``Grid`` and an observed DM_EG, it convolves
 p(m_r | z) with the zdm p(z | DM_EG) posterior to produce a
 DM-informed apparent magnitude prior for PATH. It also estimates

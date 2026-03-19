@@ -4,15 +4,15 @@ Numerical routines for evaluating and optimising FRB host galaxy magnitude model
 This module is the numerical workhorse for the PATH integration in zdm,
 analogous to ``iteration.py`` for the zdm grid. It provides:
 
-- **``function``** — objective function passed to ``scipy.optimize.minimize``
+- **``function``** objective function passed to ``scipy.optimize.minimize``
   that evaluates a goodness-of-fit statistic for a given set of host model
   parameters against the CRAFT ICS optical data.
 
-- **``calc_path_priors``** — inner loop that runs PATH on a list of FRBs
+- **``calc_path_priors``** inner loop that runs PATH on a list of FRBs
   across one or more surveys/grids, collecting priors, posteriors, and
   undetected-host probabilities for each FRB.
 
-- **``run_path``** — runs the PATH algorithm for a single named FRB,
+- **``run_path``** runs the PATH algorithm for a single named FRB,
   loading its candidate host galaxies from the ``frb`` package data
   and applying colour corrections to convert to r-band.
 
@@ -20,11 +20,11 @@ analogous to ``iteration.py`` for the zdm grid. It provides:
   — goodness-of-fit statistics comparing the model apparent magnitude prior
   to the observed PATH posteriors across all FRBs.
 
-- **``make_cumulative_plots``** — plotting routine for visualising
+- **``make_cumulative_plots``** plotting routine for visualising
   cumulative magnitude distributions for one or more models simultaneously.
 
 - **``make_wrappers``**, **``make_cdf``**, **``flatten``**,
-  **``get_cand_properties``** — supporting utilities.
+  **``get_cand_properties``** supporting utilities.
 """
 
 import os
