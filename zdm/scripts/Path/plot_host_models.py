@@ -1,16 +1,52 @@
 """
-Script showing how to load different FRB host models.
+Plot and compare FRB host galaxy magnitude models against CRAFT ICS PATH posteriors.
 
-It does this for both my simple naive model, and Nick Loudas's
-model based on mass- or sfr-weightings, and Lachlan's
-evolution of galaxy spectra.
+This script demonstrates how to load, configure, and visualise the three
+available FRB host galaxy magnitude models, then evaluate PATH host association
+posteriors for all CRAFT ICS FRBs using each model in turn.
 
-We then evaluate P(O|x) for CRAFT FRBs in the CRAFT 1300 MHz survey
+Model comparison
+----------------
+Three host magnitude models are loaded and plotted:
 
-It's not the simplest script, but it should show how to do a whole bunch of stuff
+- **Simple model** (``opt.simple_host_model``): a parametric histogram of
+  absolute magnitudes M_r, linearly interpolated, with an optional
+  k-correction.  Parameters are set by hand here (not from a fitted result).
+- **Loudas model** (``opt.loudas_model``): predicts apparent magnitudes from
+  a galaxy luminosity function weighted by stellar mass (``fSFR=0``) or
+  star-formation rate (``fSFR=1``), based on Nick Loudas's galaxy model.
+  The mixing parameter ``fSFR`` is varied to show sensitivity.
+- **Marnoch model** (``opt.marnoch_model``): predicts apparent magnitudes
+  from the galaxy spectral evolution model of Marnoch et al. 2023
+  (MNRAS 525, 994).
 
-NOTE: this does NOT use the best-fit distributions form the recent paper.
+Diagnostic plots produced in ``Plots/``
+-----------------------------------------
+- ``simple_model_mags.png``: absolute magnitude prior p(M_r) for the simple
+  model, showing the interpolated curve and the raw histogram bin values.
+- ``loudas_model_mags.png``: apparent magnitude distributions p(m_r) for the
+  Loudas model at several redshifts, comparing mass- vs SFR-weighted variants.
+- ``loudas_fsfr_interpolation.png``: sensitivity of the Loudas model to the
+  ``fSFR`` mixing parameter at z=0.5, illustrating the full allowed range.
+- ``all_model_apparent_mags.png``: side-by-side comparison of p(m_r | z) for
+  all three models at z = 0.1, 0.5, and 2.0.
+- ``all_model_mag_priors_dm.png``: PATH apparent magnitude priors p(m_r | DM)
+  for all three models at DM = 200, 600, and 1000 pc/cm³, using the
+  CRAFT_ICS_1300 zdm grid to convert DM to a redshift prior.
+- ``posterior_comparison.png``: scatter plot of PATH host posteriors P(O|x)
+  from the original flat-prior run vs each of the four zdm-informed model
+  runs, across all CRAFT ICS FRBs.
 
+Note
+----
+Parameter values used here are illustrative initial estimates, not best-fit
+results from the published analysis. See ``optimise_host_priors.py`` for the
+fitting procedure.
+
+Requirements
+------------
+- ``astropath`` package (PATH implementation)
+- ``frb`` package (FRB utilities and optical data)
 """
 
 #standard Python imports
@@ -42,7 +78,46 @@ matplotlib.rc('font', **font)
 
 def calc_path_priors():
     """
-    Loops over all ICS FRBs
+    Generate diagnostic plots for all host models and compare PATH posteriors.
+
+    Workflow:
+
+    1. **Model initialisation**: Loads the simple, Loudas (mass-weighted,
+       ``fSFR=0``), and Marnoch host magnitude models with illustrative
+       parameter values.
+
+    2. **Intrinsic magnitude plots**: Plots the absolute magnitude prior
+       p(M_r) for the simple model and apparent magnitude distributions
+       p(m_r) for the Loudas model at several redshifts.
+
+    3. **fSFR sensitivity**: Plots p(m_r | z=0.5) for the Loudas model
+       across a wide range of ``fSFR`` values to illustrate model behaviour
+       beyond the physically motivated [0, 1] range.
+
+    4. **Model comparison at fixed z**: Compares p(m_r | z) across all three
+       models at z = 0.1, 0.5, and 2.0.
+
+    5. **DM-dependent priors**: Loads the CRAFT_ICS_1300 zdm grid and wraps
+       each model in a ``model_wrapper`` to compute the PATH apparent magnitude
+       prior p(m_r | DM) at DM = 200, 600, and 1000 pc/cm³.
+
+    6. **PATH evaluation over CRAFT ICS FRBs**: For each FRB in
+       ``opt.frblist`` that is found in the CRAFT_ICS_1300 survey:
+
+       - Runs PATH with a flat prior (``usemodel=False``, P_U=0.1) as the
+         baseline.
+       - Runs PATH four more times, one per zdm-informed model variant
+         (simple; Loudas mass-weighted; Loudas SFR-weighted; Marnoch), each
+         with P_U estimated from ``wrapper.estimate_unseen_prior()``.
+       - Prints diagnostic output for candidate host galaxies that flip above
+         P_Ox=0.5 relative to the baseline (simple model only).
+
+    7. **Posterior scatter plot**: Produces ``Plots/posterior_comparison.png``
+       showing P(O|x) from each zdm-informed model against the flat-prior
+       baseline across all FRBs.
+
+    Output files are written to the ``Plots/`` subdirectory, which is created
+    if it does not already exist.
     """
     
     opdir = "Plots/"

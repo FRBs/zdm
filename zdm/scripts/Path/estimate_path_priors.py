@@ -1,10 +1,39 @@
 """
-Script showing how to use zDM as priors for CRAFT
-host galaxy magnitudes.
+Estimate zdm-informed PATH priors for CRAFT/ICS FRB host galaxies.
 
-It requirses the FRB and astropath modules to be installed.
+This script demonstrates how to incorporate zdm-derived p(z|DM) predictions
+as priors for the PATH (Probabilistic Association of Transients to their Hosts)
+algorithm applied to CRAFT ICS FRBs.
 
-This does NOT include optimisation of any parameters
+For each FRB in the CRAFT ICS sample (`opt.frblist`), the script runs PATH
+twice and compares results:
+
+1. **Baseline run**: PATH with a flat (uninformative) prior on host galaxy
+   apparent magnitude, and a fixed prior P_U=0.1 on the host being below
+   the detection threshold.
+
+2. **zdm-informed run**: PATH using a physically motivated prior on host
+   apparent magnitude derived from the Marnoch+2023 host galaxy luminosity
+   model combined with the zdm p(z|DM_EG) probability distribution. The
+   probability P_U that the true host is undetected is also estimated from
+   the model rather than set by hand.
+
+The output is a weighted histogram of posterior host galaxy apparent
+magnitudes (P_Ox) across all FRBs, saved to ``posterior_pOx.png``.
+
+Note: This script does NOT optimise any zdm or host galaxy model parameters.
+It uses the CRAFT_ICS_1300 survey grid with default zdm parameter values.
+
+Requirements
+------------
+- ``astropath`` package (PATH implementation)
+- ``frb`` package (FRB utilities and optical data)
+- PATH-compatible optical data for each FRB in ``opt.frblist``
+
+References
+----------
+- Marnoch et al. 2023, MNRAS 525, 994 (host galaxy luminosity model)
+- Macquart et al. 2020 (Macquart relation / p(DM|z))
 """
 
 #standard Python imports
@@ -24,7 +53,35 @@ import astropath.priors as pathpriors
 
 def calc_path_priors():
     """
-    Loops over all ICS FRBs
+    Run PATH on all CRAFT ICS FRBs with and without zdm-derived priors.
+
+    Initialises a zdm grid for the CRAFT_ICS_1300 survey and the Marnoch+2023
+    host galaxy luminosity model. For each FRB in ``opt.frblist``:
+
+    - Matches the FRB to the CRAFT_ICS_1300 survey to retrieve its
+      extragalactic dispersion measure (DM_EG).
+    - Runs PATH with a flat apparent-magnitude prior and fixed P_U=0.1
+      (``usemodel=False``), giving baseline posteriors P_Ox1.
+    - Uses the zdm model to compute a physically motivated prior on apparent
+      host magnitude, p(m_r | DM_EG), via ``wrapper.init_path_raw_prior_Oi``,
+      and estimates P_U from the fraction of the magnitude prior that falls
+      below the survey detection limit via ``wrapper.estimate_unseen_prior``.
+    - Runs PATH again with the zdm-derived prior (``usemodel=True``) to give
+      updated posteriors P_Ox2.
+
+    After processing all FRBs, produces a weighted histogram of the posterior
+    host apparent magnitudes (P_Ox2) across the whole sample and saves it to
+    ``posterior_pOx.png``.
+
+    Notes
+    -----
+    FRBs not found in the CRAFT_ICS_1300 survey (e.g. because they were
+    detected by a different instrument configuration) are skipped with a
+    warning.
+
+    The zdm model parameters are held fixed at their default values; no
+    parameter optimisation is performed here. See
+    ``optimise_host_priors.py`` for the equivalent script with optimisation.
     """
     
     frblist = opt.frblist

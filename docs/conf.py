@@ -107,7 +107,13 @@ autodoc_default_options = {
 }
 
 # Mock imports for modules that may not be available during doc build
+# These packages can only be installed from GitHub and are not available
+# on ReadTheDocs or in the standard docs build environment:
+#   ne2001:    pip install git+https://github.com/FRBs/ne2001.git
+#   frb:       pip install git+https://github.com/FRBs/FRB.git
+#   astropath: pip install git+https://github.com/FRBs/astropath.git
 autodoc_mock_imports = [
     'ne2001',
     'frb',
+    'astropath',
 ]
