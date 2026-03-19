@@ -68,7 +68,8 @@ from importlib import resources
 import pandas
 import h5py
 
-import astropath.priors as pathpriors
+from astropath import priors as pathpriors
+#import astropath.priors as pathpriors
 
 
 ###################################################################
