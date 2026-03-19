@@ -1,6 +1,6 @@
 #import pytest
 
-from pkg_resources import resource_filename
+import importlib.resources as resources
 import os
 import pytest
 #import copy
@@ -46,7 +46,7 @@ def test_scat_methods():
     
     # Initialise survey and grid 
     # For this purporse, we only need two different surveys
-    sdir = os.path.join(resource_filename('zdm', 'data'), 'Surveys')
+    sdir = resources.files('zdm').joinpath('data/Surveys')
     name = 'CRAFT/ICS892'
     s1,g1 = loading.surveys_and_grids(
         state_dict=vparam_dict1,
@@ -149,5 +149,3 @@ def test_scat_methods():
     plt.tight_layout()
     plt.savefig(opdir+'/model_comparison.pdf')
     plt.close()
-
-test_scat_methods()
