@@ -202,16 +202,6 @@ def calc_path_priors(frblist,ss,gs,wrappers,verbose=True,usemodel=True,P_U=0.1):
         # replaces PO value with raw PO value, i.e. excluding the driver sigma
         if usemodel:
             P_O = wrapper.path_base_prior(ObsMags)
-            
-        # kept here for debugging
-        if False:
-            print("P_U is ",P_U)
-            print("P_O is ",P_O)
-            print("P_Ox is ",P_Ox)
-            plt.figure()
-            plt.plot(AppMags,MagPriors)
-            plt.show()
-            plt.close()
         
         if i==0:
             allgals = ptbl
