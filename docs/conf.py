@@ -5,9 +5,32 @@
 
 import os
 import sys
+from unittest.mock import MagicMock
 
 # Add the project root to the path for autodoc
 sys.path.insert(0, os.path.abspath('..'))
+
+# Inject mocks for GitHub-only packages directly into sys.modules.
+# This must be done before Sphinx loads any extensions, because
+# sphinx-automodapi's automodsumm handler fires at builder-inited —
+# earlier than autodoc_mock_imports takes effect — and will fail with
+# "No module named X" if the package is not installed.
+#
+# Packages mocked here:
+#   astropath: pip install git+https://github.com/FRBs/astropath.git
+#   frb:       pip install git+https://github.com/FRBs/FRB.git
+#   ne2001:    pip install git+https://github.com/FRBs/ne2001.git
+_MOCK_MODULES = [
+    'astropath',
+    'astropath.priors',
+    'astropath.path',
+    'frb',
+    'frb.frb',
+    'frb.associate',
+    'ne2001',
+]
+for _mod in _MOCK_MODULES:
+    sys.modules[_mod] = MagicMock()
 
 # -- Project information -----------------------------------------------------
 project = 'zdm'
