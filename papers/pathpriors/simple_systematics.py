@@ -75,7 +75,7 @@ def main():
     if not os.path.exists(opdir):
         os.mkdir(opdir)
     
-    load = False
+    load = True
     
     colours = ["grey","orange","blue"]
     markers = ['o','x','s']
