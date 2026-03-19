@@ -43,6 +43,7 @@ Getting Started
    architecture
    parameters
    api
+   optical
 
 .. toctree::
    :maxdepth: 1
