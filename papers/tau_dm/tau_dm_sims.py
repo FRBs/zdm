@@ -778,21 +778,21 @@ def run_tau_corr_zdm(N, snr_th, nobj, zs=None, dms=None):
 # # Main function to run the simulation and plotting
 
 # choose the dataset to use
-
-
-#create_frbs(25000)
+create_frbs(25000)
 #create_frbs_c22(25000)
 #lkajsdfa
 #cum_tau_plot(10,500)
 #tau_z_plot(0)
 
+# or load the data and plot -- to not create the grid every time
 #data = 'tau_dm_sims_craco1300.npz'
-data = 'tau_dm_sims_craco1300_c22.npz' 
+#data = 'tau_dm_sims_craco1300_c22.npz' 
+
 
 #tau_z_plot(0)
 
 
-#plot_dm_tau(snr_th=0, nobj=100, redshift=False)
+plot_dm_tau(snr_th=0, nobj=100, redshift=False)
 
 #dm_tau_corr_coeff(N=100000,snr_th=0,nobj=100)
 
