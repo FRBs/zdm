@@ -47,6 +47,7 @@ from zdm import loading
 from zdm import cosmology as cos
 from zdm import parameters
 from zdm import loading
+from zdm import frb_lists as lists
 
 import astropath.priors as pathpriors
 
@@ -56,7 +57,7 @@ def calc_path_priors():
     Run PATH on all CRAFT ICS FRBs with and without zdm-derived priors.
 
     Initialises a zdm grid for the CRAFT_ICS_1300 survey and the Marnoch+2023
-    host galaxy luminosity model. For each FRB in ``opt.frblist``:
+    host galaxy luminosity model. For each FRB in ``frblist.icslist``:
 
     - Matches the FRB to the CRAFT_ICS_1300 survey to retrieve its
       extragalactic dispersion measure (DM_EG).
@@ -84,7 +85,7 @@ def calc_path_priors():
     ``optimise_host_priors.py`` for the equivalent script with optimisation.
     """
     
-    frblist = opt.frblist
+    frblist = lists.icslist
     
     NFRB = len(frblist)
     

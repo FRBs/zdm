@@ -14,6 +14,7 @@ from importlib import resources
 from scipy.integrate import quad
 
 # imports from the "FRB" series
+from zdm import frb_lists as lists
 from zdm import optical as opt
 from frb.frb import FRB
 from astropath import chance
@@ -37,7 +38,7 @@ def main():
     """
     
     # gets this
-    frblist = opt.frblist
+    frblist = lists.icslist
     
     maglist=[]
     anglist=[]

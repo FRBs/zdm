@@ -1,0 +1,19 @@
+"""
+This file holds lists of localsied FRBs for which optical info is
+available, and can thus be used in analyses.
+"""
+
+# this defines the ICS FRBs for which we have PATH info
+# from Shannon et al (ICS sample)
+# notes: FRB20230731A and 'FRB20230718A' are too reddened, so are removed
+# still aiming to follow up frb20240208A and frb20240318A
+icslist=['FRB20180924B','FRB20181112A','FRB20190102C','FRB20190608B',
+        'FRB20190611B','FRB20190711A','FRB20190714A','FRB20191001A',
+        'FRB20191228A','FRB20200430A','FRB20200906A','FRB20210117A',
+        'FRB20210320C','FRB20210807D','FRB20210912A','FRB20211127I','FRB20211203C',
+        'FRB20211212A','FRB20220105A','FRB20220501C',
+        'FRB20220610A','FRB20220725A','FRB20220918A',
+        'FRB20221106A','FRB20230526A','FRB20230708A',
+        'FRB20230902A','FRB20231226A','FRB20240201A',
+        'FRB20240210A','FRB20240304A','FRB20240310A']
+

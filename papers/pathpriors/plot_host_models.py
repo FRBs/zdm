@@ -16,6 +16,7 @@ from zdm import loading
 from zdm import cosmology as cos
 from zdm import parameters
 from zdm import loading
+from zdm import frb_lists as lists
 
 import astropath.priors as pathpriors
 
@@ -40,7 +41,7 @@ def calc_path_priors():
     
     ######## initialises optical-independent info ########
     #frblist is a hard-coded list of FRBs for which we have optical PATH data
-    frblist = opt.frblist
+    frblist = lists.icslist
     NFRB = len(frblist)
     
     

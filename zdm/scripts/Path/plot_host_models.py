@@ -62,6 +62,7 @@ from zdm import loading
 from zdm import cosmology as cos
 from zdm import parameters
 from zdm import loading
+from zdm import frb_lists as lists
 
 import astropath.priors as pathpriors
 
@@ -102,7 +103,7 @@ def calc_path_priors():
        prior p(m_r | DM) at DM = 200, 600, and 1000 pc/cm³.
 
     6. **PATH evaluation over CRAFT ICS FRBs**: For each FRB in
-       ``opt.frblist`` that is found in the CRAFT_ICS_1300 survey:
+       ``data/optical/frb_lists.icslist`` that is found in the CRAFT_ICS_1300 survey:
 
        - Runs PATH with a flat prior (``usemodel=False``, P_U=0.1) as the
          baseline.
@@ -135,7 +136,7 @@ def calc_path_priors():
     
     ######## initialises optical-independent info ########
     #frblist is a hard-coded list of FRBs for which we have optical PATH data
-    frblist = opt.frblist
+    frblist = lists.icslist
     NFRB = len(frblist)
     
     
