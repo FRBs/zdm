@@ -540,6 +540,10 @@ class Grid:
             print("WARNING: no volumetric probability pdv yet calculated")
             exit()
         
+        # zfraction describes the fraction of host galaxies estimated to be
+        # visible at a given redshift. Implementing zfraction then means this grid
+        # is calculating the *observable* z-DM space, rather than the intrinsic z-DM space
+        # zfractions are given as two arrays - the zvalues, and the f(z) values
         if self.survey.survey_data.observing.Z_FRACTION is not None:
             fdir = str(resources.files('zdm').joinpath('data/optical'))
             ffile = fdir + "/fz_"+str(self.survey.survey_data.observing.Z_FRACTION)+".npy"
