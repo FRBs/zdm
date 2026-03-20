@@ -127,16 +127,18 @@ class LoudasParams(data_class.myDataClass):
 @dataclass
 class Identification(data_class.myDataClass):
     """
-    # parameters for identifying galaxies in an image
+    Data class for holding parameters related to identifying galaxies in an image.
+    These describe the mean and deviation for the function pUgm in optical.py
+    that parameterises p(U|mr)
     """
     pU_mean: float = field( 
-        default=26.385, 
+        default=26.176, 
         metadata={'help': "Magnitude at which pU|mr is 0.5", 
                   'unit': '', 
                   'Notation': '',
                   })
     pU_width: float = field( 
-        default=0.279, 
+        default=0.342, 
         metadata={'help': "Width of pU|mr distribution in ln space", 
                   'unit': '', 
                   'Notation': '',

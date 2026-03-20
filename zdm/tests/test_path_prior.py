@@ -30,15 +30,23 @@ def test_path_priors():
     state = parameters.State()
     cos.set_cosmology(state)
     cos.init_dist_measures()
-    model = opt.host_model()
+    model1 = opt.simple_host_model()
+    model2 = opt.marnoch_model()
+    model3 = opt.loudas_model()
     name='CRAFT_ICS_1300'
     ss,gs = loading.surveys_and_grids(survey_names=[name])
     g = gs[0]
     s = ss[0]
     
-    # must be done once for any fixed zvals
-    model.init_zmapping(g.zvals)
+    # wrapper around the optical model. For returning p(m_r|DM)
+    wrapper1 = opt.model_wrapper(model1,g.zvals) # simple
+    wrapper2 = opt.model_wrapper(model2,g.zvals) # loudas with fsfr=0
+    wrapper3 = opt.model_wrapper(model3,g.zvals) # loudas with fsfr=0
     
+    # must be done once for any fixed zvals
+    wrapper1.init_zmapping(g.zvals)
+    wrapper2.init_zmapping(g.zvals)
+    wrapper3.init_zmapping(g.zvals)
     
     for frb in frblist:
         # interates over the FRBs. "Do FRB"
@@ -56,8 +64,8 @@ def test_path_priors():
         
         DMEG = s.DMEGs[imatch]
         
-        prior = model.init_path_raw_prior_Oi(DMEG,g)
-        PU = model.estimate_unseen_prior(mag_limit=26) # might not be correct
+        wrapper1.init_path_raw_prior_Oi(DMEG,g)
+        PU = wrapper1.estimate_unseen_prior() # might not be correct
         
         # the model should have calculated a valid unseen probability
         if PU < 0. or PU > 1.:
@@ -66,11 +74,11 @@ def test_path_priors():
         if not np.isfinite(PU):
             raise ValueError("Unseen probability PU is ",PU)
         
-        bad = np.where(prior < 0.)[0]
+        bad = np.where(wrapper1.priors < 0.)[0]
         if len(bad) > 0:
             raise ValueError("Some elements of model prior have negative probability")
         
-        OK = np.all(np.isfinite(prior))
+        OK = np.all(np.isfinite(wrapper1.priors))
         if not OK:
             raise ValueError("Some elements of magnitude priors are not finite")
 

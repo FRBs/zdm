@@ -1,7 +1,30 @@
 """
-Contains files related to numerical optimisation
-of FRB host galaxy parameters. Similar to iteration.py
-for the grid.
+Numerical routines for evaluating and optimising FRB host galaxy magnitude models.
+
+This module is the numerical workhorse for the PATH integration in zdm,
+analogous to ``iteration.py`` for the zdm grid. It provides:
+
+- **``function``** objective function passed to ``scipy.optimize.minimize``
+  that evaluates a goodness-of-fit statistic for a given set of host model
+  parameters against the CRAFT ICS optical data.
+
+- **``calc_path_priors``** inner loop that runs PATH on a list of FRBs
+  across one or more surveys/grids, collecting priors, posteriors, and
+  undetected-host probabilities for each FRB.
+
+- **``run_path``** runs the PATH algorithm for a single named FRB,
+  loading its candidate host galaxies from the ``frb`` package data
+  and applying colour corrections to convert to r-band.
+
+- **``calculate_likelihood_statistic``** and **``calculate_ks_statistic``**
+  — goodness-of-fit statistics comparing the model apparent magnitude prior
+  to the observed PATH posteriors across all FRBs.
+
+- **``make_cumulative_plots``** plotting routine for visualising
+  cumulative magnitude distributions for one or more models simultaneously.
+
+- **``make_wrappers``**, **``make_cdf``**, **``flatten``**,
+  **``get_cand_properties``** supporting utilities.
 """
 
 import os
@@ -19,20 +42,37 @@ from frb.associate import frbassociate
     
 def function(x,args):
     """
-    This is a function for input into the scipi.optimize.minimise routine.
-    
-    It calculates a set of PATH priors for that model, and then calculates
-    a test statistic for that set.
-    
-    Args:
-        frblist: list of TNS FRB names
-        ss: list of surveys in which the FRB may exist
-        gs: list of grids corresponding to those surveys
-        model: optical model class which takes arguments x to be minimised. i.e.
-            the function call model.AbsPrior = x must fully specify the model.
-        istat [int]: which stat to use? 0 = ks stat. 1 = mak likelihood
-    
-    
+    Objective function for ``scipy.optimize.minimize`` over host model parameters.
+
+    Updates the host magnitude model with parameter vector ``x``, runs PATH
+    on all FRBs, computes the chosen goodness-of-fit statistic, and returns
+    a scalar value suitable for minimisation (i.e. smaller is better).
+
+    Parameters
+    ----------
+    x : np.ndarray
+        Parameter vector passed to ``model.init_args(x)``. Its meaning
+        depends on the model (e.g. absolute magnitude bin weights for
+        ``simple_host_model``, or ``fSFR`` for ``loudas_model``).
+    args : list
+        Packed argument tuple with the following elements, in order:
+
+        - ``frblist`` (list of str): TNS names of FRBs to evaluate.
+        - ``ss`` (list of Survey): surveys in which the FRBs may appear.
+        - ``gs`` (list of Grid): zdm grids corresponding to those surveys.
+        - ``model``: host magnitude model instance (must implement
+          ``init_args``).
+        - ``POxcut`` (float or None): if not None, restrict the statistic
+          to FRBs whose best host candidate has P(O|x) > POxcut.
+        - ``istat`` (int): statistic to use — 0 for KS-like statistic,
+          1 for maximum-likelihood (returned as negative log-likelihood
+          so that minimisation maximises the likelihood).
+
+    Returns
+    -------
+    stat : float
+        Goodness-of-fit statistic (smaller is better). For ``istat=1``
+        this is the negative log-likelihood.
     """
     
     frblist = args[0]
@@ -80,11 +120,32 @@ def make_wrappers(model,grids):
     return wrappers
     
 
-def make_cdf(xs,ys,ws,norm = True):
+def make_cdf(xs,ys,ws,norm=True):
     """
-    makes a cumulative distribution in terms of
-    the x-values x, observed values y, and weights w
-    
+    Build a weighted empirical CDF evaluated on a fixed grid.
+
+    For each grid point ``x`` in ``xs``, accumulates the weights ``ws[i]``
+    of all observations ``ys[i]`` that fall below ``x``. The result is a
+    non-decreasing array that can be compared to a model prior CDF.
+
+    Parameters
+    ----------
+    xs : np.ndarray
+        Grid of x values at which to evaluate the CDF (e.g. apparent
+        magnitude bin centres). Must be sorted in ascending order.
+    ys : array-like
+        Observed data values (e.g. host galaxy apparent magnitudes).
+    ws : array-like
+        Weight for each observation in ``ys`` (e.g. PATH posteriors P_Ox).
+        Must have the same length as ``ys``.
+    norm : bool, optional
+        If True (default), normalise the CDF so that its maximum value
+        is 1. Set to False to preserve the raw cumulative weight sum.
+
+    Returns
+    -------
+    cdf : np.ndarray, shape (len(xs),)
+        Weighted empirical CDF evaluated at each point in ``xs``.
     """
     cdf = np.zeros([xs.size])
     for i,y in enumerate(ys):
@@ -97,24 +158,68 @@ def make_cdf(xs,ys,ws,norm = True):
     
 def calc_path_priors(frblist,ss,gs,wrappers,verbose=True,usemodel=True,P_U=0.1):
     """
-    Inner loop. Gets passed model parameters, but assumes everything is
-    initialsied from there.
-    
-    Inputs:
-        FRBLIST: list of FRBs to retrieve data for
-        ss: list of surveys modelling those FRBs (searches for FRB in data)
-        gs: list of zDM grids modelling those surveys
-        wrappers: list of optical wrapper class objects used to calculate priors on magnitude
-        verbose (bool): Set to true to generate further output
-    
-    Returns:
-        Number of FRBs fitted
-        AppMags: list of apparent magnitudes used internally in the model
-        allMagPriors: summed array of magnitude priors calculated by the model
-        allObsMags: list of observed magnitudes of candidate hosts
-        allPOx: list of posterior probabilities calculated by the model
-        allPU: summed values of unobserved prior
-        allPUx: summed values of posterior of being unobserved
+    Run PATH on a list of FRBs and return priors, posteriors, and P_U values.
+
+    For each FRB in ``frblist``, searches all surveys in ``ss`` for a match,
+    computes the zdm-derived apparent magnitude prior (if ``usemodel=True``),
+    and runs PATH to produce host association posteriors. Results for all FRBs
+    are collected into parallel lists (one entry per FRB).
+
+    Also writes a CSV file ``allgalaxies.csv`` (if it does not already exist)
+    containing the magnitude and VLT/FORS2 R-band columns for all candidate
+    host galaxies across all FRBs.
+
+    Parameters
+    ----------
+    frblist : list of str
+        TNS names of FRBs to process (e.g. ``['FRB20180924B', ...]``).
+    ss : list of Survey
+        Survey objects to search for each FRB. The first survey containing
+        a given FRB is used.
+    gs : list of Grid
+        zdm grids corresponding to each survey in ``ss``.
+    wrappers : list of model_wrapper
+        One ``model_wrapper`` per grid (from ``make_wrappers``), used to
+        compute DM-dependent apparent magnitude priors.
+    verbose : bool, optional
+        If True, print a warning for each FRB not found in any survey.
+        Defaults to True.
+    usemodel : bool, optional
+        If True, use the zdm-derived magnitude prior from ``wrappers`` and
+        estimate P_U from the model. If False, use PATH's built-in inverse
+        prior and the supplied fixed ``P_U``. Defaults to True.
+    P_U : float, optional
+        Fixed prior probability that the host galaxy is undetected. Only
+        used when ``usemodel=False``. Defaults to 0.1.
+
+    Returns
+    -------
+    nfitted : int
+        Number of FRBs successfully matched to a survey and processed.
+    AppMags : np.ndarray
+        Internal apparent magnitude grid (from the last processed wrapper).
+    allMagPriors : list of np.ndarray
+        One array per FRB giving p(m_r | DM_EG) on the ``AppMags`` grid.
+        Entries are ``None`` when ``usemodel=False``.
+    allObsMags : list of np.ndarray
+        One array per FRB listing the r-band magnitudes of PATH candidate
+        host galaxies.
+    allPO : list of np.ndarray
+        One array per FRB giving the PATH prior P_O for each candidate.
+    allPOx : list of np.ndarray
+        One array per FRB giving the PATH posterior P(O|x) for each candidate.
+    allPU : list of float
+        Prior P_U (probability of unseen host) for each FRB.
+    allPUx : list of float
+        Posterior P(U|x) (probability host is unseen, given data) for each FRB.
+    sumPU : float
+        Sum of ``allPU`` across all FRBs.
+    sumPUx : float
+        Sum of ``allPUx`` across all FRBs.
+    frbs : list of str
+        TNS names of the FRBs that were successfully matched and processed.
+    dms : list of float
+        Extragalactic DM (pc cm⁻³) for each FRB in ``frbs``.
     """
     
     NFRB = len(frblist)
@@ -233,26 +338,48 @@ def calc_path_priors(frblist,ss,gs,wrappers,verbose=True,usemodel=True,P_U=0.1):
 def calculate_likelihood_statistic(NFRB,AppMags,AppMagPriors,ObsMags,ObsPosteriors,PUobs,
                                 PUprior,plotfile=None,POxcut=None):
     """
-    Calculates a likelihood for each of the FRBs, and returns the log-likelihood.
-    
-    The inputs are in two categories. One is a form of lists of lists, where there is one list for
-    each FRB, and one entry in that list for each host galaxy candidate. Size is NFRB x NCAND
-    
-    The other input is where the length of the list matches the internal array size used to
-    calculate priors on host magnitudes. Size is either NMAG or NFRBxNMAG
-    
-    Inputs:
-        AppMags [array of floats: NMAG]: array listing apparent magnitudes used to calculate priors
-        AppMagPrior [array of floats NFRB xNMAG]: array giving prior on AppMags
-        ObsMags: list of lists of floats giving observed magnitudes m_r of host candidates 
-        ObsPosteriors: list of lists float of posterior values P(O|x) corresponding to ObsMags
-        PUobs [float]: posterior on unseen probability
-        PUprior [float]: prior on PU
-        plotfile: set to name of output file for comparison plot
-        POxcut: if not None, cut data to fixed POx. Used to simulate current techniques
-    
-    Returns:
-        log likelihood of the observation
+    Compute the total log-likelihood of the observed PATH posteriors given the model prior.
+
+    For each FRB, evaluates log10(Σ P(O_i|x) / rescale + P_U_prior), where the
+    rescale factor accounts for PATH's internal renormalisation of posteriors
+    relative to the model prior. Summing over all FRBs gives the total
+    log-likelihood returned to the caller.
+
+    Parameters
+    ----------
+    NFRB : int
+        Number of FRBs to sum over.
+    AppMags : np.ndarray, shape (NMAG,)
+        Apparent magnitude grid used to compute the model prior (not used
+        directly in this function, but kept for API consistency with
+        ``calculate_ks_statistic``).
+    AppMagPriors : list of np.ndarray, length NFRB
+        Model prior p(m_r | DM_EG) on the ``AppMags`` grid, one array per FRB.
+    ObsMags : list of np.ndarray, length NFRB
+        Observed r-band magnitudes of PATH candidate host galaxies, one array
+        per FRB (length NCAND varies by FRB).
+    ObsPosteriors : list of np.ndarray, length NFRB
+        PATH posterior P(O_i|x) for each candidate, one array per FRB.
+    PUobs : list of float, length NFRB
+        PATH posterior P(U|x) — probability that the true host is undetected —
+        for each FRB, as returned by PATH after renormalisation.
+    PUprior : list of float, length NFRB
+        Model prior P_U for each FRB, as estimated by
+        ``wrapper.estimate_unseen_prior()``.
+    plotfile : str or None, optional
+        If provided, save a diagnostic plot comparing prior and posterior
+        magnitude distributions to this file path. Defaults to None.
+    POxcut : float or None, optional
+        If not None, restrict the statistic to FRBs whose maximum P(O|x)
+        exceeds this threshold (simulates requiring a confident host ID).
+        Defaults to None.
+
+    Returns
+    -------
+    stat : float
+        Total log10-likelihood summed over all NFRB FRBs. Larger values
+        indicate a better fit. Multiply by -1 for use as a minimisation
+        objective.
     """
     # calculates log-likelihood of observation
     stat=0
@@ -286,35 +413,58 @@ def calculate_likelihood_statistic(NFRB,AppMags,AppMagPriors,ObsMags,ObsPosterio
 
 def flatten(xss):
     """
-    Turns a list of lists into a single list
+    Flatten a list of lists into a single flat list.
     """
     return [x for xs in xss for x in xs]
 
 def calculate_ks_statistic(NFRB,AppMags,AppMagPriors,ObsMags,ObsPosteriors,PUobs,
                                 PUprior,plotfile=None,POxcut=None,plotlabel=None,abc=None,tag=""):
     """
-    Calculates a ks-like statistic to be proxy for goodness-of-fit
-    We must set each AppMagPriors to 1.-PUprior at the limiting magnitude for each observation,
-    and sum the ObsPosteriors to be equal to 1.-PUobs at that magnitude.
-    Then these are what gets summed.
-    
-    This can be readily done by combining all ObsMags and ObsPosteriors into a single long list,
-    since this should already be correctly normalised. Priors require their own weight.
-    
-    Inputs:
-        AppMags: array listing apparent magnitudes
-        AppMagPriors: list of lists giving priors on AppMags for each FRB
-        ObsMags: list of observed magnitudes
-        ObsPosteriors: list of posterior values corresponding to ObsMags
-        PUobs: posterior on unseen probability
-        PUprior: prior on PU
-        plotfile: set to name of output file for comparison plot
-        POxcut: if not None, cut data to fixed POx. Used to simulate current techniques
-        abc [None]: add label, e.g. (a), to upper left
-        tag [string]: string to prefix labels
-    
-    Returns:
-        k-like statistic of biggest obs/prior difference
+    Compute a KS-like goodness-of-fit statistic between model prior and observed posteriors.
+
+    Builds cumulative magnitude distributions for both the model prior and the
+    PATH posteriors, normalised by the number of FRBs, and returns the maximum
+    absolute difference between them — analogous to the KS test statistic.
+
+    Optionally produces a plot comparing the two cumulative distributions.
+
+    Parameters
+    ----------
+    NFRB : int
+        Number of FRBs used for normalisation.
+    AppMags : np.ndarray, shape (NMAG,)
+        Apparent magnitude grid on which priors are defined.
+    AppMagPriors : list of np.ndarray, length NFRB
+        Model prior p(m_r | DM_EG) on ``AppMags``, one array per FRB.
+    ObsMags : list of np.ndarray, length NFRB
+        Observed r-band magnitudes of PATH candidate galaxies, one per FRB.
+    ObsPosteriors : list of np.ndarray, length NFRB
+        PATH posteriors P(O_i|x) for each candidate, one array per FRB.
+    PUobs : list of float
+        Posterior P(U|x) for each FRB (not used directly in the statistic,
+        kept for API consistency).
+    PUprior : list of float
+        Prior P_U for each FRB (not used directly, kept for API consistency).
+    plotfile : str or None, optional
+        If provided, save a CDF comparison plot to this path. Defaults to None.
+    POxcut : float or None, optional
+        If not None, restrict to candidates with P(O|x) > POxcut and
+        normalise both CDFs to unity (simulates the approach of selecting
+        only confidently identified hosts). Defaults to None.
+    plotlabel : str or None, optional
+        Text label placed in the centre-bottom of the plot. Defaults to None.
+    abc : str or None, optional
+        Panel label (e.g. ``'(a)'``) placed in the upper-left corner of the
+        figure in figure-coordinate space. Defaults to None.
+    tag : str, optional
+        String prefix added to the legend labels ``"Observed"`` and
+        ``"Prior"``. Defaults to ``""``.
+
+    Returns
+    -------
+    stat : float
+        Maximum absolute difference between the observed and prior cumulative
+        distributions. Smaller values indicate a better fit.
     """
     # sums the apparent mag priors over all FRBs to create a cumulative distribution
     fAppMagPriors = np.zeros([len(AppMags)])
@@ -392,28 +542,58 @@ def make_cumulative_plots(NMODELS,NFRB,AppMags,AppMagPriors,ObsMags,ObsPosterior
                                 PUprior,plotfile,plotlabel,POxcut=None,abc=None,onlyobs=None,
                                 greyscale=[],addpriorlabel=True):
     """
-    Creates cumulative plots of KS-like behaviour for multiple fit outcomes
-    
-    Inputs: see "calculate_ks_statistic" except:
-        - NMODELS (int): number of models to plot
-        - abc remains unchanged
-        - NFRB remains unchanged
-        - plotfile remains unchanged
-        - onlyobs (int): if not None, only plot observed distribution for this case
-        - all other parameters have a leading dimension of NMODELS
-    
-    Inputs from "calculate_ks_statistic" with extra NMODELS dimension:
-        AppMags: array listing apparent magnitudes
-        AppMagPriors: list of lists giving priors on AppMags for each FRB
-        ObsMags: list of observed magnitudes
-        ObsPosteriors: list of posterior values corresponding to ObsMags
-        PUobs: posterior on unseen probability
-        PUprior: prior on PU
-        POxcut: if not None, cut data to fixed POx. Used to simulate current techniques
-        greyscale (list of ints): if present, defines which models to plot as background greyscales
-        addpriorlabel (bool): if True, add "prior" to label of priors
-    Returns:
-        None
+    Plot cumulative apparent magnitude distributions for multiple host models on one figure.
+
+    Computes the same normalised prior and observed CDFs as
+    ``calculate_ks_statistic``, but for ``NMODELS`` models simultaneously,
+    overlaying them on a single figure with distinct line styles.
+
+    All list-valued parameters that appear in ``calculate_ks_statistic``
+    gain an additional leading dimension of size ``NMODELS`` here.
+
+    Parameters
+    ----------
+    NMODELS : int
+        Number of models to plot.
+    NFRB : list of int, length NMODELS
+        Number of FRBs for each model, used for normalisation.
+    AppMags : list of np.ndarray, length NMODELS
+        Apparent magnitude grid for each model.
+    AppMagPriors : list of lists of np.ndarray, shape (NMODELS, NFRB, NMAG)
+        Model prior p(m_r | DM_EG) for each model and FRB.
+    ObsMags : list of lists of np.ndarray, shape (NMODELS, NFRB, NCAND)
+        Observed candidate magnitudes for each model and FRB.
+    ObsPosteriors : list of lists of np.ndarray, shape (NMODELS, NFRB, NCAND)
+        PATH posteriors P(O_i|x) for each model and FRB.
+    PUobs : list, length NMODELS
+        Posterior P(U|x) per model (not used directly in the plot).
+    PUprior : list, length NMODELS
+        Prior P_U per model (not used directly in the plot).
+    plotfile : str
+        Output file path for the saved figure.
+    plotlabel : list of str, length NMODELS
+        Legend label prefix for each model.
+    POxcut : float or None, optional
+        If not None, restrict to candidates with P(O|x) > POxcut and
+        normalise CDFs to unity. Defaults to None.
+    abc : str or None, optional
+        Panel label (e.g. ``'(a)'``) placed in the upper-left corner in
+        figure-coordinate space. Defaults to None.
+    onlyobs : int or None, optional
+        If not None, only draw the observed CDF for the model with this
+        index (useful when all models share the same observations). The
+        observed line is then labelled ``"Observed"`` without a model prefix.
+        Defaults to None.
+    greyscale : list of int, optional
+        Indices of models whose observed CDF should additionally be drawn
+        in grey (for background reference). Defaults to ``[]``.
+    addpriorlabel : bool, optional
+        If True (default), append ``": Prior"`` to each model's legend entry.
+        Set to False to use only ``plotlabel[imodel]`` as the label.
+
+    Returns
+    -------
+    None
     """
     
     # arrays to hold created observed and prior distributions
@@ -522,13 +702,20 @@ def make_cumulative_plots(NMODELS,NFRB,AppMags,AppMagPriors,ObsMags,ObsPosterior
 
 def get_cand_properties(frblist):
     """
-    Returns properties of galaxy candidates for FRBs
-    
+    Load PATH candidate host galaxy properties for a list of FRBs.
+
+    Reads the pre-generated PATH CSV files from the ``frb`` package data
+    directory (``frb/data/Galaxies/PATH/<FRB>_PATH.csv``) and extracts
+    the columns ``['ang_size', 'mag', 'ra', 'dec', 'separation']`` for
+    each FRB.
+
     Args:
-        frblist: list of strings giving FRB names
-    
+        frblist (list of str): TNS FRB names (e.g. ``['FRB20180924B', ...]``).
+
     Returns:
-        all_candidates: list of pandas dataframes containing candidate info
+        all_candidates (list of pd.DataFrame): one DataFrame per FRB,
+            each with columns ``ang_size``, ``mag``, ``ra``, ``dec``,
+            and ``separation``.
     """
     
     all_candidates=[]
@@ -546,16 +733,54 @@ def get_cand_properties(frblist):
         all_candidates.append(candidates)
     return all_candidates
 
-def run_path(name,P_U=0.1,usemodel = False, sort=False):
+def run_path(name,P_U=0.1,usemodel=False,sort=False):
     """
-    evaluates PATH on an FRB
-    
-    Args:
-        name [string]: TNS name of FRB
-        P_U [float]: unseen prior
-        usemodel [bool]: if True, use user-defined P_O|x model
-        sort [bool]: if True, sort candidates by posterior
-    
+    Run the PATH algorithm on a single FRB and return host association results.
+
+    Loads the FRB object and its pre-generated PATH candidate table from the
+    ``frb`` package, applies colour corrections to convert candidate magnitudes
+    to r-band (using fixed offsets: I → R: +0.65, g → R: −0.65), sets up the
+    FRB localisation ellipse and offset prior, and evaluates PATH posteriors.
+
+    The magnitude prior used for the candidates is:
+
+    - ``usemodel=False``: PATH's built-in ``'inverse'`` prior (uniform in log
+      surface density).
+    - ``usemodel=True``: the ``'user'`` prior, which must be set externally by
+      pointing ``pathpriors.USR_raw_prior_Oi`` at a ``model_wrapper`` method
+      before calling this function (typically done by
+      ``wrapper.init_path_raw_prior_Oi``).
+
+    The offset prior is always the ``'exp'`` model from PATH's ``'adopted'``
+    standard priors, with scale 0.5 arcsec.
+
+    Parameters
+    ----------
+    name : str
+        TNS name of the FRB (e.g. ``'FRB20180924B'``).
+    P_U : float, optional
+        Prior probability that the true host galaxy is undetected. Defaults
+        to 0.1.
+    usemodel : bool, optional
+        If True, use the externally set user prior for candidate magnitudes.
+        Defaults to False.
+    sort : bool, optional
+        If True, sort the returned arrays by P(O|x) in ascending order.
+        Defaults to False.
+
+    Returns
+    -------
+    P_O : np.ndarray
+        Prior probability P(O_i) for each candidate host galaxy.
+    P_Ox : np.ndarray
+        Posterior probability P(O_i|x) for each candidate.
+    P_Ux : float
+        Posterior probability P(U|x) that the true host is undetected.
+    mags : np.ndarray
+        R-band apparent magnitudes of the candidates (after colour correction).
+    ptbl : pd.DataFrame
+        Full PATH candidate table loaded from the CSV file, with an
+        additional ``'frb'`` column set to ``name``.
     """
     
     ######### Loads FRB, and modifes properties #########

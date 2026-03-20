@@ -540,6 +540,10 @@ class Grid:
             print("WARNING: no volumetric probability pdv yet calculated")
             exit()
         
+        # zfraction describes the fraction of host galaxies estimated to be
+        # visible at a given redshift. Implementing zfraction then means this grid
+        # is calculating the *observable* z-DM space, rather than the intrinsic z-DM space
+        # zfractions are given as two arrays - the zvalues, and the f(z) values
         if self.survey.survey_data.observing.Z_FRACTION is not None:
             fdir = str(resources.files('zdm').joinpath('data/optical'))
             ffile = fdir + "/fz_"+str(self.survey.survey_data.observing.Z_FRACTION)+".npy"
@@ -1260,7 +1264,45 @@ class Grid:
     
     def smear_z(self,array,zsigma):
         """
-        smears the z-grid according to a specified photometric error
+        Smear a 2-D z-DM grid along the redshift axis to account for
+        photometric redshift uncertainty.
+
+        When a survey uses photometric rather than spectroscopic redshifts,
+        the true redshift of each FRB host is uncertain. This method convolves
+        each column of the grid (i.e. each fixed-DM slice along the z axis)
+        with a Gaussian kernel whose standard deviation equals ``zsigma``,
+        redistributing probability across neighbouring redshift bins.
+
+        The kernel is truncated at ``state.photo.sigma_width`` standard
+        deviations on each side (default 6σ), rounded up to an odd number of
+        bins so that it is centred exactly on zero.
+
+        Parameters
+        ----------
+        array : np.ndarray, shape (Nz, NDM)
+            Input 2-D grid with redshift along axis 0 and DM along axis 1.
+        zsigma : float
+            Photometric redshift uncertainty (1σ), in the same units as
+            ``self.zvals`` (i.e. dimensionless redshift).
+
+        Returns
+        -------
+        smear_zgrid : np.ndarray, shape (Nz, NDM)
+            Copy of ``array`` with each DM column convolved along the z axis
+            by the Gaussian smearing kernel. Boundary effects are handled with
+            ``np.convolve`` mode ``"same"``, so the output has the same shape
+            as the input.
+
+        Notes
+        -----
+        The kernel width in grid bins is ``zsigma / self.dz``. Values near the
+        grid edges will be underestimated because the convolution truncates to
+        zero outside the grid; for well-chosen grid extents this edge effect is
+        negligible.
+
+        In ``calc_rates``, this method is called with ``zsigma`` taken from
+        ``self.survey.survey_data.observing.Z_PHOTO`` and applied to
+        ``self.rates`` after the FRB rate grid has been computed.
         """
         r,c=array.shape
         # get sigma in grid units

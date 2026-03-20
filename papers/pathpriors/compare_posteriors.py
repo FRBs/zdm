@@ -24,6 +24,7 @@ from zdm import parameters
 from zdm import loading
 from zdm import optical_numerics as on
 from zdm import states
+from zdm import frb_lists as lists
 
 # other FRB library imports
 import astropath.priors as pathpriors
@@ -48,8 +49,7 @@ def main():
     
     ######### List of all ICS FRBs for which we can run PATH #######
     # hard-coded list of FRBs with PATH data in ice paper
-    frblist=opt.frblist
-    frblist.remove('FRB20230731A') # too reddened
+    frblist = lists.icslist
     
     # Initlisation of zDM grid
     # Eventually, this should be part of the loop, i.e. host IDs should
@@ -234,7 +234,7 @@ def main():
                 
                 continue
             
-            string2 = f"{all_candidates[i]['ra'][j]:.4f} & ${all_candidates[i]['dec'][j]:.4f}$ &"
+            string2 = f"{all_candidates[i]['ra'][j]:.4f} & {all_candidates[i]['dec'][j]:.4f} &"
             string2 += f" {all_candidates[i]['separation'][j]:.2f} &"
             string2 += f" {all_candidates[i]['ang_size'][j]:.2f} & {all_candidates[i]['mag'][j]:.2f} &"
             

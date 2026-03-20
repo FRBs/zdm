@@ -1,47 +1,58 @@
 """
-This library contains routines that interact with
-the FRB/astropath module and (optical) FRB host galaxy
-information.
+Optical FRB host galaxy models and PATH interface for zdm.
 
-The philosophy of the module is this. The base class
-is "host_model". This class is the top-level class
-that contains base functions to e.g. calculate
-p(m_r|DM).
+This module connects zdm redshift-DM grids with the PATH
+(Probabilistic Association of Transients to their Hosts) algorithm by
+providing physically motivated priors on FRB host galaxy apparent
+magnitudes, p(m_r | DM_EG).
 
-However, no host_model class contains any astroiphysics.
+Architecture
+------------
+The module is built around a two-layer design:
 
-Instead, it wraps an underlying set of possible class
-objects that must have a specific set of callable functions
-which each contain the relevant calculations.
+**Host magnitude models** each describes the intrinsic absolute
+magnitude distribution of FRB host galaxies, p(M_r), and can convert
+it to an apparent magnitude distribution p(m_r | z) at a given
+redshift. Three models are provided:
 
-The current set are the following:
+- ``simple_host_model``: parametric histogram of p(M_r) with N free
+  amplitudes (default 10), interpolated linearly or via spline. An
+  optional power-law k-correction can be included. N (or N+1)
+  free parameters.
 
-Simple_host_model:
-    Describes intrinsic host properties as a spline
-    interpolation between p(M_r) described by N
-    points. N parameters (e.g. 10).
+- ``loudas_model``: precomputed p(m_r | z) tables from Nick Loudas,
+  constructed by weighting galaxies by stellar mass or star-formation
+  rate. Interpolated between tabulated redshift bins with a
+  luminosity-distance shift. Single free parameter ``fSFR`` sets the
+  SFR/mass mixing fraction.
 
-Marnoch_model:
-    Fixed calculation of p(M_r) based on extrapolation
-    of known FRB host galaxies. No parameters. See
-    https://doi.org/10.1093/mnras/stad2353
-    
+- ``marnoch_model``: zero-parameter model. Fits a Gaussian to the
+  r-band magnitude distribution of known CRAFT ICS host galaxies from
+  Marnoch et al. 2023 (MNRAS 525, 994), using cubic splines for the
+  redshift-dependent mean and standard deviation.
 
-Loudas_model:
-    Calculates p(M_r) via assigning a fraction of FRB
-    hosts to follow star-formation in galaxies, and
-    a fraction to stellar mass, then includes the modelled
-    evolution of these galaxies. 1 parameter.
-    
-Each "host_model" class object above must provide functions to:
-    __init__
-    calculate p(m_r|z,parameters)
-    
-The wrapper class provides the following fubctions:
- 
-- init_path_raw_prior_Oi(self,DM,grid):
- (takes as input an FRB DM, and grid object)
+**``model_wrapper``** a survey-independent wrapper around any host
+model. Given a zdm ``Grid`` and an observed DM_EG, it convolves
+p(m_r | z) with the zdm p(z | DM_EG) posterior to produce a
+DM-informed apparent magnitude prior for PATH. It also estimates
+P_U, the prior probability that the true host is below the survey
+detection limit.
 
+Typical usage
+-------------
+::
+
+    model = opt.marnoch_model()
+    wrapper = opt.model_wrapper(model, grid.zvals)
+    wrapper.init_path_raw_prior_Oi(DMEG, grid)   # DM-specific initialisation
+    PU = wrapper.estimate_unseen_prior()
+    # pathpriors.USR_raw_prior_Oi is now set automatically by init_path_raw_prior_Oi
+
+Module-level data
+-----------------
+``frblist`` : list of str
+    TNS names of CRAFT ICS FRBs for which PATH optical data are
+    available (used by the scripts in ``zdm/scripts/Path/``).
 """
 
 
@@ -57,7 +68,8 @@ from importlib import resources
 import pandas
 import h5py
 
-import astropath.priors as pathpriors
+from astropath import priors as pathpriors
+#import astropath.priors as pathpriors
 
 
 ###################################################################
@@ -109,7 +121,19 @@ class marnoch_model:
 
     def process_rbands(self):
         """
-        Returns parameters of the host magnitude distribution as a function of redshift
+        Build cubic spline fits to the mean and rms of p(m_r) as a function of z.
+
+        Reads the per-FRB r-band magnitude columns from ``self.table``,
+        computes their mean (``Rbar``) and sample standard deviation (``Rrms``)
+        across all FRBs at each tabulated redshift, then fits two cubic splines:
+
+        - ``self.sbar``: CubicSpline interpolating the mean apparent magnitude
+          as a function of redshift.
+        - ``self.srms``: CubicSpline interpolating the rms scatter as a
+          function of redshift.
+
+        These splines are subsequently used by ``get_pmr_gz`` to evaluate
+        the Gaussian p(m_r | z) at arbitrary redshifts.
         """
         
         table = self.table
@@ -138,15 +162,32 @@ class marnoch_model:
         
         #return Rbar,Rrms,zlist,sbar,srms
     
-    def get_pmr_gz(self,mrbins,z): # fsfr must be a self value z: float,fsfr: float):
+    def get_pmr_gz(self,mrbins,z):
         """
-        Returns the p_mr distribution for a given redshift z and sfr fraction f_sfr
-        
-        Args:
-            mrbins (array of floats): list of r-band magnitude bins
-            z (float): redshift
+        Return the apparent magnitude probability distribution p(m_r | z).
+
+        Evaluates a Gaussian distribution whose mean and standard deviation
+        are obtained from the cubic splines fit in ``process_rbands``,
+        and integrates it over the provided magnitude bins.
+
+        This model has no free parameters; the Gaussian moments are fully
+        determined by the Marnoch et al. 2023 host galaxy data.
+
+        Parameters
+        ----------
+        mrbins : array-like of float, length N+1
+            Edges of the apparent magnitude bins over which to compute the
+            probability. The output has length N (one value per bin).
+        z : float
+            Redshift at which to evaluate the magnitude distribution.
+
+        Returns
+        -------
+        pmr : np.ndarray, length N
+            Probability in each magnitude bin (sums to ≤ 1; may be less
+            than unity if the Gaussian extends beyond the bin range).
         """
-        
+
         mean = self.sbar(z)
         rms = self.srms(z)
         
@@ -169,12 +210,16 @@ class loudas_model:
     
     def __init__(self,OpticalState=None,fname='p_mr_distributions_dz0.01_z_in_0_1.2.h5',data_dir=None,verbose=False):
         """
-        initialises the model. Loads data provided by Nick Loudas
-        on mass- and sfr-weighted magnitudes.
-        
+        Initialise the Loudas model, loading precomputed p(m_r | z) tables.
+
         Args:
-            fname [string]: h55 filename containing the data
-            datadir [string]: directory that the data is contained in. Defaults to None.
+            OpticalState (OpticalState, optional): optical parameter state. A
+                default ``OpticalState`` is created if not provided.
+            fname (str): HDF5 filename containing the Loudas p(m_r | z) tables.
+                Defaults to ``'p_mr_distributions_dz0.01_z_in_0_1.2.h5'``.
+            data_dir (str, optional): directory containing ``fname``. Defaults
+                to the package data directory ``zdm/data/optical/``.
+            verbose (bool): if True, print progress messages. Defaults to False.
         """
         
         # uses the "simple hosts" descriptor
@@ -246,15 +291,31 @@ class loudas_model:
         self.mass_splines = mass_splines
         self.sfr_splines = sfr_splines
     
-    def get_pmr_gz(self,mrbins,z): # fsfr must be a self value z: float,fsfr: float):
+    def get_pmr_gz(self,mrbins,z):
         """
-        Returns the p_mr distribution for a given redshift z and sfr fraction f_sfr
-        Should be defined such that the sum over all mrbins is unity (or less,
-        if there is a limitation due to range)
-        
-        Args:
-            z (float): redshift
-            fsfr (float): fraction of population associated with star-formation
+        Return the apparent magnitude probability distribution p(m_r | z).
+
+        Interpolates between the two nearest tabulated redshift bins (in
+        log-z space), applying a luminosity-distance shift to each tabulated
+        p(m_r) before combining them. The mass- and SFR-weighted distributions
+        are mixed according to ``self.fsfr`` (set via ``init_args``).
+
+        The result is normalised so that the bin probabilities sum to unity
+        over the full magnitude range, provided the distribution does not
+        extend significantly beyond ``mrbins``.
+
+        Parameters
+        ----------
+        mrbins : array-like of float, length N+1
+            Edges of the apparent magnitude bins. Output has length N.
+        z : float
+            Redshift at which to evaluate the distribution. Values outside
+            the tabulated range are extrapolated from the nearest edge bin.
+
+        Returns
+        -------
+        pmr : np.ndarray, length N
+            Probability in each apparent magnitude bin (sums to ≤ 1).
         """
         
         fsfr = self.fsfr
@@ -383,15 +444,18 @@ class loudas_model:
     
     def give_p_mr_mass(self,z: float):
         """
-        Function to return p(mr|z) for mass-weighted population.
+        Return p(m_r | z) for the stellar-mass-weighted host population.
+
+        Uses a nearest-bin lookup (no interpolation) in the tabulated redshift
+        grid. For interpolated results with luminosity-distance shifting, use
+        ``get_pmr_gz`` with ``fSFR=0`` instead.
+
         Args:
             z (float): Redshift value.
+
         Returns:
-            np.array: p(mr|z) values.
-        Note:
-            This function assumes that the redshift bins are defined in the `massweighted_population` data.
-            Given the fine discretization of redshift bins, it uses the nearest bin for the provided redshift value.
-            rmag_centers and p_mr_mass are defined in the outer scope of this function.
+            np.ndarray: p(m_r | z) values at the tabulated r-band magnitude
+                centres (``self.rmags``), normalised to sum to unity.
         """
         # Find the appropriate redshift bin index
         idx = np.clip(np.searchsorted(self.zbins, z) - 1, 0,  n_redshift_bins - 1)
@@ -399,15 +463,18 @@ class loudas_model:
     
     def give_p_mr_sfr(self,z: float):
         """
-        Function to return p(mr|z) for SFR-weighted population.
+        Return p(m_r | z) for the star-formation-rate-weighted host population.
+
+        Uses a nearest-bin lookup (no interpolation) in the tabulated redshift
+        grid. For interpolated results with luminosity-distance shifting, use
+        ``get_pmr_gz`` with ``fSFR=1`` instead.
+
         Args:
             z (float): Redshift value.
+
         Returns:
-            np.array: p(mr|z) values.
-        Note:
-            This function assumes that the redshift bins are defined in the `sfrweighted_population` data.
-            Given the fine discretization of redshift bins, it uses the nearest bin for the provided redshift value.
-            rmag_centers and p_mr_sfr are defined in the outer scope of this function.
+            np.ndarray: p(m_r | z) values at the tabulated r-band magnitude
+                centres (``self.rmags``), normalised to sum to unity.
         """
         # Find the appropriate redshift bin index
         idx = np.clip(np.searchsorted(self.zbins, z) - 1, 0,  n_redshift_bins - 1)
@@ -415,11 +482,14 @@ class loudas_model:
     
     def init_args(self,fSFR):
         """
-        Initialises prior based on sfr fraction
-        
+        Set the SFR/mass mixing fraction for the Loudas model.
+
         Args:
-            opstate: optical model state. Grabs the Loudas parameters from there.
-        
+            fSFR (float or array-like of length 1): fraction of FRB hosts
+                that trace star-formation rate. ``fSFR=0`` gives a purely
+                mass-weighted population; ``fSFR=1`` gives a purely
+                SFR-weighted population. Intermediate values linearly mix
+                the two. If an array is passed, only the first element is used.
         """
         # for numerical purposes, fSFR may have to be a vector
         if hasattr(fSFR,'__len__'):
@@ -475,13 +545,15 @@ class simple_host_model:
     """
     def __init__(self,OpticalState=None,verbose=False):
         """
-        Class constructor.
-        
+        Initialise the simple host magnitude model.
+
         Args:
-            opstate (class: Hosts, optional): class defining parameters
-                of optical state model
-            verbose (bool, optional): to be verbose y/n
-        
+            OpticalState (OpticalState, optional): optical parameter state
+                providing model configuration (magnitude ranges, number of
+                bins, interpolation scheme, k-correction flag). A default
+                ``OpticalState`` is created if not provided.
+            verbose (bool, optional): if True, print which sub-models are
+                being initialised. Defaults to False.
         """
         # uses the "simple hosts" descriptor
         if OpticalState is None:
@@ -647,25 +719,35 @@ class simple_host_model:
     
     def get_pmr_gz(self,mrbins,z):
         """
-        For a set of redshifts, initialise mapping
-        between intrinsic magnitudes and apparent magnitudes
-        
-        This routine only needs to be called once, since the model
-        to convert absolute to apparent magnitudes is fixed
-        
-        It is not set automatically however, and needs to be called
-        with a set of z values. This is all for speedup purposes.
-        
-        Args:
-            mrbins (np.array, float, length N+1): array of apparent magnitudes (mr)
-                    over which to calculate p(mr). These act as bins
-                    in apparent magnitude mr for histogram purposes,
-                    i.e. they are not probabilities *at* mr
-            zvals (float): redshifts at which
-                to map absolute to apparent magnitudes.
-        
-        Returns:
-           pmr: probability for each of the bins (length: N) 
+        Return the apparent magnitude probability distribution p(m_r | z).
+
+        Converts each apparent magnitude bin centre back to an absolute
+        magnitude using ``CalcAbsoluteMags``, then linearly interpolates
+        the absolute magnitude weight array (``self.AbsMagWeights``) to
+        obtain a probability density at each bin.
+
+        Parameters
+        ----------
+        mrbins : np.ndarray of float, length N+1
+            Edges of the apparent magnitude bins. The output has length N,
+            with one probability value per bin centre.
+        z : float
+            Redshift at which to evaluate the distribution.
+
+        Returns
+        -------
+        pmr : np.ndarray, length N
+            Probability density at each apparent magnitude bin centre.
+            Values at the edges of the absolute magnitude range are
+            clamped to the nearest valid bin rather than extrapolated.
+
+        Notes
+        -----
+        The returned values are NOT renormalised to sum to unity; the sum
+        may be less than one if some absolute magnitudes lie outside the
+        model range ``[Absmin, Absmax]``. This is intentional: the
+        shortfall represents probability mass for hosts too faint or too
+        bright to appear in the apparent magnitude range.
         """
         
         old = False
@@ -921,23 +1003,28 @@ class model_wrapper:
     
     def init_path_raw_prior_Oi(self,DM,grid):
         """
-        Initialises the priors for a particlar DM.
-        This performs a function very similar to
-        "get_posterior" except that it expicitly
-        only operates on a single DM, and saves the
-        information internally so that
-        path_raw_prior_Oi can be called for numerous
-        host galaxy candidates.
-        
-        It returns the priors distribution.
-        
+        Initialise the apparent magnitude prior for a single FRB DM.
+
+        Computes p(m_r | DM_EG) by convolving the precomputed p(m_r | z)
+        grid (``self.p_mr_z``) with the zdm posterior p(z | DM_EG) extracted
+        from ``grid``. The result is stored internally so that
+        ``path_raw_prior_Oi`` can be called repeatedly for different host
+        galaxy candidates belonging to the same FRB without recomputing the
+        DM integral.
+
+        Also computes the probability that the host is undetected:
+        - ``self.priors``: p(m_r | DM) weighted by the detection probability
+          p(detected | m_r).
+        - ``self.PUdist``: the magnitude-resolved contribution to P_U.
+        - ``self.PU``: scalar total prior probability that the host is unseen,
+          returned by ``estimate_unseen_prior()``.
+
+        After this call, ``pathpriors.USR_raw_prior_Oi`` is automatically
+        pointed at ``self.path_raw_prior_Oi``.
+
         Args:
-            DM [float]: dispersion measure of an FRB (pc cm-3)
-            grid (class grid): initialised grid object from which
-                                to calculate priors
-        
-        Returns:
-            priors (float): vector of priors on host galaxy apparent magnitude
+            DM (float): extragalactic dispersion measure of the FRB (pc cm⁻³).
+            grid (Grid): initialised zdm grid object providing p(z, DM).
         """
         
         # we start by getting the posterior distribution p(z)
@@ -966,20 +1053,26 @@ class model_wrapper:
     
     def get_posterior(self, grid, DM):
         """
-        Similar functionality to init_path_raw_prior_Oi. May be legacy code.
-        
-        Returns posterior redshift distributiuon for a given grid, and DM
-        magnitude distribution, for FRBs of DM given a grid object.
-        Note: this calculates a prior for PATH, but is a posterior
-            from zDM's point of view.
-        
+        Return apparent magnitude and redshift posteriors for a given DM.
+
+        Computes p(z | DM) from the grid and convolves it with the
+        precomputed ``self.maghist`` to obtain p(m_r | DM).
+
+        Note: from PATH's perspective this is a prior on host magnitude,
+        but from zdm's perspective it is a posterior on redshift given DM.
+
+        This method predates ``init_path_raw_prior_Oi`` and may not be
+        actively used in current scripts.
+
         Args:
-            grid (class grid object): grid object defining p(z,DM)
-            DM (float, np.ndarray OR scalar): FRB DM(s)
-        
+            grid (Grid): initialised zdm grid object providing p(z, DM).
+            DM (float or np.ndarray): FRB extragalactic DM(s) in pc cm⁻³.
+
         Returns:
-            papps (np.ndarray, floats): probability distribution of apparent magnitudes given DM
-            pz  (np.ndarray, floats): probability distribution of redshift given DM
+            papps (np.ndarray): probability distribution of apparent magnitude
+                given DM, p(m_r | DM).
+            pz (np.ndarray): probability distribution of redshift given DM,
+                p(z | DM).
         """
         # Step 1: get prior on z
         pz = get_pz_prior(grid,DM)
@@ -1033,8 +1126,24 @@ class model_wrapper:
     
     def path_base_prior(self,mags):
         """
-        Calculates base magnitude prior. Does NOT include
-        galaxy density factor
+        Evaluate the apparent magnitude prior p(m_r | DM) at a list of magnitudes.
+
+        Linearly interpolates ``self.priors`` (which already incorporates the
+        detection probability p(detected | m_r)) at each requested magnitude,
+        converting from the internally normalised sum-to-unity convention to a
+        probability density by dividing by the bin width ``self.dAppmag``.
+
+        Unlike ``path_raw_prior_Oi``, this method does NOT divide by the
+        galaxy surface density Sigma_m, so it returns the raw magnitude prior
+        without the PATH normalisation factor.
+
+        Args:
+            mags (list or tuple of float): apparent r-band magnitudes of
+                candidate host galaxies at which to evaluate the prior.
+
+        Returns:
+            Ois (np.ndarray): prior probability density p(m_r | DM) evaluated
+                at each magnitude in ``mags``.
         """
         ngals = len(mags)
         Ois = []
@@ -1189,22 +1298,22 @@ def get_pz_prior(grid, DM):
 
 def SimplekApparentMags(Abs,k,zs):
     """
-    Function to convert galaxy absolue to apparent magnitudes.
-    Same as simple apparent mags, but allows for a k-correction.
-    
-    Nominally, magnitudes are r-band magnitudes, but this function
-    is so simple it doesn't matter.
-    
-    Just applies a distance correction - no k-correction.
-    
+    Convert absolute to apparent magnitudes with a power-law k-correction.
+
+    Applies the distance modulus plus a k-correction of the form
+    ``2.5 * k * log10(1 + z)``.
+
     Args:
-        Abs (float or array of floats): intrinsic galaxy luminosities 
-        k (float): k-correction
-        zs (float or array of floats): redshifts of galaxies
-    
+        Abs (float or np.ndarray): absolute magnitude(s) M_r.
+        k (float): k-correction power-law index. ``k=0`` reduces to a
+            pure distance modulus (identical to ``SimpleApparentMags``).
+        zs (float or np.ndarray): redshift(s) of the galaxies.
+
     Returns:
-        ApparentMags: NAbs x NZ array of magnitudes, where these
-                        are the dimensions of the inputs
+        ApparentMags: apparent magnitude(s). Scalar if both inputs are
+            scalar; 1-D array if one is scalar and one is an array; 2-D
+            array of shape (NAbs, Nz) if both are arrays (computed via
+            ``np.outer``).
     """
     
     # calculates luminosity distances (Mpc)
@@ -1239,22 +1348,22 @@ def SimplekApparentMags(Abs,k,zs):
 
 def SimplekAbsoluteMags(App,k,zs):
     """
-    Function to convert galaxy apparent to absolute magnitudes.
-    Same as simple absolute mags mags, but allows for a k-correction.
-    
-    Nominally, magnitudes are r-band magnitudes, but this function
-    is so simple it doesn't matter.
-    
-    Just applies a distance correction - no k-correction.
-    
+    Convert apparent to absolute magnitudes with a power-law k-correction.
+
+    Inverse of ``SimplekApparentMags``: subtracts the distance modulus and
+    k-correction ``2.5 * k * log10(1 + z)`` from the apparent magnitude.
+
     Args:
-        App (float or array of floats): apparent galaxy luminosities 
-        k (float): k-correction
-        zs (float or array of floats): redshifts of galaxies
-    
+        App (float or np.ndarray): apparent magnitude(s) m_r.
+        k (float): k-correction power-law index. ``k=0`` reduces to a
+            pure distance modulus (identical to ``SimpleAbsoluteMags``).
+        zs (float or np.ndarray): redshift(s) of the galaxies.
+
     Returns:
-        AbsoluteMags: NAbs x NZ array of magnitudes, where these
-                        are the dimensions of the inputs
+        AbsoluteMags: absolute magnitude(s). Scalar if both inputs are
+            scalar; 1-D array if one is scalar and one is an array; 2-D
+            array of shape (NApp, Nz) if both are arrays (computed via
+            ``np.outer``).
     """
     
     # calculates luminosity distances (Mpc)
@@ -1289,20 +1398,20 @@ def SimplekAbsoluteMags(App,k,zs):
 
 def SimpleAbsoluteMags(App,zs):
     """
-    Function to convert galaxy apparent to absolute magnitudes.
-    
-    Nominally, magnitudes are r-band magnitudes, but this function
-    is so simple it doesn't matter.
-    
-    Just applies a distance correction - no k-correction.
-    
+    Convert apparent to absolute magnitudes using the distance modulus only.
+
+    Subtracts ``5 * log10(D_L / 10 pc)`` from the apparent magnitude, where
+    D_L is the luminosity distance in Mpc. No k-correction is applied.
+
     Args:
-        App (float or array of floats): apparent galaxy luminosities
-        zs (float or array of floats): redshifts of galaxies
-    
+        App (float or np.ndarray): apparent magnitude(s) m_r.
+        zs (float or np.ndarray): redshift(s) of the galaxies.
+
     Returns:
-        AbsoluteMags: NAbs x NZ array of magnitudes, where these
-                        are the dimensions of the inputs
+        AbsoluteMags: absolute magnitude(s). Scalar if both inputs are
+            scalar; 1-D array if one input is scalar and one is an array;
+            2-D array of shape (NApp, Nz) if both are arrays (computed via
+            ``np.outer``).
     """
     
     # calculates luminosity distances (Mpc)
@@ -1332,20 +1441,20 @@ def SimpleAbsoluteMags(App,zs):
 
 def SimpleApparentMags(Abs,zs):
     """
-    Function to convert galaxy absolue to apparent magnitudes.
-    
-    Nominally, magnitudes are r-band magnitudes, but this function
-    is so simple it doesn't matter.
-    
-    Just applies a distance correction - no k-correction.
-    
+    Convert absolute to apparent magnitudes using the distance modulus only.
+
+    Adds ``5 * log10(D_L / 10 pc)`` to the absolute magnitude, where
+    D_L is the luminosity distance in Mpc. No k-correction is applied.
+
     Args:
-        Abs (float or array of floats): intrinsic galaxy luminosities 
-        zs (float or array of floats): redshifts of galaxies
-    
+        Abs (float or np.ndarray): absolute magnitude(s) M_r.
+        zs (float or np.ndarray): redshift(s) of the galaxies.
+
     Returns:
-        ApparentMags: NAbs x NZ array of magnitudes, where these
-                        are the dimensions of the inputs
+        ApparentMags: apparent magnitude(s). Scalar if both inputs are
+            scalar; 1-D array if one input is scalar and one is an array;
+            2-D array of shape (NAbs, Nz) if both are arrays (computed via
+            ``np.outer``).
     """
     
     # calculates luminosity distances (Mpc)
@@ -1373,15 +1482,23 @@ def SimpleApparentMags(Abs,zs):
 
 def p_unseen_Marnoch(zvals,plot=False):
     """
-    Returns probability of a hist being unseen in typical VLT
-    observations.
-    
-    Inputs:
-        zvals [float, array]: array of redshifts
-    
+    Return the probability that an FRB host galaxy is unseen in typical VLT observations.
+
+    Digitises Figure 3 of Marnoch et al. 2023 (MNRAS 525, 994), which shows
+    p(U | z) — the cumulative probability that a host galaxy at redshift z
+    falls below the VLT/FORS2 R-band detection limit. A cubic polynomial is
+    fit to the digitised curve and evaluated at the requested redshifts.
+    Values are clamped to [0, 1].
+
+    Args:
+        zvals (float or np.ndarray): redshift(s) at which to evaluate p(U | z).
+        plot (bool): if True, save a diagnostic comparison plot of the raw
+            digitised data, linear interpolation, and polynomial fit to
+            ``p_unseen.pdf``. Defaults to False.
+
     Returns:
-        fitv [float, array]: p(Unseen) for redshift zvals
-    
+        fitv (np.ndarray): p(U | z) evaluated at each element of ``zvals``,
+            clamped to the range [0, 1].
     """
     # approx digitisation of Figure 3 p(U|z)
     # from Marnoch et al.
@@ -1426,7 +1543,20 @@ def p_unseen_Marnoch(zvals,plot=False):
 
 def simplify_name(TNSname):
     """
-    Simplifies an FRB name to basics
+    Reduce a TNS FRB name to a six-character YYMMDD[L] identifier.
+
+    Strips the leading ``FRB`` prefix (if present) and the year's
+    century digits, retaining only the six-digit date plus any
+    trailing letter suffix, to allow case-insensitive matching
+    between survey entries and external FRB catalogues.
+
+    Args:
+        TNSname (str): FRB name in TNS format, e.g. ``'FRB20180924B'``
+            or ``'20180924B'``.
+
+    Returns:
+        name (str): simplified six-character identifier, e.g. ``'180924B'``
+            (six digits plus optional letter).
     """
     # reduces all FRBs to six integers
     
@@ -1447,10 +1577,21 @@ def simplify_name(TNSname):
 
 def matchFRB(TNSname,survey):
     """
-    Gets the FRB id from the survey list
-    Returns None if not in the survey
-    Used to match properties between a survey
-    and other FRB libraries
+    Find the index of an FRB in a survey by TNS name.
+
+    Uses ``simplify_name`` to normalise both the query name and the survey
+    entries, so minor formatting differences (century digits, trailing
+    letters) do not prevent a match.
+
+    Args:
+        TNSname (str): TNS name of the FRB to look up, e.g.
+            ``'FRB20180924B'``.
+        survey (Survey): loaded survey object whose ``frbs["TNS"]`` column
+            contains TNS names of detected FRBs.
+
+    Returns:
+        int or None: index into ``survey.frbs`` of the first matching FRB,
+            or ``None`` if the FRB is not found in the survey.
     """
     
     name = simplify_name(TNSname)
@@ -1462,31 +1603,26 @@ def matchFRB(TNSname,survey):
     return match
 
 
-# this defines the ICS FRBs for which we have PATH info
-# notes: FRB20230731A and 'FRB20230718A' are too reddened, so are removed
-# still aiming to follow up frb20240208A and frb20240318A
-frblist=['FRB20180924B','FRB20181112A','FRB20190102C','FRB20190608B',
-        'FRB20190611B','FRB20190711A','FRB20190714A','FRB20191001A',
-        'FRB20191228A','FRB20200430A','FRB20200906A','FRB20210117A',
-        'FRB20210320C','FRB20210807D','FRB20210912A','FRB20211127I','FRB20211203C',
-        'FRB20211212A','FRB20220105A','FRB20220501C',
-        'FRB20220610A','FRB20220725A','FRB20220918A',
-        'FRB20221106A','FRB20230526A','FRB20230708A',
-        'FRB20230902A','FRB20231226A','FRB20240201A',
-        'FRB20240210A','FRB20240304A','FRB20240310A']
-
-
-
-
 def plot_frb(name,ralist,declist,plist,opfile):
     """
-    does an frb
-    
-    absolute [bool]: if True, treats rel_error as an absolute value
-        in arcseconds
-        
-    clist: list of astropy coordinates
-    plist: list of p(O|x) for candidates hosts
+    Plot an FRB localisation and its PATH host galaxy candidates.
+
+    Produces a scatter plot showing the FRB position and a set of
+    deviated/sampled positions colour-coded by their PATH posterior
+    P(O|x), overlaid with circles representing candidate host galaxies
+    scaled by their angular size. All coordinates are shown in arcseconds
+    relative to the FRB position.
+
+    Args:
+        name (str): TNS FRB name (e.g. ``'FRB20180924B'``), used to load
+            the FRB object and the corresponding PATH candidate table.
+        ralist (np.ndarray): right ascension values (degrees) of deviated
+            FRB positions to plot, colour-coded by ``plist``.
+        declist (np.ndarray): declination values (degrees) of deviated
+            FRB positions.
+        plist (np.ndarray): PATH posterior values P(O|x) for the deviated
+            positions, used to set the colour scale.
+        opfile (str): output file path for the saved figure.
     """
     
     from frb.frb import FRB
@@ -1539,19 +1675,27 @@ def plot_frb(name,ralist,declist,plist,opfile):
     plt.tight_layout()
     plt.close()
 
-
-
 def pUgm(mag,mean,width):
     """
-    Function to describe probability of a galaxy being unidentified
-    in an optical image as a function of its magnitude
-    
+    Return the probability that a galaxy is undetected as a function of magnitude.
+
+    Models the survey detection completeness as a logistic function that
+    transitions from ~0 (bright, always detected) to ~1 (faint, never
+    detected) with a smooth rolloff centred on ``mean``:
+
+        p(U | m) = 1 / (1 + exp((mean - m) / width))
+
     Args:
-        mag (float or array of floats): magnitude(s) at which
-            to evaluate the function
-        mean: magnitude at which the probability is 50%
-        width: characteristic width of transition from 0-50 and
-            50-100 %
+        mag (float or np.ndarray): r-band apparent magnitude(s) at which to
+            evaluate the detection-failure probability.
+        mean (float): magnitude at which p(U | m) = 0.5 (the 50% completeness
+            limit of the survey).
+        width (float): characteristic width of the completeness rolloff in
+            magnitudes. Smaller values give a sharper transition.
+
+    Returns:
+        pU (float or np.ndarray): probability of non-detection at each
+            magnitude in ``mag``, in the range [0, 1].
     """
     
     # converts to a number relative to the mean. Will be weird for mags < 0.
