@@ -809,3 +809,16 @@ def plot_frb(name,ralist,declist,plist,opfile):
     plt.savefig(opfile)
     plt.tight_layout()
     plt.close()
+
+
+
+
+def load_marnoch_data():
+    """
+    Loads the Marnoch et al data on r-band magnitudes from FRB hosts
+    """
+    from astropy.table import Table
+    datafile="magnitudes_and_probabilities_vlt-fors2_R-SPECIAL.ecsv"
+    infile =  os.path.join(resources.files('zdm'), 'data', 'optical', datafile)
+    table = Table.read(infile, format='ascii.ecsv')
+    return table

@@ -20,7 +20,7 @@
 # meta: !!omap
 # - {survey_data: '{"observing": {"NORM_FRB": 28, "NORM_SINGLES": 28, "TOBS": 522.5, "TFIELD": 3.66}, 
 #                   "telescope": {"BEAM": "ASKAP_average", "DIAM": 12.0, "NBEAMS": 36, "NBINS": 5,
-#                                    "WBIAS":"mean_ICS_efficiency", "DRIFT_SCAN": 1}}'}
+#                                  "DRIFT_SCAN": 1,"DMMASK": "mean_ICS_mask.npy"}}'}
 # schema: astropy-2.0
 TNS BW DM DMG FBAR FRES Gb Gl SNR SNRTHRESH THRESH TRES WIDTH XDec XRA Z
 20200430A 336.0 380.1 27.0 864.5 1.0 -50.423867191684614 126.69623499918922 16.0 9.0 4.4 1.728 6.5 12:22:34.007 15:18:49.581 0.161

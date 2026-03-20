@@ -1,3 +1,31 @@
+"""
+Core z-DM grid class for FRB population modeling.
+
+This module provides the Grid class, which computes 2D probability distributions
+of FRB detection rates as a function of redshift (z) and dispersion measure (DM).
+
+The Grid combines:
+- Cosmological volume elements and source evolution
+- p(DM|z) from the Macquart relation (cosmic + host)
+- Telescope detection efficiency (fluence threshold, beam pattern)
+- FRB luminosity/energy function
+
+Key Features
+------------
+- Builds normalized 2D probability grids for expected FRB rates
+- Handles beam response and detection efficiency
+- Supports multiple luminosity functions (power-law, gamma)
+- Efficient updating for MCMC parameter exploration
+
+Example
+-------
+>>> from zdm import grid
+>>> g = grid.Grid(survey, state, zDMgrid, zvals, dmvals, smear_mask)
+>>> expected_rate = g.rates  # Expected detection rate per (z, DM) bin
+
+Author: C.W. James
+"""
+
 from IPython.terminal.embed import embed
 import numpy as np
 import datetime
@@ -10,38 +38,56 @@ from zdm import io
 import time
 import warnings
 
+
 class Grid:
-    """A class to hold a grid of z-dm plots
-    
-    Fundamental assumption: each z point represents FRBs created *at* that redshift
-    Interpolation is performed under this assumption.
-    
-    It also assumes a linear uniform grid.
+    """2D grid for computing FRB detection rates as a function of z and DM.
+
+    The Grid class is the core computational object in zdm. It builds a 2D
+    probability distribution representing expected FRB detection rates across
+    the redshift-DM plane for a given survey and parameter set.
+
+    Assumptions:
+    - Each z bin represents FRBs originating at that redshift (not integrated)
+    - Linear uniform spacing in both z and DM
+    - DM includes cosmic + host contributions convolved together
+
+    Attributes
+    ----------
+    rates : ndarray
+        2D array of expected FRB rates per (z, DM) bin.
+    zvals : ndarray
+        Redshift bin centers.
+    dmvals : ndarray
+        DM bin centers in pc/cm^3.
+    state : parameters.State
+        Parameter state used for grid calculation.
+    survey : survey.Survey
+        Associated survey object.
     """
 
     def __init__(self, survey, state, zDMgrid, zvals, dmvals, smear_mask, wdist=None, prev_grid=None):
-        """
-        Class constructor.
+        """Initialize the Grid for a survey and parameter state.
 
-        Args: 
-            survey (survey.Survey):
-            state (parameters.State): 
-                Defines the parameters of the analysis
-                Note, each grid holds the *same* copy so modifying
-                it in one place affects them all.
-            zvals (np.1darray, float):
-                redshift values of the grid. These are "bin centres",
-                representing ranges from +- dz/2.
-            dmvals (np.1darray, float:
-                DM values of the grid. These are These are "bin centres",
-                representing ranges from +- dDM/2.
-            smear_mask (np.1darray, float):
-                1D array
-            wdist (bool):
-                If True, allow for a distribution of widths
-            prev_grid (grid.Grid):
-                Another grid with the same parameters just 
-                corresponding to a different survey
+        Parameters
+        ----------
+        survey : survey.Survey
+            Survey object with telescope properties and FRB data.
+        state : parameters.State
+            Parameter state defining the model. Note: grids share the same
+            State object, so modifications affect all grids.
+        zDMgrid : ndarray
+            2D array of p(DM|z) probabilities, shape (nz, ndm).
+        zvals : ndarray
+            Redshift bin centers. Bins span [z - dz/2, z + dz/2].
+        dmvals : ndarray
+            DM bin centers in pc/cm^3. Bins span [DM - dDM/2, DM + dDM/2].
+        smear_mask : ndarray
+            1D convolution kernel for host DM smearing.
+        wdist : bool, optional
+            If True, include width distribution effects.
+        prev_grid : Grid, optional
+            Another Grid with same z/DM values but different survey.
+            Allows reusing pre-computed cosmological quantities.
         """
         self.grid = None
         self.survey = survey
@@ -86,11 +132,10 @@ class Grid:
             self.calc_thresholds(survey.meta["THRESH"],
                              efficiencies,weights=weights)
         else:
-            # if this is the case, why calc thresholds again below?
+            # this is called when the grid is not iterating over widths internally
             efficiencies = survey.mean_efficiencies # one dimension
             weights = None
             self.calc_thresholds(survey.meta["THRESH"], efficiencies, weights=weights)
-            efficiencies=survey.mean_efficiencies
         
         # Calculate
         self.calc_pdv()
@@ -495,6 +540,23 @@ class Grid:
         self.sfr_smear = np.multiply(self.smear_grid.T, self.sfr).T
 
         self.rates = self.pdv * self.sfr_smear
+        
+    def get_rates(self):
+        """
+        Returns rates, multiplied by the relevant constant,
+        and accounting for any DM preference via a DM mask
+        """
+        
+        rates = np.zeros(self.rates.shape)
+        rates[:,:] = self.rates * 10**self.state.FRBdemo.lC
+        # multiplies by DM mask if applicable
+        if self.survey.dm_mask is not None:
+            rates = rates*self.survey.dm_mask
+        elif self.survey.max_dm is not None:
+            # in case a maximum DM is set in survey
+            if self.survey.max_idm < self.dmvals.size-1:
+                rates[:,self.survey.max_idm+1:]=0.
+        return rates
 
     def calc_thresholds(self, F0:float, 
                         eff_table, 

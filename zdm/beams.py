@@ -1,4 +1,24 @@
-# collection of functions to handle telescope beam effects
+"""
+Telescope beam pattern modeling utilities.
+
+This module provides functions for modeling and loading telescope beam patterns,
+which are essential for computing FRB detection efficiencies. Different telescopes
+have different beam shapes (Gaussian, Airy, measured) that affect the solid angle
+and sensitivity variations across the field of view.
+
+Main Functions
+--------------
+- `gauss_beam`: Generate Gaussian beam pattern
+- `load_beam`: Load measured beam pattern from file
+- `Airy_beam`: Generate Airy disk beam pattern
+
+The beam is typically represented as a histogram of response values (b) and
+corresponding solid angle fractions (omega), allowing efficient integration
+over the beam when computing detection rates.
+
+Author: C.W. James
+"""
+
 from importlib.resources import files
 import os
 import numpy as np

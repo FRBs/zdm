@@ -19,8 +19,9 @@
 # - {name: XRA, datatype: string, subtype: 'float64[null]'}
 # - {name: Z, datatype: float64}
 # meta: !!omap
-# - {survey_data: "{\n    \"observing\": {\n  \"NORM_FRB\": 1,\n  \"TOBS\": 1\n    },\n  \"telescope\": {\n      \
-#     \  \"DIAM\": 15,\n \"BMETHOD\": 0,\n \"NBEAMS\": 1,\n \"NBINS\": 10\n }\n}"}
+# - {survey_data: '{"observing": {"NORM_FRB": 1,"TOBS": 1},
+#                    "telescope": {"DIAM": 15, "BMETHOD": 0, "NBEAMS": 1,
+#                                   "NBINS": 10,"BTHRESH": 0.5}}'}
 # schema: astropy-2.0
-TNS BW DM DMG  FBAR FRES Gb Gl NREP SNR SNRTHRESH THRESH TRES WIDTH XDec XRA Z
-DUMMY  300 200 35.0 1284  0.1075  "" "" 1 10. 10.       0.2  0.069   1.0   ""   ""  0.276
+TNS   BW  DM  DMG  FBAR  FRES    Gb Gl NREP SNR SNRTHRESH THRESH TRES WIDTH  XDec XRA Z
+DUMMY 300 200 35.0 1400  0.1075  "" "" 1    10. 10.       0.06   0.069 1.0   ""   ""  0.276

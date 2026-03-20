@@ -1,8 +1,37 @@
-# ###############################################
-# This file defines a class to hold an FRB survey
-# Essentially, this is relevant when multiple
-# FRBs are discovered by the same instrument
-# ##############################################
+"""
+FRB Survey class for modeling telescope observations.
+
+This module provides the Survey class, which encapsulates all properties of an
+FRB survey including instrument characteristics, beam patterns, detection
+efficiencies, and detected FRB data.
+
+The Survey class handles:
+- Loading survey definition files (ECSV format) with FRB metadata
+- Beam pattern modeling and solid angle calculations
+- Detection efficiency as a function of DM and width
+- DM budget calculations (Galactic, halo, host contributions)
+- Threshold calculations for FRB detection
+
+Survey Definition Files
+-----------------------
+Survey files are stored in `zdm/data/Surveys/` and contain:
+- Header metadata: telescope parameters, beam settings, frequency, etc.
+- FRB table: TNS name, DM, position, width, fluence for each detection
+
+Example
+-------
+>>> from zdm import survey
+>>> from zdm.parameters import State
+>>> state = State()
+>>> dmvals = np.linspace(0, 3000, 1000)
+>>> s = survey.Survey(state, 'CRAFT/ICS', 'CRAFT_ICS.ecsv', dmvals)
+>>> s.NFRB  # Number of FRBs
+10
+>>> s.DMEGs  # Extragalactic DM values
+array([...])
+
+Author: C.W. James
+"""
 
 import numpy as np
 import os
@@ -33,30 +62,61 @@ from astropy.coordinates import SkyCoord
 MIN_THRESH = 1e-10
 
 class Survey:
-    def __init__(self, state, survey_name:str, 
-                 filename:str, 
-                 dmvals:np.ndarray,
-                 zvals:np.ndarray=None,
-                 NFRB:int=None, 
-                 iFRB:int=0,
+    """Represents an FRB survey with instrument properties and detected FRBs.
+
+    The Survey class is the primary interface for defining telescope
+    characteristics and loading FRB detections. It computes detection
+    efficiencies across the DM-width-fluence parameter space.
+
+    Attributes
+    ----------
+    name : str
+        Survey identifier (e.g., 'CRAFT/ICS', 'Parkes/Mb').
+    NFRB : int
+        Number of FRBs in the survey.
+    DMEGs : ndarray
+        Extragalactic DM values for detected FRBs.
+    Zs : ndarray or None
+        Redshifts for localized FRBs (None if unknown).
+    meta : dict
+        Survey metadata from file header.
+    efficiencies : ndarray
+        Detection efficiency grid as function of DM and width.
+    """
+
+    def __init__(self, state, survey_name: str,
+                 filename: str,
+                 dmvals: np.ndarray,
+                 zvals: np.ndarray = None,
+                 NFRB: int = None,
+                 iFRB: int = 0,
                  edir=None,
                  rand_DMG=False,
                  survey_dict=None):
-        """ Init an FRB Survey class
+        """Initialize an FRB Survey.
 
-        Args:
-            state (_type_): _description_
-            survey_name (str): 
-                Name of the survey
-            filename (str): _description_
-            dmvals (np.ndarray): Extragalactic DM values at which to calculate efficiencies
-            zvals  (np.ndarray): Redshift values at which to calculate efficiencies
-            NFRB (int, optional): _description_. Defaults to None.
-            iFRB (int, optional): _description_. Defaults to 0.
-            edir (str, optional): Location of efficiency files
-            rand_DMG (bool): If true randomise the DMG values within uncertainty
-            survey_dict (dict, optional): Dict of survey data meta-parameters to over-ride
-                            values in the survey file
+        Parameters
+        ----------
+        state : parameters.State
+            State object containing model parameters.
+        survey_name : str
+            Identifier for the survey (e.g., 'CRAFT/ICS').
+        filename : str
+            Path to survey definition file (ECSV format).
+        dmvals : ndarray
+            Extragalactic DM grid values for efficiency calculations.
+        zvals : ndarray, optional
+            Redshift grid values. Required for some width methods.
+        NFRB : int, optional
+            Limit number of FRBs loaded from file.
+        iFRB : int, optional
+            Starting index for FRB selection. Default is 0.
+        edir : str, optional
+            Directory containing pre-computed efficiency files.
+        rand_DMG : bool, optional
+            If True, randomize Galactic DM within uncertainty. Default False.
+        survey_dict : dict, optional
+            Override survey metadata parameters.
         """
         # Proceed
         self.state = state
@@ -120,7 +180,16 @@ class Survey:
         self.thresh = self.state.width.Wthresh
         self.wlogmean = self.state.width.Wlogmean
         self.wlogsigma = self.state.width.Wlogsigma
-        self.width_method = self.meta["WMETHOD"]
+        if self.meta['WBIAS'] == 'Quadrature' or self.meta['WBIAS'] == 'Sammons' or self.meta['WBIAS']=="StdDev":
+            # these allow width-dependent sensitivities
+            self.width_method = self.state.width.Wmethod
+        else:
+            # the sensitivity is a fixed function of DM. Don't waste
+            # time on multiple width bins! (though maybe we should...)
+            # so just set to a constant width of 1, i.e. a single bin.
+            self.width_method = 0
+        
+        
         if self.width_method == 3 and self.zvals is None:
             raise ValueError("Width method 3 requires z-values to be set")
         self.NInternalBins=self.state.width.WNInternalBins
@@ -158,7 +227,7 @@ class Survey:
             raise ValueError("state parameter scat.ScatFunction ",SF," not implemented, use 0-2 only")
         
         # sets n width bins equal to zero for this survey
-        if self.meta['WMETHOD'] == 0 or self.meta['WMETHOD'] == 4:
+        if self.width_method == 0 or self.width_method == 4:
             self.NWbins = 1
         
         ###### calculate width bins. We fix these here ######
@@ -194,7 +263,7 @@ class Survey:
         self.internal_logwvals = np.linspace(minval,maxval,self.NInternalBins)
         
         # initialise probability bins
-        if self.meta['WMETHOD'] == 3:
+        if self.width_method == 3:
             # evaluate efficiencies at each redshift
             self.efficiencies = np.zeros([self.NWbins,self.NZ,self.NDM])
             self.wplist = np.zeros([self.NWbins,self.NZ])
@@ -219,13 +288,42 @@ class Survey:
             #_ = self.get_efficiency_from_wlist(self.wlist,self.wplist,
             #                            model=self.meta['WBIAS'], edir=self.edir, iz=None) 
         self.do_efficiencies()
+    
+    def process_dm_mask(self,edir=None):
+        """
+        Processes a DM mask into units of local DM
+        """
         
+        # loads the mask
+        if edir is None:
+            edir = resources.files('zdm').joinpath('data/Efficiencies')
+        filename = os.path.expanduser(os.path.join(edir, self.meta['DMMASK']))
+        
+        if not os.path.exists(filename):
+            raise ValueError("Could not find DM mask " + filename + " in directory "+edir)
+
+        # Should contain DM in the first row and efficiencies in the second row
+        sensitivity_array = np.load(filename)
+        if self.DMGs is not None:
+            effective_vals = self.dmvals + self.state.MW.DMhalo + np.median(self.DMGs)
+        else:
+            effective_vals = self.dmvals + self.state.MW.DMhalo + 30
+        dm_mask = np.interp(effective_vals, sensitivity_array[0,:], sensitivity_array[1,:], left=1.,right=0)
+        self.dm_mask = dm_mask
+    
     def do_efficiencies(self):
         """
         Function to handle calculation of efficiencies.
         Allows this to be called externally, e.g. if DM halo model changes
         """
-        if self.meta['WMETHOD'] == 3:
+        
+        # process DM mask to get mask in units of used DM values
+        if self.meta['DMMASK'] is not None:
+            self.process_dm_mask()
+        else:
+            self.dm_mask = None
+        
+        if self.width_method == 3:
             for iz,z in enumerate(self.zvals):
                 _ = self.get_efficiency_from_wlist(self.wlist,self.wplist[:,iz],
                                         model=self.meta['WBIAS'], edir=self.edir, iz=iz)
@@ -238,7 +336,7 @@ class Survey:
         is required to estimate detection efficiency, and (potentially)
         calculate p(w,tau).
         
-        The functionality depends on self.meta['WMETHOD'], which
+        The functionality depends on self.width_method, which
         is set via
         
         WMETHOD [int: 0-4]:
@@ -257,13 +355,13 @@ class Survey:
                 for individual FRB-by-FRB analyses.
         """
         
-        if self.meta['WMETHOD'] == 0:
+        if self.width_method == 0:
             # do not take a distribution, just use 1ms for everything
             # this is done for tests, for complex surveys such as CHIME,
             # or for estimating the properties of a single FRB
             self.wlist[0] = 1.
             self.wplist[0] = 1.
-        elif self.meta['WMETHOD'] == 1:
+        elif self.width_method == 1:
             # take intrinsic width function only
             for i in np.arange(self.NWbins):
                 norm=(2.*np.pi)**-0.5/self.wlogsigma
@@ -271,12 +369,12 @@ class Survey:
                 weight,err=quad(self.WidthFunction,
                             np.log10(self.wbins[i]),np.log10(self.wbins[i+1]),args=args)
                 self.wplist[i]=weight
-        elif self.meta['WMETHOD'] == 2 or self.meta['WMETHOD'] == 3:
+        elif self.width_method == 2 or self.width_method == 3:
             # include scattering distribution. 3 means include z-dependence
             #gets cumulative hist and bin edges
             
             if iz is not None:
-                if self.meta['WMETHOD'] == 2:
+                if self.width_method == 2:
                     print("Trying to calculate redshift dependence for redshift ",\
                         "independent WMETHOD=2. Internally inconsistent.")
                     exit()
@@ -318,7 +416,7 @@ class Survey:
                     self.pws=pw
                     self.ptaus=ptau
             
-        elif self.meta['WMETHOD'] == 4:
+        elif self.width_method == 4:
             # use specific width of FRB. This requires there to be only a single FRB in the survey
             if s.meta['NFRB'] != 1:
                 raise ValueError("If width method in make_widths is 4 only one FRB should be specified in the survey but ", str(s.meta['NFRB']), " FRBs were specified")
@@ -560,6 +658,11 @@ class Survey:
         iws2=iws1+1
         dkws2=kws-iws1 # applies to izs2
         dkws1 = 1. - dkws2
+        
+        # in case iws1 is in the largets bin, then 
+        # iws2 will be too large
+        toobig1 = np.where(iws2 >= self.wlist.size)[0]
+        iws2[toobig1]=self.wlist.size-1
         
         # checks for values which are too large
         toobigw = np.where(wlist > self.WMax)[0]
@@ -821,16 +924,18 @@ class Survey:
         # Survey Data
         self.survey_data = survey_data.SurveyData.from_jsonstr(
             frb_tbl.meta['survey_data'])
+        
+        
         # Meta -- for convenience for now;  best to migrate away from this
         for key in self.survey_data.params:
             DC = self.survey_data.params[key]
             self.meta[key] = getattr(self.survey_data[DC],key)
-        
+            
         # Get default values from default frb data
         default_frb = survey_data.FRB()
         
         # we now populate missing fields with the default values
-        for field in fields(default_frb):
+        for field in fields(default_frb):\
             # checks to see if this is a field in metadata: if so, takes priority
             if survey_dict is not None and field.name in survey_dict.keys():
                 default_vaue = survey_dict[field.name]
@@ -907,23 +1012,27 @@ class Survey:
         
         if len(self.frbs) > 0:
             # first, replacing missing values with survey values
+            # only do this for values which are otherwise missing!
             
             # replace default values with observed media values
             # it's unclear if median or mean is the best here
-            self.meta['SNRTHRESH'] = np.median(self.frbs['SNRTHRESH'])
-            self.meta['THRESH'] = np.median(self.frbs['THRESH'])
-            self.meta['BW'] = np.median(self.frbs['BW'])
-            self.meta['FBAR'] = np.median(self.frbs['FBAR'])
-            self.meta['FRES'] = np.median(self.frbs['FRES'])
-            self.meta['TRES'] = np.median(self.frbs['TRES'])
-            self.meta['WIDTH'] = np.median(self.frbs['WIDTH'])
-            self.meta['DMG'] = np.mean(self.frbs['DMG'])
-        
+            keylist = ['SNRTHRESH','THRESH','BW','FBAR','FRES','TRES','WIDTH','DMG']
+            for key in keylist:
+                if not key in self.meta:
+                    self.meta[key] = np.median(self.frbs[key])
+            #self.meta['SNRTHRESH'] = np.median(self.frbs['SNRTHRESH'])
+            #self.meta['THRESH'] = np.median(self.frbs['THRESH'])
+            #self.meta['BW'] = np.median(self.frbs['BW'])
+            #self.meta['FBAR'] = np.median(self.frbs['FBAR'])
+            #self.meta['FRES'] = np.median(self.frbs['FRES'])
+            #self.meta['TRES'] = np.median(self.frbs['TRES'])
+            #self.meta['WIDTH'] = np.median(self.frbs['WIDTH'])
+            #self.meta['DMG'] = np.mean(self.frbs['DMG'])
         # over-rides survey data if applicable
         if survey_dict is not None:
             for key in survey_dict:
                 self.meta[key] = survey_dict[key]
-        
+                print(self.meta[key], "overidden by ",survey_dict[key])
         ### processes galactic contributions
         self.process_dmg()
         
@@ -968,7 +1077,7 @@ class Survey:
             
         
         print("FRB survey sucessfully initialised with ",self.NFRB," FRBs starting from", self.iFRB)
-
+        
     
     def fix_coordinates(self,verbose=False):
         """
@@ -1094,6 +1203,14 @@ class Survey:
             max_dm = max_dt / (k_DM * ((f_low/1e3)**(-2) - (f_high/1e3)**(-2)))
 
         self.max_dm = max_dm
+        
+        # calculates max iDM value
+        if self.max_dm is not None:
+            max_dmeg = max_dm - np.median(self.DMhalos + self.DMGs)
+            max_idm = np.where(self.dmvals < max_dmeg)[0][-1]
+            self.max_idm = max_idm
+        else:
+            self.max_idm = None
 
     def get_efficiency_from_wlist(self,wlist,plist, 
                                   model="Quadrature", 
@@ -1148,8 +1265,9 @@ class Survey:
                 edir=edir,
                 max_iw=self.meta['MAX_IW'],
                 max_meth = self.meta['MAXWMETH'])
-        # keep an internal record of this
         
+        
+        # keep an internal record of this
         if iz is None:
             self.efficiencies=efficiencies
             self.DMlist=DMlist
@@ -1160,6 +1278,7 @@ class Survey:
             self.DMlist[iz,:]=DMlist
             mean_efficiencies=np.mean(efficiencies,axis=0)
             self.mean_efficiencies[iz,:]=mean_efficiencies #be careful here!!! This may not be what we want!
+        
         return efficiencies
     
     def __repr__(self):
@@ -1250,8 +1369,9 @@ def calc_relative_sensitivity(DM_frb,DM,w,fbar,t_res,nu_res,Nchan=336,max_idt=No
             uw=w
         
         if model == "StdDev":
-            totalw = (uw**2 + dm_smearing**2/3. + t_res**2/3.)**0.5
-            nosmearw = (uw**2 + t_res**2/3.)**0.5
+            # 2* to be +- one standard deviation. But we're now fixing Tres to be unity
+            totalw = (uw**2 + dm_smearing**2/3. + t_res**2)**0.5
+            nosmearw = (uw**2 + t_res**2)**0.5
         else:
             totalw = (uw**2 + dm_smearing**2 + t_res**2)**0.5
             nosmearw = (uw**2 + t_res**2)**0.5
@@ -1284,7 +1404,7 @@ def calc_relative_sensitivity(DM_frb,DM,w,fbar,t_res,nu_res,Nchan=336,max_idt=No
                 # we have already reduced it by \sqrt{t}
                 # we thus add a further sqrt{t} factor
                 sensitivity[toolong] *= (max_w / totalw[toolong])**0.5
-    
+        
     # If model not CHIME, Quadrature or Sammons assume it is a filename
     else:
         if edir is None:
@@ -1297,7 +1417,7 @@ def calc_relative_sensitivity(DM_frb,DM,w,fbar,t_res,nu_res,Nchan=336,max_idt=No
         # Should contain DM in the first row and efficiencies in the second row
         sensitivity_array = np.load(filename)
         sensitivity = np.interp(DM, sensitivity_array[0,:], sensitivity_array[1,:], right=1e-2)
-
+    
     return sensitivity
 
 

@@ -9,6 +9,7 @@ import numpy as np
 import os
 import logging
 from matplotlib import pyplot as plt
+import importlib.resources as resources
 
 logging.basicConfig(
     level = logging.INFO,
@@ -57,9 +58,9 @@ def hist_craco_beams(footprint, pitch, freq, gsize, gpix,plot=False):
     
     bcs = 10**np.linspace(bmin + db/2.,bmax - db/2.,nbins)
     
-    basename = f"./hist_craco_{footprint}_p{pitch:.2f}_f{freq:.1f}MHz_f{gsize:.1f}d_npix{gpix}.npy"
+    basename = f"./hist_craco_{footprint}_p{pitch:.2f}_f{freq:.1f}MHz_f{gsize:.1f}d_npix{gpix}"
     
-    np.save(basename,h)
+    np.save(basename+"_.npy",h)
     np.save("craco_histogram_bins.npy",binedges)
     
     if plot:
@@ -95,11 +96,17 @@ class AskapBeam:
         self.avals = self._load_aval()
         
     def _load_tsys(self):
-        coeffs = np.load("askap_tsys_polyval.npy")
-        return np.polyval(coeffs, self.freq)
+        """
+        Tsys from Hotan et al
+        """
+        return get_tsys(self.freq)
+        #infile = os.path.join(resources.files('zdm'),'beam_generator','askap_tsys_polyval.npy')
+        #coeffs = np.load(infile)
+        #return np.polyval(coeffs, self.freq)
     
     def _load_aval(self):
-        data = np.loadtxt("avals.dat")
+        afile = os.path.join(resources.files('zdm'),'beam_generator','avals.dat')
+        data = np.loadtxt(afile)
         x = data[:,0]
         y = data[:,1]
         newx = np.concatenate([x,-x[::-1]])
@@ -150,6 +157,10 @@ class AskapBeam:
         if beamw is None: beamw = self.beamwidth
         return Gauss(offsets, beamw)
 
+def get_tsys(freq):
+    infile = os.path.join(resources.files('zdm'),'beam_generator','askap_tsys_polyval.npy')
+    coeffs = np.load(infile)
+    return np.polyval(coeffs, freq)
 
 class CracoBeam:
 
@@ -218,7 +229,7 @@ def _make_response_grid(gsize=10., gpix=2560.):
     ypoints = np.linspace(-gsize/2, gsize/2, gpix)
     return xpoints, ypoints
 
-def _sim_one_beam(ibeam, xpoints, ypoints, askapbeam, cracobeam, ):
+def _sim_one_beam(ibeam, xpoints, ypoints, askapbeam, cracobeam, primary ):
     logger.info(f"start simulating craco response for beam{ibeam}...")
     beamx = askapbeam.beamscentre[0][ibeam]
     beamy = askapbeam.beamscentre[1][ibeam]
@@ -228,6 +239,9 @@ def _sim_one_beam(ibeam, xpoints, ypoints, askapbeam, cracobeam, ):
     ### primary beam response
     logger.info(f"get primary beam response for beam{ibeam}...")
     primresponse = askapbeam.primary_response(xpoints, ypoints, beamx, beamy, )
+    if primary:
+        return beamaval * primresponse
+    
     ### craco related response
     logger.info(f"get primary beam response for beam{ibeam}...")
     gridresponse = cracobeam.grid_response(xpoints, ypoints, beamx, beamy, )
@@ -240,7 +254,7 @@ def _sim_one_beam(ibeam, xpoints, ypoints, askapbeam, cracobeam, ):
 def get_craco_allbeams(
         footprint="square", pitch=0.9, freq=920.5, # askap footprint related,
         fov=1.1, npix=256, sbeam=40./3600., # craco related
-        gsize=10., gpix=2560 # response gridding params
+        gsize=10., gpix=2560, primary=False # response gridding params
     ):
         xpoints, ypoints = _make_response_grid(gsize=gsize, gpix=gpix)
         askapbeam = AskapBeam(footprint=footprint, pitch=pitch, freq=freq)
@@ -248,8 +262,16 @@ def get_craco_allbeams(
         
         beamsresponse = np.zeros((36, gpix, gpix))
         for ibeam in range(36): # 36 beams
-            beamsresponse[ibeam] = _sim_one_beam(ibeam, xpoints, ypoints, askapbeam, cracobeam, )
-
+            beamsresponse[ibeam] = _sim_one_beam(ibeam, xpoints, ypoints, askapbeam, cracobeam, primary)
+        
+        # multiplies by Tsys factor
+        tsys = askapbeam.tsys
+        tnorm = get_tsys(1250) # relative to 1.25 GHz
+        # relative to min Tsys of 80 K
+        fweight = (tnorm/tsys)
+        beamsresponse *= fweight
+        print("Freq ",freq," tsys ",tsys," fweights ",fweight)
+        
         savefname = f"./craco_{footprint}_p{pitch:.2f}_f{freq:.1f}MHz_f{gsize:.1f}d_npix{gpix}.npy"
         np.save(savefname, beamsresponse)
         logger.info(f"save data to {savefname}...")
@@ -265,6 +287,7 @@ def main():
     parser.add_argument("-sb", "--sbeam", help="size of the synthesized beam", type=float, default=40./3600.)
     parser.add_argument("-gs", "--gridsize", help="grid size in the unit of degree", type=float, default=10.)
     parser.add_argument("-gn", "--gridnpix", help="number of pixel in the grid", type=int, default=2560)
+    parser.add_argument("--primary", help="simulate the primary beam only", type=bool, default=False)
     values = parser.parse_args()
     
     footprint=values.footprint
@@ -275,16 +298,16 @@ def main():
     sbeam=values.sbeam
     gsize=values.gridsize
     gpix=values.gridnpix
+    primary=values.primary
             
     opfile = f"./craco_{footprint}_p{pitch:.2f}_f{freq:.1f}MHz_f{gsize:.1f}d_npix{gpix}.npy"
     if not os.path.exists(opfile):
         get_craco_allbeams(
             footprint=footprint, pitch=pitch, freq=freq,
             fov=values.fov, npix=values.npix, sbeam=sbeam, gsize=gsize,
-            gpix=gpix
+            gpix=gpix,primary=primary
         )
-    else:
-        hist_craco_beams(footprint, pitch, freq, gsize, gpix,plot=True)
+    hist_craco_beams(footprint, pitch, freq, gsize, gpix,plot=False)
 
 
 main()

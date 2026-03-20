@@ -13,7 +13,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 
-def main(plot=True,freq=1284,gsize=800,spacing=0.001):
+def main(plot=True,freq_MHz=1284,gsize=800,spacing=0.001):
     """
     
     Frequency:
@@ -34,12 +34,21 @@ def main(plot=True,freq=1284,gsize=800,spacing=0.001):
     
     # loops through beams, filling the grid
     Diam = 13.5
-    beamw = get_beamwidth(freq,Diam,const=1.09)
-    primary_beam = grid_beam(xgrid,ygrid,0,0,beamw)
+    beamw = get_beamwidth(freq_MHz,Diam,const=1.09)
     
-    #plt.figure()
-    #plt.imshow(beams,origin='lower')
-    #plt.show()
+    primary_beam = grid_beam(xgrid,ygrid,0,0,beamw)
+    extent=[xgrid[0,0],xgrid[0,-1],ygrid[0,0],ygrid[-1,0]]
+    
+    if False:
+        # plot primary beamwidth
+        plt.figure()
+        image = plt.imshow(primary_beam,origin='lower',extent=extent)
+        cbar = plt.colorbar()
+        image.set_clim(0,1)
+        plt.xlabel("x [deg]")
+        plt.ylabel("y [deg]")
+        plt.tight_layout()
+        plt.show()
     
     
     ############# Get tied beam specifications ############
@@ -82,7 +91,7 @@ def main(plot=True,freq=1284,gsize=800,spacing=0.001):
     #plt.imshow(envelope,origin='lower')
     #plt.savefig("MeerTRAP_beam.pdf")
     #plt.close()
-    plot_envelope(envelope,xgrid[0,:],outfile="MeerTRAP_beam.pdf")
+    plot_envelope(envelope,xgrid[0,:],outfile="MeerTRAP_beam.png")
     
     # makes a beam histogram
     bins = np.logspace(-4,0,401)
@@ -133,7 +142,7 @@ def gen_triangular_grid(Nx=32,Ny=24,sep=0.01):
     
     return x,y
         
-def get_beamwidth(freq,D,const=1.09):
+def get_beamwidth(freq_MHz,D,const=1.09):
     """
     Gets beamwidth with frequency in Hz
     returns Gaussian sigma in degrees
@@ -141,7 +150,7 @@ def get_beamwidth(freq,D,const=1.09):
     freq [float]: frequency in HHz
     """
     c_light = 299792458.
-    HPBW=const*(c_light/(freq))/D # from RACS
+    HPBW=const*(c_light/(freq_MHz*1e6))/D # from RACS
     sigma=(HPBW/2.)*(2*np.log(2))**-0.5
     deg_sigma = sigma * 180./np.pi
     return deg_sigma
@@ -191,7 +200,9 @@ def plot_envelope(env,coords,outfile):
     themax = coords[-1] + dc/2.
     
     plt.figure()
-    plt.imshow(env,extent=(themin,themax,themin,themax),origin='lower')
+    image = plt.imshow(env,extent=(themin,themax,themin,themax),origin='lower')
+    plt.colorbar()
+    image.set_clim(0,1)
     plt.xlabel('x [deg]')
     plt.ylabel('y [deg]')
     plt.tight_layout()

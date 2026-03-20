@@ -34,7 +34,6 @@ def main():
     
     # add estimation from ptauw
     state.scat.Sbackproject=True
-    state.scat.Sbackproject=True
     
     if not os.path.exists(opdir):
         os.mkdir(opdir)
