@@ -1,0 +1,14 @@
+# %ECSV 1.0
+# ---
+# datatype:
+# - {name: TNS, datatype: string}
+# - {name: DM, datatype: float64}
+# - {name: DMG, datatype: float64}
+# - {name: SNR, datatype: float64}
+# - {name: SNRTHRESH, datatype: float64}
+# meta: !!omap
+# - {survey_data: "{\n    \"observing\": {\n  \"NORM_FRB\": 1,\n  \"TOBS\": 1\n    },\n  \"telescope\": {\n      \
+#     \  \"DIAM\": 40,\n \"BMETHOD\": 0,\n \"NBEAMS\": 1,\n \"NBINS\": 10\n }\n}"}
+# schema: astropy-2.0
+TNS DM DMG  SNR SNRTHRESH
+DUMMY 200 30 10. 10.

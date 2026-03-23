@@ -1,25 +1,58 @@
 """
-This file illustrates how to optimise the host prior
-distribution by fitting to CRAFT ICS optical observations.
-It fits a model of absolute galaxy magnitude distributions,
-uses zDM to predict redshifts and hence apparent magntidues,
-runs PATH using that prior, and tries to get priors to match posteriors.
+Optimise FRB host galaxy magnitude priors using zdm predictions and PATH.
 
-WARNING: this is NOT the optimal method! That would require using
-a catalogue of galaxies to sample from to generate fake opotical fields.
-But nonetheless, this tests the power of estimating FRB host galaxy
-contributions using zDM to set priors for apparent magnitudes.
+This script fits a parametric model of FRB host galaxy absolute magnitude
+distributions to the CRAFT ICS optical observations. It works by:
 
-WARNING2: To do this properly also requires inputting the posterior POx
-for host galaxies into zDM! This simulation does not do that either.
+1. Initialising zdm grids for the three CRAFT ICS survey bands (892, 1300,
+   and 1632 MHz) using the HoffmannHalo25 parameter state.
+2. Constructing a host galaxy model (``simple`` or ``loudas``) that predicts
+   apparent r-band magnitudes by convolving the absolute magnitude distribution
+   with the zdm p(z|DM_EG) redshift prior, optionally including a k-correction.
+3. Running PATH with those zdm-derived apparent magnitude priors to obtain
+   posterior host association probabilities P_Ox for each CRAFT ICS FRB.
+4. Optimising the model parameters with ``scipy.optimize.minimize`` by
+   minimising either a maximum-likelihood statistic or a KS-like goodness-of-fit
+   statistic against the observed PATH posteriors.
 
-WARNING3: this program takes O~1 hr to run
+After optimisation the script:
+
+- Saves the best-fit parameters to ``<modelname>_output/best_fit_params.npy``.
+- Plots the predicted vs observed apparent magnitude distributions for the
+  best-fit model (``best_fit_apparent_magnitudes.png``).
+- Re-runs PATH with the original (flat) priors for comparison and produces a
+  scatter plot of best-fit vs original posteriors
+  (``Scatter_plot_comparison.png``).
+
+Limitations
+-----------
+- The optimal approach would sample galaxy candidates from a real photometric
+  catalogue to construct proper optical fields; this script uses a parametric
+  model instead.
+- Host identification posteriors (P_Ox) are not fed back into the zdm
+  likelihood; a self-consistent joint fit is not performed.
+- Runtime can be significant when optimising the ``simple`` model (10 free
+  parameters by default).
+
+Usage
+-----
+Set ``minimise = True`` (default) to run the optimiser, or ``False`` to load
+previously saved parameters from ``<modelname>_output/best_fit_params.npy``.
+Switch between host models by changing ``modelname`` to ``"simple"`` or
+``"loudas"``.
+
+Requirements
+------------
+- ``astropath`` package (PATH implementation)
+- ``frb`` package (FRB utilities and optical data)
 """
 
 
 #standard Python imports
+import os
 import numpy as np
 from matplotlib import pyplot as plt
+from scipy.optimize import minimize
 
 # imports from the "FRB" series
 from zdm import optical as opt
@@ -28,72 +61,165 @@ from zdm import loading
 from zdm import cosmology as cos
 from zdm import parameters
 from zdm import loading
+from zdm import optical_numerics as on
+from zdm import states
+from zdm import frb_lists as lists
 
+# other FRB library imports
 import astropath.priors as pathpriors
-from scipy.optimize import minimize
+
+import matplotlib
+
+defaultsize=14
+ds=4
+font = {'family' : 'Helvetica',
+        'weight' : 'normal',
+        'size'   : defaultsize}
+matplotlib.rc('font', **font)
 
 
 def main():
     """
-    Main function
-    Contains outer loop to iterate over parameters
-    
+    Optimise host galaxy magnitude model parameters and compare with baseline PATH.
+
+    Workflow:
+
+    1. Load the CRAFT ICS FRB list and initialise zdm grids for the 892, 1300,
+       and 1632 MHz survey bands using the HoffmannHalo25 cosmological/FRB state.
+    2. Select a host magnitude model (``"simple"`` or ``"loudas"``) and configure
+       its parameter bounds and initial values.
+    3. If ``minimise=True``, call ``scipy.optimize.minimize`` with
+       ``on.function`` as the objective, minimising either the maximum-likelihood
+       statistic (``istat=1``) or the KS-like statistic (``istat=0``) over all
+       CRAFT ICS FRBs. Best-fit parameters are saved to
+       ``<modelname>_output/best_fit_params.npy``.
+    4. Re-evaluate PATH at the best-fit parameters and compute both the
+       likelihood and KS statistics; save the apparent magnitude comparison
+       plot to ``<modelname>_output/best_fit_apparent_magnitudes.png``.
+    5. Re-run PATH with the original flat priors (``usemodel=False``) and save
+       a scatter plot comparing original vs best-fit P_Ox posteriors to
+       ``<modelname>_output/Scatter_plot_comparison.png``.
+
+    Configuration knobs (edit at the top of the function body):
+
+    - ``istat``: 0 = KS statistic, 1 = maximum-likelihood statistic.
+    - ``dok``: whether to include a k-correction in the apparent magnitude model.
+    - ``modelname``: ``"simple"`` for the parametric histogram model or
+      ``"loudas"`` for the Loudas single-parameter model.
+    - ``POxcut``: optional float (e.g. 0.9) to exclude low-confidence FRBs
+      from the model comparison.
+    - ``minimise``: set to ``False`` to skip optimisation and load saved
+      parameters instead.
     """
     
     ######### List of all ICS FRBs for which we can run PATH #######
-    # hard-coded list of FRBs with PATH data in ice paper
-    frblist=opt.frblist
+    # hard-coded list of FRBs with PATH data in ICE paper
+    frblist = lists.icslist
     
     # Initlisation of zDM grid
     # Eventually, this should be part of the loop, i.e. host IDs should
     # be re-fed into FRB surveys. However, it will be difficult to do this
     # with very limited redshift estimates. That might require posterior
     # estimates of redshift given the observed galaxies. Maybe.
-    state = parameters.State()
+    state = states.load_state("HoffmannHalo25",scat=None,rep=None)
+    
     cos.set_cosmology(state)
     cos.init_dist_measures()
+    
+    # loads zDM grids
     names=['CRAFT_ICS_892','CRAFT_ICS_1300','CRAFT_ICS_1632']
-    ss,gs = loading.surveys_and_grids(survey_names=names)
+    ss,gs = loading.surveys_and_grids(survey_names=names,init_state=state)
     
+    
+    ######## Determnine which statistic to use in optimisation ########
+    # setting istat=0 means using a ks statistic to fit p(m_r)
+    # setting istat=1 means using a maximum likelihood estimator
+    istat=1
+    dok = True # turn on k-correction or not
+    
+    # determines which model to use
+    #modelname = "loudas"
+    modelname = "simple"
+    
+    opdir = modelname+"_output/"
+    POxcut = None # set to e.g. 0.9 to reject FRBs with lower posteriors when doing model comparisons
+    
+    if not os.path.exists(opdir):
+        os.mkdir(opdir)
+    
+    # Case of simple host model
     # Initialisation of model
-    opt_params = op.Hosts()
-    opt_params.AbsModelID = 1
-    model = opt.host_model(opstate = opt_params)
-    model.init_zmapping(gs[0].zvals)
+    # simple host model
+    if modelname=="simple":
+        opstate = op.OpticalState()
+        
+        if dok:
+            Nparams = opstate.simple.NModelBins+1
+            opstate.simple.AppModelID = 1 # sets to include k-correction
+            opstate.simple.k = 0.5 # for some reason, this just doesn't make much difference to results
+            bounds = [(-25,25)]+[(0,1)]*(Nparams-1)
+        else:
+            Nparams = opstate.simple.NModelBins
+            # bins now give log-space values, hence -5,2 is range of 10^7
+            if opstate.simple.AbsModelID == 3:
+                base=(-5,2) # log space
+            else:
+                base=(0,1) # linear space
+            bounds = [base]*(Nparams)
+            opstate.simple.AppModelID = 0 # no k-correction
+        
+        model = opt.simple_host_model(opstate)
+        x0 = model.get_args()
+        
+        
+    elif modelname=="loudas":
+        #### case of Loudas model
+        model = opt.loudas_model()
+        x0 = [0.5]
+        bounds=[(-3,3)] # large range
+    else:
+        print("Unrecognised host model ", modelname)
     
-    x0 = model.AbsPrior
     
-    args=[frblist,ss,gs,model]
-    Nparams = len(x0)
-    bounds = [(0,1)]*Nparams
-    result = minimize(function,x0 = x0,args=args,bounds = bounds)
+    # initialise aguments to minimisation function
+    args=[frblist,ss,gs,model,POxcut,istat]
     
-    # Recording the current spline best-fit here
-    #x = [0.00000000e+00 0.00000000e+00 7.05155614e-02 8.39235326e-01
-    #    3.27794398e-01 1.00182186e-03 0.00000000e+00 3.46702511e-04
-    #    2.17040011e-03 9.72472750e-04]
+    # "function" is the function that performs the comparison of
+    # predictions to outcomes. It's where all the magic happens
     
-    # recording the current non-spline best fit here
-    #x = [ 1.707e-04,  8.649e-02,  9.365e-01,  9.996e-01,  2.255e-01,\
-    #         3.493e-02,  0.000e+00,  0.000e+00,  0.000e+00,  1.000e-01]
-    #x = np.array(x)
+    minimise=True
+    if minimise:
+        result = minimize(on.function,x0 = x0,args=args,bounds = bounds)
+        print("Best fit result is ",result.x)
+        x = result.x
+        # saves result
+        np.save(opdir+"/best_fit_params.npy",x)
+    else:
+        x = np.load(opdir+"/best_fit_params.npy")
     
-    print("Best fit result is ",result.x)
-    x = result.x
+    # initialises arguments
+    model.init_args(x)
     
-    # analyses final result
-    x /= np.sum(x)
-    model.AbsPrior = x
-    model.reinit_model()
-    outfile = "best_fit_apparent_magnitudes.png"
-    NFRB,AppMags,AppMagPriors,ObsMags,ObsPosteriors,PUprior,PUobs,sumPUprior,sumPUobs = calc_path_priors(frblist,ss,gs,model,verbose=False)
-    stat = calculate_goodness_statistic(NFRB,AppMags,AppMagPriors,ObsMags,ObsPosteriors,sumPUobs,sumPUprior,plotfile=outfile)
+    outfile = opdir+"best_fit_apparent_magnitudes.png"
+    wrappers = on.make_wrappers(model,gs)
+    NFRB,AppMags,AppMagPriors,ObsMags,ObsPriors,ObsPosteriors,PUprior,PUobs,sumPUprior,sumPUobs,frbs,dms = on.calc_path_priors(frblist,ss,gs,wrappers,verbose=False)
+    
+    # calculates a maximum-likelihood statistic
+    stat = on.calculate_likelihood_statistic(NFRB,AppMags,AppMagPriors,ObsMags,ObsPosteriors,PUobs,PUprior,plotfile=outfile)
+    
+    # calculates a KS-like statistic
+    stat = on.calculate_ks_statistic(NFRB,AppMags,AppMagPriors,ObsMags,ObsPosteriors,sumPUobs,sumPUprior,plotfile=outfile)
+    
     
     # calculates the original PATH result
-    #outfile = "original_fit_apparent_magnitudes.png"
-    NFRB2,AppMags2,AppMagPriors2,ObsMags2,ObsPosteriors2,PUprior2,PUobs2,sumPUprior2,sumPUobs2 = calc_path_priors(frblist,ss,gs,model,verbose=False,usemodel=False)
-    #stat = calculate_goodness_statistic(NFRB,AppMags,AppMagPriors,ObsMags,ObsPosteriors,sumPUobs,sumPUprior,plotfile=outfile)
+    outfile = opdir+"original_fit_apparent_magnitudes.png"
+    NFRB2,AppMags2,AppMagPriors2,ObsMags2,ObsPriors2,ObsPosteriors2,PUprior2,PUobs2,sumPUprior2,sumPUobs2,frbs,dms = on.calc_path_priors(frblist,ss,gs,wrappers,verbose=False,usemodel=False)
+    # currently, calculating KS statistics does not work/make sense for original path. need to re-think this
+    #stat = on.calculate_ks_statistic(NFRB,AppMags,AppMagPriors2,ObsMags2,ObsPosteriors2,sumPUobs2,sumPUprior2,plotfile=outfile)
     
+    # flattens lists of lists
+    ObsPosteriors = [x for xs in ObsPosteriors for x in xs]
+    ObsPosteriors2 = [x for xs in ObsPosteriors2 for x in xs]
     
     # plots original vs updated posteriors
     plt.figure()
@@ -105,64 +231,35 @@ def main():
     plt.scatter(PUobs2,PUobs,label="Unobserved",marker='+')
     plt.legend()
     plt.tight_layout()
-    plt.savefig("Scatter_plot_comparison.png")
+    plt.savefig(opdir+"Scatter_plot_comparison.png")
     plt.close()
     
-    
-    
-    # plots final result on absolute magnitudes
-    plt.figure()
-    plt.xlabel("Absolute magnitude, $M_r$")
-    plt.ylabel("$p(M_r)$")
-    plt.plot(model.AbsMags,model.AbsMagWeights/np.max(model.AbsMagWeights),label="interpolation")
-    plt.plot(model.ModelBins,x/np.max(x),marker="o",linestyle="",label="Model Parameters")
-    plt.legend()
-    plt.tight_layout()
-    plt.savefig("best_fit_absolute_magnitudes.pdf")
-    plt.close()
 
-def function(x,args):
+def make_cdf_for_plotting(xvals, weights=None):
     """
-    function to be minimised
-    """ 
-    frblist = args[0]
-    ss = args[1]
-    gs=args[2]
-    model=args[3]
-    
-    # initialises model to the priors
-    # technically, there is a redundant normalisation here
-    model.AbsPrior = x
-    
-    NFRB,AppMags,AppMagPriors,ObsMags,ObsPosteriors,PUprior,PUobs,sumPUprior,sumPUobs = calc_path_priors(frblist,ss,gs,model,verbose=False)
-    
-    # we re-normalise the sum of PUs by NFRB
-    
-    # prevents infinite plots being created
-    stat = calculate_goodness_statistic(NFRB,AppMags,AppMagPriors,ObsMags,ObsPosteriors,sumPUobs,sumPUprior,plotfile=None)
-    
-    return stat
-    
-    
-def make_cdf(xs,ys,ws,norm = True):
-    """
-    makes a cumulative distribution in terms of
-    the x-values x, observed values y, and weights w
-    
-    """
-    cdf = np.zeros([xs.size])
-    for i,y in enumerate(ys):
-        OK = np.where(xs > y)[0]
-        cdf[OK] += ws[i]
-    if norm:
-        cdf /= cdf[-1]
-    return cdf
+    Build a step-function CDF suitable for plotting.
 
-def make_cdf_for_plotting(xvals,weights=None):
-    """
-    Creates a cumulative distribution function
-    
-    xvals,yvals: values of data points
+    Converts an array of data values (and optional weights) into paired
+    (x, y) arrays that trace the cumulative distribution as a staircase,
+    with two points per input value so that horizontal steps are rendered
+    correctly by matplotlib.
+
+    Parameters
+    ----------
+    xvals : np.ndarray
+        1-D array of data values. Will be sorted in ascending order.
+    weights : np.ndarray, optional
+        1-D array of weights with the same length as ``xvals``. If provided,
+        the CDF is computed as the normalised cumulative sum of the sorted
+        weights. If ``None``, a uniform CDF over ``N`` points is used,
+        with steps at ``0, 1/N, 2/N, ..., 1``.
+
+    Returns
+    -------
+    cx : np.ndarray
+        x-coordinates of the staircase CDF (length ``2 * N``).
+    cy : np.ndarray
+        y-coordinates of the staircase CDF (length ``2 * N``).
     """
     N = xvals.size
     cx = np.zeros([2*N])
@@ -184,151 +281,8 @@ def make_cdf_for_plotting(xvals,weights=None):
         cy[2*i+1] = weights[i+1]
     return cx,cy
 
-def calculate_goodness_statistic(NFRB,AppMags,AppMagPriors,ObsMags,ObsPosteriors,PUobs,PUprior,plotfile=None):
-    """
-    Calculates a ks-like statistics to be proxzy for goodness-of-fit
-    We must set each AppMagPriors to 1.-PUprior at the limiting magnitude for each observation,
-    and sum the ObsPosteriors to be equal to 1.-PUobs at that magnitude.
-    Then these are what gets summed.
+
     
-    This can be readily done by combining all ObsMags and ObsPosteriors into a single long list,
-    since this should already be correctly normalised. Priors require their own weight.
-    
-    Inputs:
-        AppMags: array listing apparent magnitudes
-        AppMagPrior: array giving prior on AppMags
-        ObsMags: list of observed magnitudes
-        ObsPosteriors: list of posterior values corresponding to ObsMags
-        PUobs: posterior on unseen probability
-        PUprior: prior on PU
-        Plotfile: set to name of output file for comparison plot
-    
-    Returns:
-        k-like statistic of biggest obs/prior difference
-    """
-    
-    # we calculate a probability using a cumulative distribution
-    prior_dist = np.cumsum(AppMagPriors)
-    
-    # the above is normalised to NFRB. We now divide it by this
-    # might want to be careful here, and preserve this normalisation
-    prior_dist /= NFRB #((NFRB-PUprior)/NFRB) / prior_dist[-1]
-    
-    
-    obs_dist = make_cdf(AppMags,ObsMags,ObsPosteriors,norm=False)
-    
-    obs_dist /= NFRB
-    
-    # we calculate something like the k-statistic. Includes NFRB normalisation
-    diff = obs_dist - prior_dist
-    stat = np.max(np.abs(diff))
-    
-    if plotfile is not None:
-        plt.figure()
-        plt.xlabel("Apparent magnitude $m_r$")
-        plt.ylabel("Cumulative host galaxy distribution")
-        #cx,cy = make_cdf_for_plotting(ObsMags,weights=ObsPosteriors)
-        plt.plot(AppMags,obs_dist,label="Observed")
-        plt.plot(AppMags,prior_dist,label="Prior")
-        plt.legend()
-        plt.tight_layout()
-        plt.savefig(plotfile)
-        plt.close()
-        
-    
-    return stat
-    
-def calc_path_priors(frblist,ss,gs,model,verbose=True,usemodel=True):
-    """
-    Inner loop. Gets passed model parameters, but assumes everything is
-    initialsied from there.
-    
-    Inputs:
-        FRBLIST: list of FRBs to retrieve data for
-        ss: list of surveys modelling those FRBs (searches for FRB in data)
-        gs: list of zDM grids modelling those surveys
-        model: host_model class object used to calculate priors on magnitude
-        verbose (bool): guess
-    
-    Returns:
-        Number of FRBs fitted
-        AppMags: list of apparent magnitudes used internally in the model
-        allMagPriors: summed array of magnitude priors calculated by the model
-        allObsMags: list of observed magnitudes of candidate hosts
-        allPOx: list of posterior probabilities calculated by the model
-        allPU: summed values of unobserved prior
-        allPUx: summed values of posterior of being unobserved
-    """
-    
-    NFRB = len(frblist)
-    
-    # we assume here that the model has just had a bunch of parametrs updated
-    # within it. Must be done once for any fixed zvals. If zvals change,
-    # then we have another issue
-    model.reinit_model()
-    
-    # do this once per "model" objects
-    pathpriors.USR_raw_prior_Oi = model.path_raw_prior_Oi
-    
-    allObsMags = None
-    allPOx = None
-    allpriors = None
-    AppMags = model.AppMags
-    sumPU = 0.
-    sumPUx = 0.
-    allPU = []
-    allPUx = []
-    nfitted = 0
-    
-    for i,frb in enumerate(frblist):
-        # interates over the FRBs. "Do FRB"
-        # P_O is the prior for each galaxy
-        # P_Ox is the posterior
-        # P_Ux is the posterior for it being unobserved
-        # mags is the list of galaxy magnitudes
-        
-        # determines if this FRB was seen by the survey, and
-        # if so, what its DMEG is
-        for j,s in enumerate(ss):
-            imatch = opt.matchFRB(frb,s)
-            if imatch is not None:
-                # this is the survey to be used
-                g=gs[j]
-                break
-        
-        if imatch is None:
-            if verbose:
-                print("Could not find ",frb," in any survey")
-            continue
-        
-        nfitted += 1
-        
-        DMEG = s.DMEGs[imatch]
-        # this is where the particular survey comes into it
-        MagPriors = model.init_path_raw_prior_Oi(DMEG,g)
-        mag_limit=26  # might not be correct
-        PU = model.estimate_unseen_prior(mag_limit)
-        bad = np.where(AppMags > mag_limit)[0]
-        MagPriors[bad] = 0.
-        
-        P_O,P_Ox,P_Ux,ObsMags = opt.run_path(frb,model,usemodel=usemodel,PU = PU)
-        
-        ObsMags = np.array(ObsMags)
-        
-        if allObsMags is None:
-            allObsMags = ObsMags
-            allPOx = P_Ox
-            allMagPriors = MagPriors
-        else:
-            allObsMags = np.append(allObsMags,ObsMags)
-            allPOx = np.append(allPOx,P_Ox)
-            allMagPriors += MagPriors
-        
-        sumPU += PU
-        sumPUx += P_Ux
-        allPU.append(PU)
-        allPUx.append(P_Ux)
-    return nfitted,AppMags,allMagPriors,allObsMags,allPOx,allPU,allPUx,sumPU,sumPUx
 
 
 main()

@@ -40,7 +40,7 @@ def main():
     # Initialise surveys and grids
     sdir = resources.files('zdm').joinpath('data/Surveys')
     names=['CRAFT_CRACO_1300','CRAFT_CRACO_900']
-    
+
     ss,gs = loading.surveys_and_grids(
         survey_names=names,repeaters=False,init_state=state,sdir=sdir) # should be equal to actual number of FRBs, but for this purpose it doesn't matter
     
@@ -68,6 +68,9 @@ def main():
             zmax=zmax,DMmax=DMmax,Aconts=[0.01,0.1,0.5],
             FRBDMs=s.frbs['DMEG'].values,FRBZs=s.frbs['Z'].values,
             DMlines = s.frbs['DMEG'].values[noz])
+            
+            
+            
     exit()
     
     pz = np.sum(mean_rates,axis=1)

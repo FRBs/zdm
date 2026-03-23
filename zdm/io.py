@@ -70,7 +70,7 @@ def savejson(filename, obj, overwrite=False, indent=None, easy_to_read=False,
                 json.dump(obj, fh, indent=indent, **kwargs)
 
 ######### misc function to load some data - do we ever use it? ##########
-
+#random
 def load_data(filename):
     if filename.endswith('.npy'):
         data=np.load(filename)

@@ -33,6 +33,7 @@ jobs:
         python -m pip install wheel scipy IPython astropy extension-helpers mpmath
         python -m pip install git+https://github.com/FRBs/ne2001.git#egg=ne2001
         python -m pip install git+https://github.com/FRBs/FRB.git#egg=frb
+        python -m pip install git+https://github.com/FRBs/astropath.git#egg=astropath
     - name: Test with tox
       run: |
         tox -e ${{ matrix.toxenv }}

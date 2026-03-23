@@ -132,7 +132,6 @@ def get_log_likelihood(grid, s, norm=True, psnr=True, Pn=False, pNreps=True, pta
         else:
             print("Implementation is only completed for nD 1-3.")
             exit()
-
     return llsum
 
 def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=True,
@@ -1140,7 +1139,7 @@ def calc_likelihoods_2D(grid,survey,doplot=False,norm=True,psnr=True,printit=Fal
                 psnr += differential*survey.beam_o[i]*usew
                 
                 ###### Breaks p(snr,b,w) into three components, and saves them #####
-                # this allows comoutations of psnr given b and w values, collapsing these over the dimensions of b and w
+                # this allows computations of psnr given b and w values, collapsing these over the dimensions of b and w
                 
                 if pwb:
                     # psnr given beam, width, z,dm

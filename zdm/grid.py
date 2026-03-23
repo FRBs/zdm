@@ -29,6 +29,8 @@ Author: C.W. James
 from IPython.terminal.embed import embed
 import numpy as np
 import datetime
+from numpy import random
+import scipy.ndimage as ndimage
 
 from zdm import cosmology as cos
 from zdm import misc_functions
@@ -37,7 +39,7 @@ from zdm import pcosmic
 from zdm import io
 import time
 import warnings
-
+import importlib.resources as resources
 
 class Grid:
     """2D grid for computing FRB detection rates as a function of z and DM.
@@ -124,6 +126,7 @@ class Grid:
             self.dV = prev_grid.dV.copy()
             self.smear = prev_grid.smear.copy()
             self.smear_grid = prev_grid.smear_grid.copy()
+        
             
         if wdist is not None:
             efficiencies = survey.efficiencies  # two OR three dimensions
@@ -536,10 +539,27 @@ class Grid:
         except:
             print("WARNING: no volumetric probability pdv yet calculated")
             exit()
+        
+        # zfraction describes the fraction of host galaxies estimated to be
+        # visible at a given redshift. Implementing zfraction then means this grid
+        # is calculating the *observable* z-DM space, rather than the intrinsic z-DM space
+        # zfractions are given as two arrays - the zvalues, and the f(z) values
+        if self.survey.survey_data.observing.Z_FRACTION is not None:
+            fdir = str(resources.files('zdm').joinpath('data/optical'))
+            ffile = fdir + "/fz_"+str(self.survey.survey_data.observing.Z_FRACTION)+".npy"
+            zfile = fdir + "/z_"+str(self.survey.survey_data.observing.Z_FRACTION)+".npy"
+            self.construct_fz(ffile,zfile)
+            self.sfr *= self.fz
 
         self.sfr_smear = np.multiply(self.smear_grid.T, self.sfr).T
-
+        
+        # below could pass more parameters internally, but this may not
+        # be the final implementation
         self.rates = self.pdv * self.sfr_smear
+        self.zsigma = self.survey.survey_data.observing.Z_PHOTO
+        if self.zsigma > 0.:
+            self.smear_zgrid = self.smear_z(self.rates,self.zsigma)
+            self.rates=self.smear_zgrid
         
     def get_rates(self):
         """
@@ -557,6 +577,7 @@ class Grid:
             if self.survey.max_idm < self.dmvals.size-1:
                 rates[:,self.survey.max_idm+1:]=0.
         return rates
+
 
     def calc_thresholds(self, F0:float, 
                         eff_table, 
@@ -713,13 +734,16 @@ class Grid:
             
             # Regen if the survey would not find this FRB
             frb = self.GenMCFRB(Emax_boost)
+            
             # This is a pretty naive method of generation.
-            while frb[1] > self.survey.max_dm:
-                print("Regenerating MC FRB with too high DM ",frb[1],self.survey.max_dm)
-                frb = self.GenMCFRB(Emax_boost)
+            if self.survey.max_dmeg is not None:
+                while frb[1] > self.survey.max_dm:
+                    print("Regenerating MC FRB with too high DM ",frb[1],self.survey.max_dm)
+                    frb = self.GenMCFRB(Emax_boost)
 
             sample.append(frb)
-            
+           
+        
         sample = np.array(sample)
         return sample
     
@@ -767,9 +791,18 @@ class Grid:
                     pzDM [:,setDMzero] = 0.
                 
                 # weighted pzDM
-                wb_fraction = (self.beam_o[i] * w * pzDM)
+                wb_fraction = (self.beam_o[i]* w  * pzDM)
                 pdv = np.multiply(wb_fraction.T, self.dV).T
                 rate = pdv * self.sfr_smear
+                
+                # We do not implement photo-z smearing here
+                # the MC generates truth values of parameters
+                # smearing can be done very simple afterwards
+                # this smears the
+                #if self.survey.observing.Z_PHOTO > 1.:
+                #    rate = self.smear_z(rate,self.survey.observing.Z_PHOTO)
+                #    #rate=np.copy(self.smear_zgrid)
+
                 rates.append(rate)
                 pwb[i * nw + j] = np.sum(rate)
                 
@@ -788,7 +821,7 @@ class Grid:
         
         # saves individal wxb zDM rates for sampling these distributions
         self.MCrates = rates
-        
+
         # saves projections onto z-axis
         self.MCpzcs = pzcs
         
@@ -854,7 +887,6 @@ class Grid:
         
         # get p(z,DM) distribution for this b,w
         pzDM = self.MCrates[which]
-        
         pzc = self.MCpzcs[which]
         
         r = np.random.rand(1)[0]
@@ -1230,4 +1262,90 @@ class Grid:
         #
         return updated
     
+    def smear_z(self,array,zsigma):
+        """
+        Smear a 2-D z-DM grid along the redshift axis to account for
+        photometric redshift uncertainty.
+
+        When a survey uses photometric rather than spectroscopic redshifts,
+        the true redshift of each FRB host is uncertain. This method convolves
+        each column of the grid (i.e. each fixed-DM slice along the z axis)
+        with a Gaussian kernel whose standard deviation equals ``zsigma``,
+        redistributing probability across neighbouring redshift bins.
+
+        The kernel is truncated at ``state.photo.sigma_width`` standard
+        deviations on each side (default 6σ), rounded up to an odd number of
+        bins so that it is centred exactly on zero.
+
+        Parameters
+        ----------
+        array : np.ndarray, shape (Nz, NDM)
+            Input 2-D grid with redshift along axis 0 and DM along axis 1.
+        zsigma : float
+            Photometric redshift uncertainty (1σ), in the same units as
+            ``self.zvals`` (i.e. dimensionless redshift).
+
+        Returns
+        -------
+        smear_zgrid : np.ndarray, shape (Nz, NDM)
+            Copy of ``array`` with each DM column convolved along the z axis
+            by the Gaussian smearing kernel. Boundary effects are handled with
+            ``np.convolve`` mode ``"same"``, so the output has the same shape
+            as the input.
+
+        Notes
+        -----
+        The kernel width in grid bins is ``zsigma / self.dz``. Values near the
+        grid edges will be underestimated because the convolution truncates to
+        zero outside the grid; for well-chosen grid extents this edge effect is
+        negligible.
+
+        In ``calc_rates``, this method is called with ``zsigma`` taken from
+        ``self.survey.survey_data.observing.Z_PHOTO`` and applied to
+        ``self.rates`` after the FRB rate grid has been computed.
+        """
+        r,c=array.shape
+        # get sigma in grid units
+        sigma=zsigma/(self.dz)
+        smear_size=int(self.state.photo.sigma_width*sigma)
+        smear_size=smear_size-smear_size%2+1
+        smear_arr=np.linspace(-(smear_size-1)/2,(smear_size-1)//2,smear_size)
+        
+        # makes the approximation of taking the central value in the bin.
+        smear_arr=np.exp(-(smear_arr**2)/(2*(sigma**2)))
+        #normalise
+        smear_arr/=np.sum(smear_arr)
+        
+        smear_zgrid=np.zeros([r,c])
+        for i in range(c):
+            smear_zgrid[:,i]=np.convolve(array[:,i],smear_arr,mode="same")
+        
+        return smear_zgrid
+        
+    def construct_fz(self,ffile,zfile):
+        """
+        linearly interpolates passed fz values onto own zvals array
+        
+        Args:
+            ffile (string): file containing fraction of hosts seen at given redshift
+            zfile(string): file containing z values of above
+        """
+        fz = np.load(ffile)
+        z = np.load(zfile)
+        
+        from scipy.interpolate import interp1d
+        f=interp1d(z,fz,kind="linear",bounds_error=False)
+        newfz=f(self.zvals)
+        
+        # check for unphysical values
+        toolow = np.where(newfz < 0.)
+        newfz[toolow] = 0
+        toohigh = np.where(newfz > 1.)
+        newfz[toohigh] = 1.
+        
+        self.fz = newfz
+        
+            
+        #np.save(path+"/"+name+"_fz",newfz)
+        #np.save(path+"/"+name+"_z",newz)
 

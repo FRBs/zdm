@@ -130,6 +130,7 @@ class Survey:
         # Load up
         self.process_survey_file(filename, NFRB, iFRB, min_lat=state.analysis.min_lat,
                         dmg_cut=state.analysis.DMG_cut,survey_dict = survey_dict)
+        
         # Check if repeaters or not and set relevant parameters
         # Now done in loading
         # self.repeaters=False
@@ -244,8 +245,8 @@ class Survey:
             wlist = np.logspace(np.log10(self.WMin)+dlogw/2.,np.log10(self.WMax)-dlogw/2.,self.NWbins)
             wbins[0] -= 3 # ensures we capture low values!
         else:
-            wbins[0] = np.log10(self.WMin)
-            wbins[1] = np.log10(self.WMax)
+            wbins[0] = self.WMin
+            wbins[1] = self.WMax
             dlogw = np.log10(wbins[1]/wbins[0])
             wlist = np.array([(self.WMax*self.WMin)**0.5])
         self.wbins = wbins
@@ -927,10 +928,20 @@ class Survey:
         
         
         # Meta -- for convenience for now;  best to migrate away from this
+        default_telescope = survey_data.Telescope()
+        
         for key in self.survey_data.params:
             DC = self.survey_data.params[key]
-            self.meta[key] = getattr(self.survey_data[DC],key)
-            
+            if DC == "telescope":
+                value = getattr(self.survey_data[DC],key)
+                if value == getattr(default_telescope,key):
+                    # using default value - check if the FRBs have this
+                    if key in frb_tbl.columns:
+                        value = np.mean(frb_tbl[key])
+                self.meta[key] = value
+            else:
+                self.meta[key] = getattr(self.survey_data[DC],key)
+        
         # Get default values from default frb data
         default_frb = survey_data.FRB()
         
@@ -938,15 +949,16 @@ class Survey:
         for field in fields(default_frb):\
             # checks to see if this is a field in metadata: if so, takes priority
             if survey_dict is not None and field.name in survey_dict.keys():
-                default_vaue = survey_dict[field.name]
+                default_value = survey_dict[field.name]
             elif field.name in self.meta.keys():
                 default_value = self.meta[field.name]
             else:
                 default_value = getattr(default_frb, field.name)
+            
             # now checks for missing data, fills with the default value
             if field.name in frb_tbl.columns:
-                
-                # iterate over fields, checking if they are populated
+                # iterate over fields, checking if they are populated.
+                # only replaces values that are []
                 for i,val in enumerate(frb_tbl[field.name]):
                     if isinstance(val,np.ma.core.MaskedArray):
                         frb_tbl[field.name][i] = default_value
@@ -1209,8 +1221,10 @@ class Survey:
             max_dmeg = max_dm - np.median(self.DMhalos + self.DMGs)
             max_idm = np.where(self.dmvals < max_dmeg)[0][-1]
             self.max_idm = max_idm
+            self.max_dmeg = max_dmeg
         else:
             self.max_idm = None
+            self.max_dmeg = None
 
     def get_efficiency_from_wlist(self,wlist,plist, 
                                   model="Quadrature", 

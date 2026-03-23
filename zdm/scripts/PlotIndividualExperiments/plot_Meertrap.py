@@ -36,7 +36,7 @@ def main():
     # approximate best-fit values from recent analysis
     # load states from Hoffman et al 2025
     state = states.load_state("HoffmannEmin25",scat="updated",rep=None)
-    opdir="MeerTRAP"
+    opdir="MeerTRAP/"
     
     if not os.path.exists(opdir):
         os.mkdir(opdir)
@@ -63,7 +63,7 @@ def main():
     name = names[0]
     figures.plot_grid(g.rates,g.zvals,g.dmvals,
         name=opdir+name+"_zDM.pdf",norm=3,log=True,
-        label='$\\log_{10} p({\\rm DM}_{\\rm IGM} + {\\rm DM}_{\\rm host},z)$ [a.u.]',
+        label='$\\log_{10} p({\\rm DM}_{\\rm cosmic} + {\\rm DM}_{\\rm host},z)$ [a.u.]',
         project=False,ylabel='${\\rm DM}_{\\rm IGM} + {\\rm DM}_{\\rm host}$',
         zmax=zmax,DMmax=DMmax,Aconts=[0.01,0.1,0.5])
     

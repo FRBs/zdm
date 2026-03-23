@@ -18,7 +18,7 @@
 # - {survey_data: '{"observing": {"NORM_FRB": 1,"TOBS": 317.5},
 #                   "telescope": {"BEAM": "MeerTRAP_coherent_log",
 #                        "BTHRESH": 0.25,"NBEAMS": 1,"NBINS": 5,
-#                        "MAX_IDT": 1078, "FRES":0.836,"THRESH":0.069,
+#                        "FRES":0.836,"THRESH":0.069,
 #                        "TRES": 0.30624, "FBAR":1284}}'}
 # schema: astropy-2.0
 TNS    BW  DM  DMG  FBAR  FRES   NREP SNR SNRTHRESH THRESH TRES    WIDTH Z
