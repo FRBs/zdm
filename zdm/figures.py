@@ -449,12 +449,12 @@ def plot_grid(
         for i in np.arange(nc):
             cstyle = i%4
             j = int(nc - i - 1)
-            plt.plot(np.arange(nz), carray[j, :], label=str(int(conts[j]*100))+"%", color="white",\
+            plt.plot(np.arange(nz), carray[j, :], label=str(int(conts[j]*100))+"%", color="k",\
                     linestyle=cont_styles[cstyle])
         l = plt.legend(loc="upper left", fontsize=8)
         # l=plt.legend(bbox_to_anchor=(0.2, 0.8),fontsize=8)
         for text in l.get_texts():
-            text.set_color("white")
+            text.set_color("k")
 
     if Macquart is not None:
         # Note this is the Median for the lognormal, not the mean

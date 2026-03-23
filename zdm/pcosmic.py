@@ -565,17 +565,18 @@ def get_dm_mask(dmvals, params, zvals=None, plot=False):
     The mask is designed for discrete convolution: p(DM_EG)[i] = sum_j p(DM_cosmic)[i-j] * mask[j]
     """
 
-    if len(params) != 2:
+    if len(params) != 3:
         raise ValueError(
             "Incorrect number of DM parameters!",
             params,
-            " (expected log10mean, log10sigma)",
+            " (expected log10mean, log10sigma, n_z)",
         )
     
     # expect the params to be log10 of actual values for simplicity
     # this converts to natural log
     logmean = params[0] / 0.4342944619
     logsigma = params[1] / 0.4342944619
+    n_z = params[2]
 
     ddm = dmvals[1] - dmvals[0]
 
@@ -597,7 +598,7 @@ def get_dm_mask(dmvals, params, zvals=None, plot=False):
             # or equivalently, we multiply the ddm by this factor, since a
             # measurable increase of dDM means an intrinsic dDM*(1+z)
             # here we choose the latter, but it is the same
-            mask[j, :] = integrate_pdm(ddm * (1.0 + z), ndm, logmean, logsigma)
+            mask[j, :] = integrate_pdm(ddm * (1.0 + z)/(1.0 + z)**n_z, ndm, logmean, logsigma) # host DM contribution is reduced by (1+z) in the observed frame ------ ! 
             mask[j, :] /= np.sum(mask[j, :])  # the mask must integrate to unity
     else:
         # do this for the z=0 case

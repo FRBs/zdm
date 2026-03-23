@@ -8,18 +8,19 @@ import os
 
 from astropy.cosmology import Planck18
 import importlib.resources as resources
-from zdm import cosmology as cos
-from zdm import misc_functions
-from zdm import parameters
-from zdm import survey
-from zdm import pcosmic
-from zdm import iteration as it
-from zdm import loading
-from zdm import io
-from zdm import optical as opt
+from zdm.zdm import cosmology as cos
+from zdm.zdm import misc_functions
+from zdm.zdm import parameters
+from zdm.zdm import survey
+from zdm.zdm import pcosmic
+from zdm.zdm import iteration as it
+from zdm.zdm import loading
+from zdm.zdm import io
+from zdm.zdm import optical as opt
+from zdm.zdm import figures
 
 import numpy as np
-from zdm import survey
+from zdm.zdm import survey
 from matplotlib import pyplot as plt
 from pkg_resources import resource_filename
 
@@ -40,16 +41,20 @@ matplotlib.rc('font', **font)
 def main():
     
     # in case you wish to switch to another output directory
-    opdir='zcomparison/'
+    opdir='./'
     
     # approximate best-fit values from recent analysis
     # best-fit from Jordan et al
     if True:
         # approximate best-fit values from recent analysis
-        param_dict={'sfr_n': 0.21, 'alpha': 0.11, 'lmean': 2.18, 'lsigma': 0.42, 'lEmax': 41.37, 
-                'lEmin': 39.47, 'gamma': -1.04, 'H0': 70.23, 'halo_method': 0, 'sigmaDMG': 0.0, 'sigmaHalo': 0.0,
+        param_dict={'sfr_n': 0.21, 'alpha': 0.92, 'lmean': 2.02, 'lsigma': 0.46, 'lEmax': 41.42, 
+                'lEmin': 39.49, 'gamma': -1.16, 'H0': 73, 'halo_method': 0, 'sigmaDMG': 0.0, 'sigmaHalo': 0.0,
                 'lC': -7.61, 'min_lat': 0.0}
         
+        
+        # Where does lC come from? Why sfr_n = 0.21? Hoffman+25 finds 0.91. Why H0 = 73? Hoffman+25 finds 58. 
+
+
     else:
         # best fit from James et al
         param_dict={'sfr_n': 1.13, 'alpha': 0.99, 'lmean': 2.27, 'lsigma': 0.55, 'lEmax': 41.26, 
@@ -60,7 +65,7 @@ def main():
         os.mkdir(opdir)
     
     # Initialise surveys and grids
-    sdir = resources.files('zdm').joinpath('zdm/data/Surveys/')
+    sdir = '/Users/lmasriba/FRBs/zdm/zdm/data/Surveys'
     names=["MeerTRAPcoherent","DSA","CRAFT_ICS_1300"]
     
     state = parameters.State()
@@ -117,7 +122,7 @@ def main():
     for i in np.arange(NDECBINS):
         cname="CHIME_decbin_"+str(i)+"_of_6"
         cnames.append(cname)
-    survey_dir = resources.files('zdm').joinpath('zdm/data/Surveys/CHIME/')
+    survey_dir = '/Users/lmasriba/FRBs/zdm/zdm/data/Surveys/CHIME/'
     css,cgs = loading.surveys_and_grids(survey_names=cnames, init_state=state, rand_DMG=False,sdir = survey_dir, repeaters=True)
     
     # compiles sums over all six declination bins
@@ -185,8 +190,7 @@ def main():
     name = names[0]
     
     # Do the plotting
-    misc_functions.plot_grid(g.rates,g.zvals,g.dmvals,
-        name=opdir+name+"_zDM.pdf",norm=3,log=True,
+    figures.plot_grid(g.rates,g.zvals,g.dmvals,norm=3,log=True,
         label='$\\log_{10} p({\\rm DM}_{\\rm IGM} + {\\rm DM}_{\\rm host},z)$ [a.u.]',
         project=False,ylabel='${\\rm DM}_{\\rm IGM} + {\\rm DM}_{\\rm host}$',
         zmax=3,DMmax=3000, FRBZs=Zs, FRBDMs=DMs, 
@@ -194,6 +198,8 @@ def main():
         plt_dicts=plt_dicts, cont_dicts=cont_dicts,
         Aconts=[0.1],othergrids=[gs[1].rates,crates,gs[2].rates],
         othernames = ["MeerKAT","DSA","CHIME","ASKAP"], 
+        showplot=True,
+        save=False,
         cmap=cmr.prinsenvlag_r)
         #0.01, 0.1,0.5
     

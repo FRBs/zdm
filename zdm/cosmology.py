@@ -39,7 +39,7 @@ Author: Clancy W. James (clancy.w.james@gmail.com)
 import scipy.constants as constants
 import numpy as np
 import scipy.integrate as integrate
-from zdm import parameters
+from zdm.zdm import parameters
 
 
 
