@@ -95,7 +95,7 @@ def main():
                "1: $t_{\\rm res}=1.7$ ms",
                 "2: $\\nu_{\\rm res} = 167$ kHz",
                 "3: Perfect imaging",
-                "4: $T_{\\rm sys}=25^{\\circ}$ K"]
+                "4: $T_{\\rm sys}=20^{\\circ}$ K"]
     linestyles=["-",":","--","-.","-"]
     
     nz=400
