@@ -27,6 +27,7 @@ from zdm import survey
 from matplotlib import pyplot as plt
 import importlib.resources as resources
 
+from astropath import chance
 
 import matplotlib
 
@@ -40,10 +41,12 @@ matplotlib.rc('font', **font)
 
 def main():
     
+    
     # set op directory
     opdir="Illustrations/"
     if not os.path.exists(opdir):
         os.mkdir(opdir)
+    
     
     # set this to true to calculate p(twau,w). However, this takes quite some time to evaluate - it's slow!
     # That's because of internal arrays that must be built up by the survey
@@ -77,6 +80,9 @@ def main():
                                     ndm=ndm, nz=nz) 
     ifrb=3
     
+    g=gs[0]
+    s=ss[0]
+    
     # makes p(z) plot
     if False:
         # longer method - takes a *long* time!
@@ -87,12 +93,121 @@ def main():
         glist = [gs[0],gs2[0]]
         slist = [ss[0],ss2[0]]
         
-        make_pz_plot(glist,slist,ifrb)
+        make_pz_plot(glist,slist,ifrb,opdir)
     
-    # now creates a model and calculates to p(m|z) distribution
+    if False:
+        make_pm_plot(g,s,ifrb,opdir)
+    
+    if True:
+        make_pzgmr_plot(g,s,ifrb,opdir,Field=True)
+    
+    
+    if True:
+        test_field(opdir)
+
+    
+def test_field(opdir):
+    """
+    Makes a plot of p(m|z)
+    """
+    field = opt.Field()
+    
+    
+    
+    plt.figure()
+    plt.plot(field.zvals,field.volumes)
+    plt.xlabel("z")
+    plt.ylabel("V(z)")
+    plt.tight_layout()
+    #plt.yscale("log")
+    plt.savefig(opdir+"volume.png")
+    plt.close()
+    
+    # plots pm vs driver
+    rmags = field.rmags
+    
+    # this is Mpc^3 per steradian per dz
+    fpm = field.pm
+    
+    #this is units per square arcsec per magnitude
+    dsigma = chance.differential_driver_sigma(rmags)
+    
+    plt.figure()
+    plt.plot(rmags,fpm/3e13,label="$\\int_0^2 P(m_r|z) V(z) dz$")
+    plt.plot(rmags,dsigma,label="Driver et al. 2016")
+    #field.extrapolate_p_mr_field(200)
+    #plt.plot(rmags,field.pm,label="Loudas25 $\\int_0^4 P(m_r|z) V(z) dz$")
+    #field.extrapolate_p_mr_field(400)
+    #plt.plot(rmags,field.pm,label="Loudas25 $\\int_0^{8} P(m_r|z) V(z) dz$")
+    
+    #plt.plot(rmags,field.pmrz[-1,:]*100,label="Redshift 2.0")
+    #plt.plot(rmags,field.pmrz[-100,:]*100,label="Redshift 1.9")
+    plt.xlabel("$m_r$")
+    plt.ylabel("$P_F(m_r)$ [mag$^{-1}$ arcsec$^{-2}$]")
+    plt.yscale("log")
+    plt.legend(fontsize=12)
+    plt.tight_layout()
+    plt.savefig(opdir+"pm.png")
+    plt.close()
+    
+    mvals=[15,18,21,24]
+    for i,m in enumerate(mvals):
+        pzf = field.get_pzgm(m) / field.dz
+        plt.plot(field.zvals,pzf,label="$P_F(z|m_r = "+str(m)+")$")
+    plt.xlabel("$z$")
+    plt.ylabel("$P(z)$")
+    plt.ylim(0,7)
+    plt.xlim(0,2)
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(opdir+"pzgm_field.png")
+    plt.close()
+    
+    
+def make_pzgmr_plot(g,s,ifrb,opdir,Field=False):
+    """
+    makes a plot of p(z) given mr
+    
+    Args:
+        g: grid object
+        s: survey object corresponding to the grid
+        ifrb: which FRB in the survey to use
+        
+    """
+    mr = 19.63 # hard-coded, taken from previous PATH work
     model = opt.marnoch_model()
-    g=gs[0]
-    s=ss[0]
+    wrapper = opt.model_wrapper(model,g.zvals)
+    DMEG = s.DMEGs[ifrb]
+    wrapper.init_path_raw_prior_Oi(DMEG,g)
+    #mr =  #  from most likely host galaxy of FRB[3]
+    pz = wrapper.get_pz_g_mr(mr)
+    
+    plt.figure()
+    plt.xlim(0,1)
+    plt.ylim(0,3)
+    pz /= (g.zvals[1]-g.zvals[0])
+    plt.plot(g.zvals, pz, label="$P(z|{\\bf{x_{\\bf rad}}}, m_r = "+str(mr)+")$")
+    
+    
+    
+    if Field:
+        field = opt.Field()
+        pzf = field.get_pzgm(mr) / field.dz
+        plt.plot(field.zvals,pzf,label="$P_F(z, m_r = "+str(mr)+")$")
+    
+    plt.xlabel("$z$")
+    plt.ylabel("$P(z)$")
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(opdir+"pzgmr.png")
+    plt.close()
+    
+def make_pm_plot(g,s,ifrb,opdir):
+    """
+    creates a model and calculates to p(m|z) distribution - which gets integrated over
+    """
+    model = opt.marnoch_model()
+    
     wrapper = opt.model_wrapper(model,g.zvals)
     DMEG = s.DMEGs[ifrb]
     print("DMEG is ",DMEG)
@@ -111,10 +226,12 @@ def main():
     plt.xlim(10,30)
     plt.legend()
     plt.tight_layout()
-    plt.savefig("pmr.png")
+    plt.savefig(opdir+"pmr.png")
     plt.close()
     
-def make_pz_plot(glist,slist,ifrb):
+    return wrapper
+    
+def make_pz_plot(glist,slist,ifrb,opdir):
     """
     makes an example p(z) distribution for a given frb
     """
@@ -179,6 +296,9 @@ def make_pz_plot(glist,slist,ifrb):
     plt.tight_layout()
     plt.savefig(opdir+"pz.png")
     plt.close()
+    
+    
+    
     
         
     
