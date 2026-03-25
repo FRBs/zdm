@@ -18,7 +18,7 @@ from zdm.zdm import loading
 from zdm.zdm import io
 from zdm.zdm import optical as opt
 from zdm.zdm import figures
-
+import pandas as pd
 import numpy as np
 from zdm.zdm import survey
 from matplotlib import pyplot as plt
@@ -36,7 +36,7 @@ font = {
         'weight' : 'normal',
         'size'   : defaultsize}
 matplotlib.rc('font', **font)
-
+ 
 
 def main():
     
@@ -47,9 +47,14 @@ def main():
     # best-fit from Jordan et al
     if True:
         # approximate best-fit values from recent analysis
-        param_dict={'sfr_n': 0.21, 'alpha': 0.92, 'lmean': 2.02, 'lsigma': 0.46, 'lEmax': 41.42, 
-                'lEmin': 39.49, 'gamma': -1.16, 'H0': 73, 'halo_method': 0, 'sigmaDMG': 0.0, 'sigmaHalo': 0.0,
-                'lC': -7.61, 'min_lat': 0.0}
+        param_dict={'sfr_n': 0.21, 'alpha': 0.11, 'lmean': 2.18, 'lsigma': 0.42, 'lEmax': 41.37, 
+                'lEmin': 39.47, 'gamma': -1.04, 'H0': 70.23, 'halo_method': 0, 'sigmaDMG': 0.0, 'sigmaHalo': 0.0,
+                'lC': -0.761, 'min_lat': 0.0}
+        
+        # this lluis found as defaults in Hoffman paper (not all them)
+        #param_dict={'sfr_n': 0.21, 'alpha': 0.92, 'lmean': 2.02, 'lsigma': 0.46, 'lEmax': 41.37, 
+        #        'lEmin': 39.49, 'gamma': -1.16, 'H0': 70.23, 'halo_method': 0, 'sigmaDMG': 0.0, 'sigmaHalo': 0.0,
+        #        'lC': -7.61, 'min_lat': 0.0}
         
         
         # Where does lC come from? Why sfr_n = 0.21? Hoffman+25 finds 0.91. Why H0 = 73? Hoffman+25 finds 58. 
@@ -102,6 +107,7 @@ def main():
     # this is howto use the FRB library to load up known hosts
     if False:
         from frb.galaxies import utils as frb_gal_u
+
         
         # Load up the hosts
         host_tbl, _ = frb_gal_u.build_table_of_hosts(attrs=['redshift'])
@@ -149,12 +155,20 @@ def main():
 
     ics_Zs = np.array([ss[2].Zs[ss[2].zlist].tolist() + ics_ss[0].Zs[ics_ss[0].zlist].tolist() + ics_ss[1].Zs[ics_ss[1].zlist].tolist()])
     ics_DMs = np.array([ss[2].DMEGs[ss[2].zlist].tolist() + ics_ss[0].DMEGs[ics_ss[0].zlist].tolist() + ics_ss[1].DMEGs[ics_ss[1].zlist].tolist()])
+
+    meerkat_df = pd.read_csv('/Users/lmasriba/FRBs/zdm/papers/lsst/Data/meerkat_mr.txt', delim_whitespace=True, skip_blank_lines=True, comment='#')
+    meerkat_df.columns = ['name',  'DMX', 'zspec', 'RA', 'Dec',  'zspec_err']
+    zzt = np.array(meerkat_df['zspec'].values,dtype=np.float64)
+    dms = np.array(meerkat_df['DMX'].values,dtype=np.float64)
+    
+    zzt = np.append(zzt, 2.148)
+    dms = np.append(dms, 2398.03)
     
 
     ###### plots MeerTRAP zDM figure ###########
-    Zs = [np.array([2.148]), dsa_Zs, None, ics_Zs]
-    DMs = [np.array([2398.03]), dsa_DMs, None, ics_DMs]
-    point_labels = ["FRB 20240304B", None, None, None]
+    Zs = [zzt, dsa_Zs, None, ics_Zs]
+    DMs = [dms, dsa_DMs, None, ics_DMs]
+    point_labels = [None, None, None, None]
 
     # Set colours and styles for plotting contours and FRBs
     cmap = cmr.arctic
