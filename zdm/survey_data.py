@@ -39,23 +39,35 @@ class FRB(data_class.myDataClass):
                   'Notation': '',
                   })
     Gb: float = field( 
-        default=1., 
+        default=None, 
         metadata={'help': "Galactic latitude",
                   'unit': 'deg', 
                   'Notation': '',
                   })
     Gl: float = field( 
-        default=1., 
+        default=None, 
         metadata={'help': "Galactic longitude",
                   'unit': 'deg', 
                   'Notation': '',
                   })
-    # NREP: np.int64 = field( 
-    #     default=1, 
-    #     metadata={'help': "Number of repetitions detected", 
-    #               'unit': '', 
-    #               'Notation': '',
-    #               })
+    RA: float = field( 
+        default=None, 
+        metadata={'help': "Right ascension in J2000 coordinates",
+                  'unit': 'deg', 
+                  'Notation': '',
+                  })
+    DEC: float = field( 
+        default=None, 
+        metadata={'help': "Declination in J2000 coordinates",
+                  'unit': 'deg', 
+                  'Notation': '',
+                  })
+    NREP: np.int64 = field( 
+         default=1, 
+         metadata={'help': "Number of repetitions detected", 
+                   'unit': '', 
+                   'Notation': '',
+                   })
     SNR: float = field( 
         default=0., 
         metadata={'help': "S/N", 
@@ -63,7 +75,7 @@ class FRB(data_class.myDataClass):
                   'Notation': '',
                   })
     SNRTHRESH: float = field( 
-        default=0., 
+        default=10., 
         metadata={'help': "S/N threshold to detect an FRB", 
                   'unit': '', 
                   'Notation': '',
@@ -85,14 +97,26 @@ class FRB(data_class.myDataClass):
                   'Notation': '',
                   })
     WIDTH: float = field( 
-        default=0.1, 
-        metadata={'help': "Width of the event (intrinsic??)", 
+        default=-1, 
+        metadata={'help': "Width of the event", 
+                  'unit': 'ms', 
+                  'Notation': '',
+                  })
+    TAU: float = field( 
+        default=-1., 
+        metadata={'help': "Scattering timescale of the event", 
                   'unit': 'ms', 
                   'Notation': '',
                   })
     Z: float = field( 
         default=-1., 
         metadata={'help': "redshift; -1 means unlocalised", 
+                  'unit': '', 
+                  'Notation': '',
+                  })
+    B: float = field( 
+        default=-1., 
+        metadata={'help': "Beam value B at point of detection. Negative means unknown.", 
                   'unit': '', 
                   'Notation': '',
                   })
@@ -128,20 +152,26 @@ class Telescope(data_class.myDataClass):
                   'Notation': '',
                   })
     NBINS: int = field(
-        default=0, 
-        metadata={'help': "Number of bins for width analysis", 
+        default=5, 
+        metadata={'help': "Number of bins for beam analysis", 
                   'unit': '', 
                   'Notation': '',
                   })
-    WMETHOD: int = field(
+    WDATA: int = field(
         default=2, 
-        metadata={'help': "Method of calculating FRB widths; 0 ignore, 1 std, 2 includes scattering", 
+        metadata={'help': "What does the WIDTH column include? 0 intrinsic, 1: also scattering, 2: also DM smearing",
                   'unit': '', 
                   'Notation': '',
                   })
     WBIAS: str = field(
-        default="Quadrature", 
-        metadata={'help': "Method to calculate width bias", 
+        default="StdDev", 
+        metadata={'help': "Method to calculate width bias. Quadrature, Sammons, or StdDev", 
+                  'unit': '', 
+                  'Notation': '',
+                  })
+    DMMASK: str = field(
+        default=None, 
+        metadata={'help': "Mask to apply multiplicatively in DM space over standard Wbias model", 
                   'unit': '', 
                   'Notation': '',
                   })
@@ -152,15 +182,16 @@ class Telescope(data_class.myDataClass):
                   'Notation': '',
                   })
     DRIFT_SCAN: int = field(
-        default=2,
+        default=1,
         metadata={'help': '1: beam represents solid angle viewed at each value of b, for time Tfield \
-                           2: (Drift scan) beam represents time (in days) spent on any given source at sensitivity level b. \
+                           2: (Drift scan) beam represents time (in days) spent on any \
+                               given source at sensitivity level b. \
                               Tfield is solid angle. Nfields then becomes a multiplier of the time.',
                   'unit': '',
                   'Notation': ''
                   })
     BTHRESH: float = field(
-        default=0.0,
+        default=1.e-3,
         metadata={'help': 'Minimum value of beam sensitivity to consider',
                   'unit': '',
                   'Notation': 'B_{\rm min}'})
@@ -168,6 +199,12 @@ class Telescope(data_class.myDataClass):
         default=1., 
         metadata={'help': "Threshold fluence used to detect an FRB", 
                   'unit': 'Jy ms', 
+                  'Notation': '',
+                  })
+    SNRTHRESH: float = field( 
+        default=10., 
+        metadata={'help': "S/N threshold to detect an FRB", 
+                  'unit': '', 
                   'Notation': '',
                   })
     FBAR: float = field( 
@@ -240,7 +277,19 @@ class Observing(data_class.myDataClass):
                   })
     MAX_IDT: int = field(
         default=None,
-        metadata={'help': "Maximum number of time samples seaarched (4096 for CRAFT ICS)",
+        metadata={'help': "Maximum number of time samples searched (4096 for CRAFT ICS)",
+                  'unit': '',
+                  'Notation': '',
+                  })
+    MAX_IW: int = field(
+        default=None,
+        metadata={'help': "Maximum width of FRB search in units of tres (12 for CRAFT ICS)",
+                  'unit': '',
+                  'Notation': '',
+                  })
+    MAXWMETH: int = field(
+        default=0,
+        metadata={'help': "Method for treating FRBs with width > max width. 0: do nothing, 1: ignore them, 2: reduce sensitivity to 1/w",
                   'unit': '',
                   'Notation': '',
                   })
@@ -250,6 +299,14 @@ class Observing(data_class.myDataClass):
                   'unit': 'pc/cm**3',
                   'Notation': '',
                   })
+    Z_FRACTION:str =field(
+            default=None,
+            metadata={'help':"Fraction of visible FRBs at a redshift"}
+            )
+    Z_PHOTO:float =field(
+            default=0.,
+            metadata={'help':"Gaussian photometric error on redshifts"}
+            )
 
 class SurveyData(data_class.myData):
     """ Hold the SurveyData in a convenient object

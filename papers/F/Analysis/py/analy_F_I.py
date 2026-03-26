@@ -2,7 +2,7 @@
 Helper function to load the default survey and grid for CRACO with F parameter
 """
 
-from zdm.craco import loading
+from zdm.MC_sample import loading
 
 # Load the default survey and grid with F
 fiducial_survey = "../MC_F/Surveys/F_0.32_survey"

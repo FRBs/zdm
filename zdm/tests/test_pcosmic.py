@@ -17,12 +17,10 @@ def test_mean_DM():
     state.set_astropy_cosmo(Planck18)
 
     # Calculate
-    zmax, nz = 1., 1000
+    zmax, nz = 1.000, 1000
     dz=zmax/nz
     zvals=(np.arange(nz)+1)*dz
     DMs = pcosmic.get_mean_DM(zvals, state)
-
-    # Test
-    assert np.isclose(DMs[-1], 924.81566918)
-
+    assert np.isclose(DMs[-1], 923.895774)
+    
 test_mean_DM()

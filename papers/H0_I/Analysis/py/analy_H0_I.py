@@ -1,6 +1,6 @@
 # imports
 import numpy as np
-from zdm.craco import loading
+from zdm.MC_sample import loading
 from zdm import errors_misc_functions as err
 
 from IPython import embed

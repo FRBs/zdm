@@ -57,7 +57,7 @@ import matplotlib.colors as colors
 import matplotlib.cm as cm
 import matplotlib
 from matplotlib.ticker import NullFormatter
-from zdm.craco import loading
+from zdm.MC_sample import loading
 
 print("Successful import!")
 

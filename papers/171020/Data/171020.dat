@@ -1,0 +1,14 @@
+FBAR  1196 #MHz
+BW    336 #MHz
+FRES  1 #MHz
+TRES  1.265 #ms
+DIAM 12
+NBEAMS 36
+BEAM lat50_log #prefix of beam file
+NFRB 1 #Number of FRBs
+NORM_FRB 1 #number corresponding to Tobs
+TOBS 63.73
+THRESH 22 #Jy ms to a 1 ms burst
+SNRTHRESH 9.5 # signal-to-noise threshold: scales jy ms to snr
+KEY ID 		TIME	    DM    X     	X        	X	X	X    WIDTH  SNR        X        X        FIELD   ANT  	X	DMG   X		XWIDTH  
+FRB 171020  10:28:35.59870  114.1  200  	22:15  		-19:40  29.3  	-51.3   1.7  19.5  	32.7  95 	G35-50	0	0.63	38.4	25.8	0.58

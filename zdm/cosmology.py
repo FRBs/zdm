@@ -1,13 +1,39 @@
-################ COSMOLOGY.PY ###############
+"""
+Cosmology module for the zdm package.
 
-# Author: Clancy W. James
-# clancy.w.james@gmail.com
+This module implements standard Lambda CDM cosmology calculations for
+Fast Radio Burst (FRB) redshift-dispersion measure analysis. It provides
+functions for computing cosmological distance measures, volume elements,
+and energy-fluence conversions.
 
-# This file contains functions relating to
-# cosmological evaluations. It simply 
-# implements standard Lambda CDM cosmology
-# written with alpha such that F_nu ~ \nu**-alpha
-##############################################
+The module uses a convention where the spectral index alpha is defined such
+that F_nu ~ nu^(-alpha), i.e., positive alpha corresponds to steeper spectra
+at higher frequencies.
+
+Key Features
+------------
+- Hubble parameter and scale factor calculations
+- Distance measures: comoving (DM), angular diameter (DA), luminosity (DL)
+- Cosmological volume elements (dV) and time-volume elements (dVdtau)
+- Interpolated lookup tables for fast array operations
+- Energy-fluence conversions for FRB analysis
+- Source evolution functions (SFR, power-law)
+
+Usage
+-----
+Before using interpolated functions (dm, da, dl, dv, dvdtau), call
+`init_dist_measures()` to populate the lookup tables. The cosmology
+can be configured via `set_cosmology()`.
+
+Example
+-------
+>>> from zdm import cosmology as cos
+>>> cos.init_dist_measures()
+>>> z = 0.5
+>>> d_L = cos.dl(z)  # Luminosity distance in Mpc
+
+Author: Clancy W. James (clancy.w.james@gmail.com)
+"""
 
 
 import scipy.constants as constants
@@ -67,14 +93,29 @@ cosmo = parameters.CosmoParams()
 
 
 def print_cosmology(params):
-    """ Print cosmological parameters
-    
-    The current values of cosmological parameters are printed.
+    """Print the current cosmological parameters.
+
+    Parameters
+    ----------
+    params : dict or State
+        Parameter dictionary or State object containing 'cosmo' key
+        with CosmoParams object.
     """
     print("Hubble constant in default cosmology, H0: ",params['cosmo'].H0," [km/s/Mpc]")
     #print("Hubble constant in current epoch, H0: ",params['cosmo'].current_H0," [km/s/Mpc]")
 
 def set_cosmology(params):
+    """Set the global cosmology parameters for this module.
+
+    This function must be called before using distance measure functions
+    if non-default cosmology is desired.
+
+    Parameters
+    ----------
+    params : dict or State
+        Parameter dictionary or State object containing 'cosmo' key
+        with CosmoParams object specifying H0, Omega_m, Omega_lambda, Omega_k.
+    """
     global cosmo
     cosmo = params['cosmo']
 
@@ -110,50 +151,147 @@ def stupid_trick(a,b,c,d):
 
 
 def H(z):
-    """Hubble parameter (km/s/Mpc)"""
+    """Hubble parameter (km/s/Mpc)
+
+    Args:
+        z (float): redshift
+
+    Returns:
+        float: Hubble parameter [km/s/Mpc]
+    """
     return E(z)*cosmo.H0
 
 
 def E(z):
-    """scale factor, assuming a simplified cosmology."""
+    """Dimensionless Hubble parameter E(z) = H(z)/H0.
+
+    Computes the normalized expansion rate assuming flat Lambda CDM cosmology.
+
+    Parameters
+    ----------
+    z : float or array_like
+        Redshift(s) at which to evaluate E(z).
+
+    Returns
+    -------
+    float or ndarray
+        Dimensionless Hubble parameter E(z) = sqrt(Omega_m*(1+z)^3 + Omega_k*(1+z)^2 + Omega_lambda).
+    """
     a=1.+z #inverse scale factor
     return (cosmo.Omega_m*a**3+cosmo.Omega_k*a**2+cosmo.Omega_lambda)**0.5
 
 
 def inv_E(z):
-    """ inverse of scale factor"""
+    """Inverse of dimensionless Hubble parameter, 1/E(z).
+
+    Used as integrand for computing comoving distance.
+
+    Parameters
+    ----------
+    z : float
+        Redshift.
+
+    Returns
+    -------
+    float
+        1/E(z), where E(z) is the dimensionless Hubble parameter.
+    """
     return E(z)**-1
 
 
 def DM(z):
-    """comoving distance [Mpc]"""
+    """Comoving distance (line-of-sight) via numerical integration.
+
+    This is the slow but accurate version. For array operations,
+    use the interpolated version `dm()` after calling `init_dist_measures()`.
+
+    Parameters
+    ----------
+    z : float
+        Redshift.
+
+    Returns
+    -------
+    float
+        Comoving distance in Mpc.
+    """
     res,err=integrate.quad(inv_E,0,z)
     DH=c_light_kms/cosmo.H0
     return DH*res
 
 def DA(z):
-    """angular diameter distance [Mpc]"""
+    """Angular diameter distance via numerical integration.
+
+    This is the slow but accurate version. For array operations,
+    use the interpolated version `da()` after calling `init_dist_measures()`.
+
+    Parameters
+    ----------
+    z : float
+        Redshift.
+
+    Returns
+    -------
+    float
+        Angular diameter distance in Mpc.
+    """
     return DM(z)/(1+z)
 
 
 def DL(z):
-    """luminosity distance [Mpc]"""
+    """Luminosity distance via numerical integration.
+
+    This is the slow but accurate version. For array operations,
+    use the interpolated version `dl()` after calling `init_dist_measures()`.
+
+    Parameters
+    ----------
+    z : float
+        Redshift.
+
+    Returns
+    -------
+    float
+        Luminosity distance in Mpc.
+    """
     return DM(z)*(1+z)
 
-#cosmological volume element calculation
-# comoving Mpc^3 per dz dOmega
-# note this is simply a volume - no rate adjustment
-# is taken into account.
 def dV(z):
-    """ cosmological volume element [Mpc^3 /redshift /sr]"""
+    """Comoving volume element per unit redshift per steradian.
+
+    Computes dV/dz/dOmega, the differential comoving volume element.
+    This does not include any time dilation factor for rate conversions.
+
+    Parameters
+    ----------
+    z : float
+        Redshift.
+
+    Returns
+    -------
+    float
+        Volume element in Mpc^3 per unit redshift per steradian.
+    """
     DH=c_light_kms/cosmo.H0
     return DH*(1+z)**2*DA(z)**2/E(z)
 
 
 def dVdtau(z):
-    """ cosmological time-volume element [Mpc^3 /redshift /sr]
-    it is weighted by an extra (1+z) factor to reflect the rate
-    in the rest frame vs the observer frame
+    """Time-weighted comoving volume element per unit redshift per steradian.
+
+    Similar to dV(z) but includes an extra (1+z)^-1 factor to account for
+    cosmological time dilation when converting between source-frame and
+    observer-frame event rates.
+
+    Parameters
+    ----------
+    z : float
+        Redshift.
+
+    Returns
+    -------
+    float
+        Time-weighted volume element in Mpc^3 per unit redshift per steradian.
     """
     DH=c_light_kms/cosmo.H0
     return DH*(1+z)*DA(z)**2/E(z) #changed (1+z)**2 to (1+z)
@@ -164,12 +302,26 @@ def dVdtau(z):
 
 def init_dist_measures(this_ZMIN=DEF_ZMIN,this_ZMAX=DEF_ZMAX,this_NZ=DEF_NZ,
                        verbose=False):
-    """ Initialises cosmological distance measures.
-    
-    Fills in look-up tables that can operate on input numpy arrays.
-    For speed.
-    It will use default values of cosmological parameters if
-    nothing has yet been specified.
+    """Initialize interpolation tables for fast distance measure calculations.
+
+    This function populates lookup tables for comoving distance, angular
+    diameter distance, luminosity distance, and volume elements. After
+    initialization, the lowercase functions (dm, da, dl, dv, dvdtau) can
+    be used for fast array operations.
+
+    Must be called before using the interpolated distance functions.
+    Uses current cosmological parameters set via `set_cosmology()`.
+
+    Parameters
+    ----------
+    this_ZMIN : float, optional
+        Minimum redshift for interpolation grid. Default is 0.
+    this_ZMAX : float, optional
+        Maximum redshift for interpolation grid. Default is 10.
+    this_NZ : int, optional
+        Number of redshift points in interpolation grid. Default is 1000.
+    verbose : bool, optional
+        If True, print confirmation message. Default is False.
     """
     
     #sets up initial grid of DMZ
@@ -204,8 +356,19 @@ def init_dist_measures(this_ZMIN=DEF_ZMIN,this_ZMAX=DEF_ZMAX,this_NZ=DEF_NZ,
 
 
 def dm(z):
-    """ Comoving distance [Mpc].
-    Must have initialised w. init_dist_measures
+    """Comoving distance via linear interpolation (fast, array-compatible).
+
+    Requires prior call to `init_dist_measures()` to populate lookup tables.
+
+    Parameters
+    ----------
+    z : float or array_like
+        Redshift(s). Must be within [ZMIN, ZMAX] set during initialization.
+
+    Returns
+    -------
+    float or ndarray
+        Comoving distance in Mpc.
     """
     iz=np.array(np.floor(z/DZ)).astype('int')
     kz=z/DZ-iz
@@ -213,8 +376,19 @@ def dm(z):
 
 
 def dl(z):
-    """ Luminosity distance [Mpc].
-    Must have initialised w. init_dist_measures
+    """Luminosity distance via linear interpolation (fast, array-compatible).
+
+    Requires prior call to `init_dist_measures()` to populate lookup tables.
+
+    Parameters
+    ----------
+    z : float or array_like
+        Redshift(s). Must be within [ZMIN, ZMAX] set during initialization.
+
+    Returns
+    -------
+    float or ndarray
+        Luminosity distance in Mpc.
     """
     iz=np.array(np.floor(z/DZ)).astype('int')
     kz=z/DZ-iz
@@ -222,8 +396,19 @@ def dl(z):
 
 
 def da(z):
-    """ Angular diameter  distance [Mpc].
-    Must have initialised w. init_dist_measures
+    """Angular diameter distance via linear interpolation (fast, array-compatible).
+
+    Requires prior call to `init_dist_measures()` to populate lookup tables.
+
+    Parameters
+    ----------
+    z : float or array_like
+        Redshift(s). Must be within [ZMIN, ZMAX] set during initialization.
+
+    Returns
+    -------
+    float or ndarray
+        Angular diameter distance in Mpc.
     """
     iz=np.array(np.floor(z/DZ)).astype('int')
     kz=z/DZ-iz
@@ -231,19 +416,41 @@ def da(z):
 
 
 def dv(z):
-    """ Comoving volume element [Mpc^3 dz sr^-1].
-    Must have initialised w. init_dist_measures
-    """ 
+    """Comoving volume element via linear interpolation (fast, array-compatible).
+
+    Requires prior call to `init_dist_measures()` to populate lookup tables.
+
+    Parameters
+    ----------
+    z : float or array_like
+        Redshift(s). Must be within [ZMIN, ZMAX] set during initialization.
+
+    Returns
+    -------
+    float or ndarray
+        Volume element in Mpc^3 per unit redshift per steradian.
+    """
     iz=np.array(np.floor(z/DZ)).astype('int')
     kz=z/DZ-iz
     return dvs[iz]*(1.-kz)+dvs[iz+1]*kz
 
 
 def dvdtau(z):
-    """ Comoving volume element [Mpc^3 dz sr^-1].
-    normalsied by proper time (1+z)^-1 to convert
-    rates.
-    """ 
+    """Time-weighted volume element via linear interpolation (fast, array-compatible).
+
+    Includes (1+z)^-1 factor for source-frame to observer-frame rate conversion.
+    Requires prior call to `init_dist_measures()` to populate lookup tables.
+
+    Parameters
+    ----------
+    z : float or array_like
+        Redshift(s). Must be within [ZMIN, ZMAX] set during initialization.
+
+    Returns
+    -------
+    float or ndarray
+        Time-weighted volume element in Mpc^3 per unit redshift per steradian.
+    """
     iz=np.array(np.floor(z/DZ)).astype('int')
     kz=z/DZ-iz
     return (dvdtaus[iz]*(1.-kz)+dvdtaus[iz+1]*kz) #removed the 1/(1+z) dependency
@@ -253,40 +460,66 @@ def dvdtau(z):
 
 
 def E_to_F(E,z,alpha=0, bandwidth=1e9):
-    """ Converts an energy to a fluence
-    Formula from Macquart & Ekers 2018
-    Energy is assumed to be in ergs
-    Fluence returned in Jy ms
+    """Convert isotropic-equivalent energy to observed fluence.
+
+    Uses the formula from Macquart & Ekers (2018) to convert burst energy
+    at the source to observed fluence at the telescope.
+
+    Parameters
+    ----------
+    E : float or array_like
+        Isotropic-equivalent burst energy in erg.
+    z : float or array_like
+        Redshift of the source.
+    alpha : float, optional
+        Spectral index where F_nu ~ nu^(-alpha). Default is 0 (flat spectrum).
+    bandwidth : float, optional
+        Observation bandwidth in Hz. Default is 1e9 (1 GHz).
+
+    Returns
+    -------
+    float or ndarray
+        Fluence in Jy ms.
     """
     F=E/(4*np.pi*(dl(z))**2/(1.+z)**(2.-alpha))
     F /= 9.523396e22*bandwidth # see below for constant calculation
     return F
 
 
-# inverse of above
 def F_to_E(F,z,alpha=0, bandwidth=1e9, Fobs=1.3e9, Fref=1.3e9):
-    """ Converts a fluence in Jy ms to an energy in erg
-    Formula from Macquart & Ekers 2018
-    Works with an array of z.
+    """Convert observed fluence to isotropic-equivalent energy.
 
-    Arguments are:
-        Fluence: of an FRB [Jy ms]
-        
-        Redshift: assumed redshift of an FRB producing the fluence F.
-            Standard cosmological definition [unitless]
-        
-        alpha: F(\nu)~\nu^-\alpha. Note that this is an internal definition.
-            The paper uses ^alpha, not ^-alpha. [unitless]
+    Uses the formula from Macquart & Ekers (2018) to convert observed
+    fluence to source-frame burst energy. Supports array inputs for z.
 
-        Bandwidth: over which to integrate fluence [Hz] 
-        
-        Fobs: the observation frequency [Hz]
-        
-        Fref: reference frequency at which FRB energies E are normalised.
-            It defaults to 1.3 GHz (ASKAP lat50, Parkes).
+    Parameters
+    ----------
+    F : float or array_like
+        Observed fluence in Jy ms.
+    z : float or array_like
+        Redshift of the source.
+    alpha : float, optional
+        Spectral index where F_nu ~ nu^(-alpha). Default is 0 (flat spectrum).
+        Note: This uses the convention F ~ nu^(-alpha), opposite to some papers.
+    bandwidth : float, optional
+        Observation bandwidth in Hz. Default is 1e9 (1 GHz).
+    Fobs : float, optional
+        Observation frequency in Hz. Default is 1.3e9 (1.3 GHz, ASKAP/Parkes).
+    Fref : float, optional
+        Reference frequency for energy normalization in Hz. Default is 1.3e9.
 
-    Return value: energy [erg]
+    Returns
+    -------
+    float or ndarray
+        Isotropic-equivalent burst energy in erg.
 
+    Notes
+    -----
+    Unit conversion factor 9.523396e22 accounts for:
+    - 10^-26 from Jy to W/m^2/Hz
+    - 1e-3 from ms to s
+    - (3.086e22 m/Mpc)^2 for distance conversion
+    - 1e7 from J to erg
     """
     E=F*4*np.pi*(dl(z))**2/(1.+z)**(2.-alpha)
 	# now convert from dl in MPc and F in Jy ms
@@ -296,24 +529,36 @@ def F_to_E(F,z,alpha=0, bandwidth=1e9, Fobs=1.3e9, Fref=1.3e9):
 	# 1e7 from J to erg
 	# total factor is 9.523396e22
     E *= 9.523396e22*bandwidth
-	
+
 	# now corrects for reference frequency
 	# according to value of alpha
 	# effectively: if fluence was X at F0, it was X*(F0/Fref)**alpha at Fref
 	# i.e. if alpha is positive (stronger at low frequencies), we reduce E
 	# This acts to reduce the telescope threshold at higher frequencies
     E *= (Fobs/Fref)**alpha
-	
+
     return E
 
 
-# calculates the 'bin size scaling factor'
-# essentially differentiates the above expression
-# for observed dF to emitted dF
-# does this include the rate factor??? NO!
 def dFnu_to_dEnu(z,alpha=0,bandwidth=1.e9):
-    """ Converts differential dF to differential dE
-    Good for probing "per fluence" stats to "per energy"
+    """Compute the Jacobian dE/dF for fluence-to-energy transformations.
+
+    Useful for converting "per fluence" statistics to "per energy" statistics.
+    This is the derivative of energy with respect to fluence at fixed z.
+
+    Parameters
+    ----------
+    z : float or array_like
+        Redshift.
+    alpha : float, optional
+        Spectral index where F_nu ~ nu^(-alpha). Default is 0.
+    bandwidth : float, optional
+        Observation bandwidth in Hz. Default is 1e9.
+
+    Returns
+    -------
+    float or ndarray
+        Jacobian dE/dF for the transformation.
     """
     #Fnu is Jy
     #Jy: 1e-26 J/s /m2 /Hz
@@ -324,20 +569,32 @@ def dFnu_to_dEnu(z,alpha=0,bandwidth=1.e9):
 ######### possible source evolution functions go here ##########
 
 def choose_source_evolution_function(which=0):
-    """
-    Selects which source evolution function to use
-    These are now generalised to take multiple parameters
-    Could implement arbitrarily many of these
-    
-    Arguments:
-        which (int). Selects which pre-defined model
-            to use for FRB source evolution.
-            Currently implemented values are:
-            0: star-formation rate from Madau
-                & Dickenson, to the power n
-            1: (1+z)^2.7n, i.e. 0 but without the
-                denominator
-            
+    """Select a source evolution function for FRB population modeling.
+
+    Returns a function that computes the relative FRB source density
+    as a function of redshift. These functions are parameterized to
+    allow for different evolution scenarios.
+
+    Parameters
+    ----------
+    which : int, optional
+        Model selection:
+        - 0: Star formation rate from Madau & Dickinson (2014) raised to power n.
+             SFR(z)^n where SFR follows the cosmic star formation history.
+        - 1: Simple power law (1+z)^(2.7*n), without the high-z turnover.
+             Useful for comparison with SFR model.
+        Default is 0.
+
+    Returns
+    -------
+    callable
+        Source evolution function with signature f(z, n) where z is redshift
+        and n is the evolution power parameter.
+
+    Raises
+    ------
+    ValueError
+        If `which` is not 0 or 1.
     """
     if which==0:
         source_evolution=sfr_evolution
@@ -348,30 +605,64 @@ def choose_source_evolution_function(which=0):
     return source_evolution
 
 def sfr_evolution(z,*params):
-    """
-    Madau & dickenson 2014
-    Arguments:
-        z (float): redshift
-        params: n (float) Scaling parameter.
+    """Star formation rate evolution model from Madau & Dickinson (2014).
+
+    Computes the cosmic star formation rate raised to a power n, normalized
+    to unity at z=0.
+
+    Parameters
+    ----------
+    z : float or array_like
+        Redshift.
+    *params : float
+        First parameter is n, the power to which the SFR is raised.
+        Typically n=1 for direct SFR tracking.
+
+    Returns
+    -------
+    float or ndarray
+        Relative source density at redshift z, normalized to 1 at z=0.
     """
     return (1.0025738*(1+z)**2.7 / (1 + ((1+z)/2.9)**5.6))**params[0]
-    
+
 
 def opz_evolution(z,*params):
-    """
-    Same as SFR, but without denominator, i.e. just (1+z)**2.7
-    Factor of 2.7 is kept so that resulting n-values are comparable
-    Arguments:
-        z:(float, numpy array) redshift 
-        params: n (float) Scaling parameter.
+    """Simple power-law source evolution model.
+
+    Computes (1+z)^(2.7*n), which matches the low-z behavior of the SFR
+    model but lacks the high-z turnover. The factor 2.7 ensures that
+    n-values are comparable between models.
+
+    Parameters
+    ----------
+    z : float or array_like
+        Redshift.
+    *params : float
+        First parameter is n, the evolution power parameter.
+
+    Returns
+    -------
+    float or ndarray
+        Relative source density at redshift z.
     """
     return (1+z)**(2.7*params[0])
 
 
-
-# outdated code
-# returns a population density proportional to the star-formation rate to the power n
-#Madau & dickenson 2014
-# units: solar masses per year per cubic Mpc
 def sfr(z):
+    """Star formation rate density from Madau & Dickinson (2014).
+
+    .. deprecated::
+        Use `sfr_evolution(z, 1)` instead for parameterized models.
+
+    Parameters
+    ----------
+    z : float or array_like
+        Redshift.
+
+    Returns
+    -------
+    float or ndarray
+        Star formation rate in solar masses per year per cubic Mpc,
+        normalized to approximately 1 at z=0.
+    """
     return 1.0025738*(1+z)**2.7 / (1 + ((1+z)/2.9)**5.6)

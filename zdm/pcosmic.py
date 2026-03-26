@@ -1,12 +1,36 @@
-########### P(DM|z) ############
+"""
+Probability distribution of cosmic dispersion measure given redshift, p(DM|z).
 
-# this library implements Eq 33 from
-# Macquart et al (Nature, submitted)
-# It also includes other functions and so on and so forth related to that work
-# Imported by C.W. James
+This module implements the Macquart relation - the probability distribution
+of cosmic (extragalactic) dispersion measure as a function of redshift. It is
+based on the formalism described in Macquart et al. (2020, Nature) and
+implements Equation 4 from that work.
 
+The cosmic DM arises from free electrons in the intergalactic medium (IGM).
+The distribution is characterized by a feedback parameter F that controls
+the variance, and normalization constant C0 that ensures <DM> = DM_cosmic.
 
-#############################
+Key Features
+------------
+- p(DM|z) calculation using the modified lognormal distribution
+- Mean cosmic DM from the Macquart relation using astropy/frb cosmology
+- Lognormal host galaxy DM contribution convolution
+- Interpolation utilities for fast grid-based calculations
+
+Main Functions
+--------------
+- `pcosmic`: Core probability distribution function p(delta|z,F)
+- `get_mean_DM`: Compute mean cosmic DM at given redshifts
+- `get_pDM_grid`: Generate 2D grid of p(DM|z) probabilities
+- `get_dm_mask`: Generate host galaxy DM convolution kernel
+
+References
+----------
+Macquart et al. (2020), Nature, 581, 391 - "A census of baryons in the
+Universe from localized fast radio bursts"
+
+Author: C.W. James
+"""
 # from fcntl import F_ADD_SEALS
 import sys
 
@@ -43,15 +67,38 @@ def p(DM, z, F):
 
 
 def pcosmic(delta, z, logF, C0):
-    """ Equation 4 page 33
-    
-    delta: = DM_cosmic/ <DM_cosmic>
-           i.e. fractional cosmic DM
-    alpha, beta: fitted parameters
-    
-    constraints: std dev must be f*z^0.5
-    
-    A: arbitrary amplitude of relative probability, ignore...
+    """Probability density of fractional cosmic DM, p(delta|z).
+
+    Implements Equation 4 from Macquart et al. (2020) for the probability
+    distribution of cosmic DM fluctuations. The distribution is parameterized
+    such that delta = DM_cosmic / <DM_cosmic> follows a modified log-normal
+    with redshift-dependent width.
+
+    Parameters
+    ----------
+    delta : float or array_like
+        Fractional cosmic DM, defined as DM_cosmic / <DM_cosmic>.
+        Must be positive.
+    z : float
+        Redshift. Used to compute the width parameter sigma = F * z^(-0.5).
+    logF : float
+        Log10 of the feedback/fluctuation parameter F. Controls the width
+        of the distribution. Typical values are logF ~ -0.5 to 0.
+    C0 : float
+        Normalization constant that ensures <delta> = 1. Should be computed
+        via `iterate_C0()` for each (z, F) pair.
+
+    Returns
+    -------
+    float or ndarray
+        Probability density p(delta|z). Not normalized; integrate over delta
+        for normalization.
+
+    Notes
+    -----
+    Uses module-level constants alpha=3, beta=3 as shape parameters.
+    The standard deviation scales as F * z^(-0.5), reflecting the central
+    limit theorem averaging of IGM fluctuations along the line of sight.
     """
 
     ### logF compensation
@@ -66,9 +113,34 @@ def pcosmic(delta, z, logF, C0):
 
 
 def p_delta_DM(z, F, C0, deltas=None, dmin=1e-3, dmax=10, ndelta=10000):
-    """ 
-    Calculates probability distribution of delta DM as function of feedback
-    redshift and the constant C0
+    """Calculate the probability distribution of fractional DM.
+
+    Wrapper around `pcosmic` that generates a grid of delta values
+    and computes the probability at each point.
+
+    Parameters
+    ----------
+    z : float
+        Redshift.
+    F : float
+        Log10 of the feedback parameter.
+    C0 : float
+        Normalization constant.
+    deltas : array_like, optional
+        Pre-defined delta values. If None, generates a linear grid.
+    dmin : float, optional
+        Minimum delta value if generating grid. Default is 1e-3.
+    dmax : float, optional
+        Maximum delta value if generating grid. Default is 10.
+    ndelta : int, optional
+        Number of delta points if generating grid. Default is 10000.
+
+    Returns
+    -------
+    deltas : ndarray
+        Array of fractional DM values.
+    pdeltas : ndarray
+        Probability density at each delta value.
     """
     if not deltas:
         deltas = np.linspace(dmin, dmax, ndelta)
@@ -77,14 +149,38 @@ def p_delta_DM(z, F, C0, deltas=None, dmin=1e-3, dmax=10, ndelta=10000):
 
 
 def iterate_C0(z, F, C0=1, Niter=10):
-    """ Iteratively solves for C_0 as a function of z and F """
+    """Iteratively solve for the normalization constant C0.
+
+    The constant C0 ensures that the mean of the p(delta) distribution
+    equals unity, i.e., <delta> = 1. This is required for the distribution
+    to correctly represent DM_cosmic / <DM_cosmic>.
+
+    Parameters
+    ----------
+    z : float
+        Redshift.
+    F : float
+        Log10 of the feedback parameter.
+    C0 : float, optional
+        Initial guess for C0. Default is 1.
+    Niter : int, optional
+        Number of iterations. Default is 10.
+
+    Returns
+    -------
+    float
+        Converged value of C0.
+    """
     dmin = 1e-3
     dmax = 10
     ndelta = 10000
+    # these represent central bin values of delta = DM/<DM>
     deltas = np.linspace(dmin, dmax, ndelta)
+    bin_w = deltas[1] - deltas[0]
     for i in np.arange(Niter):
+        # pcosmic is a probability density
+        # hence, we should calculate this at bin centres
         pdeltas = pcosmic(deltas, z, F, C0)
-        bin_w = deltas[1] - deltas[0]
         norm = bin_w * np.sum(pdeltas)
         mean = bin_w * np.sum(pdeltas * deltas) / norm
         C0 += mean - 1.0
@@ -93,8 +189,19 @@ def iterate_C0(z, F, C0=1, Niter=10):
 
 
 def make_C0_grid(zeds, F):
-    """ Pre-generates normalisation constants for C0
-    Does this from a grid of z and a given F
+    """Pre-compute C0 normalization constants for a grid of redshifts.
+
+    Parameters
+    ----------
+    zeds : ndarray
+        Array of redshift values.
+    F : float
+        Log10 of the feedback parameter.
+
+    Returns
+    -------
+    ndarray
+        Array of C0 values, one per redshift.
     """
     C0s = np.zeros([zeds.size])
     for i, z in enumerate(zeds):
@@ -102,41 +209,109 @@ def make_C0_grid(zeds, F):
     return C0s
 
 
-def get_mean_DM(zeds: np.ndarray, state: parameters.State):
-    """ Gets mean average z to which can be applied deltas 
+def get_mean_DM(zeds: np.ndarray, state: parameters.State, Plot=False):
+    """Compute the mean cosmic DM at given redshifts (Macquart relation).
 
-    Args:
-        zeds (np.ndarray): redshifts (must be linearly spaced)
-        state (parameters.State): 
+    Calculates <DM_cosmic>(z) using the IGM electron density model from
+    the frb package. Assumes a FlatLambdaCDM cosmology with parameters
+    from the state object.
 
-    Returns:
-        np.ndarray: DM_cosmic
+    Parameters
+    ----------
+    zeds : ndarray
+        Redshifts at which to compute mean DM. Must be linearly spaced
+        and represent bin centers (e.g., 0.5*dz, 1.5*dz, 2.5*dz, ...).
+    state : parameters.State
+        State object containing cosmological parameters (H0, Omega_b, Omega_m).
+    Plot : bool, optional
+        If True, generate diagnostic plots of DM vs z. Default is False.
+
+    Returns
+    -------
+    ndarray
+        Mean cosmic DM values in pc/cm^3 at each redshift.
+
+    Notes
+    -----
+    Uses `frb.dm.igm.average_DM` for the underlying calculation.
+    The redshifts must be evenly spaced for correct bin assignment.
     """
     # Generate the cosmology
     cosmo = FlatLambdaCDM(
         H0=state.cosmo.H0, Ob0=state.cosmo.Omega_b, Om0=state.cosmo.Omega_m
     )
     #
-    zmax = zeds[-1]
+    dz = zeds[1]-zeds[0]
+    zmax = zeds[-1] + dz/2. # top of uppermost zbin
     nz = zeds.size
-    DMbar, zeval = igm.average_DM(zmax, cosmo=cosmo, cumul=True, neval=nz + 1)
-
-    # Check
-    assert np.allclose(zeds, zeval[1:])
-    # wrong dimension
-    return DMbar[1:].value
+    
+    # this routine offsets zeval by 1 unit. That is, DM[i]
+    # is the mean cosmic DM at zeval[i+1]
+    # we want this for every 0.5, 1.5 etc
+    # hence, we evaluate at 2*nz+1,
+    tempDMbar, zeval = igm.average_DM(zmax, cosmo=cosmo, cumul=True, neval=2*nz + 1)
+    
+    # we now exract the DMbar that we actually want!
+    # the zeroeth DMbar corresponds to zeval[1] which
+    # since we calculate too many, is zeds[1]
+    DMbar = tempDMbar[:-1:2]
+    
+    # performs a test to check if igm.average_DM has been fixed yet or not
+    if np.abs(DMbar[0]/DMbar[1] - 1./3.) > 1e-2:
+        print("DMbar is not scaling as expected! Central bins ",
+                zeds[0]," and ",zeds[1]," have respective DM of ",
+                DMbar[0]," and ",DMbar[1]," . Expected the second ",
+                "value to be ",DMbar[0]*3.," . Perhaps ",
+                igm.average_DM," has been fixed?",DMbar[0]/DMbar[1] - 1./3.)
+        exit()
+    
+    if Plot:
+        plt.figure()
+        plt.xlabel('z')
+        plt.ylabel('DM')
+        dz = zeval[1]-zeval[0]
+        plt.plot(zeds,DMbar,marker='+',label="wanted")
+        plt.plot(zeval+dz,tempDMbar,linestyle=":",marker='x',label="eval")
+        plt.xlim(0,0.1)
+        plt.ylim(0,100)
+        plt.legend()
+        plt.tight_layout()
+        plt.show()
+        
+        plt.xlim(4.9,5.)
+        plt.ylim(4900,5500)
+        plt.tight_layout()
+        plt.show()
+        
+        plt.close()
+    
+    
+    # Remove this check - now replaced as above
+    # assert np.allclose(zeds, zeval[1:])
+    
+    # now returns the actual values, since
+    # we have modified DMbar to exclude the
+    # zero value already
+    return DMbar.value
 
 
 def get_log_mean_DM(zeds: np.ndarray, state: parameters.State):
-    """ Gets mean average z to which can be applied deltas
-        Does NOT assume that the zeds are linearly spaced. 
+    """Compute mean cosmic DM for arbitrarily-spaced redshifts.
 
-    Args:
-        zeds (np.ndarray): redshifts (any order/spacing).
-        state (parameters.State): 
+    Similar to `get_mean_DM` but does not require linearly-spaced redshifts.
+    Slower because it evaluates each redshift independently.
 
-    Returns:
-        np.ndarray: DM_cosmic
+    Parameters
+    ----------
+    zeds : ndarray
+        Redshifts at which to compute mean DM. Can have any spacing.
+    state : parameters.State
+        State object containing cosmological parameters.
+
+    Returns
+    -------
+    ndarray
+        Mean cosmic DM values in pc/cm^3 at each redshift.
     """
     # Generate the cosmology
     cosmo = FlatLambdaCDM(
@@ -154,8 +329,29 @@ def get_log_mean_DM(zeds: np.ndarray, state: parameters.State):
 
 
 def get_C0(z, F, zgrid, Fgrid, C0grid):
-    """ Takes a pre-generated table of C0 values,
-    and calculates the p(DM) distribution based on this """
+    """Interpolate C0 from a pre-computed grid.
+
+    Performs bilinear interpolation on a pre-computed grid of C0 values
+    to obtain C0 for arbitrary (z, F) pairs.
+
+    Parameters
+    ----------
+    z : float
+        Redshift at which to interpolate.
+    F : float
+        Log10 of feedback parameter.
+    zgrid : ndarray
+        Redshift grid points used to build C0grid.
+    Fgrid : ndarray
+        Log10(F) grid points used to build C0grid.
+    C0grid : ndarray
+        2D array of pre-computed C0 values, shape (len(zgrid), len(Fgrid)).
+
+    Returns
+    -------
+    float
+        Interpolated C0 value.
+    """
 
     F = 10 ** F
     Fgrid = 10 ** Fgrid
@@ -187,16 +383,35 @@ def get_C0(z, F, zgrid, Fgrid, C0grid):
 
 
 def get_pDM(z, F, DMgrid, zgrid, Fgrid, C0grid, zlog=False):
-    """ Gets pDM for an arbitrary z value 
-    
-    zlog (bool): True if zs are log-spaced
-                     False if linearly spaced
+    """Compute p(DM|z) for a single redshift using pre-computed tables.
+
+    Parameters
+    ----------
+    z : float
+        Redshift.
+    F : float
+        Log10 of feedback parameter.
+    DMgrid : ndarray
+        DM values at which to evaluate the distribution.
+    zgrid : ndarray
+        Redshift grid for C0 interpolation.
+    Fgrid : ndarray
+        Feedback parameter grid for C0 interpolation.
+    C0grid : ndarray
+        Pre-computed C0 values.
+    zlog : bool, optional
+        If True, use log-spaced z grid. If False (default), use linear spacing.
+
+    Returns
+    -------
+    ndarray
+        Probability density p(DM|z) at each DM grid point.
     """
     C0 = get_C0(z, F, zgrid, Fgrid, C0grid)
     if zlog:
-        DMbar = get_mean_DM(z)
-    else:
         DMbar = get_log_mean_DM(z)
+    else:
+        DMbar = get_mean_DM(z)
     deltas = DMgrid / DMbar  # in units of fractional DM
     pDM = pcosmic(deltas, z, F, C0)
     return pDM
@@ -205,16 +420,31 @@ def get_pDM(z, F, DMgrid, zgrid, Fgrid, C0grid, zlog=False):
 def get_pDM_grid(
     state: parameters.State, DMgrid, zgrid, C0s, verbose=False, zlog=False
 ):
-    """ Gets pDM when the zvals are the same as the zgrid
-    state
-    C0grid: C0 values obtained by convergence
-    DMgrid: range of DMs for which we are generating a histogram
-    zgrid: redshifts. These do not have to be in any particular
-        order or spacing.
-    zlog (bool): True if zs are log-spaced
-                 False if linearly spaced
-    
-    
+    """Generate a 2D grid of p(DM|z) probabilities.
+
+    Computes the probability distribution of cosmic DM for each redshift
+    in the grid. This is the main function for building z-DM grids.
+
+    Parameters
+    ----------
+    state : parameters.State
+        State object containing cosmological and IGM parameters.
+    DMgrid : ndarray
+        DM values (bin centers) for the output grid, in pc/cm^3.
+    zgrid : ndarray
+        Redshift values for the output grid.
+    C0s : ndarray
+        Pre-computed C0 normalization constants for each redshift.
+    verbose : bool, optional
+        If True, print diagnostic information. Default is False.
+    zlog : bool, optional
+        If True, zgrid is log-spaced. If False (default), linearly spaced.
+
+    Returns
+    -------
+    ndarray
+        2D array of shape (len(zgrid), len(DMgrid)) containing normalized
+        p(DM|z) values. Each row sums to 1.
     """
     # added H0 dependency
     if zlog:
@@ -234,15 +464,27 @@ def get_pDM_grid(
     return pDMgrid
 
 
-#### defines DMx (excess contribution) ####
-# family of lognormal curves. These tae either linear or logarithmic arguments,
-# and either do or do not include the 1/x fatcor when converting log to dlin.
-# the DM part is because integral p(logDM)dlogDM = 1
-# DM is normal, logmean and logsigma are natural logs of these parameters
+#### Host galaxy DM contribution (lognormal distribution) ####
+
 def linlognormal_dlin(DM, *args):
-    """ x values are in linear space,
-    args in logspace,
-    returns p dx """
+    """Lognormal probability density in linear DM space.
+
+    Computes p(DM) where DM follows a lognormal distribution with
+    parameters given in natural log space. Includes the 1/DM Jacobian
+    for conversion from log to linear probability density.
+
+    Parameters
+    ----------
+    DM : float or array_like
+        Dispersion measure values (linear scale).
+    *args : tuple
+        (logmean, logsigma) - mean and standard deviation in natural log space.
+
+    Returns
+    -------
+    float or ndarray
+        Probability density p(DM) such that integral p(DM) dDM = 1.
+    """
     logmean = args[0]
     logsigma = args[1]
     logDM = np.log(DM)
@@ -251,10 +493,22 @@ def linlognormal_dlin(DM, *args):
 
 
 def loglognormal_dlog(logDM, *args):
-    """x values, mean and sigma are already in logspace
-    returns p dlogx
-    That is, this function is simply a Gaussian,
-    and the arguments happen to be in log space.
+    """Gaussian probability density in log DM space.
+
+    This is simply a Gaussian distribution where the variable happens to
+    be log(DM). Does not include Jacobian for log-to-linear conversion.
+
+    Parameters
+    ----------
+    logDM : float or array_like
+        Natural log of dispersion measure.
+    *args : tuple
+        (logmean, logsigma, norm) - Gaussian parameters in log space.
+
+    Returns
+    -------
+    float or ndarray
+        Probability density p(log DM) such that integral p(log DM) d(log DM) = 1.
     """
     logmean = args[0]
     logsigma = args[1]
@@ -277,18 +531,38 @@ def plot_mean(zvals, saveas, title="Mean DM"):
 
 
 def get_dm_mask(dmvals, params, zvals=None, plot=False):
-    """ Generates a mask over which to integrate the lognormal
-    Apply this mask as DM[i] = DM[set[i]]*mask[i]
-    DMvals: these give local probabilities of p(DM).
-    We simply assign lognormal values at the midpoints
-    The renormalisation constants then give some idea of the
-    error in this procedure
-    This requires parameters to be passed as a vector
-    
-    
-    dmvals: numpy array storing the dms over which to calculate the mask
-    
-    params [vector, 2]: mean and sigma of the lognormal (log10) distribution
+    """Generate a convolution kernel for host galaxy DM contribution.
+
+    Creates a probability distribution p(DM_host) following a lognormal
+    distribution. This kernel can be convolved with p(DM_cosmic|z) to
+    obtain the full p(DM_extragalactic|z) = p(DM_cosmic + DM_host|z).
+
+    The host DM contribution is redshift-corrected: observed DM_host is
+    reduced by (1+z) relative to the rest-frame value.
+
+    Parameters
+    ----------
+    dmvals : ndarray
+        DM grid values (bin centers) in pc/cm^3.
+    params : array_like
+        [log10_mean, log10_sigma] - lognormal parameters for host DM
+        distribution in log10 space.
+    zvals : ndarray, optional
+        If provided, compute a redshift-dependent mask where host DM is
+        scaled by 1/(1+z). If None, return a single z-independent mask.
+    plot : bool, optional
+        If True, generate diagnostic plots. Default is False.
+
+    Returns
+    -------
+    ndarray
+        If zvals is None: 1D array of shape (len(dmvals),) containing p(DM_host).
+        If zvals is provided: 2D array of shape (len(zvals), len(dmvals)).
+        Each row/vector is normalized to sum to 1.
+
+    Notes
+    -----
+    The mask is designed for discrete convolution: p(DM_EG)[i] = sum_j p(DM_cosmic)[i-j] * mask[j]
     """
 
     if len(params) != 2:
@@ -297,7 +571,7 @@ def get_dm_mask(dmvals, params, zvals=None, plot=False):
             params,
             " (expected log10mean, log10sigma)",
         )
-        exit()
+    
     # expect the params to be log10 of actual values for simplicity
     # this converts to natural log
     logmean = params[0] / 0.4342944619
@@ -307,9 +581,11 @@ def get_dm_mask(dmvals, params, zvals=None, plot=False):
 
     ##### first generates a mask from the lognormal distribution #####
     # in theory allows a mask up to length of the DN values, but will
-    # get truncated
-    # the first value has half weight (0 to 0.5)
-    # the rest have width of 1
+    # get truncated.
+    # The first value has half weight (0dDM to 0.5dDM) and represents
+    # adding no new DM. The rest have width of dDM and represent
+    # adding an integer number of dDM intervals.
+    
     mask = np.zeros([dmvals.size])
     if zvals is not None:
         ndm = dmvals.size
@@ -318,7 +594,8 @@ def get_dm_mask(dmvals, params, zvals=None, plot=False):
         for j, z in enumerate(zvals):
             # with each redshift, we reduce the effects of a 'host' contribution by (1+z)
             # this means that we divide the value of logmean by 1/(1+z)
-            # or equivalently, we multiply the ddm by this factor
+            # or equivalently, we multiply the ddm by this factor, since a
+            # measurable increase of dDM means an intrinsic dDM*(1+z)
             # here we choose the latter, but it is the same
             mask[j, :] = integrate_pdm(ddm * (1.0 + z), ndm, logmean, logsigma)
             mask[j, :] /= np.sum(mask[j, :])  # the mask must integrate to unity
@@ -362,32 +639,41 @@ def get_dm_mask(dmvals, params, zvals=None, plot=False):
 
 
 def integrate_pdm(ddm, ndm, logmean, logsigma, quick=True, plot=False):
-    """
-    Assigns probabilities of DM smearing (e.g. due to the host galaxy contribution)
-    to a histogram in dm space.
-    
-    Two methods: quick (use central values of DM bins), and slow (integrate bins)
-    
-    Arguments:
-    
-    ddm (float) [pc/cm3]: spacing of dm bins
-    
-    ndm (int): number of dm bins. Bins assumed to start at 0
-    
-    logmean: natural logarithm of the mean of the DM distribution
-    
-    logsigma: sigma in natural log space of DM distribution
-    
-    quick (bool): True uses the speedup, False takes things slowly
-    
-    plot (bool): If True, compares quick and slow methods, then exits
-        to avoid generating infinite plots.
-    
-    Returns:
-        mask (np.ndarray)
-    """
-    # do this for the z=0 case
+    """Discretize a lognormal DM distribution onto histogram bins.
 
+    Converts a continuous lognormal probability distribution into discrete
+    bin probabilities for use in convolution operations. Two methods are
+    available: fast (evaluate at bin centers) and slow (integrate each bin).
+
+    Parameters
+    ----------
+    ddm : float
+        Bin spacing in pc/cm^3.
+    ndm : int
+        Number of DM bins. Bins span [0, ndm*ddm] with first bin [0, 0.5*ddm].
+    logmean : float
+        Mean of the lognormal distribution in natural log space.
+    logsigma : float
+        Standard deviation in natural log space.
+    quick : bool, optional
+        If True (default), use fast method evaluating at bin centers.
+        If False, integrate over each bin (slower but more accurate).
+    plot : bool, optional
+        If True, generate comparison plot of quick vs slow methods and exit.
+        Default is False.
+
+    Returns
+    -------
+    ndarray
+        Array of shape (ndm,) containing probability mass in each bin.
+        Not normalized; caller should normalize if needed.
+    """
+    # do this for the z=0 case (handling of z>0 can be performed at
+    # when calling the routine by multiplying dDM values)
+    
+    # normalisation constant of a normal distribution.
+    # Normalisation should probably be redone afterwards
+    # anyway.
     norm = (2.0 * np.pi) ** -0.5 / logsigma
 
     # csum=pdm
@@ -405,6 +691,9 @@ def integrate_pdm(ddm, ndm, logmean, logsigma, quick=True, plot=False):
     if plot or not quick:
         m2 = np.zeros([ndm])
         args = (logmean, logsigma, norm)
+        # performs integration of first bin in log space
+        # Does this for the first bin: probability from
+        # "0" (-logsigma*10) to ddm*0.5
         pdm, err = sp.integrate.quad(
             loglognormal_dlog,
             np.log(ddm * 0.5) - logsigma * 10,
@@ -412,7 +701,9 @@ def integrate_pdm(ddm, ndm, logmean, logsigma, quick=True, plot=False):
             args=args,
         )
         m2[0] = pdm
-
+        
+        # performs the integration for all other bins;
+        # goes from lower to upper bin bounds 
         for i in np.arange(1, ndm):
             # if csum > CSUMCUT:
             #    imax=i
@@ -439,5 +730,6 @@ def integrate_pdm(ddm, ndm, logmean, logsigma, quick=True, plot=False):
         plt.savefig("dm_mask_comparison_plot.pdf")
         plt.close()
         print("Generated plot of dm masks, exiting...")
-        exit()  # quit to avoid infinite plots
+        # Quit to avoid infinite plots. This is just a saftey measure.
+        exit()
     return mask

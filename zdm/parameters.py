@@ -1,3 +1,52 @@
+"""
+Parameter dataclasses for the zdm package.
+
+This module defines the central configuration system for FRB z-DM analysis.
+All model parameters are organized into dataclasses grouped by category:
+
+Parameter Classes
+-----------------
+AnalysisParams
+    Analysis-level settings (grid generation, FRB cuts).
+CosmoParams
+    Cosmological parameters (H0, Omega_m, Omega_b, etc.).
+FRBDemoParams
+    FRB population demographics (source evolution, rates).
+RepeatParams
+    Repeating FRB parameters (rate distribution).
+MWParams
+    Milky Way DM contributions (ISM, halo).
+HostParams
+    Host galaxy DM distribution parameters.
+IGMParams
+    Intergalactic medium parameters (cosmic DM variance).
+WidthParams
+    Intrinsic FRB width distribution parameters.
+ScatParams
+    Scattering timescale distribution parameters.
+EnergeticsParams
+    FRB energy/luminosity function parameters.
+
+State Class
+-----------
+The `State` class aggregates all parameter dataclasses into a single object
+that can be passed to grid and survey calculations. It provides methods for
+updating individual parameters and importing astropy cosmologies.
+
+Example
+-------
+>>> from zdm.parameters import State
+>>> state = State()
+>>> state.cosmo.H0  # Access Hubble constant
+67.66
+>>> state.update_param('gamma', -1.5)  # Update energy distribution slope
+
+Notes
+-----
+All dataclasses inherit from `data_class.myDataClass` which provides
+serialization and parameter metadata handling.
+"""
+
 from IPython import embed
 import numpy as np
 from dataclasses import dataclass, field
@@ -8,9 +57,9 @@ from astropy.cosmology import Planck18
 from zdm import data_class
 
 
-# Analysis parameters
 @dataclass
 class AnalysisParams(data_class.myDataClass):
+    """Analysis-level configuration parameters."""
     NewGrids: bool = field(default=True, metadata={"help": "Generate new z, DM grids?"})
     sprefix: str = field(
         default="Std",
@@ -19,10 +68,24 @@ class AnalysisParams(data_class.myDataClass):
             + "Std: faster - fine for max likelihood calculations, not as pretty"
         },
     )
+    min_lat: float = field(
+        default=-1.0,
+        metadata={
+            "help": "Discard FRBs below this absolute galactic latitude",
+            "unit": "Degrees"
+        }
+    )
+    DMG_cut: float = field(
+        default=None,
+        metadata={
+            "help": "Discard FRBs above this DMG",
+            "unit": "pc / cm3"
+        }
+    )
 
-# Cosmology parameters
 @dataclass
 class CosmoParams(data_class.myDataClass):
+    """Cosmological parameters for Lambda CDM universe."""
     H0: float = field(
         default=Planck18.H0.value,
         metadata={
@@ -72,9 +135,9 @@ class CosmoParams(data_class.myDataClass):
     )
 
 
-# FRB Demographics -- FRBdemo
 @dataclass
 class FRBDemoParams(data_class.myDataClass):
+    """FRB population demographics parameters."""
     source_evolution: int = field(
         default=0,
         metadata={
@@ -101,15 +164,15 @@ class FRBDemoParams(data_class.myDataClass):
         },
     )
     lC: float = field(
-        default=4.19,
-        metadata={"help": "log10 constant in number per Gpc^-3 yr^-1 at z=0"},
+        default=3.3249,
+        metadata={"help": "log10 constant in number per Mpc^-3 day^-1 at z=0"},
     )
 
 
 
-# FRB Demographics -- repeaters
 @dataclass
 class RepeatParams(data_class.myDataClass):
+    """Parameters for repeating FRB population modeling."""
     lRmin: float = field(
         default=-3.,
         metadata={'help': 'Minimum repeater rate',
@@ -130,8 +193,8 @@ class RepeatParams(data_class.myDataClass):
                   })
     RC: float = field(
         default = 1e-2,
-        metadata={'help': 'Constant repeater density',
-                  'unit': 'Repeaters day / Gpc^-3',
+        metadata={'help': 'Constant repeater density. Gets calculated by code.',
+                  'unit': 'Repeaters / Mpc^-3',
                   'Notation': '$C_R$',
                   })
     RE0: float = field(
@@ -141,24 +204,33 @@ class RepeatParams(data_class.myDataClass):
                   'Notation': '$E_R$',
                   })
                   
-
-# Galactic parameters
 @dataclass
 class MWParams(data_class.myDataClass):
+    """Milky Way DM contribution parameters (ISM and halo)."""
     ISM: float = field(
         default=35.,
         metadata={'help': 'Assumed DM for the Galactic ISM',
                   'unit': 'pc cm$^{-3}$',
         })
+    logu: bool = field(
+        default=False,
+        metadata={'help': 'Use log normal distributions for DMG values'}
+    )
     sigmaDMG: float = field(
-        default=0.5,
+        default=0.0,
         metadata={'help': 'Fractional uncertainty in DM from Galactic ISM',
                   'unit': '',
+        })
+    sigmaHalo: float = field(
+        default=15.0,
+        metadata={'help': 'Uncertainty in DM from Galactic Halo',
+                  'unit': 'pc cm$^{-3}$',
         })
     halo_method: int = field(
         default=0,
         metadata={'help': '0: Uniform halo' +
-                            '1: Directionally dependent halo (Yamasaki and Totani 2020)'
+                          '1: Directionally dependent halo (Yamasaki and Totani 2020)' +
+                          '2: Das+ 2021'
         })
     DMhalo: float = field(
         default=50.,
@@ -167,9 +239,9 @@ class MWParams(data_class.myDataClass):
                   'Notation': '{\\rm DM}_{\\rm halo}',
         })
 
-# Host parameters -- host
 @dataclass
 class HostParams(data_class.myDataClass):
+    """Host galaxy DM contribution distribution parameters."""
     lmean: float = field(
         default=2.16,
         metadata={
@@ -188,9 +260,9 @@ class HostParams(data_class.myDataClass):
     )
 
 
-# IGM parameters
 @dataclass
 class IGMParams(data_class.myDataClass):
+    """Intergalactic medium parameters for cosmic DM distribution."""
     logF: float = field(
         default=np.log10(0.32),
         metadata={
@@ -201,11 +273,25 @@ class IGMParams(data_class.myDataClass):
     )
 
 
-# FRB intrinsic width parameters
 @dataclass
 class WidthParams(data_class.myDataClass):
+    """FRB intrinsic width distribution parameters."""
+    WidthFunction: int = field(
+        default=2,
+        metadata={
+            "help": "ID of function to describe width distribution. 0: log-constant, 1:log-normal, 2: half-lognormal",
+            "unit": "",
+            "Notation": "",
+        },
+    )
+    Wmethod: int = field(
+        default=2, 
+        metadata={'help': "Code for width method. 0: ignore it (all 1ms), 1: intrinsic lognormal, 2: include scattering, 3: scat & z-dependence, 4: specific FRB", 
+                  'unit': '', 
+                  'Notation': '',
+                  })
     Wlogmean: float = field(
-        default=1.70267,
+        default=-0.29,
         metadata={
             "help": "$\log_{10}$ mean of intrinsic width distribution in ms",
             "unit": "ms",
@@ -213,7 +299,7 @@ class WidthParams(data_class.myDataClass):
         },
     )
     Wlogsigma: float = field(
-        default=0.899148,
+        default=0.65,
         metadata={
             "help": "$\log_{10}$ sigma of intrinsic width distribution in ms",
             "unit": "ms",
@@ -228,22 +314,41 @@ class WidthParams(data_class.myDataClass):
             "Notation": "w_{\\rm min}",
         },
     )
-
-    Wbins: int = field(
-        default=5,
+    WNbins: int = field(
+        default=12,
         metadata={"help": "Number of bins for FRB width distribution", "unit": ""},
     )
-    Wscale: int = field(
-        default=3.5,
-        metadata={"help": "Log-scaling of bins for width distribution", "unit": ""},
+    WNInternalBins: int = field(
+        default=1000,
+        metadata={
+            "help": "Number of internal bins to use for calculation purposes in numerical estimates of the width distribution",
+            "unit": "",
+            "Notation": "",
+        },
+    )
+    WMin: int = field(
+        default=0.01,
+        metadata={"help": "Minimum width value to model", "unit": "ms"},
+    )
+    WMax: int = field(
+        default=100,
+        metadata={"help": "Maximum width value to model", "unit": "ms"},
     )
 
 
-# FRB intrinsic scattering parameters
 @dataclass
 class ScatParams(data_class.myDataClass):
+    """Scattering timescale distribution parameters."""
+    ScatFunction: int = field(
+        default=2,
+        metadata={
+            "help": "Which scattering function to use. 0: log-constant. 1: lognormal. 2: half log-normal",
+            "unit": "",
+            "Notation": "",
+        },
+    )
     Slogmean: float = field(
-        default=0.7,
+        default=-1.3,
         metadata={
             "help": "Mean of log-scattering distribution at 600\,Mhz",
             "unit": "ms",
@@ -251,15 +356,23 @@ class ScatParams(data_class.myDataClass):
         },
     )
     Slogsigma: float = field(
-        default=1.9,
+        default=0.2,
         metadata={
             "help": " Standard deviation of log-scattering distribution at 600\,MHz ",
             "unit": "ms",
             "Notation": "\log \sigma_{s}",
         },
     )
+    Smaxsigma: float = field(
+        default=3.,
+        metadata={
+            "help": " Multiple of the Slogsigma out to which to model the width distribution ",
+            "unit": "",
+            "Notation": "N_{\sigma_{s}}",
+        },
+    )
     Sfnorm: float = field(
-        default=600,
+        default=1000,
         metadata={
             "help": "Frequency of scattering width",
             "unit": "MHz",
@@ -274,11 +387,27 @@ class ScatParams(data_class.myDataClass):
             "Notation": "\lambda",
         },
     )
+    ScatDist: int = field(
+        default=2,
+        metadata={
+            "help": "Method for describing scattering distribution. 0 log uniform, 1 is lognormal, 2 upper lognormal",
+            "unit": "",
+            "Notation": "",
+        },
+    )
+    Sbackproject: bool = field(
+        default=False,
+        metadata={
+            "help": "If TRUE, calculate internal arrays to estimate p(tau|w,DM,z)",
+            "unit": "",
+            "Notation": "",
+        },
+    )
 
 
-# FRB Energetics -- energy
 @dataclass
 class EnergeticsParams(data_class.myDataClass):
+    """FRB energy/luminosity function parameters."""
     lEmin: float = field(
         default=30.0,
         metadata={
@@ -320,9 +449,43 @@ class EnergeticsParams(data_class.myDataClass):
 
 
 class State(data_class.myData):
-    """Initialize the full state for the analysis
-    with the default parameters
+    """Central configuration object containing all model parameters.
 
+    The State class aggregates all parameter dataclasses into a single object
+    that is passed to Grid, Survey, and other components. It provides dictionary-like
+    access to parameter groups and methods for updating parameters.
+
+    Attributes
+    ----------
+    analysis : AnalysisParams
+        Analysis-level settings.
+    cosmo : CosmoParams
+        Cosmological parameters.
+    FRBdemo : FRBDemoParams
+        FRB population parameters.
+    rep : RepeatParams
+        Repeater parameters.
+    MW : MWParams
+        Milky Way parameters.
+    host : HostParams
+        Host galaxy parameters.
+    IGM : IGMParams
+        IGM parameters.
+    width : WidthParams
+        Width distribution parameters.
+    scat : ScatParams
+        Scattering parameters.
+    energy : EnergeticsParams
+        Energy function parameters.
+
+    Example
+    -------
+    >>> state = State()
+    >>> state.cosmo.H0
+    67.66
+    >>> state['cosmo'].H0  # Dictionary-style access
+    67.66
+    >>> state.update_param('gamma', -1.5)
     """
 
     def __init__(self):
@@ -330,6 +493,7 @@ class State(data_class.myData):
         self.set_params()
 
     def set_dataclasses(self):
+        """Initialize all parameter dataclass instances with defaults."""
         self.scat = ScatParams()
         self.width = WidthParams()
         self.MW = MWParams()
@@ -340,8 +504,21 @@ class State(data_class.myData):
         self.IGM = IGMParams()
         self.energy = EnergeticsParams()
         self.rep = RepeatParams()
+        self.photo=PhotometricParams()
 
-    def update_param(self, param:str, value):
+    def update_param(self, param: str, value):
+        """Update a single parameter by name.
+
+        Automatically finds which dataclass contains the parameter and
+        updates it. Handles special cases like H0 updating Omega_b.
+
+        Parameters
+        ----------
+        param : str
+            Parameter name (e.g., 'H0', 'gamma', 'lEmax').
+        value : any
+            New value for the parameter.
+        """
         # print(self.params)
         DC = self.params[param]
         setattr(self[DC], param, value)
@@ -353,11 +530,12 @@ class State(data_class.myData):
                 )
 
     def set_astropy_cosmo(self, cosmo):
-        """Slurp the values from an astropy Cosmology object
-        into our format
+        """Import cosmological parameters from an astropy Cosmology object.
 
-        Args:
-            cosmo (astropy.cosmology): [description]
+        Parameters
+        ----------
+        cosmo : astropy.cosmology.Cosmology
+            Astropy cosmology object (e.g., Planck18, WMAP9).
         """
         self.cosmo.H0 = cosmo.H0.value
         self.cosmo.Omega_lambda = cosmo.Ode0
@@ -365,3 +543,15 @@ class State(data_class.myData):
         self.cosmo.Omega_b = cosmo.Ob0
         self.cosmo.Omega_b_h2 = cosmo.Ob0 * (cosmo.H0.value / 100.0) ** 2
         return
+
+################################################################################
+@dataclass
+class PhotometricParams(data_class.myDataClass):
+    
+    smearing:bool =field(default=False)
+
+    sigma:float =field(default=0.035)
+
+    sigma_width:int =field(default=6)
+
+
