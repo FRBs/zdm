@@ -61,7 +61,7 @@ def plot_grid(
     colorbar=True,
     ytic=True,
     pval=None,
-    ks_stat=None
+    ks_stat=1.
 ):
     """
     Very complicated routine for plotting 2D zdm grids 
