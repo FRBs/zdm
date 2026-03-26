@@ -59,7 +59,9 @@ def plot_grid(
     it =None,
     legend=True,
     colorbar=True,
-    ytic=True
+    ytic=True,
+    pval=None,
+    ks_stat=None
 ):
     """
     Very complicated routine for plotting 2D zdm grids 
@@ -114,6 +116,7 @@ def plot_grid(
         c_cmap (string): Name of colormap used to plot "Acont" contours
         cont_clrs (float, np.ndarray): list of colors in colourmap to use for contours
     """
+    
     if H0 is None:
         H0 = cos.cosmo.H0
     if cmap is None:
@@ -349,6 +352,12 @@ def plot_grid(
     #print (ytlabels[0 :: every])
     #kljasdf
     plt.yticks(ytvals[0 :: every], ytlabels[0 :: every])
+
+
+    # write pval and ks stat on plot if given
+    if pval is not None and ks_stat is not None:
+        plt.text(0.05, 0.95, f"p-value: {pval:.3g}", transform=plt.gca().transAxes, #  KS stat: {ks_stat:.3g}
+                 fontsize=10, verticalalignment='top', bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
     
     
 
