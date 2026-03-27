@@ -54,7 +54,14 @@ def plot_grid(
     othergrids=None,
     othernames=None,
     c_cmap = None,
-    cont_clrs = None
+    cont_clrs = None,
+    myaxes=None,
+    it =None,
+    legend=True,
+    colorbar=True,
+    ytic=True,
+    pval=None,
+    ks_stat=1.
 ):
     """
     Very complicated routine for plotting 2D zdm grids 
@@ -109,6 +116,7 @@ def plot_grid(
         c_cmap (string): Name of colormap used to plot "Acont" contours
         cont_clrs (float, np.ndarray): list of colors in colourmap to use for contours
     """
+    
     if H0 is None:
         H0 = cos.cosmo.H0
     if cmap is None:
@@ -126,7 +134,7 @@ def plot_grid(
         plt_dicts = [plt_dicts]
 
     if Aconts:
-        linestyles = ['--', '-.', ':', '-']
+        linestyles = ['--', '-', ':', '-.']
         if c_cmap is None:
             c_cmap = cmr.arctic
         else:
@@ -180,10 +188,12 @@ def plot_grid(
         axx = plt.axes(rect_1Dx)
         axy = plt.axes(rect_1Dy)
         acb = plt.axes(rect_cb)
-    else:
+    elif myaxes is None:
         fig,ax1 = plt.subplots()
+    elif myaxes is not None:
+        axiis = myaxes[it]
     
-    plt.sca(ax1)
+        plt.sca(axiis)
     
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
@@ -339,7 +349,17 @@ def plot_grid(
     ytvals[-1] *= 0.999 # just allows it to squeeze on
     ytlabels = np.linspace(0.,dmvals[0]+dmvals[-1],dmvals.size+1)
     every = int(dmvals.size / 5)
+    #print (ytlabels[0 :: every])
+    #kljasdf
     plt.yticks(ytvals[0 :: every], ytlabels[0 :: every])
+
+
+    # write pval and ks stat on plot if given
+    if pval is not None and ks_stat is not None:
+        plt.text(0.05, 0.95, f"p-value: {pval:.3g}", transform=plt.gca().transAxes, #  KS stat: {ks_stat:.3g}
+                 fontsize=10, verticalalignment='top', bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
+    
+    
 
     im = plt.imshow(
         zDMgrid.T, cmap=cmap, origin="lower", interpolation="None", aspect=aspect
@@ -351,7 +371,7 @@ def plot_grid(
     if Aconts:
         ax = plt.gca()
         cs = ax.contour(
-            zDMgrid.T, levels=alevels, origin="lower", linewidths=2, linestyles=linestyles, colors=cont_clrs
+            zDMgrid.T, levels=alevels, origin="lower", linewidths=1.5, linestyles=linestyles, colors=cont_clrs
             # zDMgrid.T, levels=alevels, **cont_dicts
         )
         cntrs=[cs]
@@ -375,8 +395,8 @@ def plot_grid(
                     #h,=plt.plot([-1e6,-2e6],[-1e6,-2e6],linestyle=styles[i+1], marker=plt_dicts[i+1]['marker'], 
                     #    markeredgewidth=plt_dicts[i+1]['markeredgewidth'], color=cont_colours[i+1],label=othernames[i+1])
                     handles.append(h)
-    
-            plt.legend(handles=handles,loc="lower right")
+            if legend:
+                plt.legend(handles=handles,loc="lower right")
     
     
     ###### gets decent axis labels, down to 1 decimal place #######
@@ -451,12 +471,13 @@ def plot_grid(
         for i in np.arange(nc):
             cstyle = i%4
             j = int(nc - i - 1)
-            plt.plot(np.arange(nz), carray[j, :], label=str(int(conts[j]*100))+"%", color="white",\
+            plt.plot(np.arange(nz), carray[j, :], label=str(int(conts[j]*100))+"%", color="k",\
                     linestyle=cont_styles[cstyle])
-        l = plt.legend(loc="upper left", fontsize=8)
-        # l=plt.legend(bbox_to_anchor=(0.2, 0.8),fontsize=8)
-        for text in l.get_texts():
-            text.set_color("white")
+        if legend:
+            l = plt.legend(loc="lower right", fontsize=8)
+            # l=plt.legend(bbox_to_anchor=(0.2, 0.8),fontsize=8)
+            for text in l.get_texts():
+                text.set_color("k")
 
     if Macquart is not None:
         # Note this is the Median for the lognormal, not the mean
@@ -487,10 +508,11 @@ def plot_grid(
         # plt.plot(zeval,DMEG_median,color='blue',
         #         linewidth=2, ls='--',
         #         label='Macquart relation (median)')
-        l = plt.legend(loc="lower right", fontsize=12)
-        # l=plt.legend(bbox_to_anchor=(0.2, 0.8),fontsize=8)
-        # for text in l.get_texts():
-        # 	text.set_color("white")
+        if legend:
+            l = plt.legend(loc="lower right", fontsize=12)
+            # l=plt.legend(bbox_to_anchor=(0.2, 0.8),fontsize=8)
+            # for text in l.get_texts():
+            # 	text.set_color("white")
 
     # limit to a reasonable range if logscale
     
@@ -521,11 +543,11 @@ def plot_grid(
             OK = np.where(FRBDMs > 0)[0]
             iDMs = FRBDMs / ddm
             iZ = FRBZs / dz
-            plt.plot(iZ[OK], iDMs[OK], 'ro',linestyle="")
-            
-    legend = plt.legend(loc='upper left')
-    # legend = plt.legend(loc='upper left', bbox_to_anchor=(0.0, -0.15), fontsize=12, markerscale=1, ncol=2)
-    # legend.get_frame().set_facecolor('lightgrey')
+            plt.plot(iZ[OK], iDMs[OK], 'bx',linestyle="",alpha=0.5)
+    if legend:
+        legend = plt.legend(loc='lower right')
+        # legend = plt.legend(loc='upper left', bbox_to_anchor=(0.0, -0.15), fontsize=12, markerscale=1, ncol=2)
+        # legend.get_frame().set_facecolor('lightgrey')
 
     if special is not None:
         iDM = special[0] / ddm
@@ -597,18 +619,20 @@ def plot_grid(
                     hvals[i] = xonly[np.where(zvals > Z)[0][0]]
                 axx.plot(FRBZs[OK], hvals, "ro", linestyle="")
     else:
-        cbar = plt.colorbar(im, fraction=0.046, shrink=1.2, aspect=15, pad=0.05)
-        cbar.set_label(label)
+        if colorbar:
+            cbar = plt.colorbar(im, fraction=0.046, shrink=1.2, aspect=15, pad=0.05)
+            cbar.set_label(label)
         plt.tight_layout()
 
     if title is not None:
         plt.title(title)
     
     # checks if we still need the legend
-    h,l = ax.get_legend_handles_labels()
-    if len(h) == 0:
-        # no handles in legend
-        ax.get_legend().remove()
+    if legend:
+        h,l = ax.get_legend_handles_labels()
+        if len(h) == 0:
+            # no handles in legend
+            ax.get_legend().remove()
     if save:
         plt.tight_layout()
         plt.savefig(name, dpi=300, bbox_inches='tight')
@@ -800,7 +824,8 @@ def plot_repeaters_zdist(g,prefix="",zmax=2):
     plt.ylabel('p(z) [a.u.]')
     plt.xlim(0,zmax)
     plt.ylim(0,None)
-    plt.legend()
+    if legend:
+        plt.legend()
     plt.tight_layout()
     plt.savefig(prefix+"repeater_pz.png")
     plt.close()

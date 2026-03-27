@@ -258,6 +258,14 @@ class HostParams(data_class.myDataClass):
             "Notation": "\sigma_{\\rm host}",
         },
     )
+    n_z: float = field(
+        default=0.0,
+        metadata={
+            "help": "power-law index for redshift evolution of host DM contribution. DM_host(z) = DM_host(z=0) * (1+z)^n_z.",
+            "unit": "dimensionless",
+            "Notation": "n_z",
+        },
+    )
 
 
 @dataclass

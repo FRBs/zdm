@@ -1201,7 +1201,7 @@ class Grid:
             if prev_grid is None:
                 self.smear = pcosmic.get_dm_mask(
                     self.dmvals,
-                    (self.state.host.lmean, self.state.host.lsigma),
+                    (self.state.host.lmean, self.state.host.lsigma, self.state.host.n_z),
                     self.zvals,
                 )
             else:

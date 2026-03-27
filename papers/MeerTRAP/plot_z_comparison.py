@@ -7,18 +7,20 @@ ASKAP/CRACO (estimates), DSA, and CHIME
 import os
 
 from astropy.cosmology import Planck18
-from zdm import cosmology as cos
-from zdm import misc_functions
-from zdm import parameters
-from zdm import survey
-from zdm import pcosmic
-from zdm import iteration as it
-from zdm import loading
-from zdm import io
-from zdm import optical as opt
-
+import importlib.resources as resources
+from zdm.zdm import cosmology as cos
+from zdm.zdm import misc_functions
+from zdm.zdm import parameters
+from zdm.zdm import survey
+from zdm.zdm import pcosmic
+from zdm.zdm import iteration as it
+from zdm.zdm import loading
+from zdm.zdm import io
+from zdm.zdm import optical as opt
+from zdm.zdm import figures
+import pandas as pd
 import numpy as np
-from zdm import survey
+from zdm.zdm import survey
 from matplotlib import pyplot as plt
 from pkg_resources import resource_filename
 
@@ -34,12 +36,12 @@ font = {
         'weight' : 'normal',
         'size'   : defaultsize}
 matplotlib.rc('font', **font)
-
+ 
 
 def main():
     
     # in case you wish to switch to another output directory
-    opdir='zcomparison/'
+    opdir='./'
     
     # approximate best-fit values from recent analysis
     # best-fit from Jordan et al
@@ -47,8 +49,17 @@ def main():
         # approximate best-fit values from recent analysis
         param_dict={'sfr_n': 0.21, 'alpha': 0.11, 'lmean': 2.18, 'lsigma': 0.42, 'lEmax': 41.37, 
                 'lEmin': 39.47, 'gamma': -1.04, 'H0': 70.23, 'halo_method': 0, 'sigmaDMG': 0.0, 'sigmaHalo': 0.0,
-                'lC': -7.61, 'min_lat': 0.0}
+                'lC': -0.761, 'min_lat': 0.0}
         
+        # this lluis found as defaults in Hoffman paper (not all them)
+        #param_dict={'sfr_n': 0.21, 'alpha': 0.92, 'lmean': 2.02, 'lsigma': 0.46, 'lEmax': 41.37, 
+        #        'lEmin': 39.49, 'gamma': -1.16, 'H0': 70.23, 'halo_method': 0, 'sigmaDMG': 0.0, 'sigmaHalo': 0.0,
+        #        'lC': -7.61, 'min_lat': 0.0}
+        
+        
+        # Where does lC come from? Why sfr_n = 0.21? Hoffman+25 finds 0.91. Why H0 = 73? Hoffman+25 finds 58. 
+
+
     else:
         # best fit from James et al
         param_dict={'sfr_n': 1.13, 'alpha': 0.99, 'lmean': 2.27, 'lsigma': 0.55, 'lEmax': 41.26, 
@@ -59,7 +70,7 @@ def main():
         os.mkdir(opdir)
     
     # Initialise surveys and grids
-    sdir = os.path.join(resource_filename('zdm', 'data'), 'Surveys')
+    sdir = '/Users/lmasriba/FRBs/zdm/zdm/data/Surveys'
     names=["MeerTRAPcoherent","DSA","CRAFT_ICS_1300"]
     
     state = parameters.State()
@@ -96,6 +107,7 @@ def main():
     # this is howto use the FRB library to load up known hosts
     if False:
         from frb.galaxies import utils as frb_gal_u
+
         
         # Load up the hosts
         host_tbl, _ = frb_gal_u.build_table_of_hosts(attrs=['redshift'])
@@ -116,7 +128,7 @@ def main():
     for i in np.arange(NDECBINS):
         cname="CHIME_decbin_"+str(i)+"_of_6"
         cnames.append(cname)
-    survey_dir = os.path.join(resource_filename('zdm', 'data'), 'Surveys/CHIME/')
+    survey_dir = '/Users/lmasriba/FRBs/zdm/zdm/data/Surveys/CHIME/'
     css,cgs = loading.surveys_and_grids(survey_names=cnames, init_state=state, rand_DMG=False,sdir = survey_dir, repeaters=True)
     
     # compiles sums over all six declination bins
@@ -136,19 +148,27 @@ def main():
 
     ###### Get list of z and dm for DSA, CRAFT and CHIME localised FRBs #####
     ICS_names=["CRAFT_ICS_892", "CRAFT_ICS_1632"]
-    ics_ss, ics_gs = loading.surveys_and_grids(survey_names=ICS_names, init_state=state)
+    ics_ss, ics_gs = loading.surveys_and_grids(survey_names=ICS_names, sdir=sdir, init_state=state)
 
     dsa_Zs = ss[1].Zs[ss[1].zlist]
     dsa_DMs = ss[1].DMEGs[ss[1].zlist]
 
     ics_Zs = np.array([ss[2].Zs[ss[2].zlist].tolist() + ics_ss[0].Zs[ics_ss[0].zlist].tolist() + ics_ss[1].Zs[ics_ss[1].zlist].tolist()])
     ics_DMs = np.array([ss[2].DMEGs[ss[2].zlist].tolist() + ics_ss[0].DMEGs[ics_ss[0].zlist].tolist() + ics_ss[1].DMEGs[ics_ss[1].zlist].tolist()])
+
+    meerkat_df = pd.read_csv('/Users/lmasriba/FRBs/zdm/papers/lsst/Data/meerkat_mr.txt', delim_whitespace=True, skip_blank_lines=True, comment='#')
+    meerkat_df.columns = ['name',  'DMX', 'zspec', 'RA', 'Dec',  'zspec_err']
+    zzt = np.array(meerkat_df['zspec'].values,dtype=np.float64)
+    dms = np.array(meerkat_df['DMX'].values,dtype=np.float64)
+    
+    zzt = np.append(zzt, 2.148)
+    dms = np.append(dms, 2398.03)
     
 
     ###### plots MeerTRAP zDM figure ###########
-    Zs = [np.array([2.148]), dsa_Zs, None, ics_Zs]
-    DMs = [np.array([2398.03]), dsa_DMs, None, ics_DMs]
-    point_labels = ["FRB 20240304B", None, None, None]
+    Zs = [zzt, dsa_Zs, None, ics_Zs]
+    DMs = [dms, dsa_DMs, None, ics_DMs]
+    point_labels = [None, None, None, None]
 
     # Set colours and styles for plotting contours and FRBs
     cmap = cmr.arctic
@@ -184,8 +204,7 @@ def main():
     name = names[0]
     
     # Do the plotting
-    misc_functions.plot_grid_2(g.rates,g.zvals,g.dmvals,
-        name=opdir+name+"_zDM.pdf",norm=3,log=True,
+    figures.plot_grid(g.rates,g.zvals,g.dmvals,norm=3,log=True,
         label='$\\log_{10} p({\\rm DM}_{\\rm IGM} + {\\rm DM}_{\\rm host},z)$ [a.u.]',
         project=False,ylabel='${\\rm DM}_{\\rm IGM} + {\\rm DM}_{\\rm host}$',
         zmax=3,DMmax=3000, FRBZs=Zs, FRBDMs=DMs, 
@@ -193,6 +212,8 @@ def main():
         plt_dicts=plt_dicts, cont_dicts=cont_dicts,
         Aconts=[0.1],othergrids=[gs[1].rates,crates,gs[2].rates],
         othernames = ["MeerKAT","DSA","CHIME","ASKAP"], 
+        showplot=True,
+        save=False,
         cmap=cmr.prinsenvlag_r)
         #0.01, 0.1,0.5
     
@@ -245,7 +266,8 @@ def main():
     plt.ylim(0,1)
     plt.legend(loc="lower right")
     plt.tight_layout()
-    plt.savefig(opdir+"pz_comparison.pdf")
+    #plt.savefig(opdir+"pz_comparison.pdf")
+    plt.show()
     plt.close()
     
 
