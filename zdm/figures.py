@@ -17,6 +17,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib
 import cmasher as cmr
+from zdm.zdm import pcosmic
 
 from zdm import cosmology as cos
 
@@ -61,7 +62,8 @@ def plot_grid(
     colorbar=True,
     ytic=True,
     pval=None,
-    ks_stat=1.
+    ks_stat=1.,
+    power_host=0.
 ):
     """
     Very complicated routine for plotting 2D zdm grids 
@@ -481,7 +483,7 @@ def plot_grid(
 
     if Macquart is not None:
         # Note this is the Median for the lognormal, not the mean
-        muDMhost = np.log(10 ** Macquart.host.lmean)
+        muDMhost = np.log(10 ** Macquart.host.lmean * (1 + zvals)**power_host)
         sigmaDMhost = np.log(10 ** Macquart.host.lsigma)
         meanHost = np.exp(muDMhost + sigmaDMhost ** 2 / 2.0)
         medianHost = np.exp(muDMhost)
@@ -501,18 +503,18 @@ def plot_grid(
             zeval,
             DMEG_mean,
             color="blue",
-            linewidth=2,
-            label="Macquart relation (mean)",
+            linewidth=1,
+            label=None,
         )
         # removed median, because it is only media of HOST not DM cosmic
         # plt.plot(zeval,DMEG_median,color='blue',
         #         linewidth=2, ls='--',
         #         label='Macquart relation (median)')
-        if legend:
-            l = plt.legend(loc="lower right", fontsize=12)
-            # l=plt.legend(bbox_to_anchor=(0.2, 0.8),fontsize=8)
-            # for text in l.get_texts():
-            # 	text.set_color("white")
+        #if legend:
+        #    l = plt.legend(loc="lower right", fontsize=12)
+        #    # l=plt.legend(bbox_to_anchor=(0.2, 0.8),fontsize=8)
+        #    # for text in l.get_texts():
+        #    # 	text.set_color("white")
 
     # limit to a reasonable range if logscale
     
