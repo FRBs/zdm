@@ -472,7 +472,7 @@ def plot_grid(
         plt.ylim(0, ndm - 1)
         for i in np.arange(nc):
             cstyle = i%4
-            j = int(nc - i - 1)
+            j = int(nc - i - 1) 
             plt.plot(np.arange(nz), carray[j, :], label=str(int(conts[j]*100))+"%", color="k",\
                     linestyle=cont_styles[cstyle])
         if legend:
@@ -483,28 +483,43 @@ def plot_grid(
 
     if Macquart is not None:
         # Note this is the Median for the lognormal, not the mean
-        muDMhost = np.log(10 ** Macquart.host.lmean * (1 + zvals)**power_host)
+        muDMhost = np.log(10 ** Macquart.host.lmean )
         sigmaDMhost = np.log(10 ** Macquart.host.lsigma)
-        meanHost = np.exp(muDMhost + sigmaDMhost ** 2 / 2.0)
-        medianHost = np.exp(muDMhost)
+        meanHost = np.exp(muDMhost + sigmaDMhost ** 2 / 2.0) * (1 + zvals)**power_host
+        medianHost = np.exp(muDMhost)* (1 + zvals)**power_host
         # print(f"Host: mean={meanHost}, median={medianHost}")
         plt.ylim(0, ndm - 1)
         plt.xlim(0, nz - 1)
         zmax = zvals[-1]
         nz = zvals.size
         # DMbar, zeval = igm.average_DM(zmax, cumul=True, neval=nz+1)
-        DM_cosmic = pcosmic.get_mean_DM(zvals, Macquart)
+        DM_cosmic = pcosmic.get_mean_DM(zvals, Macquart,Plot=False)
+        
 
         # idea is that 1 point is 1, hence...
         zeval = zvals / dz
-        DMEG_mean = (DM_cosmic + meanHost) / ddm
-        DMEG_median = (DM_cosmic + medianHost) / ddm
+        #print (power_host)
+        #print (DM_cosmic[-1], meanHost[-1]/(1 + zvals[-1]), medianHost[-1]/(1 + zvals[-1]))
+        #print (ddm)
+        DMEG_mean = (DM_cosmic + meanHost/(1 + zvals)) / ddm
+        DMEG_median = (DM_cosmic + medianHost/(1 + zvals)) / ddm
+        #print (f"Macquart relation: mean={DMEG_mean[0]*ddm}, median={DMEG_median[0]*ddm} at z={zvals[-1]}")
         plt.plot(
             zeval,
             DMEG_mean,
-            color="blue",
-            linewidth=1,
-            label=None,
+            color="purple",
+            linewidth=1.5,
+            label='mean',
+            alpha=0.8,
+        )
+        plt.plot(
+            zeval,
+            DMEG_median,
+            color="purple",
+            linestyle="-.",
+            linewidth=1.5,
+            label='median',
+            alpha=0.8,
         )
         # removed median, because it is only media of HOST not DM cosmic
         # plt.plot(zeval,DMEG_median,color='blue',
