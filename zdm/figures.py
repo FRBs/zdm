@@ -63,7 +63,9 @@ def plot_grid(
     ytic=True,
     pval=None,
     ks_stat=1.,
-    power_host=0.
+    power_host=0.,
+    alpha=None,
+    inbetween=False
 ):
     """
     Very complicated routine for plotting 2D zdm grids 
@@ -193,7 +195,7 @@ def plot_grid(
     elif myaxes is None:
         fig,ax1 = plt.subplots()
     elif myaxes is not None:
-        axiis = myaxes[it]
+        axiis = myaxes
     
         plt.sca(axiis)
     
@@ -362,10 +364,10 @@ def plot_grid(
                  fontsize=10, verticalalignment='top', bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
     
     
-
-    im = plt.imshow(
-        zDMgrid.T, cmap=cmap, origin="lower", interpolation="None", aspect=aspect
-    )
+    if inbetween == False:
+        im = plt.imshow(
+            zDMgrid.T, cmap=cmap, origin="lower", interpolation="None", aspect=aspect, alpha=alpha
+        )
     
     # plots "A"contours (i.e., over "Amplitudes"). Doing so for multiple grids
     # if necessary
@@ -468,18 +470,41 @@ def plot_grid(
     
     # plots contours i there
     if conts:
-        cont_styles=[":","-","--","-."]
+        cont_styles=[":","-",":","--",":"] # just cycles through these
+        cont_clrs = np.repeat('k',len(cont_styles))
         plt.ylim(0, ndm - 1)
         for i in np.arange(nc):
+            labels = str(int(conts[i]*100))+"%" if legend else None
             cstyle = i%4
             j = int(nc - i - 1) 
-            plt.plot(np.arange(nz), carray[j, :], label=str(int(conts[j]*100))+"%", color="k",\
-                    linestyle=cont_styles[cstyle])
+            if inbetween == False:
+                plt.plot(np.arange(nz), carray[j, :], label=labels, color=cont_clrs[j],\
+                    linestyle=cont_styles[cstyle],linewidth=1.5, alpha=1)
+            
+            
+            if inbetween:
+                concol = ['Blue', 'orange', 'g']
+                plt.plot(np.arange(nz), carray[j, :], label=labels, color=concol[it],\
+                    linestyle=cont_styles[cstyle], alpha=1)
+                if conts[i] == 0.16:
+                    ind84 = int(np.where(np.array(conts) == 0.84)[0][0])
+                    kt = int(nc - ind84 -1)
+                    plt.fill_between(np.arange(nz), carray[j, :], carray[kt, :], color=concol[it], alpha=alpha, linestyle='-')
+
+                elif conts[i] == 0.05:
+                    ind95 = int(np.where(np.array(conts) == 0.95)[0][0])
+                    kt = int(nc - ind95 -1)
+                    plt.fill_between(np.arange(nz), carray[j, :], carray[kt, :], color=concol[it], alpha=alpha, linestyle='dotted')
+
+
+
+
         if legend:
             l = plt.legend(loc="lower right", fontsize=8)
             # l=plt.legend(bbox_to_anchor=(0.2, 0.8),fontsize=8)
             for text in l.get_texts():
                 text.set_color("k")
+
 
     if Macquart is not None:
         # Note this is the Median for the lognormal, not the mean
@@ -512,15 +537,15 @@ def plot_grid(
             label='mean',
             alpha=0.8,
         )
-        plt.plot(
-            zeval,
-            DMEG_median,
-            color="purple",
-            linestyle="-.",
-            linewidth=1.5,
-            label='median',
-            alpha=0.8,
-        )
+        #plt.plot(
+        #    zeval,
+        #    DMEG_median,
+        #    color="purple",
+        #    linestyle="-.",
+        #    linewidth=1.5,
+        #    label='median',
+        #    alpha=0.8,
+        #)
         # removed median, because it is only media of HOST not DM cosmic
         # plt.plot(zeval,DMEG_median,color='blue',
         #         linewidth=2, ls='--',
@@ -537,13 +562,16 @@ def plot_grid(
         themax = np.nanmax(zDMgrid)
         themin = int(themax - logrange)
         themax = int(themax)
-        plt.clim(themin, themax)
-    
-    if clim:
-        plt.clim(clim[0], clim[1])
+        if inbetween == False:
+            plt.clim(themin, themax)
+            if clim:
+                plt.clim(clim[0], clim[1])
     
     ##### add FRB host galaxies at some DM/redshift #####
+
+    
     if FRBZs is not None and len(FRBZs) != 0:
+        
         if hasattr(FRBZs[0], "__len__"):
             # we are dealing with a list of lists from multiple surveys
             for i, FRBZ in enumerate(FRBZs):
@@ -554,7 +582,7 @@ def plot_grid(
                     iDMs = FRBDM / ddm
                     iZ = FRBZ / dz
                     OK = np.where(FRBZ > 0)[0]
-                    plt.plot(iZ[OK], iDMs[OK], linestyle="", **plt_dicts[i])
+                    plt.plot(iZ[OK], iDMs[OK], linestyle="" , **plt_dicts[i])
         else:
             # just a single list of values
             OK = np.where(FRBDMs > 0)[0]
@@ -636,10 +664,11 @@ def plot_grid(
                     hvals[i] = xonly[np.where(zvals > Z)[0][0]]
                 axx.plot(FRBZs[OK], hvals, "ro", linestyle="")
     else:
-        if colorbar:
-            cbar = plt.colorbar(im, fraction=0.046, shrink=1.2, aspect=15, pad=0.05)
-            cbar.set_label(label)
-        plt.tight_layout()
+        if inbetween == False:
+            if colorbar:
+                cbar = plt.colorbar(im, fraction=0.046, shrink=1.2, aspect=15, pad=0.05)
+                cbar.set_label(label)
+            plt.tight_layout()
 
     if title is not None:
         plt.title(title)

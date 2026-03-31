@@ -1,0 +1,21 @@
+# r-band magnitudes of FRB hosts from Table D1 of Pastor-Morales et al
+# https://arxiv.org/pdf/2507.05982
+# -ve z means photometric redshift
+# 9999 means no data
+# loc=0 is incoherent detection, 1 is coherent
+# FRB       DMX    zspec   mr     loc   w 
+#
+20000000    000    0.00   00   1    1
+20220224    1055   0.6271  21.63   0    1
+20230125    459    0.3265  22.12   1    1
+#20230503    350    0.32   20.11   0    1 -- photoz
+20230613    427    0.3923  20.132  1    1
+20230808    590    0.3472    22.3    1    0.51
+20230814    349    0.36    22.03   0    1
+20230907    973    0.4638  19.83   0    1
+#20231010    370    0.61   21.24   1    0.52 -- photoz
+20231020    892    0.4775  21.81   0    1
+#20231210    662    0.5    21.19   1    0.81 -- photoz
+#20240211    860.   0.7   99.     99.  99   
+#20250327    900    0.6    99.     99.  99 
+20220222    974    0.853   23.86   1    1
