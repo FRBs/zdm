@@ -8,7 +8,7 @@ import os
 
 from astropy.cosmology import Planck18
 from zdm import cosmology as cos
-from zdm import misc_functions
+from zdm import figures as fig
 from zdm import parameters
 from zdm import survey
 from zdm import pcosmic
@@ -184,7 +184,7 @@ def main():
     name = names[0]
     
     # Do the plotting
-    misc_functions.plot_grid_2(g.rates,g.zvals,g.dmvals,
+    fig.plot_grid(g.rates,g.zvals,g.dmvals,
         name=opdir+name+"_zDM.pdf",norm=3,log=True,
         label='$\\log_{10} p({\\rm DM}_{\\rm IGM} + {\\rm DM}_{\\rm host},z)$ [a.u.]',
         project=False,ylabel='${\\rm DM}_{\\rm IGM} + {\\rm DM}_{\\rm host}$',

@@ -208,7 +208,7 @@ class loudas_model:
     
     """
     
-    def __init__(self,OpticalState=None,fname='p_mr_distributions_dz0.01_z_in_0_1.2.h5',data_dir=None,verbose=False):
+    def __init__(self,OpticalState=None,fname='p_mr_distributions_dz0.01_z_in_0_2.0.h5',data_dir=None,verbose=False):
         """
         Initialise the Loudas model, loading precomputed p(m_r | z) tables.
 
@@ -231,7 +231,6 @@ class loudas_model:
         self.opstate = self.OpticalState.loudas
         
         self.fsfr = self.opstate.fSFR
-        
         
         # checks that cosmology is initialised
         if not cos.INIT:
@@ -263,10 +262,8 @@ class loudas_model:
         # zbins represent ranges. We also calculate z-bin centres
         self.drmag = rmag_centres[1] - rmag_centres[0]
         self.zbins = zbins
-        self.nzbins = zbins.size-1
-        self.czbins = 0.5*(self.zbins[1:] + self.zbins[:-1])
+        self.nzbins = zbins.size # data calculated at the upper point of each bin
         self.logzbins = np.log10(zbins)
-        self.clogzbins = 0.5*(self.logzbins[1:] + self.logzbins[:-1])
         self.rmags = rmag_centres # centres of rmag bins
         self.p_mr_sfr = p_mr_sfr # sfr-weighted p_mr
         self.p_mr_mass = p_mr_mass # mass-weighted p_mr
@@ -322,25 +319,25 @@ class loudas_model:
         
         # gets interpolation coefficients
         lz = np.log10(z)
-        if lz < self.clogzbins[0]:
+        if lz < self.logzbins[0]:
             # sets values equal to that of smallest bin, to avoid interpolation
             i1=0
             i2=1
             k1=1.
             k2=0.
-        elif lz > self.clogzbins[-1]:
+        elif lz > self.logzbins[-1]:
             i1=self.nzbins-2
             i2=self.nzbins-1
             k1=0
             k2=1.
         else:
-            i1 = np.where(lz > self.clogzbins)[0][-1] # gets lowest value where zs are larger
+            i1 = np.where(lz > self.logzbins)[0][-1] # gets lowest value where zs are larger
             i2=i1+1
-            k2 = (lz-self.clogzbins[i1])/(self.clogzbins[i2]-self.clogzbins[i1])
+            k2 = (lz-self.logzbins[i1])/(self.logzbins[i2]-self.logzbins[i1])
             k1 = 1.-k2
         
-        z1=self.czbins[i1]
-        z2=self.czbins[i2]
+        z1=self.zbins[i1]
+        z2=self.zbins[i2]
         
         # the mr distributions are apparent magnitudes
         # hence, we have to interpolate between z-bins using first-order shifting
@@ -408,7 +405,7 @@ class loudas_model:
         
         return pmr
         
-    def load_p_mr_distributions(self,data_dir,fname: str = 'p_mr_distributions_dz0.01_z_in_0_1.2.h5') -> tuple:
+    def load_p_mr_distributions(self,data_dir,fname: str = 'p_mr_distributions_dz0.01_z_in_0_2.0.h5') -> tuple:
         """
         This code originally written by Nick Loudas. Used with permission
         

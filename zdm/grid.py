@@ -970,7 +970,7 @@ class Grid:
                 kDM3 = 0.
                 iDM1 = 0    # dummy
                 iDM3 = 0    # dummy
-                MCDM = self.dmvals[iDM2] + (fDM - 0.5)*self.dDM # upper DM bins
+                MCDM = self.dmvals[iDM2] + (fDM - 0.5)*dDM # upper DM bins
             else:
                 kDM1 = 0.
                 kDM2 = 1.5-fDM

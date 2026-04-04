@@ -474,8 +474,8 @@ def plot_grid(
 
         # idea is that 1 point is 1, hence...
         zeval = zvals / dz
-        DMEG_mean = (DM_cosmic + meanHost) / ddm
-        DMEG_median = (DM_cosmic + medianHost) / ddm
+        DMEG_mean = (DM_cosmic + meanHost/(1+zeval)) / ddm
+        DMEG_median = (DM_cosmic + medianHost/(1+zeval)) / ddm
         plt.plot(
             zeval,
             DMEG_mean,
