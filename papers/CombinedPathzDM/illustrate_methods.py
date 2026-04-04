@@ -20,6 +20,7 @@ from zdm import iteration as it
 from zdm import loading
 from zdm import io
 from zdm import optical as opt
+from zdm import optical_params as op
 from zdm import states
 
 import numpy as np
@@ -83,6 +84,12 @@ def main():
     g=gs[0]
     s=ss[0]
     
+    
+    surveys = ["VLT/FORS2","DESI LIS","PanSTARRS"]
+    means = [26.2,24,21.8]
+    stds = [0.34,0.55,0.54]
+    
+    
     # makes p(z) plot
     if False:
         # longer method - takes a *long* time!
@@ -98,11 +105,13 @@ def main():
     if False:
         make_pm_plot(g,s,ifrb,opdir)
     
-    if True:
+    if False:
         make_pzgmr_plot(g,s,ifrb,opdir,Field=True)
     
-    
     if True:
+        make_pzgu_plot(g,s,ifrb,opdir,surveys,means,stds)
+    
+    if False:
         test_field(opdir)
 
     
@@ -162,8 +171,46 @@ def test_field(opdir):
     plt.tight_layout()
     plt.savefig(opdir+"pzgm_field.png")
     plt.close()
+
+def make_pzgu_plot(g,s,ifrb,opdir,surveys,means,widths,Field=False):
+    """
+    makes a plot of p(z) given mr
     
-    
+    Args:
+        g: grid object
+        s: survey object corresponding to the grid
+        ifrb: which FRB in the survey to use
+        surveys: list of strigns giving optical names
+        means: array of means of P(O|m) of optical images
+        widths: array of widths of P(O|m) of optical images
+        
+    """
+    plt.figure()
+    plt.xlim(0,1)
+    plt.ylim(0,4)
+    styles = ["-","--",":","-."]
+    for i,label in enumerate(surveys):
+        opstate = op.OpticalState()
+        opstate.id.pU_mean = means[i]
+        opstate.id.pU_width = widths[i]
+        model = opt.marnoch_model(opstate)
+        wrapper = opt.model_wrapper(model,g.zvals)
+        DMEG = s.DMEGs[ifrb]
+        wrapper.init_path_raw_prior_Oi(DMEG,g)
+        #mr =  #  from most likely host galaxy of FRB[3]
+        pzgu = wrapper.get_pz_g_U()
+        print("For image ",label," p(U) is ",wrapper.estimate_unseen_prior())
+        
+        pzgu /= (g.zvals[1]-g.zvals[0])
+        plt.plot(g.zvals, pzgu, label=label,linestyle = styles[i%4])
+        
+    plt.xlabel("$z$")
+    plt.ylabel("$P(z|U)$")
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(opdir+"pzgu.png")
+    plt.close()
+
 def make_pzgmr_plot(g,s,ifrb,opdir,Field=False):
     """
     makes a plot of p(z) given mr
@@ -297,9 +344,5 @@ def make_pz_plot(glist,slist,ifrb,opdir):
     plt.savefig(opdir+"pz.png")
     plt.close()
     
-    
-    
-    
-        
     
 main()

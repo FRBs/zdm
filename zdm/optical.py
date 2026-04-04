@@ -1060,8 +1060,11 @@ class model_wrapper:
         # save pz for later
         self.pz = pz
         
-        # p_mr_z is initialised via init_zmapping
-        priors = np.sum(self.p_mr_z * pz,axis=1) # sums over z
+        # p_mr_z is initialised via init_zmapping. This creates a
+        # joint 2D distribution in mr and z
+        self.pmrz = self.p_mr_z * pz
+        
+        priors = np.sum(self.pmrz,axis=1) # sums over z
         
         # stores knowledge of the DM used to calculate the priors
         self.prior_DM = DM
@@ -1069,14 +1072,31 @@ class model_wrapper:
         
         pU = pUgm(self.AppMags,self.pU_mean,self.pU_width)
         
+        # this calculation acts in 1D - over magnitude
         self.priors = self.raw_priors * (1.-pU)
         self.PUdist = self.raw_priors * pU
-        self.PU = np.sum(self.PUdist)
+        self.PU = np.sum(self.PUdist) # sum is over magnitude
+        
+        # sums over magnitude axis to give p(z|unseen)
+        self.pzgU = np.sum(self.pmrz.T*pU,axis=1)
+        self.pzgU /= np.sum(self.pzgU)
         
         # sets the PATH user function to point to its own
         pathpriors.USR_raw_prior_Oi = self.path_raw_prior_Oi
         
         #return priors
+    
+    def get_pz_g_U(self):
+        """
+        returns redshift distribution given the true host is unseen
+        
+        Args:
+            None
+            
+        Returns:
+            pzgU (np.ndarray): probability distribution in redshift.
+        """
+        return self.pzgU
     
     def get_posterior(self, grid, DM):
         """
