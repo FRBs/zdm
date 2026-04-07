@@ -38,8 +38,107 @@ from zdm import cosmology as cos
 from scipy.stats import poisson
 import scipy.stats as st
 from zdm import repeat_grid as zdm_repeat_grid
+from zdm import optical_numerics as on
 
+def get_joint_path_zdm_likelihoods(g, s, wrapper, norm=True, psnr=True, Pn=False, pNreps=True, ptauw=False, pwb=False):
+    """
+    Compute total log-likelihood for a grid given, survey, and optical data.
 
+    This is the main likelihood function used for parameter estimation.
+    It combines multiple likelihood components depending on what data
+    is available (DM only, localized z, SNR, etc.).
+    
+    The likelihood returned is the log10 likelihood, summed over all FRBs, of
+    P(optical data,radio data) / P(optical data | true host unobserved)
+    since that denominator is a constant which is independent of all parameters
+    
+
+    Parameters
+    ----------
+    grid : Grid or repeat_Grid
+        Grid object containing model predictions.
+    s : Survey
+        Survey object containing FRB observations.
+    norm : bool, optional
+        If True, include normalization terms. Default True.
+    psnr : bool, optional
+        If True, include SNR distribution likelihood. Default True.
+    Pn : bool, optional
+        If True, include Poisson likelihood for total number. Default False.
+    pNreps : bool, optional
+        If True, include number of repeaters likelihood. Default True.
+    ptauw : bool, optional
+        If True, include p(tau, width) likelihood. Default False.
+    pwb : bool, optional
+        If True, include width/beam likelihood. Default False.
+
+    Returns
+    -------
+    float
+        Total log-likelihood value.
+    
+    """
+    
+    # gets p(z|DM) for all FRBs, regardless of whether or not they are localised
+    # does this for both reepaters and non-repeaters if it's a repeat grid
+    # the returned arrays whebn PATH = True are dimensions NZ x NFRB
+    
+    if isinstance(g, zdm_repeat_grid.repeat_Grid):
+        # singles
+        ops = calc_likelihoods_1D(g, s, norm=norm, psnr=psnr,dolist=0, grid_type=1,
+                            Pn=Pn, pNreps=pNreps, ptauw=ptauw, pwb=pwb,PATH=True)
+        
+        # repeaters
+        opz = calc_likelihoods_1D(g, s, norm=norm, psnr=psnr,dolist=0, grid_type=2,
+                            Pn=Pn, ptauw=ptauw,pwb=pwb,PATH=True)             
+    else:
+        op = calc_likelihoods_1D(g, s, norm=norm, psnr=psnr,dolist=0, Pn=Pn,
+                                    ptauw=ptauw,pwb=pwb, PATH=True)
+        
+        # probabilities of radio properties given dm. 1D array of length NFRB
+        psnrbwdm = op["psnrbwdm"]
+        
+        # redshift distribution gives radio properties. NZ x NFRB
+        pzgsnrbwdm = op["pzgsnrbwdm"]
+        
+        # we now iterate over each FRB.
+        # gets frblist from survey
+        frblist = s.frbs["TNS"].values
+        
+        path_results = on.calc_path_priors(frblist,[s],[g],[wrapper],usemodel=True,
+                                            failOK=True,doz=True)
+        
+        # this tells us which FRBs have valid host galaxy data
+        #print(path_results["OK"])
+        
+        # we now construct total likelihoods
+        jpath=0
+        lltot = 0.
+        # search over indices with PATH results
+        npath = len(path_results["OK"])
+        DoPath=True
+        for i in np.arange(s.NFRB):
+            ll = np.log10(psnrbwdm[i]) # FRB data
+            # constructs p(z,m) if appropriate
+            if DoPath and i == path_results["OK"][jpath]:
+                # this has P(x|O) from PATH
+                
+                # iterates over possible hosts. Gives P(x|O) P(O)/rho(m). * p(z)/p_f(z) if needed. Then adds P(U)
+                ptot = 0.
+                for j,PO in enumerate(path_results["PO"][jpath]):
+                    p = path_results["PxO"][jpath][j] * PO
+                    if j==0:
+                        # multiplies by pz/pf ratio. Assumes most likely host has z. This is WRONG!!!
+                        p *= path_results["pz"][jpath] / path_results["pf"][jpath]
+                    ptot += p
+                ptot += path_results["PU"][jpath]
+                ll += np.log10(ptot)
+                jpath += 1 # increment to search for next one!
+                if jpath == npath:
+                    DoPath=False
+            lltot += ll
+        return lltot
+        
 def get_log_likelihood(grid, s, norm=True, psnr=True, Pn=False, pNreps=True, ptauw=False, pwb=False):
     """Compute total log-likelihood for a grid given survey data.
 
@@ -734,6 +833,28 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=True,
     
     # if we're in PATH mode, do this first
     if PATH:
+        # perform some calculation.
+        # What we want is p(z|snr,b,w,DM), p(snr,b,w|DM), and p(DM)
+        # What we have is p(snr,b,w|z,DM), p(z|DM), and p(DM)
+        # We begin noting that p(z,snr,b,w|DM) = p(z|snr,b,w,DM) * p(snr,b,w|DM) ... (1)
+        # We calculate p(z,snr,b,w|DM) = p(snr,b,w|z,DM) * p(z|DM) ... (2)
+        pzsnrbwgdm = PATH_OP["psnrbwgzdm"] * PATH_OP["pzgdm"] #dimensions: NZ x NFRB
+        
+        # and also p(snr,b,w|dm) = \int p(z,snr,b,w|DM) dz ....(3)
+        psnrbwgdm = np.sum(pzsnrbwgdm,axis=0) # sums over z-axis. #dimensions: NFRB
+        
+        # hence, we find from (1) that p(z|snr,b,w,DM) = p(z,snr,b,w|DM) / p(snr,b,w|DM) ...(4)
+        pzgsnrbwdm = pzsnrbwgdm/psnrbwgdm
+        
+        # probability of snr, beam, width, and DM, summed over redshift
+        psnrbwdm = psnrbwgdm * PATH_OP["pdm"]
+        
+        # add to dict
+        PATH_OP["psnrbwdm"] = psnrbwdm
+        PATH_OP["psnrbwgdm"] = psnrbwgdm
+        PATH_OP["pzsnrbwgdm"] = pzsnrbwgdm
+        PATH_OP["pzgsnrbwdm"] = pzgsnrbwdm
+    
         return PATH_OP
     
     # determines which list of things to return

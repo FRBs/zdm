@@ -3,6 +3,9 @@ This script uses CRAFT surveys to show how all the components
 of the likelihood calculation are unpacked.
 
 It uses calls to calc_likelihoods[1/2]D with different values of dolist
+
+This now also illustrates how to use it to calculate p(z|DM) components
+for joint optimisation with PATH
 """
 import os
 import time

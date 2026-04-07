@@ -160,7 +160,8 @@ def make_cdf(xs,ys,ws,norm=True):
     return cdf
 
     
-def calc_path_priors(frblist,ss,gs,wrappers,verbose=True,usemodel=True,P_U=0.1):
+def calc_path_priors(frblist,ss,gs,wrappers,verbose=True,usemodel=True,P_U=0.1,
+                    failOK=False,doz=True,field=None):
     """
     Run PATH on a list of FRBs and return priors, posteriors, and P_U values.
 
@@ -195,7 +196,14 @@ def calc_path_priors(frblist,ss,gs,wrappers,verbose=True,usemodel=True,P_U=0.1):
     P_U : float, optional
         Fixed prior probability that the host galaxy is undetected. Only
         used when ``usemodel=False``. Defaults to 0.1.
-
+    failOK : bool, optional
+        If True, allows failed attempts to find an FRB - simply skips cases where
+        no FRB data could be found
+    doz : bool, optional
+        If true, calculate p(z) for both field and host galaxies for these FRBs
+    fiedd: optical.Field object, optional
+        Option to pass existing field object for speedup purposes
+    
     Returns
     -------
     nfitted : int
@@ -236,6 +244,7 @@ def calc_path_priors(frblist,ss,gs,wrappers,verbose=True,usemodel=True,P_U=0.1):
     # new version recording one list per FRB. For max likelihood functionality
     allObsMags = []
     allPOx = []
+    allPxO = []
     allPO = []
     allMagPriors = []
     
@@ -247,6 +256,11 @@ def calc_path_priors(frblist,ss,gs,wrappers,verbose=True,usemodel=True,P_U=0.1):
     
     frbs=[]
     dms=[]
+    
+    OKlist = []
+    
+    allpz = []
+    allpf = []
     
     for i,frb in enumerate(frblist):
         # interates over the FRBs. "Do FRB"
@@ -295,46 +309,64 @@ def calc_path_priors(frblist,ss,gs,wrappers,verbose=True,usemodel=True,P_U=0.1):
             MagPriors = wrapper.priors
         else:
             MagPriors = None
-            
-        # defunct now
-        #mag_limit=26  # might not be correct. TODO! Should be in FRB object
         
         # calculates unseen prior
         if usemodel:
             P_U = wrapper.estimate_unseen_prior()
-        #MagPriors[:] = 1./len(MagPriors) # log-uniform priors when no model used
         
+        result = run_path(frb,usemodel=usemodel,P_U = P_U, failOK = failOK)
+        if result["Error"]:
+            if failOK:
+                continue
+            else:
+                print("run_path failed unexpectedly, quitting...")
+                exit()
         
-        P_O,P_Ox,P_Ux,ObsMags,ptbl = run_path(frb,usemodel=usemodel,P_U = P_U)
+        OKlist.append(i)
         
-        
+        if doz:
+            # calculate p(z) for model galaxies for result["mags"]
+            # we assume it's the most likely galaxy that has a redshift.
+            # this functionality NEEDS to change!
+            if field is None:
+                field = op.Field()
+            
+            if s.Zs[imatch] > 0.:
+                pz = wrapper.get_pz_g_mr(result["mags"][0],s.Zs[imatch])
+                pf = field.get_pzgm(result["mags"][0],s.Zs[imatch])
+            else:
+                pz=1. # simply unity, i.e. meaningless
+                pf=1.
+            allpz.append(pz)
+            allpf.append(pf)
         # replaces PO value with raw PO value, i.e. excluding the driver sigma
         if usemodel:
-            P_O = wrapper.path_base_prior(ObsMags)
+            result["PO"] = wrapper.path_base_prior(result["mags"])
         
         if i==0:
-            allgals = ptbl
+            allgals = result["ptbl"]
         else:
-            allgals = pandas.concat([allgals,ptbl], ignore_index=True)
+            allgals = pandas.concat([allgals,result["ptbl"]], ignore_index=True)
         
-        ObsMags = np.array(ObsMags)
+        ObsMags = np.array(result["mags"])
         
         # new version creating a list of lists
         allObsMags.append(ObsMags)
-        allPOx.append(P_Ox)
-        allPO.append(P_O)
+        allPOx.append(result["POx"])
+        allPxO.append(result["PxO"])
+        allPO.append(result["PO"])
         allMagPriors.append(MagPriors)
         
         sumPU += P_U
-        sumPUx += P_Ux
+        sumPUx += result["PUx"]
         allPU.append(P_U)
-        allPUx.append(P_Ux)
+        allPUx.append(result["PUx"])
     
-    subset = allgals[['frb','mag','VLT_FORS2_R']].copy()
-    
+    # once-off code for exporting
+    #subset = allgals[['frb','mag','VLT_FORS2_R']].copy()
     # saves all galaxies
-    if not os.path.exists("allgalaxies.csv"):
-        subset.to_csv("allgalaxies.csv",index=False)
+    #if not os.path.exists("allgalaxies.csv"):
+    #    subset.to_csv("allgalaxies.csv",index=False)
     
     
     # creates a dict to hold results
@@ -345,12 +377,16 @@ def calc_path_priors(frblist,ss,gs,wrappers,verbose=True,usemodel=True,P_U=0.1):
     results["ObsMags"] = allObsMags
     results["PO"] = allPO
     results["POx"] = allPOx
+    results["PxO"] = allPxO
     results["PU"] = allPU
     results["PUx"] = allPUx
     results["sumPU"] = sumPU
     results["sumPUx"] = sumPUx
     results["frbs"] = frbs
     results["dms"] = dms
+    results["OK"] = OKlist
+    results["pz"] = allpz
+    results["pf"] = allpf
     
     return results
 
@@ -753,13 +789,13 @@ def get_cand_properties(frblist):
         all_candidates.append(candidates)
     return all_candidates
 
-def run_path(name,P_U=0.1,usemodel=False,sort=False):
+def run_path(name,P_U=0.1,usemodel=False,sort=False,failOK=False):
     """
     Run the PATH algorithm on a single FRB and return host association results.
 
     Loads the FRB object and its pre-generated PATH candidate table from the
     ``frb`` package, applies colour corrections to convert candidate magnitudes
-    to r-band (using fixed offsets: I → R: +0.65, g → R: −0.65), sets up the
+    to r-band (using fixed offsets: IR: +0.65, gR: 0.65), sets up the
     FRB localisation ellipse and offset prior, and evaluates PATH posteriors.
 
     The magnitude prior used for the candidates is:
@@ -787,6 +823,8 @@ def run_path(name,P_U=0.1,usemodel=False,sort=False):
     sort : bool, optional
         If True, sort the returned arrays by P(O|x) in ascending order.
         Defaults to False.
+    failOK : bool, optional
+        If True, allows a return without crashing
 
     Returns
     -------
@@ -803,14 +841,41 @@ def run_path(name,P_U=0.1,usemodel=False,sort=False):
         additional ``'frb'`` column set to ``name``.
     """
     
+    result={}
+    
+    # checks to see the name is prefaced by "FRB"
+    if name[0:3] != "FRB":
+        name = "FRB"+name
+    
     ######### Loads FRB, and modifes properties #########
-    my_frb = FRB.by_name(name)
+    try:
+        my_frb = FRB.by_name(name)
+    except:
+        if failOK:
+            #print("Warning - could not find frb file for ",name)
+            result["Error"]=1
+            return result
+        else:
+            print("Could not run_path - no frb data for FRB ",name)
+            exit()
+    result["Error"]=0 # it's OK!
+    
     this_path = frbassociate.FRBAssociate(my_frb, max_radius=10.)
     
     # reads in galaxy info
     ppath = os.path.join(resources.files('frb'), 'data', 'Galaxies', 'PATH')
     pfile = os.path.join(ppath, f'{my_frb.frb_name}_PATH.csv')
-    ptbl = pandas.read_csv(pfile)
+    
+    try:
+        ptbl = pandas.read_csv(pfile)
+    except:
+        if failOK:
+            #print("Warning - could not find optical data for ",name)
+            result["Error"]=1
+            return result
+        else:
+            print("Could not run_path - no optical data for FRB ",name)
+            exit()
     
     ngal = len(ptbl)
     ptbl["frb"] = np.full([ngal],name)
@@ -881,6 +946,11 @@ def run_path(name,P_U=0.1,usemodel=False,sort=False):
                          max_radius=10., 
                          debug=debug)
     
+    # probability of x given O, and P(O)
+    # note - if method is "user", then P(O) includes 1/density
+    # if it is not, P(O) is renormalised, and includes 1/cumulative
+    P_xO = this_path.p_xOi
+    
     # mags already defined above
     #mags = candidates['mag']
     
@@ -889,6 +959,14 @@ def run_path(name,P_U=0.1,usemodel=False,sort=False):
         P_O = P_O[indices]
         P_Ox = P_Ox[indices]
         mags = mags[indices]
+        P_xO = P_xO[indices]
     
-    return P_O,P_Ox,P_Ux,mags,ptbl
+    result["PUx"] = P_Ux
+    result["PO"] = P_O
+    result["PxO"] = P_xO
+    result["POx"] = P_Ox
+    result["mags"] = mags
+    result["ptbl"] = ptbl
+    
+    return result
 

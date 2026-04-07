@@ -239,7 +239,7 @@ def make_pzgmr_plot(g,s,ifrb,opdir,Field=False):
     
     if Field:
         field = opt.Field()
-        pzf = field.get_pzgm(mr) / field.dz
+        pzf = field.get_pzgm(mr)
         plt.plot(field.zvals,pzf,label="$P_F(z, m_r = "+str(mr)+")$")
     
     plt.xlabel("$z$")
@@ -300,12 +300,15 @@ def make_pz_plot(glist,slist,ifrb,opdir):
         # What we have is p(snr,b,w|z,DM), p(z|DM), and p(DM)
         # We begin noting that p(z,snr,b,w|DM) = p(z|snr,b,w,DM) * p(snr,b,w|DM) ... (1)
         # We calculate p(z,snr,b,w|DM) = p(snr,b,w|z,DM) * p(z|DM) ... (2)
-        pzsnrbwgdm = PATH_OP["psnrbwgzdm"] * PATH_OP["pzgdm"] #dimensions: NZ x NFRB
+        #pzsnrbwgdm = PATH_OP["psnrbwgzdm"] * PATH_OP["pzgdm"] #dimensions: NZ x NFRB
         # and also p(snr,b,w|dm) = \int p(z,snr,b,w|DM) dz ....(3)
-        psnrbwgdm = np.sum(pzsnrbwgdm,axis=0) # sums over z-axis. #dimensions: NFRB
+        #psnrbwgdm = np.sum(pzsnrbwgdm,axis=0) # sums over z-axis. #dimensions: NFRB
         
         # hence, we find from (1) that p(z|snr,b,w,DM) = p(z,snr,b,w|DM) / p(snr,b,w|DM) ...(4)
-        pzgsnrbwdm = pzsnrbwgdm/psnrbwgdm
+        #pzgsnrbwdm = pzsnrbwgdm/psnrbwgdm
+        
+        # all the above now in calc_likelihoods 1D
+        pzgsnrbwdm = PATH_OP["pzgsnrbwdm"]
         
         # note that this is simply a normalisation factor off the initial product
         

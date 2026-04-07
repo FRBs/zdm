@@ -972,6 +972,7 @@ class model_wrapper:
         """
         
         self.zvals=zvals
+        self.dz = zvals[1] - zvals[0]
         
         # we aim to produce a grid of p(z,m_r) for rapid convolution 
         # with a p(z) array
@@ -993,9 +994,17 @@ class model_wrapper:
         # records that this has been initialised
         self.ZMAP = True
      
-    def get_pz_g_mr(self,mr):
+    def get_pz_g_mr(self,mr,z=None):
         """
         Calculates probability of a given z-value given a magnitude
+        
+        Args:
+            mr: r-band magnitude of galaxy
+            z( optional): z-value (if known) of galaxy
+        
+        Returns:
+            if z is specified: values of p(z|mr) at z
+            if z not specified: distribution p(z|mr) for self.zvals
         """
         
         # intepolate linearly between magnitude bins
@@ -1014,7 +1023,18 @@ class model_wrapper:
         # now normalise, but dividing by p(m)
         pzgm = pmz / np.sum(pmz)
         
-        return pzgm
+        if z is not None:
+            # linear interpolation
+            iz1 = int((z-self.zvals[0])/self.dz)
+            iz2 = iz1+1
+            kz2 = (z-self.zvals[iz1])/self.dz
+            kz1 = 1.-kz2
+            pz = pzgm[iz1]*kz1 + pzgm[iz2]*kz2
+            # normalise to "per z"
+            pz /= self.dz # so that the integral comes to unity
+            return pz
+        else:
+            return pzgm
     
     
     def init_path_raw_prior_Oi(self,DM,grid=None,pz=None):
@@ -1375,13 +1395,16 @@ class Field:
                 raise ValueError("z value ",z," outside of range ",self.vals[0],"-",self.zvals[-1])
         
             
-            l2 = (z-zvals[j1])/self.dz
+            l2 = (z-self.zvals[j1])/self.dz
             l1 = 1.-l2
             
             pz = self.pzgmr[j1,i1]*k1*l1 + self.pzgmr[j1,i2]*k2*l1 \
                     + self.pzgmr[j2,i1]*k1*l2 + self.pzgmr[j2,i2]*k2*l2
         else:
             pz = self.pzgmr[:,i1]*k1 + self.pzgmr[:,i2]*k2
+        
+        # normalises such that the integral is unity
+        pz /= self.dz
         
         return pz
         
