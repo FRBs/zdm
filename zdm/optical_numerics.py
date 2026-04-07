@@ -87,17 +87,21 @@ def function(x,args):
     model.init_args(x)
     wrappers = make_wrappers(model,gs)
     
-    NFRB,AppMags,AppMagPriors,ObsMags,ObsPriors,ObsPosteriors,PUprior,PUobs,sumPUprior,sumPUobs,frbs,dms = calc_path_priors(frblist,ss,gs,wrappers,verbose=False)
+    
+    results = calc_path_priors(frblist,ss,gs,wrappers,verbose=False)
+    #NFRB,AppMags,AppMagPriors,ObsMags,ObsPriors,ObsPosteriors,PUprior,PUobs,sumPUprior,sumPUobs,frbs,dms = calc_path_priors(frblist,ss,gs,wrappers,verbose=False)
     
     # we re-normalise the sum of PUs by NFRB
     
     # prevents infinite plots being created
     if istat==0:
-        stat = calculate_ks_statistic(NFRB,AppMags,AppMagPriors,ObsMags,ObsPosteriors,
-                sumPUobs,sumPUprior,plotfile=None,POxcut=POxcut)
+        stat = calculate_ks_statistic(results["NFRB"],results["AppMags"],results["AppMagPriors"],
+                                    results["ObsMags"],results["POx"],
+                                    results["sumPUx"],results["sumPU"],plotfile=None,POxcut=POxcut)
     elif istat==1:
-        stat = calculate_likelihood_statistic(NFRB,AppMags,AppMagPriors,ObsMags,ObsPosteriors,
-                PUobs,PUprior,plotfile=None,POxcut=POxcut)
+        stat = calculate_likelihood_statistic(results["NFRB"],results["AppMags"],results["AppMagPriors"],
+                                    results["ObsMags"],results["POx"],results["PUx"],results["PU"],
+                                    plotfile=None,POxcut=POxcut)
         # need to construct stat so that small values are good! Log-likelihood being good means large!
         stat *= -1
     
@@ -332,7 +336,23 @@ def calc_path_priors(frblist,ss,gs,wrappers,verbose=True,usemodel=True,P_U=0.1):
     if not os.path.exists("allgalaxies.csv"):
         subset.to_csv("allgalaxies.csv",index=False)
     
-    return nfitted,AppMags,allMagPriors,allObsMags,allPO,allPOx,allPU,allPUx,sumPU,sumPUx,frbs,dms
+    
+    # creates a dict to hold results
+    results = {}
+    results["NFRB"] = nfitted
+    results["AppMags"] = AppMags
+    results["AppMagPriors"] = allMagPriors
+    results["ObsMags"] = allObsMags
+    results["PO"] = allPO
+    results["POx"] = allPOx
+    results["PU"] = allPU
+    results["PUx"] = allPUx
+    results["sumPU"] = sumPU
+    results["sumPUx"] = sumPUx
+    results["frbs"] = frbs
+    results["dms"] = dms
+    
+    return results
 
 
 def calculate_likelihood_statistic(NFRB,AppMags,AppMagPriors,ObsMags,ObsPosteriors,PUobs,
