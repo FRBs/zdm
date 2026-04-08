@@ -27,6 +27,8 @@ import importlib.resources as resources
 from scipy.interpolate import CubicSpline
 from scipy import stats
 import matplotlib
+import importlib.resources as resources
+
 
 defaultsize=18
 ds=4
@@ -37,35 +39,46 @@ matplotlib.rc('font', **font)
 
 #r-band limits 24.7, 27.5(single visit, 10 year, these are 5 sigma limits)
 
-def main(opdir="Data/"):
+def main():
     
-    meerkat_z,meerkat_mr = read_meerkat()
+    plotdir="Plots/"
+    opdir="Data/"
+    optdir = str(resources.files('zdm').joinpath('data/optical'))+"/"
     
-    Load=True
+    meerkat_z,meerkat_mr,meerkat_w = read_meerkat()
+    
+    # we should re-do this shortly.
+    Load=False
     repeaters=False
+    Test=False # do this for very simplified data
+    Scat=False # do not use updated scattering model
     
     Rlim0 = 19.8 # existing magnitude limits
     Rlim1 = 24.7
     Rlim2 = 27.5
+    Rlim3 = 23.0 #decals
+    
     
     names=['CRAFT_CRACO_1300','MeerTRAPcoherent','SKA_mid']
-    labels=["ASKAP CRACO", "MeerKAT/SKA-Mid","SKA-Mid"]
+    labels=["ASKAP CRACO", "MeerKAT","SKA-Mid"]
     prefixes=["CRACO","MeerTRAP","SKA_Mid"]
     linestyles = ["-","--",":"]
     imax=2 # because SKA and mid are so similar
     
+    if not os.path.exists(plotdir):
+        os.mkdir(plotdir)
     if not os.path.exists(opdir):
         os.mkdir(opdir)
-    
+        
     Rs,Rrmss,Rzvals,sbar,srms = process_rbands()
     
     plot_R(Rs,Rrmss,Rzvals,sbar,srms,opdir,Rlim1,Rlim2)
-      
+    
     if not Load:
         #gs,ss = get_surveys_grids(names,opdir,repeaters=True,Test=False)
-        ss,gs = get_surveys_grids(names,opdir,repeaters=False,Test=False)
+        ss,gs = get_surveys_grids(names,opdir,repeaters=repeaters,Test=Test,Scat=Scat)
         
-        plot_efficiencies(gs,ss,opdir,prefixes)
+        plot_efficiencies(gs,ss,opdir,prefixes,Test,Scat)
         
         plot_beams(ss,labels,opdir)
         # plots telescope efficiencies at z=0
@@ -85,9 +98,11 @@ def main(opdir="Data/"):
         fz0 = np.zeros([nz])
         fz1 = np.zeros([nz])
         fz2 = np.zeros([nz])
+        fz3 = np.zeros([nz])
         iz0 = np.where(Rbars < Rlim0)[-1]
         iz1 = np.where(Rbars < Rlim1)[-1]
         iz2 = np.where(Rbars < Rlim2)[-1]
+        iz3 = np.where(Rbars < Rlim3)[-1]
         
         for i,z in enumerate(zvals):
             if z < Rzvals[0]:
@@ -108,32 +123,38 @@ def main(opdir="Data/"):
                 fz0[i] = norm.cdf(Rlim0)
                 fz1[i] = norm.cdf(Rlim1)
                 fz2[i] = norm.cdf(Rlim2)
-        np.save(opdir+"fz_19.8.npy",fz0)
-        np.save(opdir+"fz_24.7.npy",fz1)
-        np.save(opdir+"fz_27.5.npy",fz2)
+                fz3[i] = norm.cdf(Rlim3)
+        np.save(optdir+"fz_19.8.npy",fz0)
+        np.save(optdir+"fz_24.7.npy",fz1)
+        np.save(optdir+"fz_27.5.npy",fz2)
+        np.save(optdir+"fz_23.0.npy",fz3)
+        
         np.save(opdir+"Rhist.npy",Rhist)
         np.save(opdir+"Rvals.npy",Rvals)
         np.save(opdir+"Rbars.npy",Rbars)
     else:
-        fz0 = np.load(opdir+"fz_19.8.npy")
-        fz1 = np.load(opdir+"fz_24.7.npy")
-        fz2 = np.load(opdir+"fz_27.5.npy")
+        fz0 = np.load(optdir+"fz_19.8.npy")
+        fz1 = np.load(optdir+"fz_24.7.npy")
+        fz2 = np.load(optdir+"fz_27.5.npy")
         Rhist = np.load(opdir+"Rhist.npy")
         Rvals = np.load(opdir+"Rvals.npy")
         Rbars = np.load(opdir+"Rbars.npy")
     
-    
     plt.figure()
     plt.xlabel("z")
-    plt.ylabel("$f_{m_r}$")
-    plt.plot(zvals,fz1,label="$f_{24.7}$")
-    plt.plot(zvals,fz2,label="$f_{27.5}$")
+    plt.ylabel("fraction visible")
+    plt.plot(zvals,fz1,label="$m_{r}^{\\rm lim}=24.7$")
+    plt.plot(zvals,fz2,label="$m_{r}^{\\rm lim}=27.5$",linestyle="--")
+    plt.ylim(0,1.05)
+    plt.xlim(0,6)
     plt.legend()
     plt.tight_layout()
-    plt.savefig(opdir+"fraction_visible.png")
+    plt.savefig(plotdir+"fraction_visible.png")
     plt.close()
     
-    DPplot(zvals,[fz1],["$m_r = 24.7$"],opdir + "DP_fraction_visible.png",color="orange")
+    
+    
+    DPplot(zvals,[fz1],["$m_r = 24.7$"],plotdir + "DP_fraction_visible.png",color="orange")
     
     ####### p(z) plot #####
     plt.figure()
@@ -146,7 +167,7 @@ def main(opdir="Data/"):
     plt.xlabel("$m_r$")
     plt.ylabel("$p(m_r)$ [a.u.]")
     ax2 = plt.gca()
-    
+    imax=2
     for i,prefix in enumerate(prefixes):
         if i==imax:
             break
@@ -176,6 +197,9 @@ def main(opdir="Data/"):
             pz2 = pz*fz2
             
             np.save(opdir+"zvals.npy",g.zvals)
+            np.save(optdir+"z_19.8.npy",g.zvals)
+            np.save(optdir+"z_24.7.npy",g.zvals)
+            np.save(optdir+"z_27.5.npy",g.zvals)
             np.save(opdir+prefixes[i]+"_pz.npy",pz)
             np.save(opdir+prefixes[i]+"_fpz0.npy",pz0)
             np.save(opdir+prefixes[i]+"_fpz1.npy",pz1)
@@ -187,9 +211,9 @@ def main(opdir="Data/"):
         print(i,"Norm is ",norm)
         
         plt.plot(zvals,pz/norm,label=labels[i],linestyle="-")
-        plt.plot(zvals,pz0/norm,linestyle="-.",color=plt.gca().lines[-1].get_color())
-        plt.plot(zvals,pz1/norm,linestyle="--",color=plt.gca().lines[-1].get_color())
-        plt.plot(zvals,pz2/norm,linestyle=":",color=plt.gca().lines[-1].get_color())
+        #plt.plot(zvals,pz0/norm,linestyle="-.",color=plt.gca().lines[-1].get_color())
+        plt.plot(zvals,pz1/norm,linestyle="--",color=plt.gca().lines[-1].get_color(),label='   single visit')
+        plt.plot(zvals,pz2/norm,linestyle=":",color=plt.gca().lines[-1].get_color(),label='   10 yr co-adds')
         
         print("For survey ",prefixes[i]," number of FRBs will be ",np.sum(pz),np.sum(pz0),np.sum(pz1),\
                 np.sum(pz2),np.sum(pz0)/np.sum(pz),np.sum(pz1)/np.sum(pz),np.sum(pz2)/np.sum(pz))
@@ -203,15 +227,19 @@ def main(opdir="Data/"):
         plt.sca(ax2)
         norm = np.max(mag_hist)
         
-        plt.plot(Rbars,mag_hist/norm,label=labels[i])
+        plt.plot(Rbars,mag_hist/norm,label=labels[i],linestyle=linestyles[i])
+        
+        if prefix == "MeerTRAP":
+            mtmh = mag_hist
+            mtpz = pz
         
         
     plt.sca(ax1)
     plt.ylim(0,1.02)
-    plt.xlim(0,6)
-    plt.legend()
+    plt.xlim(0,5)
+    plt.legend(fontsize=16)
     plt.tight_layout()
-    plt.savefig(opdir+"lsst_pz.png")
+    plt.savefig(plotdir+"lsst_pz.png")
     plt.close()
     
     plt.sca(ax2)
@@ -220,25 +248,83 @@ def main(opdir="Data/"):
     
     #meerkat_z,meerkat_mr
     mrbins=np.linspace(10,30,21)
-    weights = np.full([11],0.25)
+    nfrb = len(meerkat_mr)
     
-    plt.hist(meerkat_mr,bins=mrbins,weights=weights,label="MK 2023 data")
+    
     
     
     plt.plot([Rlim1,Rlim1],[0,1],linestyle=":",color="black")
     plt.plot([Rlim2,Rlim2],[0,1],linestyle=":",color="black")
-    plt.text(Rlim1+0.1,0.1,"$m_r=$"+str(Rlim1),rotation=90)
-    plt.text(Rlim2+0.1,0.1,"$m_r=$"+str(Rlim2),rotation=90)
+    plt.text(Rlim1-1.5,0.1,"$m_r^{\\rm lim}=$"+str(Rlim1),rotation=90)
+    plt.text(Rlim2-1.5,0.1,"$m_r^{\\rm lim}=$"+str(Rlim2),rotation=90)
+    #plt.legend(loc="upper left")
+    plt.legend(fontsize=14)
+    plt.tight_layout()
+    plt.savefig(plotdir+"lsst_pR.png")
+    
+    
+    plt.hist(meerkat_mr,bins=mrbins,weights=meerkat_w/4.,label="MK 2023 data")
     plt.legend()
     plt.tight_layout()
-    plt.savefig(opdir+"lsst_pR.png")
+    plt.savefig(plotdir+"lsst_pR_w_hist.png")
     plt.close()
     
-    DPplot(zvals,[pz,pz1],["all FRBs","LSST"],opdir + "DP_pz.png",color="orange",legend=False)
+    ########## MeerKAT comparisons ##########
+    ####### magnitude #######
+    # does cumulative histogram, and compares to expected
+    mtcs = np.cumsum(mtmh)
+    mtcs /= mtcs[-1]
+    from zdm import optical_numerics as on
+    cdf = on.make_cdf(Rbars,meerkat_mr,meerkat_w,norm=False)
+    # normalsie by fraction of FRBs actually studied
+    
+    cdf *= np.sum(meerkat_w)/(10.*cdf[-1]) # should get about 6 of 10 FRBs
+    
+    maxmr = np.max(meerkat_mr)
+    OK = np.where(Rbars <= 24)[0]
+    
+    plt.figure()
+    plt.xlabel("$m_r$")
+    plt.ylabel("cdf$(m_r)$")
+    plt.ylim(0,1)
+    plt.xlim(15,30)
+    plt.plot(Rbars,mtcs,label="Prediction",linestyle="--")
+    plt.plot(Rbars[OK],cdf[OK],label="Observations",linestyle="-")
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(plotdir+"meerkat_mr_comparison.png")
+    plt.close()
+    
+    ########## redshift ########
+    mtcs = np.cumsum(mtpz)
+    mtcs /= mtcs[-1]
+    
+    cdf = on.make_cdf(zvals,meerkat_z,meerkat_w,norm=False)
+    # normalsie by fraction of FRBs actually studied
+    
+    cdf *= np.sum(meerkat_w)/(10.*cdf[-1]) # should get about 6 of 10 FRBs
+    
+    maxz = np.max(meerkat_z)
+    
+    OK = np.where(zvals <= maxz+0.1)[0]
+    
+    plt.figure()
+    plt.xlabel("$z$")
+    plt.ylabel("cdf$(z)$")
+    plt.ylim(0,1)
+    plt.xlim(0,3)
+    plt.plot(zvals,mtcs,label="Prediction",linestyle="--")
+    plt.plot(zvals[OK],cdf[OK],label="Observations",linestyle="-")
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(plotdir+"meerkat_z_comparison.png")
+    plt.close()
+    
+    DPplot(zvals,[pz,pz1],["all FRBs","LSST"],plotdir + "DP_pz.png",color="orange",legend=False)
     DPplot(zvals,[pz,pz1,pz0],["all FRBs","LSST","Now"],opdir + "DP_pz0.png",color="orange",legend=False)
     
     DPplot(zvals,[pz1,pz0],["LSST","Now"],opdir + "DP_lsst_vs_now.png",color="orange",legend=False)
-
+    
 def DPplot(zvals,yvals,labels,outfile,color="orange",legend=True):
     
     fig = plt.figure()
@@ -301,13 +387,31 @@ def read_meerkat():
     """
     returns z and mr data from Pastor-Morales et al
     https://arxiv.org/pdf/2507.05982
+    Detection method provided in private communication (Pastor-Morales)
     """
     
-    data=np.loadtxt("meerkat_mr.txt",comments='#')
-    z=data[:,1]
-    mr = data[:,2]
-    z = np.abs(z)
-    return z,mr
+    data=np.loadtxt("Data/meerkat_mr.txt",comments='#')
+    z=data[:,2]
+    mr = data[:,3]
+    loc = data[:,4] # 1 is coherent beam, 0 incoherent only
+    z = np.abs(z) # -ve is
+    w = data[:,5] #PO|x
+    
+    # removes incoherent sum data
+    good = np.where(loc==1)[0]
+    z=z[good]
+    loc=loc[good]
+    mr=mr[good]
+    w = w[good]
+    
+    # removes missing data
+    good = np.where(z != 9999)
+    z = z[good]
+    loc=loc[good]
+    mr=mr[good]
+    w=w[good]
+    
+    return z,mr,w
 
 def plot_R(Rbars,Rrmss,Rzvals,sbar,srms,opdir,Rlim1,Rlim2):
     # plot of mean and rms from Gaussian assumption
@@ -329,13 +433,21 @@ def plot_R(Rbars,Rrmss,Rzvals,sbar,srms,opdir,Rlim1,Rlim2):
     plt.close()
     
 
-def plot_efficiencies(gs,ss,opdir,prefixes):
+def plot_efficiencies(gs,ss,opdir,prefixes,Test=False,Scat=False):
+    """
+    Generates a plot of efficiencies at the 0th zbin. Or, for all zbins,
+    if we are doing a test
+    """
+    
     for i,s in enumerate(ss):
         plt.figure()
         g=gs[i]
         
         for j,w in enumerate(s.wlist):
-            plt.plot(g.dmvals,s.efficiencies[j,0,:],label="w="+str(w)[0:5]) # at z=0
+            if Scat:
+                plt.plot(g.dmvals,s.efficiencies[j,0,:],label="w="+str(w)[0:5]) # at z=0
+            else:
+                plt.plot(g.dmvals,s.efficiencies[j,:],label="w="+str(w)[0:5])
         plt.xlabel("DM")
         plt.ylabel("$\\epsilon$")
         plt.yscale("log")
@@ -345,13 +457,16 @@ def plot_efficiencies(gs,ss,opdir,prefixes):
         plt.savefig(opdir+prefixes[i]+"_efficiencies.png")
         plt.close()
 
-def get_surveys_grids(names,opdir,repeaters=True,Test=False):
+def get_surveys_grids(names,opdir,repeaters=True,Test=False,Scat=False):
 
     # approximate best-fit values from recent analysis
     # load states from Hoffman et al 2025
     # use b or d for rep
-    state = states.load_state("HoffmannEmin25",scat="updated",rep='b')
     
+    if Scat:
+        state = states.load_state("HoffmannHalo25",scat="updated",rep='b')
+    else:
+        state = states.load_state("HoffmannHalo25",rep='b')
     
     # artificially add repeater data - we can't actually know this,
     # because we don't have time per field. Just using one day for now
@@ -383,7 +498,7 @@ def get_surveys_grids(names,opdir,repeaters=True,Test=False):
         nz=50
         dmmax=4000
         zmax=4
-        survey_dict["WMETHOD"] = 2
+        
     else:
         ndm=1400
         nz=600
@@ -391,8 +506,12 @@ def get_surveys_grids(names,opdir,repeaters=True,Test=False):
         zmax=6
         # uses redshift-dependent scattering. This takes longer
         # - by a factor of a few!
-        survey_dict["WMETHOD"] = 3
+        #survey_dict["Wmethod"] = 3
     
+    if Scat:
+        survey_dict["Wmethod"] = 3
+    else:
+        survey_dict["Wmethod"] = 2
     ss,gs = loading.surveys_and_grids(survey_names=names,repeaters=repeaters,init_state=state,
                                         sdir=sdir,survey_dict=survey_dict,nz=nz,zmax=zmax,ndm=ndm,dmmax=dmmax)
     return ss,gs

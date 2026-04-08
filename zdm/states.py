@@ -84,7 +84,6 @@ def load_state(case="HoffmannHalo25",scat=None,rep=None):
     
     # update with relevant values
     state.update_param_dict(vparams)
-    
     return state
 
 def set_reps(vparams,rep):
@@ -243,7 +242,7 @@ def set_fit_params(vparams,case):
         vparams['FRBdemo']['alpha_method'] = 1
         vparams['FRBdemo']['source_evolution'] = 0
         vparams['FRBdemo']['sfr_n'] = 2.88
-        #vparams['FRBdemo']['lC'] = 3.15 # incorrect, check
+        vparams['FRBdemo']['lC'] = -6.24
         
         vparams['host']['lmean'] = 2.13
         vparams['host']['lsigma'] = 0.46
@@ -377,7 +376,7 @@ def set_updated_scat(vparams):
     
     
     if not 'scat' in vparams:
-        vparams['width'] = {}
+        vparams['scat'] = {}
     vparams['scat'] = {}
     vparams['scat']['Slogmean'] = -1.3
     vparams['scat']['Slogsigma'] = 0.2

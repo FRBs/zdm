@@ -1539,7 +1539,7 @@ def initialise_grids(
     # generates a DM mask
     # creates a mask of values in DM space to convolve with the DM grid
     mask = pcosmic.get_dm_mask(
-        dmvals, (state.host.lmean, state.host.lsigma), zvals, plot=True
+        dmvals, (state.host.lmean, state.host.lsigma), zvals, plot=False
     )
     grids = []
     for survey in surveys:

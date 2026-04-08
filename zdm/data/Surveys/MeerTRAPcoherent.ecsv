@@ -18,8 +18,11 @@
 # - {name: XRA, datatype: string}
 # - {name: Z, datatype: float64}
 # meta: !!omap
-# - {survey_data: '{"observing": {"NORM_FRB": 11},
-#                   "telescope": {"BEAM": "MeerTRAP_coherent_log","BTHRESH": 0.25,"NBEAMS": 1,"NBINS": 5}}'}
+# - {survey_data: '{"observing": {"NORM_FRB": 1,"TOBS": 317.5},
+#                   "telescope": {"BEAM": "MeerTRAP_coherent_log",
+#                        "BTHRESH": 0.25,"NBEAMS": 1,"NBINS": 5,
+#                        "FRES":0.836,"THRESH":0.069,
+#                        "TRES": 0.30624, "FBAR":1284}}'}
 # schema: astropy-2.0
 TNS        BW   DM       DMG     FBAR  FRES   Gb       Gl       SNR    SNRTHRESH  THRESH  TRES     WIDTH   XDec           XRA             Z
 20220222C  770  1071.2   56      1284  0.836  28.78    311.66   24.2   8.0        0.066    0.30624  15.9     -28:01:36.93   13:35:37.08     0.853

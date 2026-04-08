@@ -165,7 +165,7 @@ class FRBDemoParams(data_class.myDataClass):
     )
     lC: float = field(
         default=3.3249,
-        metadata={"help": "log10 constant in number per Gpc^-3 day^-1 at z=0"},
+        metadata={"help": "log10 constant in number per Mpc^-3 day^-1 at z=0"},
     )
 
 
@@ -193,8 +193,8 @@ class RepeatParams(data_class.myDataClass):
                   })
     RC: float = field(
         default = 1e-2,
-        metadata={'help': 'Constant repeater density',
-                  'unit': 'Repeaters day / Gpc^-3',
+        metadata={'help': 'Constant repeater density. Gets calculated by code.',
+                  'unit': 'Repeaters / Mpc^-3',
                   'Notation': '$C_R$',
                   })
     RE0: float = field(
@@ -504,6 +504,7 @@ class State(data_class.myData):
         self.IGM = IGMParams()
         self.energy = EnergeticsParams()
         self.rep = RepeatParams()
+        self.photo=PhotometricParams()
 
     def update_param(self, param: str, value):
         """Update a single parameter by name.
@@ -542,3 +543,15 @@ class State(data_class.myData):
         self.cosmo.Omega_b = cosmo.Ob0
         self.cosmo.Omega_b_h2 = cosmo.Ob0 * (cosmo.H0.value / 100.0) ** 2
         return
+
+################################################################################
+@dataclass
+class PhotometricParams(data_class.myDataClass):
+    
+    smearing:bool =field(default=False)
+
+    sigma:float =field(default=0.035)
+
+    sigma_width:int =field(default=6)
+
+

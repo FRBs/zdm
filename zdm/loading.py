@@ -267,7 +267,7 @@ def surveys_and_grids(init_state=None, alpha_method=1,
     cos.set_cosmology(state)
     cos.init_dist_measures()
 
-    # get the grid of p(DM|z)
+    # get the grid of p(DMcosmic|z)
     zDMgrid, zvals,dmvals = misc_functions.get_zdm_grid(
         state, new=True, plot=False, method='analytic', 
         nz=nz, ndm=ndm, zmax=zmax, dmmax=dmmax,

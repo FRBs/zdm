@@ -21,5 +21,3 @@ def test_init_gamma():
     assert np.isclose(float(energetics.igamma_linear_log10[-1](0.)), 
                       float(energetics.igamma_linear[-1](1.)),
                       rtol=1e-3)
-                      
-test_init_gamma()
