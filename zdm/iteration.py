@@ -88,9 +88,32 @@ def get_joint_path_zdm_likelihoods(g, s, wrapper, norm=True, psnr=True, Pn=False
         ops = calc_likelihoods_1D(g, s, norm=norm, psnr=psnr,dolist=0, grid_type=1,
                             Pn=Pn, pNreps=pNreps, ptauw=ptauw, pwb=pwb,PATH=True)
         
+        
         # repeaters
-        opz = calc_likelihoods_1D(g, s, norm=norm, psnr=psnr,dolist=0, grid_type=2,
-                            Pn=Pn, ptauw=ptauw,pwb=pwb,PATH=True)             
+        opr = calc_likelihoods_1D(g, s, norm=norm, psnr=psnr,dolist=0, grid_type=2,
+                            Pn=Pn, ptauw=ptauw,pwb=pwb,PATH=True)
+        
+        
+        # results are summed over both singles and repeaters
+        s_psnrbwdm = ops["psnrbwdm"]
+        r_psnrbwdm = opr["psnrbwdm"]
+        
+        # redshift distribution gives radio properties. NZ x NFRB
+        s_pzgsnrbwdm = ops["pzgsnrbwdm"]
+        r_pzgsnrbwdm = opr["pzgsnrbwdm"]
+        
+        # we now iterate over each FRB.
+        # gets frblist from survey
+        s_frblist = s.frbs["TNS"].values[s.singleslist]
+        r_frblist = s.frbs["TNS"].values[s.replist]
+        
+        # must pass pz lists as transposes, with FRB on the inner axis, and nz on the outer
+        s_path_results = on.calc_path_priors(s_frblist,[s],[g],[wrapper],usemodel=True,
+                                            failOK=True,doz=True,pzlist=s_pzgsnrbwdm.T)
+        r_path_results = on.calc_path_priors(r_frblist,[s],[g],[wrapper],usemodel=True,
+                                            failOK=True,doz=True,pzlist=r_pzgsnrbwdm.T)
+        exit()
+            
     else:
         op = calc_likelihoods_1D(g, s, norm=norm, psnr=psnr,dolist=0, Pn=Pn,
                                     ptauw=ptauw,pwb=pwb, PATH=True)
@@ -106,7 +129,7 @@ def get_joint_path_zdm_likelihoods(g, s, wrapper, norm=True, psnr=True, Pn=False
         frblist = s.frbs["TNS"].values
         
         path_results = on.calc_path_priors(frblist,[s],[g],[wrapper],usemodel=True,
-                                            failOK=True,doz=True)
+                                            failOK=True,doz=True,pzlist=pzgsnrbwdm.T)
         
         # this tells us which FRBs have valid host galaxy data
         #print(path_results["OK"])
@@ -307,7 +330,6 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=True,
         2: assumes the grid passed is a repeat_grid.zdm_repeat_grid object and calculates likelihood for single bursts
 
     """
-    
     if ptauw:
         if not survey.backproject:
             print("WARNING: cannot calculate ptauw for this survey, please initialised backproject")
@@ -317,7 +339,7 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=True,
         rates = grid.exact_reps 
         if survey.nozreps is not None:
             if PATH: # we are doing this for every FRB regardless
-                nozlist = np.concatenate((survey.nozreps,survey.zreps))
+                nozlist = survey.replist
             else:
                 nozlist=survey.nozreps
         else:
@@ -326,7 +348,7 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=True,
         rates = grid.exact_singles 
         if survey.nozsingles is not None:
             if PATH:
-                nozlist=np.concatenate((survey.nozsingles,survey.zsingles))
+                nozlist=survey.singleslist
             else:
                 nozlist=survey.nozsingles
         else:
@@ -335,7 +357,8 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=True,
         rates=grid.rates 
         if survey.nozlist is not None:
             if PATH: # we are doing this for every FRB regardless
-                nozlist = np.concatenate((survey.nozlist,survey.zlist))
+                #nozlist = np.concatenate((survey.nozlist,survey.zlist))
+                nozlist = np.arange(survey.NFRB) # just use all the FRBs!
             else:
                 nozlist = survey.nozlist
         else:
@@ -349,9 +372,12 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=True,
     
     # start by collapsing over z
     pdm=np.sum(rates,axis=0)
-    
     if np.sum(pdm) == 0:
-        if dolist==0:
+        if PATH:
+            PATH_OP={}
+            PATH_OP["pN"] = -np.inf
+            return PATH_OP
+        elif dolist==0:
             return -np.inf
         elif dolist==1:
             return -np.inf, None
@@ -389,7 +415,6 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=True,
     longlist={}
     longlist["pzDM"]={}
     longlist["pzDM"]["pdm"]=np.log10(pvals)-log_global_norm
-    
     
     if PATH:
         # create PATH dict and add list of p(DM) values
@@ -504,7 +529,7 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=True,
         longlist["ptauw"]["piw"]=np.log10(piws)
         longlist["ptauw"]["ptau"]=np.log10(ptaus)
         longlist["ptauw"]["w_indices"]=inoztaulist
-        
+    
     ############# Assesses total number of FRBs, P(N) #########
     # TODO: make the grid tell you the correct normalisation
     if Pn and (survey.TOBS is not None):
@@ -539,9 +564,9 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=True,
     
     if PATH:
         if not Pn:
-            PATH_OP["pn"] = 1.
+            PATH_OP["pN"] = 1.
         else:
-            PATH_OP["pn"] = Pn
+            PATH_OP["pN"] = Pn
     
     # this is updated version, and probably should overwrite the previous calculations
     if psnr:
@@ -854,7 +879,8 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=True,
         PATH_OP["psnrbwgdm"] = psnrbwgdm
         PATH_OP["pzsnrbwgdm"] = pzsnrbwgdm
         PATH_OP["pzgsnrbwdm"] = pzgsnrbwdm
-    
+        print(PATH_OP)
+        exit()
         return PATH_OP
     
     # determines which list of things to return

@@ -161,7 +161,7 @@ def make_cdf(xs,ys,ws,norm=True):
 
     
 def calc_path_priors(frblist,ss,gs,wrappers,verbose=True,usemodel=True,P_U=0.1,
-                    failOK=False,doz=True,field=None):
+                    failOK=False,doz=True,field=None,pzlist=None):
     """
     Run PATH on a list of FRBs and return priors, posteriors, and P_U values.
 
@@ -203,6 +203,9 @@ def calc_path_priors(frblist,ss,gs,wrappers,verbose=True,usemodel=True,P_U=0.1,
         If true, calculate p(z) for both field and host galaxies for these FRBs
     fiedd: optical.Field object, optional
         Option to pass existing field object for speedup purposes
+    pzlist: list of np.ndarray, optional
+        If given, must be [NFRB x g.zvals] in szie list giving p(z) for
+        each FRB in the list
     
     Returns
     -------
@@ -303,7 +306,10 @@ def calc_path_priors(frblist,ss,gs,wrappers,verbose=True,usemodel=True,P_U=0.1,
             
             # this is where the particular survey comes into it
             # Must be priors on magnitudes for this FRB
-            wrapper.init_path_raw_prior_Oi(DMEG,g)
+            if pzlist is not None:
+                wrapper.init_path_raw_prior_Oi(DMEG,pz=pzlist[i])
+            else:
+                wrapper.init_path_raw_prior_Oi(DMEG,grid=g)
         
             # extracts priors as function of absolute magnitude for this grid and DMEG
             MagPriors = wrapper.priors

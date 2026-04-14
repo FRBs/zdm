@@ -64,8 +64,6 @@ LSRZ = -10. #Was causing problems at merely -6
 SET_REP_ZERO=10**LSRZ # forces p(n=0) bursts to be unity when a maximally repeating FRB has SET_REP_ZERO expected events or less
 
 # the above is crazy, the problem is it should zet p_zero + p_single to be unity, i.e. chance of double to be zero
-# but how do we do this? presumably it's the total minus psingle?
-#LZRZ = np.log10(SET_REP_ZERO)
 
 #### sets energetics parameters #####
 energetics.SplineMin = LSRZ
@@ -546,10 +544,11 @@ class repeat_Grid(grid.Grid):
         
         Probability is: \\int constant * R exp(-R) * R^(Rgamma)
         definition of gamma function is R^x-1 exp(-R) for gamma(x)
-        # hence here x is gamma+2
+        # hence here x is Rgamma+2
         limits set by Rmin and Rmax (determind after multiplying intrinsic by Rmult)
         
-        This is Gamma(Rgamma+2,Rmin) - Gamma(Rgamma+2,Rmax)
+        This is Gamma(Rgamma+2,Rmin) - Gamma(Rgamma+2,Rmax), since Gamma is defined
+        as the integral from x to infinity
         """
         # We wish to integrate R R^gammaR exp(-R) from Rmin to Rmax
         # this can be done by mpmath.gammainc(self.Rgamma+2, a=self.Rmin*Rmult[i,j])
@@ -610,6 +609,7 @@ class repeat_Grid(grid.Grid):
             else:
                 NTL = False
             self.NTL = NTL
+            
         
         if self.newRmax == False:
              NotTooLowb = self.NotTooLowbs[self.Nth]
@@ -627,22 +627,34 @@ class repeat_Grid(grid.Grid):
             TooLow = np.where(bvals <= SET_REP_ZERO)[0]
             self.TooLow[self.Nth] = TooLow
         
+        # get members where b is not too low, but a is not
+        b_only = np.setdiff1d(NotTooLowb,NotTooLow,assume_unique=True)
+        
         # technically, we now never save norms 1...
         # now do calculations. Must be re-done *every* time
         # this is inefficient, I should find a way to split up the different segments
         # currently, NotTooLow is a subset of NotTooLowb. I could/should make it independent.
+        # in the below, norms1 is the integral from the lower part to infinity, norms2 from upper
+        # hence, norms is the upper minus the lower, i.e. norms1-norms2
         if self.newRmin == False and self.newRgamma == False and self.newRmax == False:
             norms1 = self.snorms1[self.Nth]
         else:
-            norms1 = -avals**effGamma / effGamma # this is the "too low" value
+            norms1 = -avals**effGamma / effGamma # this is the "too low" value, which gets replaced where not too low
+            # in this range, we approximate everything as a power-law, hence we simply have an analytic
+            # expression for the integral from the actual threshold (avals) to SET_REP_ZERO
             analytic = (SET_REP_ZERO**effGamma - avals[NotTooLowb]**effGamma)/effGamma
+            
             if NTLb:
+                # all elements where b is not too low need an exact calculation. That is, they need an integral in a
+                # analytically from a to SRZ, then numerically from SRZ to infinity. This gets over-written when a is
+                # not too low, since then the calculation works perfectly
                 if energetics.SplineLog:
                     norms1[NotTooLowb] = 10.**interpolate.splev(np.log10([SET_REP_ZERO]), energetics.igamma_splines[effGamma])
                 else:
                     norms1[NotTooLowb] = interpolate.splev([SET_REP_ZERO], energetics.igamma_splines[effGamma])
                 norms1[NotTooLowb] += analytic
             if NTL:
+                # all elements where A is not too low get replaced with their (spline-)exact values
                 if energetics.SplineLog:
                     norms1[NotTooLow] = 10.**interpolate.splev(np.log10(avals[NotTooLow]), energetics.igamma_splines[effGamma])
                 else:
@@ -652,7 +664,7 @@ class repeat_Grid(grid.Grid):
         if self.newRmax == False and self.newRgamma == False:
             norms2 = self.snorms2[self.Nth]
         else:
-            norms2 = -bvals**effGamma / effGamma
+            norms2 = -bvals**effGamma / effGamma # the simple too-low value, which gets replaced where not too low
             if NTLb:
                 
                 if energetics.SplineLog:

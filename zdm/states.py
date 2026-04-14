@@ -99,19 +99,19 @@ def set_reps(vparams,rep):
     
     if rep == "a":
         vparams["rep"]["lRmin"] = -1.73
-        vparams["rep"]["lRmin"] = -0.25
+        vparams["rep"]["lRmax"] = -0.25
         vparams["rep"]["Rgamma"] = -1.9
     elif rep== "b":
         vparams["rep"]["lRmin"] = -1.23
-        vparams["rep"]["lRmin"] = -0.25
+        vparams["rep"]["lRmax"] = -0.25
         vparams["rep"]["Rgamma"] = -3
     elif rep== "c":
         vparams["rep"]["lRmin"] = -1.38
-        vparams["rep"]["lRmin"] = 3
+        vparams["rep"]["lRmax"] = 3
         vparams["rep"]["Rgamma"] = -3
     elif rep== "d":
         vparams["rep"]["lRmin"] = -4.54
-        vparams["rep"]["lRmin"] = 3
+        vparams["rep"]["lRmax"] = 3
         vparams["rep"]["Rgamma"] = -2.1
     return vparams
 
