@@ -142,6 +142,7 @@ class Survey:
 
         self.init_DMEG(state.MW.DMhalo, state.MW.halo_method)
         # Zs
+        print("Initialising zs")
         self.init_zs() # This should be redone every time DMhalo is changed IF we use a flat cutoff on DMEG
         
         # Allows survey metadata to over-ride parameter defaults if present.
@@ -156,6 +157,7 @@ class Survey:
         
         # initialise scattering/width and resulting efficiences
         self.init_widths()
+        self.calc_max_dm()
         
         self.init_frb_bvals() #initial;ise weights for FRBs with known beam values
         self.init_frb_wvals()
@@ -593,6 +595,7 @@ class Survey:
         self.frb_zbweights = frb_bweights[self.zlist,:]
         self.frb_nozbweights = frb_bweights[self.nozlist,:]
         
+        
     def init_frb_wvals(self):
         """
         Initialises frb width coefficients for linear interpolation
@@ -756,8 +759,12 @@ class Survey:
             # self.DMGals = np.zeros(len(self.frbs))
             self.DMG_el = np.zeros(len(self.frbs))
             self.DMG_eu = np.zeros(len(self.frbs))
+            DMMWs = np.zeros(len(self.frbs))
             for i, (Gl, Gb) in enumerate(zip(self.Gls, self.Gbs)):
-                self.DMGs[i], self.DMG_el[i], self.DMG_eu[i] = galactic_dm_models.dmg_sanskriti2020(Gl, Gb)
+                DMMWs[i], self.DMG_el[i], self.DMG_eu[i] = galactic_dm_models.dmg_sanskriti2020(Gl, Gb)
+            self.DMhalos = DMMWs - self.DMGs
+            self.DMhalo = np.median(self.DMhalos)
+            print(self.DMhalos)
 
         # self.DMGal = np.median(self.DMGals)
 
@@ -783,28 +790,30 @@ class Survey:
         """
         # Ignore redshifts above MAX_LOC_DMEG
         self.min_noz = self.meta["MAX_LOC_DMEG"]
+
         # Ignore redshifts above the minimum unlocalised DM if MAX_LOC_DMEG==0
         if self.min_noz == 0:
-            nozlist = np.where(self.frbs["Z"] < 0.)[0]
+            nozlist = np.where((self.frbs["Z"] == -1.) | (self.frbs["Z"] is None))[0]
             if len(nozlist != 0):
-                self.min_noz = np.min(self.DMEGs[nozlist])
+                self.min_noz = np.min(self.DMEGs[nozlist] + self.DMhalos[nozlist])
+                imin = np.where(self.DMEGs + self.DMhalos == self.min_noz)[0][0]
 
         # Do not get rid of redshifts if MAX_LOC_DMEG==-1
         if self.min_noz > 0:
-            high_dm = np.where(self.DMEGs > self.min_noz)[0]
+            high_dm = np.where(self.DMEGs + self.DMhalos > self.min_noz)[0]
             self.ignored_Zs = self.frbs["Z"].values[high_dm]
             self.ignored_Zlist = high_dm[self.ignored_Zs > 0]
             self.ignored_Zs = self.ignored_Zs[self.ignored_Zs > 0]
             self.frbs["Z"].values[high_dm] = -1.0
-            print("Ignoring redshifts with DMEG > " + str(self.min_noz))
+            print("Ignoring redshifts with DMEG >", str(self.min_noz))
         else:
             self.ignored_Zs = []
             self.ignored_Zlist = []
 
         # Pandas resolves None to Nan
-        if len(self.frbs["Z"])>0 and np.isfinite(self.frbs["Z"].values[0]):
+        if len(self.frbs["Z"])>0:
             
-            self.Zs=self.frbs["Z"].values
+            self.Zs=np.array(self.frbs["Z"].values).astype('float')
             # checks for any redhsifts identically equal to zero
             #exactly zero can be bad... only happens in MC generation
             # 0.001 is chosen as smallest redshift in original fit
@@ -814,6 +823,7 @@ class Survey:
             
             # checks to see if there are any FRBs which are localised
             self.zlist = np.where(self.Zs > 0.)[0]
+
             if len(self.zlist) < self.NFRB:
                 self.nozlist = np.where(self.Zs < 0.)[0]
                 if len(self.nozlist) == len(self.Zs):
@@ -824,6 +834,7 @@ class Survey:
             else:
                 self.nozlist = None
                 self.nD=2
+            
         else:
             self.nD=1
             self.Zs=None
@@ -897,7 +908,17 @@ class Survey:
                 else:
                     self.nDs = 3
             
-
+        # initialise rep-dependent beam and width weights
+        self.frb_zbweights_singles = self.frb_bweights[self.zsingles,:]
+        self.frb_zbweights_reps = self.frb_bweights[self.zreps,:]
+        self.frb_nozbweights_singles = self.frb_bweights[self.nozsingles,:]
+        self.frb_nozbweights_reps = self.frb_bweights[self.nozreps,:]
+        
+        self.frb_zwweights_singles = self.frb_wweights[self.zsingles,:]
+        self.frb_zwweights_reps = self.frb_wweights[self.zreps,:]
+        self.frb_nozwweights_singles = self.frb_wweights[self.nozsingles,:]
+        self.frb_nozwweights_reps = self.frb_wweights[self.nozreps,:]
+        
     def process_survey_file(self,filename:str, 
                             NFRB:int=None,
                             iFRB:int=0,
@@ -927,9 +948,9 @@ class Survey:
             frb_tbl.meta['survey_data'])
         
         
-        # Meta -- for convenience for now;  best to migrate away from this
+        # Meta -- for convenience for now;  best to migrate away from this
         default_telescope = survey_data.Telescope()
-        
+
         for key in self.survey_data.params:
             DC = self.survey_data.params[key]
             if DC == "telescope":
@@ -966,7 +987,7 @@ class Survey:
                 #default_value = getattr(default_frb, field.name)
                 frb_tbl[field.name] = default_value
                 print("WARNING: no ",field.name," found in survey",
-                    "replcing with default value of ",default_value)
+                    "replacing with default value of ",default_value)
         
         self.frbs = frb_tbl.to_pandas()
         
@@ -986,34 +1007,19 @@ class Survey:
         
         # Min latitude
         if min_lat is not None and min_lat > 0.0:
-            excluded = 0
-            # blanks = np.where(self.frbs['Gb'].values == None)[0]
-
-            # if len(blanks) > 0:
-            #     warnings.warn("Some FRBs have no Gb value, using DMG cut of 50 instead", UserWarning)
-            # self.frbs = self.frbs[self.frbs['Gb'].values != None]
-
-            # excluded += len(self.frbs[np.abs(self.frbs['Gb'].values) <= min_lat])
-            # self.frbs = self.frbs[np.abs(self.frbs['Gb'].values) > min_lat]
-
-            frbs =  []
-
-            for i, frb in self.frbs.iterrows():
-                if np.isnan(frb['Gb']):
-                    warnings.warn("FRB " + frb['TNS'] + " has no Gb value, using DMG cut of 50 instead", UserWarning)
-                    if frb['DMG'] < 50:
-                        frbs.append(frb)
-                    else:
-                        excluded += 1
-                elif np.abs(frb['Gb']) > min_lat:
-                    frbs.append(frb)
-                else:
-                    excluded += 1
+            tot = len(self.frbs)
+            mask = [(Gb is None) or (np.abs(Gb) > min_lat) for Gb in self.frbs['Gb'].values]
+            self.frbs = self.frbs[mask]
+            included = len(self.frbs)
             
-            print("Using minimum galactic latitude of " + str(min_lat) + ". Excluding " + str(excluded) + " FRBs")
+            print("Using minimum galactic latitude of " + str(min_lat) + ". Excluding " + str(tot - included) + " FRBs")
         # Max DM
         if dmg_cut is not None:
+            tot = len(self.frbs)
             self.frbs = self.frbs[np.abs(self.frbs['DMG'].values) < dmg_cut]
+            included = len(self.frbs)
+            print("Using maximum DMG of " + str(dmg_cut) + ". Excluding " + str(tot - included) + " FRBs")
+
         # Get new number of FRBs
         self.NFRB = len(self.frbs)
         
@@ -1062,6 +1068,8 @@ class Survey:
         self.Ss=self.SNRs/self.SNRTHRESHs
         self.TOBS=self.meta['TOBS']
         self.NORM_FRB=self.meta['NORM_FRB']
+        self.Gbs=self.frbs['Gb'].values
+        self.Gls=self.frbs['Gl'].values
         
         # calculates intrinsic widths
         # Uses the model of James et al 2025
@@ -1184,6 +1192,8 @@ class Survey:
                 savename=None
             b2,o2=beams.simplify_beam(logb,omegab,self.meta["NBINS"],
                                       savename=savename,method=method,thresh=thresh)
+            # there is a chance that this method alters the expected number of bins. Reset it!~
+            self.meta["NBINS"] = len(o2)
             self.beam_b=b2
             self.beam_o=o2
             self.do_beam=True

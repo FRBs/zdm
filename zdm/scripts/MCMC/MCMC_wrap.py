@@ -23,6 +23,7 @@ from zdm import loading
 from zdm import MCMC
 from zdm import parameters
 from zdm import misc_functions as mf
+from pkg_resources import resource_filename
 
 import pickle
 import json
@@ -59,17 +60,22 @@ def main():
     parser.add_argument('--edir', default=None, type=str, help="Directory containing efficiency files")
     parser.add_argument('--outdir', default="", type=str, help="Output directory")
     parser.add_argument('--Pn', default=False, action='store_true', help="Include Pn")
-    parser.add_argument('--pNreps', default=False, action='store_true', help="Include pNreps")
+    parser.add_argument('--no_psnr', default=False, action='store_true', help="Exclude psnr")
+    parser.add_argument('--no_pNreps', default=False, action='store_true', help="Exclude pNreps")
+    parser.add_argument('--pwb', default=False, action='store_true', help="Include individual beam values")
     parser.add_argument('--ptauw', default=False, action='store_true', help="Include p(tau,w)")
     parser.add_argument('--rand', default=False, action='store_true', help="Randomise DMG within uncertainty")
     parser.add_argument('--log_halo', default=False, action='store_true', help="Give a log prior on the halo instead of linear")
     parser.add_argument('--lin_host', default=False, action='store_true', help="Give a linear prior on host mean contribution")
+    parser.add_argument('--reset', default=False, action='store_true', help="Overwrite output file if it exists instead of appending")
     args = parser.parse_args()
 
     # Check correct flags are specified
     if args.pfile is None or args.opfile is None:
         print("-p and -o flags are required")
         exit()
+    args.psnr = not args.no_psnr
+    args.pNreps = not args.no_pNreps
 
     # Select from dictionary the necessary parameters to be changed        
     with open(args.pfile) as f:
@@ -83,12 +89,15 @@ def main():
 
     print("Config: ", mcmc_dict["config"])
 
-    if args.Pn:
-        print("Using Pn")
-    if args.log_halo:
-        print("Log prior on halo")
-    if args.lin_host:
-        print("Linear prior on host")
+    print('Pn:', args.Pn)
+    print('psnr:', args.psnr)
+    print('ptauw:', args.ptauw)
+    print('pwb:', args.pwb)
+    print('log_halo:', args.log_halo)
+    print('lin_host:', args.lin_host)
+
+    if args.rep_surveys is not None:
+        print('pNreps:', args.pNreps)
 
     # Initialise surveys
     surveys = [[], []]
@@ -135,7 +144,7 @@ def main():
 
     MCMC.mcmc_runner(MCMC.calc_log_posterior, os.path.join(args.outdir, args.opfile), state, params, surveys, 
                          nwalkers=args.walkers, nsteps=args.steps, nthreads=args.nthreads, Pn=args.Pn, pNreps=args.pNreps,
-                         ptauw = args.ptauw, log_halo=args.log_halo, lin_host=args.lin_host,g0info=g0info)
+                         psnr=args.psnr, ptauw=args.ptauw, pwb=args.pwb, log_halo=args.log_halo, lin_host=args.lin_host,g0info=g0info, reset=args.reset)
 
 #==============================================================================
 
