@@ -280,10 +280,7 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,
         # sums over all FRBs for total likelihood
         llsum+=np.sum(np.log10(pvals))-log_global_norm*DMobs.size
         lllist.append(llsum)
-    
-    ### Assesses total number of FRBs ###
-        # Linear interpolation between DMs
-        pvals=pdm[idms1]*dkdms1 + pdm[idms2]*dkdms2
+        
     else:
         log_global_norm=0
         dm_weights, iweights = calc_DMG_weights(DMobs, survey.DMhalos[nozlist], survey.DMGs[nozlist], dmvals, grid.state.MW.sigmaDMG, 
