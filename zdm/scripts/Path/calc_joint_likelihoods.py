@@ -20,6 +20,7 @@ def main():
     ######## Part 1: Initialise zDM grid ############
     # Initlisation of zDM grid
     REPS='d'
+    REPS=None
     state = states.load_state("HoffmannHalo25",scat=None,rep=REPS)
     
     cos.set_cosmology(state)
@@ -28,7 +29,7 @@ def main():
     # loads zDM grids
     names=['CRAFT_average_ICS']#,'CRAFT_ICS_1300','CRAFT_ICS_1632']
     ss,gs = loading.surveys_and_grids(survey_names=names,init_state=state,
-                                        repeaters =True)
+                                        repeaters = False)
     s = ss[0]
     g = gs[0]
     

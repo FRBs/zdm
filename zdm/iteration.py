@@ -112,6 +112,14 @@ def get_joint_path_zdm_likelihoods(g, s, wrapper, norm=True, psnr=True, Pn=False
                                             failOK=True,doz=True,pzlist=s_pzgsnrbwdm.T)
         r_path_results = on.calc_path_priors(r_frblist,[s],[g],[wrapper],usemodel=True,
                                             failOK=True,doz=True,pzlist=r_pzgsnrbwdm.T)
+        
+        s_lltot = sum_path_lls(s_psnrbwdm,s_path_results)
+        r_lltot = sum_path_lls(r_psnrbwdm,r_path_results)
+        
+        if Pn:
+            lltot += np.log10(s_path_results["Pn"])
+        if PNreps:
+            lltot += np.log10(s_path_results["PNreps"])
         exit()
             
     else:
@@ -133,35 +141,80 @@ def get_joint_path_zdm_likelihoods(g, s, wrapper, norm=True, psnr=True, Pn=False
         
         # this tells us which FRBs have valid host galaxy data
         #print(path_results["OK"])
+        lltot = sum_path_lls(psnrbwdm,path_results)
+
+        if Pn:
+            lltot += np.log10(path_results["Pn"])
+
+def sum_path_lls(psnrbwdm,path_results):
+    """
+    Iterates over FRBs, checking which have PATH results,
+    and summing the likelihood
+    
+    Args:
+        psnrbw: list of p(snr,B,w) values
+        path_results: dict containing path results for FRBs with optical images
+    
+    Returns:
+        lltot (float): log-likelihood summed over all FRBs
+    """
+    
+    # we now construct total likelihoods
+    jpath=0
+    lltot = 0.
+    # search over indices with PATH results
+    npath = len(path_results["OK"])
+    DoPath=True
+    NFRB = psnrbwdm.size
         
-        # we now construct total likelihoods
-        jpath=0
-        lltot = 0.
-        # search over indices with PATH results
-        npath = len(path_results["OK"])
-        DoPath=True
-        for i in np.arange(s.NFRB):
-            ll = np.log10(psnrbwdm[i]) # FRB data
-            # constructs p(z,m) if appropriate
-            if DoPath and i == path_results["OK"][jpath]:
-                # this has P(x|O) from PATH
-                
-                # iterates over possible hosts. Gives P(x|O) P(O)/rho(m). * p(z)/p_f(z) if needed. Then adds P(U)
-                ptot = 0.
-                for j,PO in enumerate(path_results["PO"][jpath]):
-                    p = path_results["PxO"][jpath][j] * PO
-                    if j==0:
-                        # multiplies by pz/pf ratio. Assumes most likely host has z. This is WRONG!!!
-                        p *= path_results["pz"][jpath] / path_results["pf"][jpath]
-                    ptot += p
-                ptot += path_results["PU"][jpath]
-                ll += np.log10(ptot)
-                jpath += 1 # increment to search for next one!
-                if jpath == npath:
-                    DoPath=False
-            lltot += ll
-        return lltot
+    for i in np.arange(NFRB):
+        ll1 = np.log10(psnrbwdm[i]) # FRB data, from 1D FRB
         
+        # constructs p(z,m) if appropriate
+        # Note that jpath
+        if DoPath and i == path_results["OK"][jpath]:
+            # this has P(x|O) from PATH
+            ll2 = construct_popt(path_results["PO"][jpath],path_results["PxO"][jpath],
+                            path_results["pz"][jpath],path_results["pf"][jpath],
+                            path_results["PU"][jpath])
+            jpath += 1 # increment to search for next one!
+            if jpath == npath:
+                DoPath=False
+        lltot += ll1+ll2 # total log-likelihood
+    return lltot
+
+
+def construct_popt(POs,PxOs,pz,pf,PU):
+    """
+    Constructs the optical likelihood from PATH output
+    
+    
+    Args:
+        PO (list of floats, NFRB in length): prior P(O) from PATH
+        PxO (list of floats, NFRB in length): list of p(x|O) values output by PATH
+        PU (float): prior on P(U) as input to PATH
+        pz (float): pobabilioty p(z|m) for most likely host, given it's the true host
+        pf (float): probability of most likely host redshift if it is a field galaxy
+    
+    Returns:
+        ll (float): log-likelihood of this FRB's optical data, summed over host candidates
+                    and the unseen probability
+    """
+    # iterates over possible hosts. Gives P(x|O) P(O)/rho(m). * p(z)/p_f(z) if needed. Then adds P(U)
+    ptot = 0.
+    for j,PO in enumerate(POs):
+        p = PxOs[j] * PO # calculates P(x|O)*P(O)
+        if j==0:
+            # multiplies by pz/pf ratio. Assumes most likely host has z. This is DODGY!
+            # But currently we have no method to handle this. Something more robust and 
+            # permanent is in development
+            p *= pz/pf
+        ptot += p
+    ptot += PU
+    ll = np.log10(ptot)
+    return ll
+    
+
 def get_log_likelihood(grid, s, norm=True, psnr=True, Pn=False, pNreps=True, ptauw=False, pwb=False):
     """Compute total log-likelihood for a grid given survey data.
 
@@ -879,8 +932,7 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,psnr=True,
         PATH_OP["psnrbwgdm"] = psnrbwgdm
         PATH_OP["pzsnrbwgdm"] = pzsnrbwgdm
         PATH_OP["pzgsnrbwdm"] = pzgsnrbwdm
-        print(PATH_OP)
-        exit()
+        
         return PATH_OP
     
     # determines which list of things to return
