@@ -899,10 +899,13 @@ class repeat_Grid(grid.Grid):
         factorial (floart): pre-computer factorial factor
         """
         Rmult = self.Rmult[iz,idm]
-        prob = mpmath.gammainc(effGamma, a=self.Rmin*Rmult,b=self.Rmax*Rmult)
-        prob /= factorial
-        prob /= Rmult**(self.Rgamma+1) 
-        prob *= self.volume_grid[iz,idm]*self.use_sfr[iz]
+        if Rmult > 0:
+            prob = mpmath.gammainc(effGamma, a=self.Rmin*Rmult,b=self.Rmax*Rmult)
+            prob /= factorial
+            prob /= Rmult**(self.Rgamma+1) 
+            prob *= self.volume_grid[iz,idm]*self.use_sfr[iz]
+        else:
+            prob = 0.
         
         return prob
                 
