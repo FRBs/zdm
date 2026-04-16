@@ -49,10 +49,15 @@ import multiprocessing as mp
 from zdm import misc_functions as mf
 from zdm import repeat_grid
 import os
+
+from zdm import optical_numerics as on
+from zdm import optical as opt
+from zdm import optical_params as op
 #==============================================================================
 
 def calc_log_posterior(param_vals, state, params, surveys_sep, Pn=False, pNreps=True, psnr=True, ptauw=False, pwb=False,
-                log_halo=False, lin_host=False, ind_surveys=False, g0info=None):
+                log_halo=False, lin_host=False, ind_surveys=False, g0info=None, nz=500, ndm=1400,
+                dopath=False, opstate=None, opt_params=None, opt_model=None):
     """Calculate log-posterior probability for a parameter vector.
 
     This is the main function called by emcee samplers. It evaluates the
@@ -86,7 +91,15 @@ def calc_log_posterior(param_vals, state, params, surveys_sep, Pn=False, pNreps=
         If True, return list of individual survey likelihoods. Default False.
     g0info : list, optional
         Pre-computed [zDMgrid, zvals, DMvals] for speedup.
-
+    dopath:  bool, optional
+        Include PATH host likelihoods according to optical model
+    opstate: optical.state, optional
+        State object of optical parameters
+    opt_params:  dictionary, optional
+        Optical parameter names, min and max values
+    opt_model: optical.model, optional
+        Optical model object, to modify
+    
     Returns
     -------
     float or tuple
@@ -100,6 +113,13 @@ def calc_log_posterior(param_vals, state, params, surveys_sep, Pn=False, pNreps=
     in_priors = True
     param_dict = {}
     
+    # if including path, determine which parameter values are for zDM, which for optical properties
+    if dopath:
+        Nopt = len(opt_params)
+        opt_param_vals = param_vals[-Nopt:]
+        param_vals = param_vals[:-Nopt]
+    
+    # this iterates over zdm parameters
     for i, (key,val) in enumerate(params.items()):
         if param_vals[i] < val['min'] or param_vals[i] > val['max']:
             in_priors = False
@@ -109,7 +129,18 @@ def calc_log_posterior(param_vals, state, params, surveys_sep, Pn=False, pNreps=
             param_dict[key] = np.log10(param_vals[i])
         else:
             param_dict[key] = param_vals[i]
+    
+    # performs same check for optical parameters, if used
+    if dopath:
+        opt_param_dict = {}
+        for i, (key,val) in enumerate(opt_params.items()):
+            if opt_param_vals[i] < val['min'] or opt_param_vals[i] > val['max']:
+                in_priors = False
+                break
+        
+            opt_param_dict[key] = opt_param_vals[i]
 
+    
     # Initialise list if requesting individual survey likelihoods
     if ind_surveys:
         ll_list = []
@@ -159,13 +190,15 @@ def calc_log_posterior(param_vals, state, params, surveys_sep, Pn=False, pNreps=
         
         # Initialise grids
         grids = []
+        if dopath:
+            wrappers = []
         
         # gets new zDM grid if F and H0 in the param_dict
         if 'H0' in param_dict or 'logF' in param_dict or g0info is None:
             datdir = resources.files('zdm').joinpath('GridData')
             zDMgrid, zvals,dmvals = mf.get_zdm_grid(
                 state, new=True, plot=False, method='analytic',
-                datdir=datdir)
+                datdir=datdir,nz=nz,ndm=ndm)
             g0info = [zDMgrid, zvals,dmvals]
         
         if len(surveys_sep[0]) != 0:
@@ -176,14 +209,30 @@ def calc_log_posterior(param_vals, state, params, surveys_sep, Pn=False, pNreps=
             # generates zdm grid
             grids += mf.initialise_grids(surveys_sep[1], zDMgrid, zvals, dmvals, state, wdist=True, repeaters=True)
         
+        if dopath:
+            opstate.update_params(opt_param_dict)
+            opt_model = opt.select_model(opstate) #initialise optical model
+            # technically, we need one model wrapper per optical survey sensitivity
+            # it doesn't need to be associated with a given FRB survey, or grid
+            for i,g in enumerate(grids):
+                wrappers.append(opt.model_wrapper(opt_model,g.zvals))
+        
         # Minimse the constant accross all surveys
         if Pn:
             newC, llC = it.minimise_const_only(None, grids, surveys, update=True)
 
         # calculate all the likelihoods
         llsum = 0
-        for s, grid in zip(surveys, grids):
-            ll = it.get_log_likelihood(grid,s,Pn=Pn,pNreps=pNreps,psnr=psnr,ptauw=ptauw,pwb=pwb)
+        # changes to this, so we can choose to icnlude path or not
+        for isurvey,s in enumerate(surveys):
+            g = grids[isurvey]
+            
+            if dopath:
+                w = wrappers[isurvey]
+                ll = it.get_joint_path_zdm_likelihoods(g, s, w, Pn=Pn,pNreps=pNreps,
+                                                        psnr=psnr,ptauw=ptauw,pwb=pwb)
+            else:
+                ll = it.get_log_likelihood(grid,s,Pn=Pn,pNreps=pNreps,psnr=psnr,ptauw=ptauw,pwb=pwb)
             llsum += ll
             if ind_surveys:
                 ll_list.append(ll)
@@ -206,9 +255,10 @@ def calc_log_posterior(param_vals, state, params, surveys_sep, Pn=False, pNreps=
 
 #==============================================================================
 
-def mcmc_runner(logpf, outfile, state, params, surveys, nwalkers=10, nsteps=100, nthreads=1, Pn=False,
-                pNreps=True, psnr=True, ptauw=False, pwb=False, log_halo=False, lin_host=False, ind_surveys=False, g0info=None,
-                reset=False):
+def mcmc_runner(logpf, outfile, state, params, surveys, nwalkers=10, nsteps=100, nthreads=1,
+                Pn=False, pNreps=True, psnr=True, ptauw=False, pwb=False, log_halo=False,
+                lin_host=False, ind_surveys=False, g0info=None, nz=500, ndm=1400, reset=False,
+                dopath=False, opstate=None, opt_params=None):
     """
     Handles the MCMC running.
 
@@ -229,19 +279,35 @@ def mcmc_runner(logpf, outfile, state, params, surveys, nwalkers=10, nsteps=100,
         log_halo    (bool)          =   Use a log uniform prior on DMhalo
         ind_surveys (bool)          =   Return individual survey data
         g0info      (list)          =   List of [zDMgrid, zvals, DMvals] Passed to use as speedup if needed
-    
+        nz          (int)           =   Number of redshift (z) points ot use
+        ndm         (int)           =   Number of DM values to use
+        dopath      (bool)          =   Include PATH host likelihoods according to optical model
+        opstate     (optical.state) =   State object of optical parameters
+        opt_params  (dictionary)    =   Optical parameter names, min and max values
+        opt_model   (optical.model) =   Optical model object, to modify
+        
+        
     Outputs:
         posterior_sample    (emcee.EnsembleSampler) =   Final sample
         outfile.h5          (HDF5 file)             =   HDF5 file containing the sampler
     """
         
     ndim = len(params)
+    if dopath:
+        ndim += len(opt_params)
+    
     starting_guesses = []
 
     # Produce starting guesses for each parameter
     for key,val in params.items():
         starting_guesses.append(st.uniform(loc=val['min'], scale=val['max']-val['min']).rvs(size=[nwalkers]))
         print(key + " priors: " + str(val['min']) + "," + str(val['max']))
+    
+    if dopath:
+        # Produce starting guesses for each optical parameter
+        for key,val in opt_params.items():
+            starting_guesses.append(st.uniform(loc=val['min'], scale=val['max']-val['min']).rvs(size=[nwalkers]))
+            print(key + " priors: " + str(val['min']) + "," + str(val['max']))
     
     starting_guesses = np.array(starting_guesses).T
     
@@ -265,8 +331,11 @@ def mcmc_runner(logpf, outfile, state, params, surveys, nwalkers=10, nsteps=100,
     
     
     with Pool() as pool: # could add mp.Pool(ntrheads=5) or Pool = None
-        sampler = emcee.EnsembleSampler(nwalkers, ndim, logpf, args=[state, params, surveys, Pn, pNreps, psnr,
-                                        ptauw, pwb, log_halo, lin_host, ind_surveys, g0info], backend=backend, pool=pool)
+        sampler = emcee.EnsembleSampler(nwalkers, ndim, logpf,
+                                        args=[state, params, surveys, Pn, pNreps, psnr,
+                                            ptauw, pwb, log_halo, lin_host, ind_surveys, g0info,
+                                            nz, ndm, dopath, opstate, opt_params],
+                                        backend=backend, pool=pool)
         if exists:
             # start from last saved position
             sampler.run_mcmc(None, nsteps, progress=True)

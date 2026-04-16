@@ -102,7 +102,7 @@ def main():
     lltot += np.sum(lpsnrgdm)
     
     # sum probability over z-axis for each FRB, then sum log likelihoods for product of probabilities
-    lltot += np.log10(PATH_OP["pn"])
+    lltot += np.log10(PATH_OP["pN"])
     print("lltot calculated from PATH outputs to be ",lltot)
     
     #lltot = np.sum(PATH_OP["pdm"] + PATH_OP["lpzgdm"] + PATH_OP["lpsnrbwgzdm"]
@@ -112,7 +112,6 @@ def main():
     ############# dolist = 0 ##########
     print("\n\n\n####### DOLIST = 0: Total likelihoods ##########")
     # simple illustration of "dolist=0" - returns only the total log likelihoods
-    
     
     t0 = time.time()
     for i in np.arange(NT):

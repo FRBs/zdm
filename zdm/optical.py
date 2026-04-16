@@ -77,6 +77,20 @@ from astropath import priors as pathpriors
 ###################################################################
 
 
+def select_model(opstate):
+    """
+    Routine to return model class
+    """
+    imodel = opstate.app.iModel
+    if imodel == 0:
+        return marnoch_model(opstate)
+    elif imodel == 1:
+        return loudas_model(opstate)
+    elif imodel==2:
+        return simple_model(opstate)
+    else:
+        raise ValueError("Model ids 0 (Marnoch), 1 (Loudas), 2 (Naive) implemented only")
+
 class marnoch_model:
     """
     Class initiates a model based on Lachlan Marnoch's predictions
@@ -405,7 +419,8 @@ class loudas_model:
         
         return pmr
         
-    def load_p_mr_distributions(self,data_dir,fname: str = 'p_mr_distributions_dz0.01_z_in_0_2.0.h5') -> tuple:
+    def load_p_mr_distributions(self,data_dir,verbose=False,
+                            fname: str = 'p_mr_distributions_dz0.01_z_in_0_2.0.h5') -> tuple:
         """
         This code originally written by Nick Loudas. Used with permission
         
@@ -435,7 +450,8 @@ class loudas_model:
             p_mr_sfr = (p_mr_sfr.T / np.sum(p_mr_sfr,axis=1)).T
             p_mr_mass = (p_mr_mass.T / np.sum(p_mr_mass,axis=1)).T
         
-        print(f"p(mr|z) distributions loaded successfully from 'p_mr_dists/{fname}'")
+        if verbose:
+            print(f"p(mr|z) distributions loaded successfully from 'p_mr_dists/{fname}'")
         return zbins, rmag_centers, p_mr_sfr, p_mr_mass
     
     def give_p_mr_mass(self,z: float):
@@ -1343,7 +1359,12 @@ class Field:
         # produces p(z|mr) for every value of mr by simply normalising by the
         # sum over mr
         self.pm = np.sum(self.pmrz,axis=0) # sums over the z azis
-        self.pzgmr = self.pmrz / np.sum(self.pmrz,axis=0)
+        
+        # added check against divide by zero
+        thesum = np.sum(self.pmrz,axis=0)
+        self.pzgmr = np.copy(self.pmrz)
+        OK = np.where(thesum > 0.)[0]
+        self.pzgmr[:,OK] /= thesum[OK]
         
         # smooth the distribution
         hs = 2 # half width of filter, excluding centre
@@ -1472,7 +1493,8 @@ class Field:
         # re-initialise
         self.init_pzgmr()
         
-    def load_p_mr_field(self,data_dir,fname: str = 'p_mr_distributions_dz0.01_z_in_0_2.0.h5') -> tuple:
+    def load_p_mr_field(self,data_dir,verbose=False,
+                    fname: str = 'p_mr_distributions_dz0.01_z_in_0_2.0.h5') -> tuple:
         """
         This code originally written by Nick Loudas. Used with permission
         
@@ -1501,7 +1523,8 @@ class Field:
             # normalise these probabilities such that the bins sum to unity
             p_mr_unweighted = (p_mr_unweighted.T / np.sum(p_mr_unweighted,axis=1)).T
         
-        print(f"p(mr|z) distributions loaded successfully from 'p_mr_dists/{fname}'")
+        if verbose:
+            print(f"p(mr|z) distributions loaded successfully from 'p_mr_dists/{fname}'")
         return zbins, rmag_centers, p_mr_unweighted
 
 ################# Useful functions not associated with a class #########

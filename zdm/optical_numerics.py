@@ -161,7 +161,7 @@ def make_cdf(xs,ys,ws,norm=True):
 
     
 def calc_path_priors(frblist,ss,gs,wrappers,verbose=True,usemodel=True,P_U=0.1,
-                    failOK=False,doz=True,field=None,pzlist=None):
+                    failOK=False,doz=True,field=None,pzlist=None,scale=0.5):
     """
     Run PATH on a list of FRBs and return priors, posteriors, and P_U values.
 
@@ -320,7 +320,7 @@ def calc_path_priors(frblist,ss,gs,wrappers,verbose=True,usemodel=True,P_U=0.1,
         if usemodel:
             P_U = wrapper.estimate_unseen_prior()
         
-        result = run_path(frb,usemodel=usemodel,P_U = P_U, failOK = failOK)
+        result = run_path(frb,usemodel=usemodel,P_U = P_U, failOK = failOK, scale=scale)
         if result["Error"]:
             if failOK:
                 continue
@@ -795,7 +795,7 @@ def get_cand_properties(frblist):
         all_candidates.append(candidates)
     return all_candidates
 
-def run_path(name,P_U=0.1,usemodel=False,sort=False,failOK=False):
+def run_path(name,P_U=0.1,usemodel=False,sort=False,failOK=False,scale=0.5):
     """
     Run the PATH algorithm on a single FRB and return host association results.
 
@@ -892,7 +892,7 @@ def run_path(name,P_U=0.1,usemodel=False,sort=False,failOK=False):
     
     theta_new = dict(method='exp', 
                     max=priors['adopted']['theta']['max'], 
-                    scale=0.5)
+                    scale=scale)
     prior['theta'] = theta_new
     
     # change this to something depending on the FRB DM

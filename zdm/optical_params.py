@@ -73,7 +73,7 @@ class SimpleParams(data_class.myDataClass):
                   })
 
 
-# Nick Loudas's SFR model
+# Nick Loudas's SFR model. Actually, we never really need many/any of these, it's all contained in optical
 @dataclass
 class LoudasParams(data_class.myDataClass):
     """
@@ -167,7 +167,27 @@ class Apparent(data_class.myDataClass):
                   'unit': '', 
                   'Notation': '',
                   })
+    iModel: int = field(
+        default = 0,
+        metadata={'help': "Id of optical model to use. 0,1,2 = Marnoch, Loudas, Naive",
+                  'unit': '',
+                  'Notation': '',
+                  })
 
+
+
+@dataclass
+class Path(data_class.myDataClass):
+    """
+    parameters to pass along to PATH analysis.
+    """
+    Scale: float = field( 
+        default=0.5, 
+        metadata={'help': "Exponential scale of radial distribution", 
+                  'unit': '}', 
+                  'Notation': '',
+                  })
+    
 class OpticalState(data_class.myData):
     """Initialize the full optical state dataset
     with the default parameters
@@ -183,6 +203,7 @@ class OpticalState(data_class.myData):
         self.loudas = LoudasParams()
         self.app = Apparent()
         self.id = Identification()
+        self.path = Path()
         
 
     def update_param(self, param:str, value):

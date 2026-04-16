@@ -63,6 +63,7 @@ def main():
     parser.add_argument('--no_psnr', default=False, action='store_true', help="Exclude psnr")
     parser.add_argument('--no_pNreps', default=False, action='store_true', help="Exclude pNreps")
     parser.add_argument('--pwb', default=False, action='store_true', help="Include individual beam values")
+    parser.add_argument('--path', default=None, type=str, help="File specifying PATH optical host galaxy probabilities")
     parser.add_argument('--ptauw', default=False, action='store_true', help="Include p(tau,w)")
     parser.add_argument('--rand', default=False, action='store_true', help="Randomise DMG within uncertainty")
     parser.add_argument('--log_halo', default=False, action='store_true', help="Give a log prior on the halo instead of linear")
@@ -80,7 +81,8 @@ def main():
     # Select from dictionary the necessary parameters to be changed        
     with open(args.pfile) as f:
         mcmc_dict = json.load(f)
-
+    
+    #### Handles the zDM parameters ####
     params = {k: mcmc_dict[k] for k in mcmc_dict["mcmc"]["parameter_order"]}
 
     state = parameters.State()
@@ -95,10 +97,34 @@ def main():
     print('pwb:', args.pwb)
     print('log_halo:', args.log_halo)
     print('lin_host:', args.lin_host)
+    print('path:', args.path)
 
     if args.rep_surveys is not None:
         print('pNreps:', args.pNreps)
-
+    
+    #### Handles the PATH parameters, if appropriate ####
+    if args.path is not None:
+        from zdm import optical as opt
+        from zdm import optical_numerics as on
+        from zdm import optical_params as op
+        
+        
+        # Select from dictionary the necessary parameters to be changed        
+        with open(args.path) as f:
+            path_dict = json.load(f)
+        
+        #### Handles the optical parameters ####
+        opt_params = {k: path_dict[k] for k in path_dict["mcmc"]["parameter_order"]}
+        
+        opstate = op.OpticalState()
+        opstate.update_params(path_dict["config"])
+        dopath=True
+    else:
+        dopath = False
+        opstate = None
+        opt_params=None
+        model = None
+        
     # Initialise surveys
     surveys = [[], []]
 
@@ -141,10 +167,12 @@ def main():
     # Make output directory
     if args.outdir != "" and not os.path.exists(args.outdir):
         os.mkdir(args.outdir)
-
+    
     MCMC.mcmc_runner(MCMC.calc_log_posterior, os.path.join(args.outdir, args.opfile), state, params, surveys, 
-                         nwalkers=args.walkers, nsteps=args.steps, nthreads=args.nthreads, Pn=args.Pn, pNreps=args.pNreps,
-                         psnr=args.psnr, ptauw=args.ptauw, pwb=args.pwb, log_halo=args.log_halo, lin_host=args.lin_host,g0info=g0info, reset=args.reset)
+                         nwalkers=args.walkers, nsteps=args.steps, nthreads=args.nthreads, Pn=args.Pn,
+                         pNreps=args.pNreps, psnr=args.psnr, ptauw=args.ptauw, pwb=args.pwb, log_halo=args.log_halo,
+                         lin_host=args.lin_host, g0info=g0info, nz=args.Nz, ndm=args.Ndm, reset=args.reset,
+                         dopath=dopath, opstate=opstate, opt_params=opt_params)
 
 #==============================================================================
 

@@ -40,7 +40,8 @@ import scipy.stats as st
 from zdm import repeat_grid as zdm_repeat_grid
 from zdm import optical_numerics as on
 
-def get_joint_path_zdm_likelihoods(g, s, wrapper, norm=True, psnr=True, Pn=False, pdmz=True, pNreps=True, ptauw=False, pwb=False):
+def get_joint_path_zdm_likelihoods(g, s, wrapper, norm=True, psnr=True, Pn=False,
+                                    pdmz=True, pNreps=True, ptauw=False, pwb=False):
     """
     Compute total log-likelihood for a grid given, survey, and optical data.
 
@@ -140,9 +141,12 @@ def get_PATH_lls(s,g,wrapper,op):
         lltot += np.log10(op["pReps"])
     
     frblist = s.frbs["TNS"].values[op["ilist"]]
-            
+    
+    scale = wrapper.OpticalState.path.Scale
+    
     path_results = on.calc_path_priors(frblist,[s],[g],[wrapper],usemodel=True,
-                                            failOK=True,doz=True,pzlist=pzgxrad.T)
+                                            failOK=True,doz=True,pzlist=pzgxrad.T,
+                                            scale=scale)
             
     # this tells us which FRBs have valid host galaxy data
     #print(path_results["OK"])
@@ -390,29 +394,26 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,
     # Determine which array to perform operations on and initialise
     if grid_type == 1: 
         rates = grid.exact_reps 
-        if survey.nozreps is not None:
-            if PATH: # we are doing this for every FRB regardless
-                nozlist = survey.replist
-            else:
-                nozlist = survey.nozreps
-        else:
-            raise ValueError("No non-localised singles in this survey, cannot calculate 1D likelihoods")
-    elif grid_type == 2: 
-        rates = grid.exact_singles 
-        if survey.nozsingles is not None:
-            if PATH:
-                nozlist=survey.singleslist
-            else:
-                nozlist=survey.nozsingles
+        if PATH:
+            nozlist = survey.replist
+        elif survey.nozreps is not None:
+            nozlist = survey.nozreps
         else:
             raise ValueError("No non-localised repeaters in this survey, cannot calculate 1D likelihoods")
+    elif grid_type == 2: 
+        rates = grid.exact_singles 
+        if PATH:
+            nozlist=survey.singleslist
+        elif survey.nozsingles is not None:
+            nozlist=survey.nozsingles
+        else:
+            raise ValueError("No non-localised singles in this survey, cannot calculate 1D likelihoods")
     else: 
         rates=grid.rates 
-        if survey.nozlist is not None:
-            if PATH: # we are doing this for every FRB regardless
-                nozlist = np.arange(survey.NFRB) # just use all the FRBs!
-            else:
-                nozlist = survey.nozlist
+        if PATH:
+            nozlist = np.arange(survey.NFRB) # just use all the FRBs!
+        elif survey.nozlist is not None:
+            nozlist = survey.nozlist
         else:
             raise ValueError("No non-localised FRBs in this survey, cannot calculate 1D likelihoods")
     
@@ -426,8 +427,7 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,
     
     llsum=0
     lllist={}
-    
-    longlist=np.zeros(len(nozlist))
+    longlist={}
     idms1,idms2,dkdms1,dkdms2 = grid.get_dm_coeffs(DMobs)
     
     if PATH:
@@ -471,12 +471,12 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,
         expected=CalculateIntegral(rates,survey,reps)
         expected *= C
 
-        Pn=Poisson_p(observed,expected)
+        probN=Poisson_p(observed,expected)
         
         if Pn==0:
             Nll=-1e10
         else:
-            Nll=np.log10(Pn)
+            Nll=np.log10(probN)
         
         lllist["pN"]=Nll
         lllist["Nexpected"]=expected
@@ -489,9 +489,8 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,
         if not Pn:
             PATH_OP["pN"] = 1.
         else:
-            PATH_OP["pN"] = Pn
+            PATH_OP["pN"] = probN
     
-        
     ##### Checks to see if there are any FRBs to analyse #####
     # If there are no FRBs, cannot calculate p(z,DM) or p(SNR)
     # Hence, just return at this point. It's easiest!
@@ -531,10 +530,6 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,
             for i in range(len(idms1)):
                 pvals[i]=np.sum(pdm[iweights[i]]*dm_weights[i])
         
-        # holds individual FRB data
-        if dolist == 2:
-            longlist+=np.log10(pvals)-log_global_norm
-        
         # sums over all FRBs for total likelihood
         lpdm = np.sum(np.log10(pvals))-log_global_norm*DMobs.size
         llsum += lpdm
@@ -560,11 +555,9 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,
     llsum=np.sum(np.log10(pvals))-log_global_norm*DMobs.size
     
     # initialise dicts to return detailed log-likelihood information
-    longlist={}
     longlist["pzDM"]={}
     longlist["pzDM"]["pdm"]=np.log10(pvals)-log_global_norm
-        
-    lllist={}
+    
     lllist["pzDM"]={} # pz,DM
     lllist["pzDM"]["pdm"]=lpdm
     
@@ -672,22 +665,6 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,
         longlist["ptauw"]["piw"]=np.log10(piws)
         longlist["ptauw"]["ptau"]=np.log10(ptaus)
         longlist["ptauw"]["w_indices"]=inoztaulist
-    
-    if psnr or PATH:
-        # get the correct p(z) distributions to weight the likelihoods by. Needed for PATH p(z|DM)
-        # and for psnr calculations
-        if grid.state.MW.sigmaDMG == 0.0:
-            # Linear interpolation
-            rs = rates[:,idms1]*dkdms1+ rates[:,idms2]*dkdms2
-        else:
-            rs = np.zeros([grid.zvals.size, len(idms1)])
-            # For each FRB
-            for i in range(len(idms1)):
-                # For each redshift
-                for j in range(grid.zvals.size):
-                    rs[j,i] = np.sum(grid.rates[j,iweights[i]] * dm_weights[i]) / np.sum(dm_weights[i])
-        if PATH:
-            PATH_OP["pzgdm"] = rs
     
     # this is updated version, and probably should overwrite the previous calculations
     if psnr:
@@ -926,16 +903,21 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,
         
         # add simply psnr. Do this before normalisation over z - we want p(snr|z,DM), not p(snr|DM)
         if not pwb and PATH:
-            PATH_OP["pzsnrdm"] = zpsnr*rs # joint total probability
+            PATH_OP["pzsnrdm"] = zpsnr*PATH["pzgdm"]*PATH["pdm"] # joint total probability
             PATH_OP["psnrdm"] = np.sum(PATH_OP["pzsnrdm"],axis=0) # p(snr and dm integrated over all z)
-            PATH_OP["pzgsnrdm"] = PATH_OP["pzsnrdm"] / PATH_OP["psnrdm"] #p(z) given snr and dm
+            PATH_OP["pzgsnrdm"] = np.copy(PATH_OP["pzsnrdm"])
+            
+            # protection against nans when a zero is encountered. NZ x NFRB
+            OK = np.where(PATH_OP["psnrdm"] > 0.)[0]
+            PATH_OP["pzgsnrdm"][:,OK] /= PATH_OP["psnrdm"][OK] #p(z) given snr and dm
             
             
         # perform the weighting over the redshift axis, i.e. to multiply by p(z|DM) and normalise \int p(z|DM) dz = 1
-        rnorms = np.sum(rs,axis=0)
+        # difference between rs and tomult is *only* that rs are NOT normalised by p(DM)
+        #rnorms = np.sum(rs,axis=0)
         
-        fpsnr = np.sum(zpsnr*rs,axis=0) / rnorms
-        
+        #fpsnr = np.sum(zpsnr*rs,axis=0) / rnorms
+        fpsnr = np.sum(zpsnr*tomult,axis=0)
         
         # normalises for total probability of DM occurring in the first place.
         # We need to do this. This effectively cancels however the Emin-Emax factor.
@@ -994,7 +976,10 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,
             psnrbwgdm = np.sum(pzsnrbwgdm,axis=0) # sums over z-axis. #dimensions: NFRB
         
             # hence, we find from (1) that p(z|snr,b,w,DM) = p(z,snr,b,w|DM) / p(snr,b,w|DM) ...(4)
-            pzgsnrbwdm = pzsnrbwgdm/psnrbwgdm
+            # dimensions: NZ x NFRB
+            pzgsnrbwdm = np.copy(pzsnrbwgdm)
+            OK = np.where(psnrbwgdm>0.)[0]
+            pzgsnrbwdm[:,OK] /= psnrbwgdm[OK]
         
             # probability of snr, beam, width, and DM, summed over redshift
             psnrbwdm = psnrbwgdm * PATH_OP["pdm"]
@@ -1115,8 +1100,8 @@ def calc_likelihoods_2D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,p
             DMobs=survey.DMEGs[survey.zreps]
             Zobs=survey.Zs[survey.zreps]
             zlist=survey.zreps
-            bweights = survey.frb_zbweights_reps
-            wweights = survey.frb_zwweights_reps
+            zbweights = survey.frb_zbweights_reps
+            zwweights = survey.frb_zwweights_reps
         else:
             raise ValueError("No localised singles in this survey, cannot calculate 1D likelihoods")
     elif grid_type == 2: 
@@ -1125,8 +1110,8 @@ def calc_likelihoods_2D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,p
             DMobs=survey.DMEGs[survey.zsingles]
             Zobs=survey.Zs[survey.zsingles]
             zlist=survey.zsingles
-            bweights = survey.frb_zbweights_singles
-            wweights = survey.frb_zwweights_singles
+            zbweights = survey.frb_zbweights_singles
+            zwweights = survey.frb_zwweights_singles
         else:
             raise ValueError("No localised repeaters in this survey, cannot calculate 1D likelihoods")
     else: 
@@ -1135,8 +1120,8 @@ def calc_likelihoods_2D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,p
             DMobs=survey.DMEGs[survey.zlist]
             Zobs=survey.Zs[survey.zlist]
             zlist=survey.zlist
-            bweights = survey.frb_zbweights
-            wweights = survey.frb_zwweights
+            zbweights = survey.frb_zbweights
+            zwweights = survey.frb_zwweights
         else:
             raise ValueError("No nlocalised FRBs in this survey, cannot calculate 1D likelihoods")
 
