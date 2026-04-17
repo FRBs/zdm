@@ -903,7 +903,7 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,
         
         # add simply psnr. Do this before normalisation over z - we want p(snr|z,DM), not p(snr|DM)
         if not pwb and PATH:
-            PATH_OP["pzsnrdm"] = zpsnr*PATH["pzgdm"]*PATH["pdm"] # joint total probability
+            PATH_OP["pzsnrdm"] = zpsnr*PATH_OP["pzgdm"]*PATH_OP["pdm"] # joint total probability
             PATH_OP["psnrdm"] = np.sum(PATH_OP["pzsnrdm"],axis=0) # p(snr and dm integrated over all z)
             PATH_OP["pzgsnrdm"] = np.copy(PATH_OP["pzsnrdm"])
             

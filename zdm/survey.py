@@ -1038,14 +1038,6 @@ class Survey:
             for key in keylist:
                 if not key in self.meta:
                     self.meta[key] = np.median(self.frbs[key])
-            #self.meta['SNRTHRESH'] = np.median(self.frbs['SNRTHRESH'])
-            #self.meta['THRESH'] = np.median(self.frbs['THRESH'])
-            #self.meta['BW'] = np.median(self.frbs['BW'])
-            #self.meta['FBAR'] = np.median(self.frbs['FBAR'])
-            #self.meta['FRES'] = np.median(self.frbs['FRES'])
-            #self.meta['TRES'] = np.median(self.frbs['TRES'])
-            #self.meta['WIDTH'] = np.median(self.frbs['WIDTH'])
-            #self.meta['DMG'] = np.mean(self.frbs['DMG'])
         # over-rides survey data if applicable
         if survey_dict is not None:
             for key in survey_dict:
@@ -1132,7 +1124,7 @@ class Survey:
         
         
         for i,gl in enumerate(self.frbs['Gl']):
-            if gl is None or self.frbs['Gb'][i] is None:
+            if gl is None or self.frbs['Gb'][i] is None or not np.isfinite(gl):
                 # test RA
                 if self.frbs['RA'][i] is None or self.frbs['DEC'][i] is None:
                     if verbose:
@@ -1150,23 +1142,38 @@ class Survey:
         """ Estimates galactic DM according to
         Galactic lat and lon only if not otherwise provided
         """
-        if len(self.frbs["TNS"].values) != 0 and not np.isfinite(self.frbs["DMG"].values[0]):
-            print("Checking Gl and Gb")
-            if np.isfinite(self.frbs["Gl"].values[0]) and np.isfinite(self.frbs["Gb"].values[0]):
+        # return if there are no FRBs in the sample!
+        if len(self.frbs["TNS"].values) == 0:
+            return
+        # gets DMG values that need to be filled in
+        nans = np.where(np.isfinite(self.frbs["DMG"].values)==False)[0]
+        toosmall = np.where(self.frbs["DMG"].values < 0.)[0]
+        
+        allbad = np.concatenate((nans,toosmall))
+        if len(allbad) == 0:
+            return
+        
+        # make a temporary array
+        dmgs = np.array(self.frbs["DMG"])
+        
+        print("Calculating DMG from NE2001. Please record this, it takes a while!")
+        for i in allbad:
+            if not (np.isfinite(self.frbs["Gl"].values[i]) and np.isfinite(self.frbs["Gb"].values[i])):
                 raise ValueError('Can not estimate Galactic contributions.\
                     Please enter Galactic coordinates, or else manually enter \
                     it as DMG')
-            print("Calculating DMG from NE2001. Please record this, it takes a while!")
             ne = density.ElectronDensity()
-            DMGs=np.zeros([self.NFRB])
-            for i,l in enumerate(self.frbs["Gl"]):
-                b=self.frbs["Gb"][i]
-                ismDM = ne.DM(l, b, 100.)
-                print(i,l,b,ismDM)
-            DMGs=np.array(DMGs)
-            self.frbs["DMG"]=DMGs
-            self.DMGs=DMGs
+            l=self.frbs["Gl"][i]
+            b=self.frbs["Gb"][i]
+            ismDM = ne.DM(l, b, 100.)
+            print(i,l,b,ismDM.value)
+            #self.frbs["DMG",i] = ismDM.value
+            dmgs[i] = ismDM.value
         
+        # re-assign array. Note: we have to do this, because you cannot over-write a Pandas value once implemented
+        # If you read documentation that says otherwise, it is a lie. Pandas are evil. Please, nevfer use pandas
+        # dataframes in this code if you can avoid it!
+        self.frbs["DMG"] = dmgs
 
     def init_beam(self,plot=False,
                   method=1,thresh=1e-3):
