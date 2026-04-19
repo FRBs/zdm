@@ -23,7 +23,6 @@ from zdm import loading
 from zdm import MCMC
 from zdm import parameters
 from zdm import misc_functions as mf
-from pkg_resources import resource_filename
 
 import pickle
 import json

@@ -40,7 +40,7 @@ font = {'family' : 'Helvetica',
 matplotlib.rc('font', **font)
 
 
-def main():
+def main(opdir,iFRB,survey):
     
     
     # set op directory
@@ -65,8 +65,8 @@ def main():
     
     # Initialise surveys and grids
     sdir = resources.files('zdm').joinpath('data/Surveys')
-    names=['CRAFT_ICS_892']#,'CRAFT_ICS_1300','CRAFT_ICS_1632']
-    
+    #names=['CRAFT_ICS_892']#,'CRAFT_ICS_1300','CRAFT_ICS_1632']
+    names=[survey]
     
     # setting ptauw to True takes much longer!
     survey_dict = {}
@@ -79,7 +79,7 @@ def main():
     ss,gs = loading.surveys_and_grids(survey_names=names,repeaters=False,
                                     init_state=state,sdir=sdir,survey_dict = None,
                                     ndm=ndm, nz=nz) 
-    ifrb=3
+    ifrb=4
     
     g=gs[0]
     s=ss[0]
@@ -108,11 +108,16 @@ def main():
     if False:
         make_pzgmr_plot(g,s,ifrb,opdir,Field=True)
     
-    if True:
+    if False:
         make_pzgu_plot(g,s,ifrb,opdir,surveys,means,stds)
     
     if False:
         test_field(opdir)
+        
+    if True:
+        model = opt.marnoch_model()
+        w = opt.model_wrapper(model,g.zvals)
+        lltot,results = it.get_joint_path_zdm_likelihoods(g,s,w,pwb=True,return_all=True)
 
     
 def test_field(opdir):
@@ -347,5 +352,13 @@ def make_pz_plot(glist,slist,ifrb,opdir):
     plt.savefig(opdir+"pz.png")
     plt.close()
     
-    
-main()
+#opdir="Illustrations/"
+#ifrb=3
+#survey="CRAFT_ICS_892"
+#main(opdir,ifrb,survey)
+
+
+opdir="190611/"
+ifrb=4
+survey="CRAFT_ICS_1300"
+main(opdir,ifrb,survey)

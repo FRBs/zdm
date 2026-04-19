@@ -41,7 +41,8 @@ from zdm import repeat_grid as zdm_repeat_grid
 from zdm import optical_numerics as on
 
 def get_joint_path_zdm_likelihoods(g, s, wrapper, norm=True, psnr=True, Pn=False,
-                                    pdmz=True, pNreps=True, ptauw=False, pwb=False):
+                                    pdmz=True, pNreps=True, ptauw=False, pwb=False,
+                                    return_all=False):
     """
     Compute total log-likelihood for a grid given, survey, and optical data.
 
@@ -72,44 +73,58 @@ def get_joint_path_zdm_likelihoods(g, s, wrapper, norm=True, psnr=True, Pn=False
         If True, include p(tau, width) likelihood. Default False.
     pwb : bool, optional
         If True, include width/beam likelihood. Default False.
-
+    return_all : bool, optional
+        If true, return extra data
+    
     Returns
     -------
     float
         Total log-likelihood value.
+    data
+        Extra data on FRB likelihoods
     
     """
     
     # gets p(z|DM) for all FRBs, regardless of whether or not they are localised
     # does this for both reepaters and non-repeaters if it's a repeat grid
     # the returned arrays whebn PATH = True are dimensions NZ x NFRB
-    
+    data={}
     if isinstance(g, zdm_repeat_grid.repeat_Grid):
         # singles
         # repeaters
         opr = calc_likelihoods_1D(g, s, norm=norm, pdmz=pdmz, psnr=psnr, dolist=0, grid_type=1,
                             Pn=Pn, pNreps=pNreps, ptauw=ptauw, pwb=pwb,PATH=True)
-        
+        data["zdm_r"] = opr
         
         # repeaters
         # singles
         ops = calc_likelihoods_1D(g, s, norm=norm, pdmz=pdmz, psnr=psnr, dolist=0, grid_type=2,
                             Pn=Pn, ptauw=ptauw,pwb=pwb,PATH=True)
         
-        llr = get_PATH_lls(s,g,wrapper,opr)
-        lls = get_PATH_lls(s,g,wrapper,ops)
+        data["zdm_s"] = ops
+        
+        llr,path_r = get_PATH_lls(s,g,wrapper,opr,return_all=True)
+        lls,path_s = get_PATH_lls(s,g,wrapper,ops,return_all=True)
         lltot = llr + lls
+        data["path_r"] = path_r
+        data["path_s"] = path_s
+        data["lls"] = lls
+        data["llr"] = llr
             
     else:
         op = calc_likelihoods_1D(g, s, norm=norm, pdmz=pdmz, psnr=psnr,dolist=0, Pn=Pn,
                                     ptauw=ptauw,pwb=pwb, PATH=True)
+        data["zdm_s"] = op
+        lltot,path_s = get_PATH_lls(s,g,wrapper,op,return_all)
+        data["path_s"] = path_s
         
-        lltot = get_PATH_lls(s,g,wrapper,op)
-        
-    
-    return lltot
+    if return_all:
+        # return all relevant information for all FRBs
+        return lltot,data
+    else:
+        return lltot
 
-def get_PATH_lls(s,g,wrapper,op):
+def get_PATH_lls(s,g,wrapper,op,return_all=False):
     """
     Constructs a log-likelihood from the output of calc_likelihoods_1d
     for PATH.
@@ -152,7 +167,10 @@ def get_PATH_lls(s,g,wrapper,op):
     #print(path_results["OK"])
     lltot += sum_path_lls(pxrad,path_results)
     
-    return lltot
+    if return_all:
+        return lltot,return_all
+    else:
+        return lltot
         
 def sum_path_lls(psnrbwdm,path_results):
     """
