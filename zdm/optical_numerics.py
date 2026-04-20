@@ -38,6 +38,7 @@ from zdm import optical as op
 from frb.frb import FRB
 from astropath.priors import load_std_priors
 from astropath.path import PATH
+from astropath import chance
 from frb.associate import frbassociate
     
 def function(x,args):
@@ -64,7 +65,7 @@ def function(x,args):
           ``init_args``).
         - ``POxcut`` (float or None): if not None, restrict the statistic
           to FRBs whose best host candidate has P(O|x) > POxcut.
-        - ``istat`` (int): statistic to use — 0 for KS-like statistic,
+        - ``istat`` (int): statistic to use 0 for KS-like statistic,
           1 for maximum-likelihood (returned as negative log-likelihood
           so that minimisation maximises the likelihood).
 
@@ -255,12 +256,15 @@ def calc_path_priors(frblist,ss,gs,wrappers,verbose=True,usemodel=True,P_U=0.1,
     sumPUx = 0.
     allPU = []
     allPUx = []
+    allPm = []
+    allrhom = []
     nfitted = 0
     
     frbs=[]
     dms=[]
     
     OKlist = []
+    OKfrb = []
     
     allpz = []
     allpf = []
@@ -329,6 +333,7 @@ def calc_path_priors(frblist,ss,gs,wrappers,verbose=True,usemodel=True,P_U=0.1,
                 exit()
         
         OKlist.append(i)
+        OKfrb.append(frb)
         
         if doz:
             # calculate p(z) for model galaxies for result["mags"]
@@ -345,10 +350,12 @@ def calc_path_priors(frblist,ss,gs,wrappers,verbose=True,usemodel=True,P_U=0.1,
                 pf=1.
             allpz.append(pz)
             allpf.append(pf)
-        # replaces PO value with raw PO value, i.e. excluding the driver sigma
-        if usemodel:
-            result["PO"] = wrapper.path_base_prior(result["mags"])
         
+        # adds m and driver rho values to results
+        if usemodel:
+            result["Pm"] = wrapper.path_base_prior(result["mags"])
+            result["rhom"] = chance.differential_driver_sigma(result["mags"])
+            
         if i==0:
             allgals = result["ptbl"]
         else:
@@ -362,6 +369,9 @@ def calc_path_priors(frblist,ss,gs,wrappers,verbose=True,usemodel=True,P_U=0.1,
         allPxO.append(result["PxO"])
         allPO.append(result["PO"])
         allMagPriors.append(MagPriors)
+        if usemodel:
+            allPm.append(result["Pm"])
+            allrhom.append(result["rhom"])
         
         sumPU += P_U
         sumPUx += result["PUx"]
@@ -393,6 +403,10 @@ def calc_path_priors(frblist,ss,gs,wrappers,verbose=True,usemodel=True,P_U=0.1,
     results["OK"] = OKlist
     results["pz"] = allpz
     results["pf"] = allpf
+    results["OKlist"] = OKlist
+    results["frblist"] = OKfrb
+    results["Pm"] = allPm
+    results["rhom"] = allrhom
     
     return results
 
@@ -795,7 +809,7 @@ def get_cand_properties(frblist):
         all_candidates.append(candidates)
     return all_candidates
 
-def run_path(name,P_U=0.1,usemodel=False,sort=False,failOK=False,scale=0.5):
+def run_path(name,P_U=0.1,usemodel=False,sort=False,failOK=False,scale=0.5,ppath=None):
     """
     Run the PATH algorithm on a single FRB and return host association results.
 
@@ -831,7 +845,8 @@ def run_path(name,P_U=0.1,usemodel=False,sort=False,failOK=False,scale=0.5):
         Defaults to False.
     failOK : bool, optional
         If True, allows a return without crashing
-
+    ppath : string, optional
+        If given, search this directory for optical data
     Returns
     -------
     P_O : np.ndarray
@@ -869,7 +884,8 @@ def run_path(name,P_U=0.1,usemodel=False,sort=False,failOK=False,scale=0.5):
     this_path = frbassociate.FRBAssociate(my_frb, max_radius=10.)
     
     # reads in galaxy info
-    ppath = os.path.join(resources.files('frb'), 'data', 'Galaxies', 'PATH')
+    if ppath is None:
+        ppath = os.path.join(resources.files('frb'), 'data', 'Galaxies', 'PATH')
     pfile = os.path.join(ppath, f'{my_frb.frb_name}_PATH.csv')
     
     try:
@@ -943,6 +959,7 @@ def run_path(name,P_U=0.1,usemodel=False,sort=False,failOK=False,scale=0.5):
                             prior['theta']['max'],
                             prior['theta']['scale'])
     
+    # in the case of a user-specified model, this P(O) is
     P_O=this_path.calc_priors()
     
     # Calculate p(O_i|x)
@@ -966,6 +983,7 @@ def run_path(name,P_U=0.1,usemodel=False,sort=False,failOK=False,scale=0.5):
         P_Ox = P_Ox[indices]
         mags = mags[indices]
         P_xO = P_xO[indices]
+    
     
     result["PUx"] = P_Ux
     result["PO"] = P_O

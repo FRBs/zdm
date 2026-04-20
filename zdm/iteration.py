@@ -162,13 +162,17 @@ def get_PATH_lls(s,g,wrapper,op,return_all=False):
     path_results = on.calc_path_priors(frblist,[s],[g],[wrapper],usemodel=True,
                                             failOK=True,doz=True,pzlist=pzgxrad.T,
                                             scale=scale)
-            
+    path_results["frblist"] = frblist
+    
     # this tells us which FRBs have valid host galaxy data
     #print(path_results["OK"])
-    lltot += sum_path_lls(pxrad,path_results)
+    path_lls,plists = sum_path_lls(pxrad,path_results)
+    lltot += path_lls
+    
+    path_results["ll_hosts"] = plists
     
     if return_all:
-        return lltot,return_all
+        return lltot,path_results
     else:
         return lltot
         
@@ -192,7 +196,7 @@ def sum_path_lls(psnrbwdm,path_results):
     npath = len(path_results["OK"])
     DoPath=True
     NFRB = psnrbwdm.size
-        
+    plists=[]
     for i in np.arange(NFRB):
         ll1 = np.log10(psnrbwdm[i]) # FRB data, from 1D FRB
         
@@ -200,14 +204,17 @@ def sum_path_lls(psnrbwdm,path_results):
         # Note that jpath
         if DoPath and i == path_results["OK"][jpath]:
             # this has P(x|O) from PATH
-            ll2 = construct_popt(path_results["PO"][jpath],path_results["PxO"][jpath],
+            ll2,plist = construct_popt(path_results["PO"][jpath],path_results["PxO"][jpath],
                             path_results["pz"][jpath],path_results["pf"][jpath],
                             path_results["PU"][jpath])
             jpath += 1 # increment to search for next one!
             if jpath == npath:
                 DoPath=False
+        else:
+            ll2=0
+        plists.append(plist)
         lltot += ll1+ll2 # total log-likelihood
-    return lltot
+    return lltot,plists
 
 
 def construct_popt(POs,PxOs,pz,pf,PU):
@@ -228,6 +235,7 @@ def construct_popt(POs,PxOs,pz,pf,PU):
     """
     # iterates over possible hosts. Gives P(x|O) P(O)/rho(m). * p(z)/p_f(z) if needed. Then adds P(U)
     ptot = 0.
+    plist = np.zeros([len(POs)])
     for j,PO in enumerate(POs):
         p = PxOs[j] * PO # calculates P(x|O)*P(O)
         if j==0:
@@ -235,10 +243,11 @@ def construct_popt(POs,PxOs,pz,pf,PU):
             # But currently we have no method to handle this. Something more robust and 
             # permanent is in development
             p *= pz/pf
+        plist[j] = p
         ptot += p
     ptot += PU
     ll = np.log10(ptot)
-    return ll
+    return ll,plist
     
 
 def get_log_likelihood(grid, s, norm=True, psnr=True, Pn=False, pNreps=True, ptauw=False, pwb=False):

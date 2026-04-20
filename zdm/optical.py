@@ -1227,16 +1227,6 @@ class model_wrapper:
             kmag2 -= imag1 #residual; float
             kmag1 = 1.-kmag2
             
-            # careful with interpolation - priors are for magnitude bins
-            # with bin edges give by Appmin + N dAppmag.
-            # We probably want to smooth this eventually due to minor
-            # numerical tweaks
-            
-            #kmag2 -= imag1
-            #kmag1 = 1.-kmag2
-            #imag2 = imag1+1
-            #prior = kmag1*self.priors[imag1] + kmag2*self.priors[imag2]
-            
             # simple linear interpolation
             Oi = self.priors[imag1] * kmag1 + self.priors[imag2] * kmag2
             
@@ -1292,11 +1282,6 @@ class model_wrapper:
             # with bin edges give by Appmin + N dAppmag.
             # We probably want to smooth this eventually due to minor
             # numerical tweaks
-            
-            #kmag2 -= imag1
-            #kmag1 = 1.-kmag2
-            #imag2 = imag1+1
-            #prior = kmag1*self.priors[imag1] + kmag2*self.priors[imag2]
             
             # simple linear interpolation
             Oi = self.priors[imag1] * kmag1 + self.priors[imag2] * kmag2
@@ -1408,24 +1393,28 @@ class Field:
         k1 = 1.-k2
         
         # calculate pz, either as a distribution, or just a number
-        if z is not None:
-            j1 = int((z-self.zvals[0])/self.dz)
-            j2 = j1+1
-            
-            if j1 < 0 or j1 > self.zvals.size-2:
-                raise ValueError("z value ",z," outside of range ",self.vals[0],"-",self.zvals[-1])
+        #if z is not None:
+        #    j1 = int((z-self.zvals[0])/self.dz)
+        #    j2 = j1+1
+        #    
+        #    if j1 < 0 or j1 > self.zvals.size-2:
+        #        raise ValueError("z value ",z," outside of range ",self.vals[0],"-",self.zvals[-1])
+        #
+        #    
+        #    l2 = (z-self.zvals[j1])/self.dz
+        #    l1 = 1.-l2
+        #    
+        #    pz = self.pzgmr[j1,i1]*k1*l1 + self.pzgmr[j1,i2]*k2*l1 \
+        #            + self.pzgmr[j2,i1]*k1*l2 + self.pzgmr[j2,i2]*k2*l2
+        #else:
         
-            
-            l2 = (z-self.zvals[j1])/self.dz
-            l1 = 1.-l2
-            
-            pz = self.pzgmr[j1,i1]*k1*l1 + self.pzgmr[j1,i2]*k2*l1 \
-                    + self.pzgmr[j2,i1]*k1*l2 + self.pzgmr[j2,i2]*k2*l2
-        else:
-            pz = self.pzgmr[:,i1]*k1 + self.pzgmr[:,i2]*k2
+        pz = self.pzgmr[:,i1]*k1 + self.pzgmr[:,i2]*k2
         
         # normalises such that the integral is unity
         pz /= self.dz
+        
+        if z is not None:
+            pz = np.interp(z,self.zvals,pz)
         
         return pz
         

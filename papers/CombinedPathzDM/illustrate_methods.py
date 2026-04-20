@@ -6,6 +6,8 @@ We walk through the calculation, generating step-by-step plots,
 to illustrate the method.
 
 Output goes in "illustrations/"
+
+These plots appear in Section 2 of the paper
 """
 import os
 import time
@@ -41,10 +43,16 @@ matplotlib.rc('font', **font)
 
 
 def main(opdir,iFRB,survey):
+    """
+    Creates a bunch of p(z,DM) and PATH plots for a given FRB
     
+    Args:
+        opdir [string]: output directory for plots
+        iFRB [int]: nth FRB in survey (0,1,2 etc) to analyse
+        survey [string]: survey file name
+    """
     
     # set op directory
-    opdir="Illustrations/"
     if not os.path.exists(opdir):
         os.mkdir(opdir)
     
@@ -89,9 +97,11 @@ def main(opdir,iFRB,survey):
     means = [26.2,24,21.8]
     stds = [0.34,0.55,0.54]
     
+    if True:
+        test_field(opdir)
     
     # makes p(z) plot
-    if False:
+    if True:
         # longer method - takes a *long* time!
         ss2,gs2 = loading.surveys_and_grids(survey_names=names,repeaters=False,
                                     init_state=state2,sdir=sdir,survey_dict = survey_dict,
@@ -102,17 +112,16 @@ def main(opdir,iFRB,survey):
         
         make_pz_plot(glist,slist,ifrb,opdir)
     
-    if False:
+    if True:
         make_pm_plot(g,s,ifrb,opdir)
     
-    if False:
+    if True:
         make_pzgmr_plot(g,s,ifrb,opdir,Field=True)
     
-    if False:
+    if True:
         make_pzgu_plot(g,s,ifrb,opdir,surveys,means,stds)
     
-    if False:
-        test_field(opdir)
+    
         
     if True:
         model = opt.marnoch_model()
@@ -127,7 +136,8 @@ def test_field(opdir):
     field = opt.Field()
     
     
-    
+    # test calculation of how the total volume of the Universe,
+    # dV/dz, increases with redshift.
     plt.figure()
     plt.plot(field.zvals,field.volumes)
     plt.xlabel("z")
@@ -137,6 +147,10 @@ def test_field(opdir):
     plt.savefig(opdir+"volume.png")
     plt.close()
     
+    # internally, "field" assumes that the gaalxy count stays constant,
+    # hence Driver et al is somply  \int dz volume(z) * p(m|z) dz
+    # and we can then use this to get p(z|m)
+    
     # plots pm vs driver
     rmags = field.rmags
     
@@ -145,6 +159,8 @@ def test_field(opdir):
     
     #this is units per square arcsec per magnitude
     dsigma = chance.differential_driver_sigma(rmags)
+    
+    
     
     plt.figure()
     plt.plot(rmags,fpm/3e13,label="$\\int_0^2 P(m_r|z) V(z) dz$")
@@ -166,7 +182,8 @@ def test_field(opdir):
     
     mvals=[15,18,21,24]
     for i,m in enumerate(mvals):
-        pzf = field.get_pzgm(m) / field.dz
+        pzf = field.get_pzgm(m)
+        pzf /= np.sum(pzf)* field.dz
         plt.plot(field.zvals,pzf,label="$P_F(z|m_r = "+str(m)+")$")
     plt.xlabel("$z$")
     plt.ylabel("$P(z)$")
@@ -352,13 +369,9 @@ def make_pz_plot(glist,slist,ifrb,opdir):
     plt.savefig(opdir+"pz.png")
     plt.close()
     
-#opdir="Illustrations/"
-#ifrb=3
-#survey="CRAFT_ICS_892"
-#main(opdir,ifrb,survey)
-
-
-opdir="190611/"
-ifrb=4
-survey="CRAFT_ICS_1300"
+    
+# inputs used to create plots for Section 2 of paper
+opdir="Illustrations/"
+ifrb=3
+survey="CRAFT_ICS_892"
 main(opdir,ifrb,survey)
