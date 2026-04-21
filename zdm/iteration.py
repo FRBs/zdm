@@ -1988,9 +1988,10 @@ def minimise_const_only(vparams:dict,grids:list,surveys:list,
                         args=data,bounds=bounds)
             dC=result.x
         t1=time.process_time()
+        dC = np.array(dC) #ensures the type is a numpy array
         
         # constant needs to include the starting value of .lC
-        newC = grids[j].state.FRBdemo.lC + float(dC)
+        newC = grids[j].state.FRBdemo.lC + dC.astype('float')
         # likelihood is calculated  *relative* to the starting value
         llC=-minus_poisson_ps(dC,data)
     else:
