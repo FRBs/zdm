@@ -989,10 +989,12 @@ class model_wrapper:
         
         self.zvals=zvals
         self.dz = zvals[1] - zvals[0]
+        self.zmin = zvals[0]
+        self.zmax = self.zvals[-1]
+        self.nz = zvals.size
         
         # we aim to produce a grid of p(z,m_r) for rapid convolution 
         # with a p(z) array
-        self.nz = zvals.size
         
         p_mr_z = np.zeros([self.NAppBins,self.nz])
         
@@ -1009,7 +1011,65 @@ class model_wrapper:
         
         # records that this has been initialised
         self.ZMAP = True
-     
+    
+    def gen_mc_mr(self,zvals):
+        """
+        Generates random samples of apparent magnitudes given redshifts
+        This works fine at high redshifts, but for very low values,
+        we should use a different method, by shifting the distributions
+        according to the luminosity distance
+        
+        Args:
+            zvals (float or np.ndarray of floats): redshifts of hosts
+        
+        Returns:
+            mr: apparent host magnitudes
+        
+        """
+        nmc = zvals.size
+        
+        # get coefficients for redshift
+        kvals = (zvals-self.zmin)/self.dz
+        i1s = kvals.astype('int')
+        i2s = i1s +1
+        k2s = kvals - i1s
+        k1s = 1.-k2s
+        
+        # protection against high or low values
+        # in principle, should never happen - this is an edge case
+        toolow = np.where(i1s < 0)[0]
+        if len(toolow) > 0:
+            print("WARNING: zvalues ",zvals[toolow]," are too low. Rounding up...")
+            i1s[toolow] = 0
+            i2s[toolow] = 1
+            k1s[toolow] = 1.
+            k2s[toolow] = 0.
+        toohigh = np.where(i2s >= self.nz)[0]
+        if len(toohigh > 0):
+            print("WARNING: zvalues ",zvals[toohigh]," are too high. Rounding down...")
+            i1s[toohigh] = -2
+            i2s[toolow] = -1
+            k1s[toolow] = 0.
+            k2s[toolow] = 1.
+            
+        # generatew cumulative distributions
+        pzs = self.p_mr_z[:,i1s]*k1s + self.p_mr_z[:,i2s]*k2s
+        pzs = np.cumsum(pzs,axis=0)
+        pzs /= pzs[-1,:]
+        
+        # randomly generate m_r
+        probs = np.random.rand(nmc)
+        
+        temp = np.zeros([self.NAppBins+1])
+        mrs = np.zeros([nmc])
+        for i,p in enumerate(probs):
+            # because the cumulative sum begins at zero at the left-hand bins
+            temp[1:] = pzs[:,i]
+            mag = np.interp(p,temp,self.AppBins)
+            mrs[i] = mag
+            
+        return mrs
+        
     def get_pz_g_mr(self,mr,z=None):
         """
         Calculates probability of a given z-value given a magnitude
@@ -1662,7 +1722,7 @@ def SimplekAbsoluteMags(App,k,zs):
         AbsoluteMags = np.log10(ApparentMags)
     return AbsoluteMags
 
-def SimpleAbsoluteMags(App,zs):
+def SimpleAbsoluteMags(App,zs,outer=False):
     """
     Convert apparent to absolute magnitudes using the distance modulus only.
 
@@ -1690,19 +1750,21 @@ def SimpleAbsoluteMags(App,zs):
     dMag = 2.5*np.log10((lds/dabs)**(2))
     
     
-    if np.isscalar(zs) or np.isscalar(Abs):
-        # just return the product, be it scalar x scalar,
-        # scalar x array, or array x scalar
-        # this also ensures that the dimensions are as expected
-        
-        AbsoluteMags = App - dMag
-    else:
+    if outer:
         # Convert to multiplication so we can use
         # numpy.outer
         temp1 = 10**App
         temp2 = 10**-dMag
         AbsoluteMags = np.outer(temp1,temp2)
-        AbsoluteMags = np.log10(ApparentMags)
+        AbsoluteMags = np.log10(AbsoluteMags)
+    else:
+    
+        # just return the product, be it scalar x scalar,
+        # scalar x array, or array x scalar
+        # this also ensures that the dimensions are as expected
+        
+        AbsoluteMags = App - dMag
+        
     return AbsoluteMags
 
 def SimpleApparentMags(Abs,zs):

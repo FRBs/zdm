@@ -730,7 +730,7 @@ class Grid:
         
         for i in np.arange(NFRB):
             if (i % 100) == 0:
-                print(i)
+                print("Generating MC FRB number ", i)
             
             # Regen if the survey would not find this FRB
             frb = self.GenMCFRB(Emax_boost)
@@ -789,6 +789,9 @@ class Grid:
                 # sets to zero if we have a max survey DM
                 if self.survey.max_dm is not None:
                     pzDM [:,setDMzero] = 0.
+                
+                if self.survey.dm_mask is not None:
+                    pzDM *= self.survey.dm_mask
                 
                 # weighted pzDM
                 wb_fraction = (self.beam_o[i]* w  * pzDM)

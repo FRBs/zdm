@@ -141,8 +141,8 @@ class Survey:
             self.randomise_DMG(state.MW.sigmaDMG)
 
         self.init_DMEG(state.MW.DMhalo, state.MW.halo_method)
+        
         # Zs
-        print("Initialising zs")
         self.init_zs() # This should be redone every time DMhalo is changed IF we use a flat cutoff on DMEG
         
         # Allows survey metadata to over-ride parameter defaults if present.

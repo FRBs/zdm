@@ -328,6 +328,8 @@ def mcmc_runner(logpf, outfile, state, params, surveys, nwalkers=10, nsteps=100,
     import multiprocessing as mp
     Pool = mp.get_context('fork').Pool
     
+    num_cpus = mp.cpu_count()
+    print(f"Number of CPUs detected: {num_cpus}")
     
     
     with Pool() as pool: # could add mp.Pool(ntrheads=5) or Pool = None
