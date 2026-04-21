@@ -115,7 +115,7 @@ def get_joint_path_zdm_likelihoods(g, s, wrapper, norm=True, psnr=True, Pn=False
         op = calc_likelihoods_1D(g, s, norm=norm, pdmz=pdmz, psnr=psnr,dolist=0, Pn=Pn,
                                     ptauw=ptauw,pwb=pwb, PATH=True)
         data["zdm_s"] = op
-        lltot,path_s = get_PATH_lls(s,g,wrapper,op,return_all)
+        lltot,path_s = get_PATH_lls(s,g,wrapper,op)
         data["path_s"] = path_s
         
     if return_all:
@@ -124,7 +124,7 @@ def get_joint_path_zdm_likelihoods(g, s, wrapper, norm=True, psnr=True, Pn=False
     else:
         return lltot
 
-def get_PATH_lls(s,g,wrapper,op,return_all=False):
+def get_PATH_lls(s,g,wrapper,op):
     """
     Constructs a log-likelihood from the output of calc_likelihoods_1d
     for PATH.
@@ -171,10 +171,8 @@ def get_PATH_lls(s,g,wrapper,op,return_all=False):
     
     path_results["ll_hosts"] = plists
     
-    if return_all:
-        return lltot,path_results
-    else:
-        return lltot
+    return lltot,path_results
+    
         
 def sum_path_lls(psnrbwdm,path_results):
     """
