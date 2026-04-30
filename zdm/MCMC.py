@@ -41,6 +41,7 @@ import time
 
 from zdm import loading
 from zdm import parameters
+from zdm import energetics
 
 from astropy.cosmology import Planck18
 
@@ -248,6 +249,10 @@ def calc_log_posterior(param_vals, state, params, surveys_sep, Pn=False, pNreps=
     
     # print("Posterior calc time: " + str(time.time()-t0) + " seconds", flush=True)
     
+    # now clean up memory from energetics. Gammas are floating-point numbers,
+    # and will never be re-used
+    energetics.reset()
+    
     if ind_surveys:
         return llsum, ll_list
     else:
@@ -340,10 +345,10 @@ def mcmc_runner(logpf, outfile, state, params, surveys, nwalkers=10, nsteps=100,
                                         backend=backend, pool=pool)
         if exists:
             # start from last saved position
-            sampler.run_mcmc(None, nsteps, progress=True)
+            sampler.run_mcmc(None, nsteps, progress=True, store=True)
         else:
             # start from new random guesses
-            sampler.run_mcmc(starting_guesses, nsteps, progress=True)
+            sampler.run_mcmc(starting_guesses, nsteps, progress=True, store=True)
     end = time.time()
     print("Total time taken: " + str(end - start))
     

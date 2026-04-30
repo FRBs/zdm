@@ -159,18 +159,23 @@ def simplify_beam(logb,omega_b,nbins,thresh=0.,weight=1.5,method=1,savename=None
         
         for i in np.arange(0,nbins-1):
             stop=include[0]+int((i+1)*every)
-            #print(i,start,stop)
-            #print('   ',rate[start:stop])
-            #print('   ',b[start:stop])
-            new_b[i]=np.sum(rate[start:stop]*b[start:stop])/np.sum(rate[start:stop])
-            new_o[i]=np.sum(omega_b[start:stop])
+            if np.sum(rate[start:stop]) == 0:
+                new_b[i]=np.average(b[start:stop])
+                new_o[i]=0.
+            else:
+                new_b[i]=np.sum(rate[start:stop]*b[start:stop])/np.sum(rate[start:stop])
+                new_o[i]=np.sum(omega_b[start:stop])
             start=stop
             
         
         # last ones
-        
-        new_b[nbins-1]=np.sum(rate[start:]*b[start:])/np.sum(rate[start:])
-        new_o[nbins-1]=np.sum(omega_b[start:])
+        # this generates a weighted b for the highest bin
+        if np.sum(rate[start:]) == 0:
+            new_b[nbins-1] = np.mean(b[start:])
+            new_o[nbins-1] = 0.
+        else:
+            new_b[nbins-1]=np.sum(rate[start:]*b[start:])/np.sum(rate[start:])
+            new_o[nbins-1]=np.sum(omega_b[start:])
     elif method==3:
         # returns full beam! INSANE!!!!!!
         # new arrays

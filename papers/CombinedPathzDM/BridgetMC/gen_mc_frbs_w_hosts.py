@@ -2,6 +2,7 @@ import os
 
 from zdm import loading
 from zdm import states
+from zdm import survey_data as sd
 from zdm import optical as opt
 from zdm import optical_params as op
 from zdm import figures
@@ -45,28 +46,42 @@ disp_DM_MW = 50. # pc cm^-3
 
 def main():
     """
-    
+    Generates a Monte Carlo sample of FRB properties, including host properties
     
     """
     
+    opdir = "MC_Generation_Plots/"
+    if not os.path.exists(opdir):
+        os.mkdir(opdir)
+    
     # creates ASKAP grid
     name = "CRAFT_CRACO_900"
-    g,s = create_grid(name)
+    state = states.load_state("HoffmannHalo25") # old scattering
+    state.width.WNbins = 100
+    
+    #survey_state = sd.SurveyData()
+    #survey_state.telescope.NBINS = 30
+    survey_dict = {}
+    survey_dict["NBINS"] = 50
+    surveys, grids = loading.surveys_and_grids(survey_names = [name],repeaters=False,
+                                                init_state=state,survey_dict = survey_dict)
+    s = surveys[0]
+    g = grids[0]
+    
     plot_prediction(g)
-    exit()
     
     NMC = 10000
     frbs = gen_mc_frbs(g,NMC)
     
     # I did this once for N=100,000
-    compare_rates(g,frbs,downsample=10)
+    compare_rates(g,frbs,opdir,downsample=10)
     
     # adds m_r values to the FRBs
     gen_hosts(g,frbs)
     
     frbs.to_csv("craco_900_mc_sample.csv",index=False)
 
-def plot_prediction(g):
+def plot_prediction(g,opdir):
     """
     Makes 2d histogram of generated FRBs for comparison with predictions
     """
@@ -74,14 +89,14 @@ def plot_prediction(g):
     # predicted grid of rates
     rates=g.get_rates()
     figures.plot_grid(rates,g.zvals,g.dmvals,
-            name="predicted_zdm.png",norm=3,log=True,
+            name=opdir+"predicted_zdm.png",norm=3,log=True,
             label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$ [a.u.]',
             project=False,ylabel='${\\rm DM}_{\\rm EG}$',
             zmax=2.5,DMmax=2000.)
     
     
 
-def compare_rates(g,frbs,downsample=10):
+def compare_rates(g,frbs,opdir,downsample=10):
     """
     Makes 2d histogram of generated FRBs for comparison with predictions
     """
@@ -102,7 +117,7 @@ def compare_rates(g,frbs,downsample=10):
     
     
     figures.plot_grid(hist,g.zvals,g.dmvals,
-            name="mc_zdm.png",norm=3,log=True,
+            name=opdir+"mc_zdm.png",norm=3,log=True,
             label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$ [a.u.]',
             project=False,ylabel='${\\rm DM}_{\\rm EG}$',
             zmax=3.,DMmax=3000.)
@@ -121,13 +136,13 @@ def compare_rates(g,frbs,downsample=10):
             new_hist += hist[i::downsample,j::downsample]
     
     figures.plot_grid(new_rates,new_zvals,new_dmvals,
-            name="downsampled_predicted_zdm.png",norm=3,log=False,
+            name=opdir+"downsampled_predicted_zdm.png",norm=3,log=False,
             label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$ [a.u.]',
             project=False,ylabel='${\\rm DM}_{\\rm EG}$',
             zmax=3.,DMmax=3000.)
     
     figures.plot_grid(new_hist,new_zvals,new_dmvals,
-            name="downsampled_mc_zdm.png",norm=3,log=False,
+            name=opdir+"downsampled_mc_zdm.png",norm=3,log=False,
             label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$ [a.u.]',
             project=False,ylabel='${\\rm DM}_{\\rm EG}$',
             zmax=3.,DMmax=3000.)
@@ -173,41 +188,6 @@ def gen_mc_frbs(g,NMC):
         'w': frbs[:,4]
     })
     return df
-    
-    
-# loads FRB grid
-def create_grid(name):
-    """
-    Creates survey and grid from name.
-    
-    Also builds in any/all loading methods and state deteriminatioon
-    
-    Args:
-        name [string] : survey name to be loaded
-    
-    Returns:
-        s,g: survey and grid object
-    """
-    
-    # approximate best-fit values from recent analysis
-    # load states from Hoffman et al 2025
-    #state = states.load_state("HoffmannEmin25",scat="updated",rep=None)
-    state = states.load_state("HoffmannEmin25") # old scattering
-    
-    surveys, grids = loading.surveys_and_grids(survey_names = [name],repeaters=False)
-    
-    s = surveys[0]
-    g = grids[0]
-    return g,s
 
-
-# create DM_EG by sampling the grid
-#frbs = g.GenMCSample(NMC)
-#frbs = np.array(frbs)
-#zs = frbs[:,0]
-#DMcos = frbs[:,1]
-#snrs = frbs[:,3]
-#bs = frbs[:,2]
-#ws = frbs[:,4]
 
 main()

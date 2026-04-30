@@ -102,6 +102,12 @@ class FRB(data_class.myDataClass):
                   'unit': 'ms', 
                   'Notation': '',
                   })
+    WCODE: np.int64 = field( 
+        default=1, 
+        metadata={'help': "Code for which width is provided. 0: including DM smearing. 1: including scattering. 2: intrinsic", 
+                  'unit': '', 
+                  'Notation': '',
+                  })
     TAU: float = field( 
         default=-1., 
         metadata={'help': "Scattering timescale of the event", 
@@ -157,9 +163,9 @@ class Telescope(data_class.myDataClass):
                   'unit': '', 
                   'Notation': '',
                   })
-    WDATA: int = field(
-        default=2, 
-        metadata={'help': "What does the WIDTH column include? 0 intrinsic, 1: also scattering, 2: also DM smearing",
+    WCODE: np.int64 = field(
+        default=1, 
+        metadata={'help': "What does the WIDTH column include? 2 intrinsic, 1: also scattering, 0: also DM smearing",
                   'unit': '', 
                   'Notation': '',
                   })

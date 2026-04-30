@@ -323,8 +323,10 @@ def calc_path_priors(frblist,ss,gs,wrappers,verbose=True,usemodel=True,P_U=0.1,
         # calculates unseen prior
         if usemodel:
             P_U = wrapper.estimate_unseen_prior()
-        
+            
         result = run_path(frb,usemodel=usemodel,P_U = P_U, failOK = failOK, scale=scale)
+        result["Ncand"] = len(result["ptbl"])
+        
         if result["Error"]:
             if failOK:
                 continue
@@ -335,30 +337,54 @@ def calc_path_priors(frblist,ss,gs,wrappers,verbose=True,usemodel=True,P_U=0.1,
         OKlist.append(i)
         OKfrb.append(frb)
         
-        if doz:
+        # IF we are calculating redshift probabilities,
+        # AND there is at least one candidate
+        if doz and result["Ncand"] > 0:
             # calculate p(z) for model galaxies for result["mags"]
             # we assume it's the most likely galaxy that has a redshift.
             # this functionality NEEDS to change!
             if field is None:
                 field = op.Field()
             
-            if s.Zs[imatch] > 0.:
-                pz = wrapper.get_pz_g_mr(result["mags"][0],s.Zs[imatch])
-                pf = field.get_pzgm(result["mags"][0],s.Zs[imatch])
+            # IF the redshift of candidates is not given in the ptbl
+            # THEN retrieve it from the survey. This should be removed
+            # from future behaviour, but needs new FRB library solution.
+            if result["z"] is None:
+                zs = np.full([result["Ncand"]],-1) # set all to missing
+                pz = np.full([result["Ncand"]],1.) # set all to no info
+                pf = np.full([result["Ncand"]],1.) # set all to no info
+                
+                # add info for primary galaxy
+                if s.Zs[imatch] > 0.:
+                    pz[0] = wrapper.get_pz_g_mr(result["mags"][0],s.Zs[imatch])
+                    pf[0] = field.get_pzgm(result["mags"][0],s.Zs[imatch])
             else:
-                pz=1. # simply unity, i.e. meaningless
-                pf=1.
+                pz = np.full([result["Ncand"]],1.) # set all to no info by default
+                pf = np.full([result["Ncand"]],1.) # set all to no info by default
+                for ic in np.arange(result["Ncand"]):
+                    if result["z"][ic] > 0:
+                        pz[ic] = wrapper.get_pz_g_mr(result["mags"][ic],result["z"][ic])
+                        pf[ic] = field.get_pzgm(result["mags"][ic],result["z"][ic])
+                
             allpz.append(pz)
             allpf.append(pf)
+        else:
+            # missing data should not get counted - but best to give 100% probability 
+            # and we need an entry here anyway to avoid mis-aligned data
+            allpz.append([1])
+            allpf.append([1])
         
         # adds m and driver rho values to results
         if usemodel:
-            result["Pm"] = wrapper.path_base_prior(result["mags"])
-            result["rhom"] = chance.differential_driver_sigma(result["mags"])
-            
+            if len(result["ptbl"]) > 0:
+                result["Pm"] = wrapper.path_base_prior(result["mags"])
+                result["rhom"] = chance.differential_driver_sigma(result["mags"])
+            else:
+                result["Pm"] = []
+                result["rhom"] = []
         if i==0:
             allgals = result["ptbl"]
-        else:
+        elif len(result["ptbl"]) > 0: # this keeps a giant table of all host galaxies. Maybe a little extreme...
             allgals = pandas.concat([allgals,result["ptbl"]], ignore_index=True)
         
         ObsMags = np.array(result["mags"])
@@ -869,22 +895,29 @@ def run_path(name,P_U=0.1,usemodel=False,sort=False,failOK=False,scale=0.5,ppath
         name = "FRB"+name
     
     ######### Loads FRB, and modifes properties #########
+    # first checks to see if we have set a specific path for this
+    # use ZDM_PATH_FRBDIR to set it
     try:
         my_frb = FRB.by_name(name)
     except:
         if failOK:
-            #print("Warning - could not find frb file for ",name)
             result["Error"]=1
             return result
         else:
             print("Could not run_path - no frb data for FRB ",name)
             exit()
+    
     result["Error"]=0 # it's OK!
     
     this_path = frbassociate.FRBAssociate(my_frb, max_radius=10.)
     
-    # reads in galaxy info
-    if ppath is None:
+    # reads in galaxy info. Can pass explicitly through ppath
+    # if not there, copies this from 
+    if ppath is not None:
+        pass
+    elif "ZDM_PATH_GALDIR" in os.environ:
+        ppath = os.environ["ZDM_PATH_GALDIR"]
+    else:
         ppath = os.path.join(resources.files('frb'), 'data', 'Galaxies', 'PATH')
     pfile = os.path.join(ppath, f'{my_frb.frb_name}_PATH.csv')
     
@@ -892,7 +925,7 @@ def run_path(name,P_U=0.1,usemodel=False,sort=False,failOK=False,scale=0.5,ppath
         ptbl = pandas.read_csv(pfile)
     except:
         if failOK:
-            #print("Warning - could not find optical data for ",name)
+            print("Warning - could not find optical data for ",name, " expecting ",pfile)
             result["Error"]=1
             return result
         else:
@@ -900,6 +933,17 @@ def run_path(name,P_U=0.1,usemodel=False,sort=False,failOK=False,scale=0.5,ppath
             exit()
     
     ngal = len(ptbl)
+    
+    # check to see if we have no viable candidates!
+    if ngal == 0:
+        result["PUx"] = 1. # must be unseen!
+        result["PO"] = []
+        result["PxO"] = []
+        result["POx"] = []
+        result["mags"] = []
+        result["ptbl"] = ptbl
+        return result
+    
     ptbl["frb"] = np.full([ngal],name)
     
     # Load prior
@@ -914,10 +958,20 @@ def run_path(name,P_U=0.1,usemodel=False,sort=False,failOK=False,scale=0.5,ppath
     # change this to something depending on the FRB DM
     prior['U']=P_U
     
-    candidates = ptbl[['ang_size', 'mag', 'ra', 'dec', 'separation']]
+    candidates = ptbl[['ang_size', 'mag', 'ra', 'dec']]
+    
+    # see if the candidates table has redshifts listed.
+    # Return these if true
+    if "z" in ptbl.columns:
+        zs = ptbl["z"]
+    else:
+        zs = None
     
     # implements a correction to their relative magnitudes.
     # note that order is R, then I, then g
+    # this option was turned on for the initial PATH/zdm paper
+    # it now no longer complains if it can't find the correct band
+    # this behaviour absolutely should be improved in the future!
     if "VLT_FORS2_R" in ptbl:
         mags = np.array(candidates.mag.values)
     elif "VLT_FORS2_I" in ptbl:
@@ -929,7 +983,8 @@ def run_path(name,P_U=0.1,usemodel=False,sort=False,failOK=False,scale=0.5,ppath
     elif "LRIS_I" in ptbl:
         mags = np.array(candidates.mag.values) + 0.65
     else:
-        raise ValueError("Cannot implement colour correction")
+        mags = np.array(candidates.mag.values)
+        #raise ValueError("Cannot implement colour correction")
         
     
     #this_path = PATH()
@@ -983,6 +1038,8 @@ def run_path(name,P_U=0.1,usemodel=False,sort=False,failOK=False,scale=0.5,ppath
         P_Ox = P_Ox[indices]
         mags = mags[indices]
         P_xO = P_xO[indices]
+        if zs is not None:
+            zs = zs[indices]
     
     
     result["PUx"] = P_Ux
@@ -991,6 +1048,7 @@ def run_path(name,P_U=0.1,usemodel=False,sort=False,failOK=False,scale=0.5,ppath
     result["POx"] = P_Ox
     result["mags"] = mags
     result["ptbl"] = ptbl
+    result["z"] = zs
     
     return result
 

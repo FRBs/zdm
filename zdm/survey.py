@@ -139,7 +139,7 @@ class Survey:
         self.init_halo_coeffs()
         if rand_DMG:
             self.randomise_DMG(state.MW.sigmaDMG)
-
+        
         self.init_DMEG(state.MW.DMhalo, state.MW.halo_method)
         
         # Zs
@@ -609,7 +609,7 @@ class Survey:
         frb_wweights = np.zeros([self.NFRB,nw])
         
         OKw = np.where(self.WIDTHs > 0.)
-        notOKw = np.where(self.WIDTHs <= 0.)
+        notOKw = np.where(self.WIDTHs <= 0.) # indicates that widths are not measured
         
         # equal weights for all FRBs with no measured width
         frb_wweights[notOKw,:] = 1./nw
@@ -1051,6 +1051,7 @@ class Survey:
         self.DMGs=self.frbs['DMG'].values
         self.SNRs=self.frbs['SNR'].values
         self.WIDTHs=self.frbs['WIDTH'].values
+        self.WCODEs=self.frbs['WCODE'].values
         self.TRESs=self.frbs['TRES'].values
         self.FRESs=self.frbs['FRES'].values
         self.FBARs=self.frbs['FBAR'].values
@@ -1086,11 +1087,34 @@ class Survey:
         toolow = np.where(self.Ss < 1.)[0]
         if len(toolow) > 0:
             raise ValueError("FRBs ",toolow," have SNR < SNRTHRESH!!! Please correct this. Exiting...")
-            
         
+        # ensure all widths are intrinsic + scattering, but exclude DM smearing
+        self.adjust_widths()
         print("FRB survey sucessfully initialised with ",self.NFRB," FRBs starting from", self.iFRB)
         
     
+    def adjust_widths(self):
+        """
+        Adjust widths to be intrinsic FRB width, i.e. including scatterign, but without DM smearing
+        """
+        # removes DM smearing if applicable
+        ismear = np.where(self.WCODEs == 0)[0] # which FRBs have widths including DM smearing
+        if len(ismear) > 0:
+            k_DM=4.149 #ms GHz^2 pc^-1 cm^3
+            smears = 2*(self.FRESs[ismear]/1.e3)*k_DM*DM/(self.FBARs[ismear]/1e3)**3 #smearing factor of FRB in the band
+            # subtract that component in quadrature
+            self.WIDTHS[ismear] = (self.WIDTHS[ismear]**2 - smears**2)
+            # check for bad values
+            bad = np.where(self.WIDTHs[ismear] <= 0.)[0]
+            if len(bad) > 0:
+                self.WIDTHs[ismear][bad] = 1e-2 # sets assumed width to 0.1ms
+            self.WIDTHs[ismear] = self.WIDTHs[ismear]**0.5
+        
+        # adds scattering back in if applicable
+        iscat = np.where(self.WCODEs == 2)[0] # which FRBs have widths excluding scattering
+        if len(iscat) > 0:
+            self.WIDTHs[iscat] = (self.WIDTHs[iscat]**2 + self.TAUs[iscat]**2)**0.5
+        
     def fix_coordinates(self,verbose=False):
         """
         Takes and FRB, and fills out missing coordinate values
@@ -1552,7 +1576,9 @@ def vet_frb_table(frb_tbl:pandas.DataFrame,
                 assert isinstance(
                     frb_tbl.iloc[idx0][field], 
                     frb_data.__dataclass_fields__[field].type), \
-                        f'Bad data type for {field}'
+                        f'Bad data type for {field}, got {frb_tbl.iloc[idx0][field]}'\
+                        +f' of type {type(frb_tbl.iloc[idx0][field])}'\
+                        +f', expecting {frb_data.__dataclass_fields__[field].type}'
         elif mandatory:
             raise ValueError(f'{field} is missing in your table!')
         elif fill:

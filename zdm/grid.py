@@ -131,6 +131,7 @@ class Grid:
         if wdist is not None:
             efficiencies = survey.efficiencies  # two OR three dimensions
             weights = survey.wplist
+            self.widths = survey.wlist
             # Warning -- THRESH could be different for each FRB, but we don't treat it that way
             self.calc_thresholds(survey.meta["THRESH"],
                              efficiencies,weights=weights)
@@ -138,6 +139,7 @@ class Grid:
             # this is called when the grid is not iterating over widths internally
             efficiencies = survey.mean_efficiencies # one dimension
             weights = None
+            self.widths = None
             self.calc_thresholds(survey.meta["THRESH"], efficiencies, weights=weights)
         
         # Calculate
@@ -400,7 +402,6 @@ class Grid:
         
         # for some arbitrary reason, we treat the beamshape slightly differently... no need to keep an intermediate product!
         main_beam_b = self.beam_b
-        
         # call log10 beam
         if self.use_log10:
             new_thresh = np.log10(
@@ -428,7 +429,9 @@ class Grid:
                         * (self.array_cum_lf(
                             thresh, Emin, Emax, self.state.energy.gamma, self.use_log10
                         ).T * w.T).T
-                
+                nan_count = np.isnan(temp_wb).sum()
+                if nan_count > 0:
+                    print("WARNING: nans found for ",i,b,j,w)
                 # partial sum over all beam values for a given width
                 self.b_fractions[:, :, i] += temp_wb
                 
@@ -805,7 +808,7 @@ class Grid:
                 #if self.survey.observing.Z_PHOTO > 1.:
                 #    rate = self.smear_z(rate,self.survey.observing.Z_PHOTO)
                 #    #rate=np.copy(self.smear_zgrid)
-
+                
                 rates.append(rate)
                 pwb[i * nw + j] = np.sum(rate)
                 
@@ -814,6 +817,7 @@ class Grid:
                 pzc /= pzc[-1]
                 
                 pzcs.append(pzc)
+        
         
         # generates cumulative distribution for sampling w,b
         pwbc = np.cumsum(pwb)
@@ -886,7 +890,7 @@ class Grid:
         i = int(which / nw)
         j = which - i * nw
         MCb = self.beam_b[i]
-        MCw = self.eff_weights[j]
+        MCw = self.widths[j]
         
         # get p(z,DM) distribution for this b,w
         pzDM = self.MCrates[which]

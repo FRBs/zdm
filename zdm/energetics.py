@@ -53,6 +53,18 @@ SplineMax = 6    # Log10 of maximum argument
 NSpline = 1000   # Number of spline points
 SplineLog = True # Use log-space interpolation (more accurate)
 
+def reset():
+    """
+    Function to remove all splines, thus resetting memory, and stopping the slow accumulation thereof
+    """
+    global igamma_splines, igamma_linear, igamma_linear_log10
+    
+    # Global cache for spline interpolators
+    igamma_splines = {}
+    igamma_linear = {}
+    igamma_linear_log10 = {}
+    
+
 def init_igamma_splines(gammas, reinit=False, k=3):
     """Initialize spline interpolators for the upper incomplete gamma function.
 

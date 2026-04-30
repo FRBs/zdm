@@ -1076,7 +1076,7 @@ class model_wrapper:
         
         Args:
             mr: r-band magnitude of galaxy
-            z( optional): z-value (if known) of galaxy
+            z(float,  optional): z-value (if known) of galaxy
         
         Returns:
             if z is specified: values of p(z|mr) at z
@@ -1097,7 +1097,11 @@ class model_wrapper:
         # get joint distribution, albeit along this axis only
         pmz = pmgz * self.pz
         # now normalise, but dividing by p(m)
-        pzgm = pmz / np.sum(pmz)
+        pm = np.sum(pmz)
+        if pm > 0:
+            pzgm = pmz / pm
+        else:
+            pzgm = np.zeros(pmz.shape)
         
         if z is not None:
             # linear interpolation
@@ -1887,20 +1891,22 @@ def simplify_name(TNSname):
             (six digits plus optional letter).
     """
     # reduces all FRBs to six integers
-    
-    if TNSname[0:3] == "FRB":
+    if len(TNSname) < 3: # very short - remove this
+        return TNSname
+    elif TNSname[0:3] == "FRB":
         TNSname = TNSname[3:]
     
-    if len(TNSname) == 9:
+    if len(TNSname) == 9: # assumes "20" at the start, and letter at the end - removes it
         name = TNSname[2:-1]
-    elif len(TNSname) == 8:
+    elif len(TNSname) == 8: # assumes there is "20" at the start - removes it
         name = TNSname[2:]
-    elif len(TNSname) == 7:
+    elif len(TNSname) == 7: # assumes there is a letter at the end - removes it
         name = TNSname[:-1]
     elif len(TNSname) == 6:
         name = TNSname
     else:
-        print("Do not know how to process ",TNSname)
+        name = TNSname
+        #print("Do not know how to process ",TNSname)
     return name
 
 def matchFRB(TNSname,survey):

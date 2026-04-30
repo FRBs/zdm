@@ -190,9 +190,14 @@ def sum_path_lls(psnrbwdm,path_results):
     # we now construct total likelihoods
     jpath=0
     lltot = 0.
+    
     # search over indices with PATH results
     npath = len(path_results["OK"])
-    DoPath=True
+    
+    if npath == 0:
+        DoPath = False
+    else:
+        DoPath = True
     NFRB = psnrbwdm.size
     plists=[]
     for i in np.arange(NFRB):
@@ -206,16 +211,16 @@ def sum_path_lls(psnrbwdm,path_results):
                             path_results["pz"][jpath],path_results["pf"][jpath],
                             path_results["PU"][jpath])
             jpath += 1 # increment to search for next one!
+            plists.append(plist)
             if jpath == npath:
                 DoPath=False
         else:
             ll2=0
-        plists.append(plist)
         lltot += ll1+ll2 # total log-likelihood
     return lltot,plists
 
 
-def construct_popt(POs,PxOs,pz,pf,PU):
+def construct_popt(POs,PxOs,pzs,pfs,PU):
     """
     Constructs the optical likelihood from PATH output
     
@@ -224,8 +229,8 @@ def construct_popt(POs,PxOs,pz,pf,PU):
         PO (list of floats, NFRB in length): prior P(O) from PATH
         PxO (list of floats, NFRB in length): list of p(x|O) values output by PATH
         PU (float): prior on P(U) as input to PATH
-        pz (float): pobabilioty p(z|m) for most likely host, given it's the true host
-        pf (float): probability of most likely host redshift if it is a field galaxy
+        pzs (list of floats): probabilities p(z|m) for most likely host, given it's the true host
+        pfs (list of floats): probabilities of most likely host redshift if it is a field galaxy
     
     Returns:
         ll (float): log-likelihood of this FRB's optical data, summed over host candidates
@@ -236,11 +241,10 @@ def construct_popt(POs,PxOs,pz,pf,PU):
     plist = np.zeros([len(POs)])
     for j,PO in enumerate(POs):
         p = PxOs[j] * PO # calculates P(x|O)*P(O)
-        if j==0:
-            # multiplies by pz/pf ratio. Assumes most likely host has z. This is DODGY!
-            # But currently we have no method to handle this. Something more robust and 
-            # permanent is in development
-            p *= pz/pf
+        
+        # multiplies by pz/pf ratio. We are assuming the correct values are passed to this function.
+        # Currently, there is no firm method of knowing the correct z.
+        p *= pzs[j]/pfs[j]
         plist[j] = p
         ptot += p
     ptot += PU
