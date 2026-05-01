@@ -385,8 +385,13 @@ def calc_path_priors(frblist,ss,gs,wrappers,verbose=True,usemodel=True,P_U=0.1,
         if i==0:
             allgals = result["ptbl"]
         elif len(result["ptbl"]) > 0: # this keeps a giant table of all host galaxies. Maybe a little extreme...
-            allgals = pandas.concat([allgals,result["ptbl"]], ignore_index=True)
-        
+            
+            if len(allgals)==0:
+                allgals = result["ptbl"]
+            else:
+                allgals = pandas.concat([allgals,result["ptbl"]], ignore_index=True)
+            
+            
         ObsMags = np.array(result["mags"])
         
         # new version creating a list of lists
