@@ -325,8 +325,11 @@ def calc_path_priors(frblist,ss,gs,wrappers,verbose=True,usemodel=True,P_U=0.1,
             P_U = wrapper.estimate_unseen_prior()
             
         result = run_path(frb,usemodel=usemodel,P_U = P_U, failOK = failOK, scale=scale)
-        result["Ncand"] = len(result["ptbl"])
-        
+        if "ptbl" in result:
+            result["Ncand"] = len(result["ptbl"])
+        else:
+            result["Ncand"] = 0
+            
         if result["Error"]:
             if failOK:
                 continue

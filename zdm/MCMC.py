@@ -345,10 +345,10 @@ def mcmc_runner(logpf, outfile, state, params, surveys, nwalkers=10, nsteps=100,
                                         backend=backend, pool=pool)
         if exists:
             # start from last saved position
-            sampler.run_mcmc(None, nsteps, progress=True, store=True)
+            sampler.run_mcmc(None, nsteps, progress=True)
         else:
             # start from new random guesses
-            sampler.run_mcmc(starting_guesses, nsteps, progress=True, store=True)
+            sampler.run_mcmc(starting_guesses, nsteps, progress=True)
     end = time.time()
     print("Total time taken: " + str(end - start))
     
