@@ -246,6 +246,7 @@ def calc_path_priors(frblist,ss,gs,wrappers,verbose=True,usemodel=True,P_U=0.1,
     #allMagPriors = None
     
     # new version recording one list per FRB. For max likelihood functionality
+    #TODO: redo this to form signle dict
     allObsMags = []
     allPOx = []
     allPxO = []
@@ -258,6 +259,9 @@ def calc_path_priors(frblist,ss,gs,wrappers,verbose=True,usemodel=True,P_U=0.1,
     allPUx = []
     allPm = []
     allrhom = []
+    allseps = []
+    allsizes = []
+    Ncands = []
     nfitted = 0
     
     frbs=[]
@@ -324,12 +328,14 @@ def calc_path_priors(frblist,ss,gs,wrappers,verbose=True,usemodel=True,P_U=0.1,
         if usemodel:
             P_U = wrapper.estimate_unseen_prior()
             
-        result = run_path(frb,usemodel=usemodel,P_U = P_U, failOK = failOK, scale=scale)
+        result = run_path(frb,usemodel=usemodel,P_U = P_U, failOK = failOK, scale=scale,sort=True)
         if "ptbl" in result:
             result["Ncand"] = len(result["ptbl"])
         else:
             result["Ncand"] = 0
-            
+        
+        Ncands.append(result["Ncand"])
+        
         if result["Error"]:
             if failOK:
                 continue
@@ -402,6 +408,10 @@ def calc_path_priors(frblist,ss,gs,wrappers,verbose=True,usemodel=True,P_U=0.1,
         allPOx.append(result["POx"])
         allPxO.append(result["PxO"])
         allPO.append(result["PO"])
+        
+        allseps.append(result["seps"])
+        allsizes.append(result["sizes"])
+        
         allMagPriors.append(MagPriors)
         if usemodel:
             allPm.append(result["Pm"])
@@ -441,6 +451,9 @@ def calc_path_priors(frblist,ss,gs,wrappers,verbose=True,usemodel=True,P_U=0.1,
     results["frblist"] = OKfrb
     results["Pm"] = allPm
     results["rhom"] = allrhom
+    results["seps"] = allseps
+    results["sizes"] = allsizes 
+    results["Ncand"] = Ncands
     
     return results
 
@@ -950,6 +963,9 @@ def run_path(name,P_U=0.1,usemodel=False,sort=False,failOK=False,scale=0.5,ppath
         result["POx"] = []
         result["mags"] = []
         result["ptbl"] = ptbl
+        result["z"] = []
+        result["seps"] = []
+        result["sizes"] = []
         return result
     
     ptbl["frb"] = np.full([ngal],name)
@@ -966,7 +982,11 @@ def run_path(name,P_U=0.1,usemodel=False,sort=False,failOK=False,scale=0.5,ppath
     # change this to something depending on the FRB DM
     prior['U']=P_U
     
-    candidates = ptbl[['ang_size', 'mag', 'ra', 'dec']]
+    candidates = ptbl[['ang_size', 'mag', 'ra', 'dec']].copy()
+    
+    if "separation" not in ptbl.columns:
+        seps = calc_separations(this_path.frb.coord,candidates.ra.values,candidates.dec.values)
+        ptbl["separation"] = seps
     
     # see if the candidates table has redshifts listed.
     # Return these if true
@@ -1037,18 +1057,18 @@ def run_path(name,P_U=0.1,usemodel=False,sort=False,failOK=False,scale=0.5,ppath
     # if it is not, P(O) is renormalised, and includes 1/cumulative
     P_xO = this_path.p_xOi
     
-    # mags already defined above
-    #mags = candidates['mag']
-    
     if sort:
-        indices = np.argsort(P_Ox)
+        # sorts from highest to lowest
+        indices = np.argsort(P_Ox)[::-1]
         P_O = P_O[indices]
         P_Ox = P_Ox[indices]
         mags = mags[indices]
         P_xO = P_xO[indices]
+        ptbl = ptbl.loc[indices]
         if zs is not None:
             zs = zs[indices]
-    
+    sizes = ptbl["ang_size"]
+    seps = ptbl["separation"]
     
     result["PUx"] = P_Ux
     result["PO"] = P_O
@@ -1057,6 +1077,40 @@ def run_path(name,P_U=0.1,usemodel=False,sort=False,failOK=False,scale=0.5,ppath
     result["mags"] = mags
     result["ptbl"] = ptbl
     result["z"] = zs
+    result["seps"] = seps
+    result["sizes"] = sizes
     
     return result
 
+def calc_separations(frb_coord,cand_ras,cand_decs):
+    """
+    Calculate angular separation from frb to galxy candidates, in arcseconds
+    
+    Args:
+        frb_coord( astropy coordinate)
+        cand_ras (list of floats): candidates right ascension, degrees
+        cand_decs (list of flots): candidate declinations, degrees
+    """
+    
+    ra_frb = frb_coord.ra.deg
+    dec_frb = frb_coord.dec.deg
+    torad = np.pi/180
+    ra_frb_rad = ra_frb*torad
+    dec_frb_rad = dec_frb*torad
+    xfrb = np.cos(ra_frb_rad)*np.cos(dec_frb_rad)
+    yfrb = np.sin(ra_frb_rad)*np.cos(dec_frb_rad)
+    zfrb = np.sin(dec_frb_rad)
+    
+    seps = []
+    for i,ra in enumerate(cand_ras):
+        ra *= torad
+        dec = cand_decs[i]*torad
+        x = np.cos(ra)*np.cos(dec)
+        y = np.sin(ra)*np.cos(dec)
+        z = np.sin(dec)
+        off = np.arccos(x*xfrb + y*yfrb +z*zfrb)
+        off *= 180./np.pi * 3600
+        seps.append(off)
+    seps = np.array(seps)
+    return seps
+    

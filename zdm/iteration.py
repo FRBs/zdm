@@ -117,7 +117,11 @@ def get_joint_path_zdm_likelihoods(g, s, wrapper, norm=True, psnr=True, Pn=False
         data["zdm_s"] = op
         lltot,path_s = get_PATH_lls(s,g,wrapper,op)
         data["path_s"] = path_s
-        
+    
+    
+    # if return all, construct posterior distribution of magnitudes and radial offsets
+    
+    
     if return_all:
         # return all relevant information for all FRBs
         return lltot,data
@@ -169,12 +173,12 @@ def get_PATH_lls(s,g,wrapper,op):
     path_lls,plists = sum_path_lls(pxrad,path_results)
     lltot += path_lls
     
-    path_results["ll_hosts"] = plists
+    path_results["phosts"] = plists
     
     return lltot,path_results
     
         
-def sum_path_lls(psnrbwdm,path_results):
+def sum_path_lls(pxrad,path_results):
     """
     Iterates over FRBs, checking which have PATH results,
     and summing the likelihood
@@ -198,32 +202,43 @@ def sum_path_lls(psnrbwdm,path_results):
         DoPath = False
     else:
         DoPath = True
-    NFRB = psnrbwdm.size
+    NFRB = pxrad.size
     plists=[]
+    
     for i in np.arange(NFRB):
-        ll1 = np.log10(psnrbwdm[i]) # FRB data, from 1D FRB
+        ll1 = np.log10(pxrad[i]) # FRB data, from 1D FRB
         
         # constructs p(z,m) if appropriate
         # Note that jpath
         if DoPath and i == path_results["OK"][jpath]:
             # this has P(x|O) from PATH
-            ll2,plist = construct_popt(path_results["PO"][jpath],path_results["PxO"][jpath],
+            ll2,plist,pOxlist,pUx = construct_popt(path_results["PO"][jpath],path_results["PxO"][jpath],
                             path_results["pz"][jpath],path_results["pf"][jpath],
                             path_results["PU"][jpath])
-            jpath += 1 # increment to search for next one!
             plists.append(plist)
+            path_results["POx"][jpath] = pOxlist
+            path_results["PUx"][jpath] = pUx
+            jpath += 1 # increment to search for next one!
             if jpath == npath:
                 DoPath=False
         else:
-            ll2=0
+            ll2=0 #i.e., log10(1)
+            plists.append([]) # empty list, so we are not out of alignment
         lltot += ll1+ll2 # total log-likelihood
     return lltot,plists
 
 
 def construct_popt(POs,PxOs,pzs,pfs,PU):
     """
-    Constructs the optical likelihood from PATH output
-    
+    Constructs the optical likelihood from PATH output for a single FRB.
+        Formally, this is p(xopt|xrad/p(xopt|U), since the math is *way* easier by normalising
+        out p(xopt|U). p(xrad) is calculated in another step.
+        It is given by \sum p(z|m) p(x|O) p(O|xrad) / P_F(z|m) \rho(m) + p(U|xrad)
+        where p(z|m) is the redshift distribution assuming a galaxy is the true host,
+        p(x|O) is the localisation probability, p(O|xrad) is the probability of the magnitude
+        given expectations about the redshift and FRB host galaxy population, P_F is the redshift
+        expectation for field galaxies, and \rho is the galaxy density on the sky. For galaxies
+        with no redshift, p(z|m)/p_F(z|m) is set to unity
     
     Args:
         PO (list of floats, NFRB in length): prior P(O) from PATH
@@ -239,17 +254,22 @@ def construct_popt(POs,PxOs,pzs,pfs,PU):
     # iterates over possible hosts. Gives P(x|O) P(O)/rho(m). * p(z)/p_f(z) if needed. Then adds P(U)
     ptot = 0.
     plist = np.zeros([len(POs)])
+    
     for j,PO in enumerate(POs):
         p = PxOs[j] * PO # calculates P(x|O)*P(O)
         
         # multiplies by pz/pf ratio. We are assuming the correct values are passed to this function.
-        # Currently, there is no firm method of knowing the correct z.
+        # Currently, there is no firm method of knowing the correct z. If z was not available, both
+        # of these will be unity
         p *= pzs[j]/pfs[j]
         plist[j] = p
         ptot += p
     ptot += PU
+    pUx = PU/ptot
+    pOxlist = plist/ptot
+    
     ll = np.log10(ptot)
-    return ll,plist
+    return ll,plist,pOxlist,pUx
     
 
 def get_log_likelihood(grid, s, norm=True, psnr=True, Pn=False, pNreps=True, ptauw=False, pwb=False):
@@ -418,7 +438,8 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,
     if ptauw:
         if not survey.backproject:
             raise ValueError("Cannot calculate ptauw for this survey, please initialised backproject")
-            
+    if not psnr:
+        pwb = False # cannot do pwb is snr is False
         
     # Determine which array to perform operations on and initialise
     if grid_type == 1: 
@@ -445,6 +466,7 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,
             nozlist = survey.nozlist
         else:
             raise ValueError("No non-localised FRBs in this survey, cannot calculate 1D likelihoods")
+    
     
     # extract extragalactic DMEGs, and appropriate bweights and w_weights
     DMobs=survey.DMEGs[nozlist]
@@ -706,19 +728,21 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,
         Emax=10**grid.state.energy.lEmax
         Emin=10**grid.state.energy.lEmin
         gamma=grid.state.energy.gamma
-        #fpsnr=np.zeros([DMobs.size]) # has already been cut to non-localised number
         
         # Evaluate thresholds at the exact DMobs
         DMEGmeans = survey.DMs[nozlist] - np.median(survey.DMGs + survey.DMhalos)
         idmobs1,idmobs2,dkdmobs1,dkdmobs2 = grid.get_dm_coeffs(DMEGmeans)
         
         # Linear interpolation
+        # gets thresholds as a function of the observed DM
+        # These do not include 'b' yet. Dimensions are width, z, DM
         Eths = grid.thresholds[:,:,idmobs1]*dkdmobs1 + grid.thresholds[:,:,idmobs2]*dkdmobs2
                   
         # this has shape nz,nFRB - FRBs could come from any z-value
         nb = survey.beam_b.size
         nw,nz,nfrb = Eths.shape
         
+        # array to hold p(z|DM) for each FRB
         zpsnr=np.zeros([nz,nfrb])
         # numpy flattens this to the order of [z0frb0,z0f1,z0f2,...,z1f0,...]
         # zpsnr = zpsnr.flatten()
@@ -738,7 +762,7 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,
         
         if pwb:
             psnrbws = np.zeros([nb,nw,nz*nfrb]) # holds psnr_gbw * p(b,w,) for each b,w bin
-            psnr_gbws = np.zeros([nb,nw,nz*nfrb]) # holds psnr_gbw * p(b,w,) for each b,w bin
+            psnr_gbws = np.zeros([nb,nw,nz*nfrb]) # holds psnr given b,w for each b,w bin
             pbws = np.zeros([nb,nw,nz*nfrb]) # holds p(bw given z,dm) for each b,w, bin
             
         for i,b in enumerate(survey.beam_b):
@@ -748,19 +772,22 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,
             # bEobs has dimensions Nwidths * Nz * NFRB
 
             bEobs=bEths*survey.Ss[nozlist] #should correctly multiply the last dimensions
+            
             for j,w in enumerate(grid.eff_weights):
                 # p(SNR | b,w,DM,z) is given by differential/cumulative
                 # however, p(b,w|DM,z) is given by cumulative*w*Omegab / \sum_w,b cumulative*w*Omegab
                 # hence, the factor of cumulative cancels when calculating p(SNR,w,b), which is what we do here
+                # wait - p(b,w|DM,z) is calculated using cumulative at *threshold*, while
+                # p(SNR) is calculated using cumulative at observed!
                 differential = grid.array_diff_lf(bEobs[j,:,:],Emin,Emax,gamma) * bEths[j,:,:]
-                # print(bEobs[j,:,:],Emin,Emax,gamma)
-                cumulative=grid.array_cum_lf(bEobs[j,:,:],Emin,Emax,gamma)
+                cumulative=grid.array_cum_lf(bEths[j,:,:],Emin,Emax,gamma)
                 
                 if zwidths:
                     usew = np.repeat(w,nfrb).reshape([nz,nfrb]) # old
                 else:
                     usew = w
                 
+                ### OLD ###
                 # this keeps track of the \sum_w,b cumulative*w*Omegab
                 dpbw = survey.beam_o[i]*usew*cumulative
                 pbw_norm += dpbw
@@ -775,7 +802,6 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,
                     cumulative = cumulative.flatten() # first index is [0,0], next is [0,1]
                     differential = differential.flatten()
                     
-                    
                     OK = np.where(cumulative > 0)[0]
                     
                     if zwidths:
@@ -788,7 +814,6 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,
                     
                     # total probability of that p(w,b)
                     pbws[i,j,OK] = survey.beam_o[i]*usew*cumulative[OK]
-        
         
         # calculate p(w)
         if ptauw and not pwb:
@@ -902,7 +927,7 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,
             bad = np.where(psnrbw == 0.)
             psnrbw[bad] = 1.e-10
             llpsnrbw = np.log10(psnrbw)
-            llsum += np.sum(llpsnrbw)
+            llsum += np.sum(llpsnrbw) # only count this if B is known. Won't be for all FRBs
             
             longlist["pbw"]={}
             longlist["pbw"]["pb"]=np.log10(pb)
@@ -943,9 +968,6 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,
             
         # perform the weighting over the redshift axis, i.e. to multiply by p(z|DM) and normalise \int p(z|DM) dz = 1
         # difference between rs and tomult is *only* that rs are NOT normalised by p(DM)
-        #rnorms = np.sum(rs,axis=0)
-        
-        #fpsnr = np.sum(zpsnr*rs,axis=0) / rnorms
         fpsnr = np.sum(zpsnr*tomult,axis=0)
         
         # normalises for total probability of DM occurring in the first place.
@@ -954,10 +976,6 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,
         
         # checks to ensure all frbs have a chance of being detected
         bad=np.array(np.where(fpsnr == 0.))
-        # if bad.size > 0:
-        #     snrll = -1e10 # none of this is possible! [somehow...]
-        # else:
-        #     snrll = np.sum(np.log10(psnr))
         
         # keeps individual FRB values
         fpsnr[bad] = 1e-100
@@ -992,7 +1010,7 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,
     
     # if we're in PATH mode, do this first
     if PATH:
-        # perform some calculation.
+        # perform some calculations appropriate for PATH output.
         # What we want is p(z|snr,b,w,DM), p(snr,b,w|DM), and p(DM)
         # What we have is p(snr,b,w|z,DM), p(z|DM), and p(DM)
         # We begin noting that p(z,snr,b,w|DM) = p(z|snr,b,w,DM) * p(snr,b,w|DM) ... (1)
@@ -1009,7 +1027,7 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,
             pzgsnrbwdm = np.copy(pzsnrbwgdm)
             OK = np.where(psnrbwgdm>0.)[0]
             pzgsnrbwdm[:,OK] /= psnrbwgdm[OK]
-        
+            
             # probability of snr, beam, width, and DM, summed over redshift
             psnrbwdm = psnrbwgdm * PATH_OP["pdm"]
         
@@ -1532,8 +1550,8 @@ def calc_likelihoods_2D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,p
                 differential = temp.T*bEths[j,:] #multiplies by beam factors and weight
                 
                 # probability of observing an FRB at this z,DM with given b,w at *any* snr
-                temp2=grid.array_cum_lf(bEths[j,:],Emin,Emax,gamma) # * FtoE #one dim in beamshape, one dim in FRB
-                cumulative = temp2.T #*bEths[j,:] #multiplies by beam factors and weight
+                cumulative=grid.array_cum_lf(bEths[j,:],Emin,Emax,gamma).T # * FtoE #one dim in beamshape, one dim in FRB
+                #multiplies by beam factors and weight
                 
                 
                 if zwidths:
@@ -1577,7 +1595,6 @@ def calc_likelihoods_2D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,p
                     
                     # total probability of that p(w,b)
                     pbws[i,j,OK] = survey.beam_o[i]*usew*cumulative[OK]
-                    
         
         # calculate p(w)
         # Note that iws1 and iws2 is only defined for ztaulist
@@ -1649,13 +1666,17 @@ def calc_likelihoods_2D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,p
             bad = np.where(pbw == 0.)
             pbw[bad] = 1.e-10
             llpbw = np.sum(np.log10(pbw))
-            llsum += llpbw
+            #llsum += llpbw
             
             # adds psnr values to the list
             bad = np.where(psnr_gbw == 0.)
             psnr_gbw[bad] = 1.e-10
             llpsnr_gbw = np.sum(np.log10(psnr_gbw))
-            llsum += llpsnr_gbw
+            #llsum += llpsnr_gbw
+            
+            # add this, since it is more accurate than the components
+            llpsnrbw = np.sum(np.log10(psnrbw))
+            llsum += llpsnrbw
             
             longlist["pbw"]={}
             longlist["pbw"]["pb"]=np.log10(pb)

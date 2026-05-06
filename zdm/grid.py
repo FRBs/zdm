@@ -364,7 +364,8 @@ class Grid:
         Assumed model: a power-law between Emin and Emax (erg)
                        with slope gamma.
         Efficiencies: list of efficiency response to DM
-        So-far: does NOT include time x solid-angle factor
+        So-far: does NOT include time x solid-angle factor. Just the fraction of the
+                luminosity function which is probed.
         
         NOW: this includes a solid-angle and beam factor if initialised
         
@@ -822,6 +823,9 @@ class Grid:
         # generates cumulative distribution for sampling w,b
         pwbc = np.cumsum(pwb)
         pwbc /= pwbc[-1]
+        
+        # differential rates
+        self.MCpwb = pwb
         
         # saves cumulative distributions for sampling
         self.MCpwbc = pwbc

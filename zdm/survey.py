@@ -558,27 +558,44 @@ class Survey:
         return iws1, iws2, dkws1, dkws2
     
     
-    def init_frb_bvals(self):
+    def init_frb_bvals(self,bvals=None):
         """
         Initialise frb-by-frb weights for each value of the beam histogram, based on
         the value of the beam that the FRB was detected in.
         
         Simply does this by linear interpolation
+        
+        Args:
+            bvals (optional): artifical values of b to insert
         """
         
+        # by default, uses own b values, but can return data from
+        # external sources
+        if bvals is None:
+            bvals = self.frbs["B"]
+        
         # contains beam-dependent weights for each FRB
-        frb_bweights = np.zeros([self.NFRB,self.meta["NBINS"]])
+        frb_bweights = np.zeros([len(bvals),self.meta["NBINS"]])
         
         lbs = np.log(self.beam_b)
         
-        for i,B in enumerate(self.frbs["B"]):
+        # initialise array to determine if the B-values are OK
+        OKB = np.zeros([len(bvals)])
+        
+        
+        
+        for i,B in enumerate(bvals):
             if B == -1: # code for "ignore it"
                 # still have to decide what to do here. Likely give equal weights?
                 frb_bweights[i,:] = 1./self.meta["NBINS"]
+                # this is incorrect. We need to keep an array of FRBs with bad bvalues.
+                
             elif B > self.beam_b[-1]: # greater value than max, just use max
                 frb_bweights[i,-1] = 1.
+                OKB[i] = 1
             elif B < self.beam_b[0]:
                 frb_bweights[i,0] = 1.
+                OKB[i] = 1
             else:
                 # at least one value of beam_b will be greater and one lesser than B
                 iB2 = np.where(self.beam_b > B)[0][0]
@@ -589,8 +606,10 @@ class Survey:
                 kB1 = 1.-kB2
                 frb_bweights[i,iB1] = kB1
                 frb_bweights[i,iB2] = kB2
-        self.frb_bweights = frb_bweights
+                OKB[i] = 1
         
+        self.frb_bweights = frb_bweights
+        self.OKB = OKB
         # speedups when iterating through 1D and 2D likelihoods
         self.frb_zbweights = frb_bweights[self.zlist,:]
         self.frb_nozbweights = frb_bweights[self.nozlist,:]
@@ -986,8 +1005,11 @@ class Survey:
             else:
                 #default_value = getattr(default_frb, field.name)
                 frb_tbl[field.name] = default_value
-                print("WARNING: no ",field.name," found in survey",
-                    "replacing with default value of ",default_value)
+                # disabling this, as we no longer have the ability to
+                # determine if a default value is truly a default, or
+                # is set at the survey level
+                #print("WARNING: no ",field.name," found in survey",
+                #    "replacing with default value of ",default_value)
         
         self.frbs = frb_tbl.to_pandas()
         

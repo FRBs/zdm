@@ -1093,7 +1093,7 @@ class model_wrapper:
         k1 = 1.-k2
         
         # get slice through p(mr|z) space
-        pmgz = self.p_mr_z[im1,:] * k1 + self.p_mr_z[im1,:]*k2
+        pmgz = self.p_mr_z[im1,:] * k1 + self.p_mr_z[im2,:]*k2
         # get joint distribution, albeit along this axis only
         pmz = pmgz * self.pz
         # now normalise, but dividing by p(m)
@@ -1116,7 +1116,48 @@ class model_wrapper:
         else:
             return pzgm
     
-    
+    def get_pm_g_z(self,z,mr=None):
+        """
+        Calculates probability of given magnitudes given z
+        
+        Args:
+            z(float): z-value (if known) of galaxy
+            
+            mr(float,optional): calculate z at these magnitudes if provided
+        
+        Returns:
+            p(z|m)
+        """
+        
+        # linear interpolation
+        if z >= self.zmax:
+            if mr is None:
+                return np.zeros([self.NAppBins])
+            else:
+                return 0.
+        iz1 = int((z-self.zvals[0])/self.dz)
+        iz2 = iz1+1
+        kz2 = (z-self.zvals[iz1])/self.dz
+        kz1 = 1.-kz2
+        pmgz = self.p_mr_z[:,iz1] * kz1 + self.p_mr_z[:,iz2] * kz2
+        pmgz /= np.sum(pmgz)
+        pmgz /= self.dAppmag
+        
+        if mr is not None:
+            # intepolate linearly between magnitude bins
+            # note that self.AppMags are bin *edges*
+            # still use these for bins: if from 0.5 to 1.5, this is linear between
+            # bins 0 and 1
+            im1 = int(0.5+(mr - self.Appmin)/self.dAppmag) # bin middle
+            im2 = im1+1
+            k2 = (mr - self.AppMags[im1])/self.dAppmag
+            k1 = 1.-k2
+            
+            # get slice through p(mr|z) space
+            pmgz = pmgz[im1] * k1 + pmgz[im2,:]*k2
+        
+        return pmgz
+        
     def init_path_raw_prior_Oi(self,DM,grid=None,pz=None):
         """
         Initialise the apparent magnitude prior for a single FRB DM.
