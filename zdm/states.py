@@ -35,7 +35,7 @@ def load_state(case="HoffmannHalo25",scat=None,rep=None):
     
     #### primary fit params ####
     cases=["JamesSFR22","JamesH022","BaptisaF24",\
-        "HoffmannEmin25","HoffmannHalo25"]
+        "HoffmannEmin25","HoffmannHalo25","HoffmannRepeaters26"]
     
     if not case in cases:
         raise ValueError("Case ",case," Undefined, please choose from ",cases)
@@ -59,13 +59,17 @@ def load_state(case="HoffmannHalo25",scat=None,rep=None):
     elif case == "JamesSFR22":
         scat="orig"
         vparams = set_orig_scat(vparams)
-    elif case == "JamesH022" or case == "BaptisaF24" \
-            or case == "HoffmannEmin25" or case == "HoffmannHalo25":
+    #elif case == "JamesH022" or case == "BaptisaF24" \
+    #        or case == "HoffmannEmin25" or case == "HoffmannHalo25":
+    elif case == "HoffmannRepeaters26":
+        pass # scattering already set there
+    else:
         scat="CHIME"
         vparams = set_chime_scat(vparams)
-    else:
-        scat="updated"
-        vparams = set_updated_scat(vparams)
+    # never set this by default, it will kill you
+    #else:
+    #    scat="updated"
+    #    vparams = set_updated_scat(vparams)
     
     
     #### repetition ####
@@ -124,7 +128,7 @@ def set_fit_params(vparams,case):
     
     
     # adds any missing categories
-    for param in ['FRBdemo','MW','cosmo','IGM','energy','rep','IGM','host']:
+    for param in ['FRBdemo','MW','cosmo','IGM','energy','rep','IGM','host','analysis','scat','width']:
         if not param in vparams:
             vparams[param] = {}
     
@@ -256,8 +260,70 @@ def set_fit_params(vparams,case):
         
         vparams['cosmo']['H0'] = 70.63
         
-        
         vparams['energy']['luminosity_function'] = 2
+    
+    elif case == "HoffmannRepeaters26":
+        vparams['energy']['lEmin'] = 30.0
+        vparams['energy']['lEmax'] = 40.91165578515364
+        vparams['energy']['alpha'] = 1.4311162666594126
+        vparams['energy']['gamma'] = -1.1268723802877352
+        vparams['energy']['luminosity_function'] = 2
+        
+        vparams['FRBdemo']['alpha_method'] = 1
+        vparams['FRBdemo']['source_evolution'] = 0
+        vparams['FRBdemo']['sfr_n'] = 2.8727580728334483
+        vparams['FRBdemo']['lC'] = 3.3249
+        
+        vparams['host']['lmean'] = 2.18211392616453
+        vparams['host']['lsigma'] = 0.43672819419999337
+        
+        vparams['MW']['DMhalo']=61.038340637162705
+        vparams['MW']['ISM']=35
+        vparams['MW']['halo_method']=0
+        vparams['MW']['sigmaHalo']=15.0
+        vparams['MW']['sigmaDMG']=0.2
+        vparams['MW']["logu"] = False
+        
+        vparams['IGM']['logF'] = -0.494850021680094
+        
+        vparams['cosmo']['H0'] = 70.6408065355808
+        vparams['cosmo']["Omega_b"] = 0.04492445246610533
+        vparams['cosmo']["Omega_b_h2"] = 0.0224178568132
+        vparams['cosmo']["Omega_k"] = 0.0
+        vparams['cosmo']["Omega_lambda"] = 0.6888463055445441
+        vparams['cosmo']["Omega_m"] = 0.30966
+        vparams['cosmo']["fix_Omega_b_h2"] = True
+        
+        vparams["analysis"]["DMG_cut"] = None
+        vparams["analysis"]["NewGrids"] = True
+        vparams["analysis"]["min_lat"] = 20.0
+        vparams["analysis"]["sprefix"] = "Std"
+        
+        vparams["rep"]["RC"] = 0.01
+        vparams["rep"]["RE0"] = 1e+39
+        vparams["rep"]["Rgamma"] = -2.375
+        vparams["rep"]["lRmax"] = 1.0
+        vparams["rep"]["lRmin"] = -3.0
+        
+        vparams["scat"]["Sbackproject"] =  False
+        vparams["scat"]["ScatDist"] =  2
+        vparams["scat"]["ScatFunction"] =  2
+        vparams["scat"]["Sfnorm"] =  1000
+        vparams["scat"]["Sfpower"] =  -4.0
+        vparams["scat"]["Slogmean"] =  -1.3
+        vparams["scat"]["Slogsigma"] =  0.2
+        vparams["scat"]["Smaxsigma"] =  3.0
+        
+        vparams["width"]["WMax"] =  100
+        vparams["width"]["WMin"] =  0.01
+        vparams["width"]["WNInternalBins"] =  1000
+        vparams["width"]["WNbins"] =  12
+        vparams["width"]["WidthFunction"] =  2
+        vparams["width"]["Wlogmean"] =  -0.29
+        vparams["width"]["Wlogsigma"] =  0.65
+        vparams["width"]["Wmethod"] =  2
+        vparams["width"]["Wthresh"] =  0.5
+        
     else:
         raise ValueError("Unrecognised case. Please select one of ",cases)
     

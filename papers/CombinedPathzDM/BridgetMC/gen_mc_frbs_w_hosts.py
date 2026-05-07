@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 
 import numpy as np
 import pandas as pd
-
+import pickle
 from frb.dm import igm
 
 
@@ -23,26 +23,6 @@ font = {'family' : 'Helvetica',
         'weight' : 'normal',
         'size'   : defaultsize}
 matplotlib.rc('font', **font)
-
-
-#params 
-NMC = 10 
-nu = 1. # GHz
-t_samp = 1.182  # ms
-bandwidth = 1.0 # MHz
-snr_thresh = 4. # SNR threshold
-mean_DM_MW = 80. # pc cm^-3
-disp_DM_MW = 50. # pc cm^-3
-
-
-
-#df_frbs = pd.DataFrame({
-#        'DMeg': dm_samples,
-#        'z': zs,
-#        'M_r': Mr_samples,
-#        'm_r': mr_samples
-#    })
-
 
 def main():
     """
@@ -58,29 +38,131 @@ def main():
     name = "CRAFT_CRACO_900"
     state = states.load_state("HoffmannHalo25") # old scattering
     state.width.WNbins = 100
+    state.width.WNInternalBins = 1000
     
     #survey_state = sd.SurveyData()
     #survey_state.telescope.NBINS = 30
     survey_dict = {}
     survey_dict["NBINS"] = 50
-    surveys, grids = loading.surveys_and_grids(survey_names = [name],repeaters=False,
+    
+    # generate or load surveys and grids as appropriate
+    
+    if True:
+        surveys, grids = loading.surveys_and_grids(survey_names = [name],repeaters=False,
                                                 init_state=state,survey_dict = survey_dict)
+        
+        with open('survey_and_grid.pkl', 'ab') as pklfile:
+            pickle.dump(surveys, pklfile)
+            pickle.dump(grids, pklfile)
+        
+    else:
+        with open('survey_and_grid.pkl', 'rb') as pklfile:
+            surveys = pickle.load(pklfile)
+            grids = pickle.load(pklfile)
+    
     s = surveys[0]
     g = grids[0]
     
-    plot_prediction(g)
+    plot_prediction(g,opdir)
     
     NMC = 10000
-    frbs = gen_mc_frbs(g,NMC)
+    
+    #savefile="1M_craco_900_mc_sample.csv"
+    savefile="craco_900_mc_sample.csv"
+    if os.path.exists(savefile):
+        frbs = pd.read_csv(savefile)
+    else:
+        frbs = gen_mc_frbs(g,NMC)
+        frbs.to_csv(savefile,index=False)
     
     # I did this once for N=100,000
-    compare_rates(g,frbs,opdir,downsample=10)
+    compare_rates(g,frbs,opdir,downsample=1)
     
     # adds m_r values to the FRBs
     gen_hosts(g,frbs)
     
-    frbs.to_csv("craco_900_mc_sample.csv",index=False)
+    # loads fake survey according to 
+    compare_b_w_dists(g,s,frbs,opdir)
 
+def compare_b_w_dists(g,s,frbs,opdir):
+    """
+    Compares beam and width distributions of FRBs
+    """
+    
+    
+    # dimensions: nz, ndm, nbeam
+    bf = g.b_fractions
+    nz,ndm,nb = bf.shape
+    NFRB = len(frbs)
+    
+    brate = np.zeros([nb])
+    for i in np.arange(nb):
+        #nzxndm giving volume * fraction
+        bv = np.multiply(bf[:,:,i].T, g.dV).T
+        brate[i] = np.sum(bv * g.sfr_smear * s.dm_mask)
+    
+    # dimensions: nz, ndm, nbeam
+    wf = g.w_fractions
+    nz,ndm,nw = wf.shape
+    
+    wrate = np.zeros([nw])
+    for i in np.arange(nw):
+        #nzxndm giving volume * fraction
+        #wv = np.multiply(wf[:,:,i].T, g.dV).T
+        #wrate[i] = np.sum(wv * g.sfr_smear * s.dm_mask)
+        wrate[i] = np.sum(wf[:,:,i])
+    
+    
+    ###### get MC values #####
+    
+    # also does MC init calculation
+    g.initMC()
+    pwb = g.MCpwb.reshape([nb,nw])
+    MCpw = np.sum(pwb,axis=0)
+    MCpb = np.sum(pwb,axis=1)
+    
+    ##### Calculates width from data #######
+    
+    width_hist = np.zeros([nw])
+    iws1, iws2, dkws1, dkws2 = s.get_w_coeffs(frbs["w"])
+    for i in np.arange(NFRB):
+        width_hist[iws1[i]] += dkws1[i]
+        width_hist[iws2[i]] += dkws2[i]
+    
+    # sums over DM axis
+    ebar = np.sum(g.eff_table,axis=1)
+    
+    plt.figure()
+    plt.plot(width_hist/np.sum(width_hist),label="Generated")
+    plt.plot(wrate/np.sum(wrate),label="Predicted")
+    plt.plot(g.eff_weights/np.sum(g.eff_weights),label="weights")
+    plt.plot(ebar/np.sum(ebar),label="efficiencies")
+    plt.plot(MCpw/np.sum(MCpw),label="MC prediction")
+    plt.legend()
+    plt.ylabel("$P(w)$")
+    plt.xlabel("Width bin")
+    plt.tight_layout()
+    plt.savefig(opdir+"width_comparison.png")
+    plt.close()
+    
+    ###### calculates bvals for data #####
+    s.init_frb_bvals(frbs["B"])
+    bweights = np.sum(s.frb_bweights,axis=0)
+    
+    plt.figure()
+    plt.plot(bweights/np.sum(bweights),label="Generated")
+    plt.plot(brate/np.sum(brate),label="Predicted")
+    plt.plot(MCpb/np.sum(MCpb),label="MC prediction")
+    plt.legend()
+    plt.ylabel("$P(B)$")
+    plt.xlabel("Beam bin")
+    plt.tight_layout()
+    plt.savefig(opdir+"beam_comparison.png")
+    plt.close()
+    
+    # calls survey for width-making
+    s.make_widths()
+    
 def plot_prediction(g,opdir):
     """
     Makes 2d histogram of generated FRBs for comparison with predictions
@@ -104,7 +186,7 @@ def compare_rates(g,frbs,opdir,downsample=10):
     # predicted grid of rates
     rates=g.get_rates()
     nz,ndm = rates.shape
-    
+    NFRB = len(frbs)
     
     dz = g.zvals[1]-g.zvals[0]
     dDM = g.dmvals[1] - g.dmvals[0]
@@ -136,17 +218,40 @@ def compare_rates(g,frbs,opdir,downsample=10):
             new_hist += hist[i::downsample,j::downsample]
     
     figures.plot_grid(new_rates,new_zvals,new_dmvals,
-            name=opdir+"downsampled_predicted_zdm.png",norm=3,log=False,
-            label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$ [a.u.]',
+            name=opdir+"downsampled_predicted_zdm.png",norm=0,log=False,
+            label='$N_{\\rm FRB}({\\rm DM}_{\\rm EG},z)$',
             project=False,ylabel='${\\rm DM}_{\\rm EG}$',
             zmax=3.,DMmax=3000.)
     
     figures.plot_grid(new_hist,new_zvals,new_dmvals,
-            name=opdir+"downsampled_mc_zdm.png",norm=3,log=False,
-            label='$\\log_{10} p({\\rm DM}_{\\rm EG},z)$ [a.u.]',
+            name=opdir+"downsampled_mc_zdm.png",norm=0,log=False,
+            label='$N_{\\rm FRB}({\\rm DM}_{\\rm EG},z)$',
             project=False,ylabel='${\\rm DM}_{\\rm EG}$',
             zmax=3.,DMmax=3000.)
     
+    # estimate N per cell. This is total number, time probability per cell
+    
+    norm = np.sum(new_rates)
+    expectation = new_rates/norm * NFRB
+    
+    sigma = expectation**0.5
+    
+    # rounds up to unity - can't be less
+    shape = sigma.shape
+    toolow = np.where(sigma.flatten() < 1)[0]
+    sigma=sigma.flatten()
+    sigma[toolow] = 1.
+    sigma = sigma.reshape(shape)
+    
+    deviation = (new_hist - expectation)/sigma
+    
+    # calculates contour level
+    figures.plot_grid(deviation,new_zvals,new_dmvals,
+            name=opdir+"downsampled_sigma_deviation.png",norm=0,log=False,
+            label='$\\sigma$',
+            project=False,ylabel='${\\rm DM}_{\\rm EG}$',
+            zmax=3.,DMmax=3000.,othergrids = [sigma],Aconts=[0.99],alevels=[6.],
+            other_alevels=[[1.]],othernames=["",""],cmap="bwr",clim=[-3,3])
     
     
 def gen_hosts(g,frbs):

@@ -71,7 +71,7 @@ def main(NMAX,label):
         fp.write('  {:.2f}'.format(host["DM"]))
         fp.write('  {:.6f}'.format(host["ra"]))
         fp.write('  {:.6f}'.format(host["dec"]))
-        fp.write('  {:.3f}'.format(frb["z"]))
+        fp.write('  {:.4f}'.format(frb["z"]))
         fp.write('  {:.2f}'.format(frb["s"]*10.))
         fp.write('  {:.3f}'.format(frb["w"]))
         fp.write('  {:.3f}'.format(frb["B"]))
