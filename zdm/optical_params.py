@@ -143,6 +143,24 @@ class Identification(data_class.myDataClass):
                   'unit': '', 
                   'Notation': '',
                   })
+    pU_method: int = field( 
+        default=0, 
+        metadata={'help': "Method of implementing p(U|m) cut in the data. 0: use mean, width above. 1: use min/max.", 
+                  'unit': '', 
+                  'Notation': '',
+                  })
+    pU_min: float = field( 
+        default=14, 
+        metadata={'help': "Minimum magnitude to consider in P(U|m) - sets this to zero for m < Pu_min. Used iff pUmeth=1", 
+                  'unit': '', 
+                  'Notation': '',
+                  })
+    pU_max: float = field( 
+        default=22, 
+        metadata={'help': "Maximum magnitude to consider in P(U|m) - sets this to zero for m > Pu_max. Used iff pUmeth=1", 
+                  'unit': '', 
+                  'Notation': '',
+                  })
 
 @dataclass
 class Apparent(data_class.myDataClass):

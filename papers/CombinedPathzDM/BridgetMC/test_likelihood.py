@@ -20,9 +20,17 @@ def main():
     Calculates likelihoods for fake survey
     """
     
+    opdir = "LikelihoodTests/"
+    if not os.path.exists(opdir):
+        os.mkdir(opdir)
+    
     state = states.load_state("HoffmannHalo25") # old scattering
+    state.MW.sigmaHalo=0.
+    state.MW.sigmaDM=0.
+    
+    
     #name = "CRAFT_CRACO_900"
-    name = "short_fake_CRACO_900"
+    name = "1M_fake_CRACO"
     sdir = resources.files('zdm').joinpath('../papers/CombinedPathzDM/BridgetMC/Surveys/')
     surveys, grids = loading.surveys_and_grids(survey_names = [name],repeaters=False,
                                                 sdir=sdir,init_state=state)
@@ -39,6 +47,8 @@ def main():
     frbdir = resources.files('zdm').joinpath('../papers/CombinedPathzDM/BridgetMC/FRBFiles')
     os.environ["ZDM_PATH_FRBDIR"] = str(frbdir)
     os.environ["ZDM_PATH_GALDIR"] = str(galdir)
+    
+    lltot = it.calc_likelihoods_2D(g, s, psnr=False, Pn=False,pdmz=True, pNreps=False, ptauw=False, pwb=False)
     
     lltot,results = it.get_joint_path_zdm_likelihoods(g, s, wrapper, norm=True, psnr=True, Pn=False,
                                     pdmz=True, pNreps=True, ptauw=False, pwb=True,
@@ -86,13 +96,15 @@ def main():
     plt.xlabel("magnitudes")
     plt.ylabel("posterior")
     plt.tight_layout()
-    plt.savefig("post_mags.png")
+    plt.savefig(opdir+"post_mags.png")
     plt.close()
     
     
     plt.figure()
     bins = np.linspace(0,6.,61)
     
+    # note: "truth" does *NOT* account for angular smearing of FRB localisation
+    # However, PATH does! So we don't expect agreement
     truth = np.exp(-bins/0.5) * np.sum(weights)/10
     
     plt.hist(thetas,bins=bins,weights=weights,label="posteriors")
@@ -101,7 +113,8 @@ def main():
     plt.xlim(0,6)
     plt.xlabel("theta/phi")
     plt.tight_layout()
-    plt.savefig("post_offsets.png")
+    plt.savefig(opdir+"post_offsets.png")
     plt.close()
+
     
 main()

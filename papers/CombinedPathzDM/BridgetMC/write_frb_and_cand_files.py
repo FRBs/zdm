@@ -5,7 +5,7 @@ Based off
 https://astropath.readthedocs.io/en/latest/nb/Simulate_Run_PATH.html
 
 What we really do here is to write a library of fake observation files.
-The actual running of PAHT lives within zdm
+Specifically, fake FRB properties files, and fake galaxy candidate files
 """
 
 from frb.frb import FRB
@@ -21,7 +21,9 @@ from astropy.io import ascii
 from astropy.table import Table
 
 def main():
-    
+    """
+    Main program
+    """
     
     ### read in frb data, and write these out as individual FRB files ###
     frbs = pd.read_csv("craco_900_mc_sample.csv")
@@ -78,33 +80,12 @@ def main():
     # this one has ang_size
     galaxies = pd.read_parquet("catalog_dudxmmlss_hecate_DECaL.parquet")
     
-    # this one has half_light
-    #other_g = pd.read_parquet("combined_HSC_DECaLs_HECATE_galaxies_hecatecut.parquet")
-    
     # hard-coded parameters giving completeness of this catalogue from PATH paper
     survey_mean = 24
     survey_width = 0.55
     magnitudes = np.linspace(10,30,201)
     pU = opt.pUgm(magnitudes,survey_mean,survey_width)
-    #plt.figure()
-    #plt.plot(magnitudes,pU)
-    #plt.show()
     
-    # generates a random number for each true host, to determine if it should be removed from the
-    # file, since these are forced to exist. Other galaxies in the catalogue are naturally
-    # removed due to the intrinsic completeness
-    
-    deviates = np.random.rand(Nhosts)
-    pUs = np.interp(hosts["mag"],magnitudes,pU)
-    
-    # plt.figure()
-    # if random number is less than p(U), the host is invisible
-    #REMOVE = np.where(deviates < pUs)[0]
-    #KEEP = np.where(deviates >= pUs)[0]
-    #plt.scatter(hosts["mag"][KEEP],pUs[KEEP],color="blue",s=0.1)
-    #plt.scatter(hosts["mag"][REMOVE],pUs[REMOVE],color="red",s=0.1)
-    #plt.show()
-    #exit()
     
     frbs["ra"] = hosts["ra"]
     frbs["dec"] = hosts["dec"]
@@ -116,13 +97,26 @@ def main():
     opdir="CandidateFiles/"
     if not os.path.exists(opdir):
         os.mkdir(opdir)
-        
+    
+    # cut here is used to remove galaxies in a certain magnitude range
+    CUT=True
+    if not CUT:
+        # generates a random number for each true host, to determine if it should be removed from the
+        # file, since these are forced to exist. Other galaxies in the catalogue are naturally
+        # removed due to the intrinsic completeness
+        deviates = np.random.rand(Nhosts)
+        pUs = np.interp(hosts["mag"],magnitudes,pU)
+    else:
+        MinMag = 14.
+        MaxMag = 22.
+    
+    
     ####### Writes out candidate files ######
     for i in np.arange(Nhosts):
         fname = opdir+'FRB'+str(hosts["FRB_ID"][i])+"_PATH.csv"
-        #if os.path.exists(fname):
-        #    print("Skipping FRB ",i)
-        #    continue 
+        if os.path.exists(fname):
+            print("Skipping FRB ",i)
+            continue 
          
         frb = frbs.iloc[i]
         jhost = np.where(FRB_IDS == i)
@@ -139,17 +133,35 @@ def main():
             # now searches through for a matching galaxy to the known host.
             # We either remove it, or add its redshift
             
-            if host["gal_ID"] in candidates["ID"]:
-                j = np.where(host["gal_ID"] == candidates["ID"])[0][0]
-                if deviates[i] < pUs[i]:
-                    print("removing row ",j)
-                    candidates.remove_row(j)
-                else:
-                    
+            # cuts all galaxies outside of range
+            if CUT:
+                # cuts down to 14 to 22 range
+                if host["gal_ID"] in candidates["ID"]:
+                    j = np.where(host["gal_ID"] == candidates["ID"])[0][0]
                     candidates["z"][j] = frb["z"]
-                    #print("Found host redshift ",frb["z"],candidates["z"][j])
+                
+                # removes big and small galaxies
+                bad1 = np.where(candidates["mag"] < MinMag)[0]
+                bad2 = np.where(candidates["mag"] > MaxMag)[0]
+                bad = np.union1d(bad1,bad2)
+                if len(bad) > 0:
+                    
+                    cands2 = candidates.to_pandas()
+                    cands2 = cands2.drop(index = bad)
+                    candidates = Table.from_pandas(cands2)
+            
+            # otherwise assume that hosts only are "overly complete"
+            else:
+                if host["gal_ID"] in candidates["ID"]:
+                    j = np.where(host["gal_ID"] == candidates["ID"])[0][0]
+                    if deviates[i] < pUs[i]:
+                        print("removing row ",j)
+                        candidates.remove_row(j)
+                    else:
+                        candidates["z"][j] = frb["z"]
+                        #print("Found host redshift ",frb["z"],candidates["z"][j])
         else:
-            candidates["z"] = -1 # should creatre something empty anyway
+            candidates["z"] = -1 # should create something empty anyway
         
         print("Writing ",fname)
         ascii.write(candidates, fname, overwrite=False, format='csv')

@@ -454,7 +454,25 @@ class repeat_Grid(grid.Grid):
             
         # calculates the expected number of bursts in the no-repeater case from grid info
         no_repeaters = self.rates * self.Tfield * 10**(self.state.FRBdemo.lC)
+    
+    def get_exact_singles(self):
+        """
+        Returns rate of single bursts, accounting for DM bias and population total
+        """
         
+        singles = self.exact_singles * self.Rc
+        singles = self.get_dm_bias(singles)
+        return singles
+    
+    def get_exact_reps(self):
+        """
+        Returns rate of repeat bursts, accounting for DM bias and population total
+        """
+        
+        reps = self.exact_reps * self.Rc
+        reps = self.get_dm_bias(reps)
+        return reps
+    
     def perform_exact_calculations(self,slow=False):
         """
         Performs exact calculations of:

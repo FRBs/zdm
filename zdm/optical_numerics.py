@@ -1057,8 +1057,10 @@ def run_path(name,P_U=0.1,usemodel=False,sort=False,failOK=False,scale=0.5,ppath
     # if it is not, P(O) is renormalised, and includes 1/cumulative
     P_xO = this_path.p_xOi
     
-    if sort:
-        # sorts from highest to lowest
+    if False:
+        # sorts from highest to lowest.
+        # I have disabled this, since A: why, and B: pandas ptbl never
+        # truly sorts, so we must keep the other arrays aligned
         indices = np.argsort(P_Ox)[::-1]
         P_O = P_O[indices]
         P_Ox = P_Ox[indices]
@@ -1067,8 +1069,9 @@ def run_path(name,P_U=0.1,usemodel=False,sort=False,failOK=False,scale=0.5,ppath
         ptbl = ptbl.loc[indices]
         if zs is not None:
             zs = zs[indices]
-    sizes = ptbl["ang_size"]
-    seps = ptbl["separation"]
+    
+    sizes = ptbl["ang_size"].values
+    seps = ptbl["separation"].values
     
     result["PUx"] = P_Ux
     result["PO"] = P_O
@@ -1076,7 +1079,7 @@ def run_path(name,P_U=0.1,usemodel=False,sort=False,failOK=False,scale=0.5,ppath
     result["POx"] = P_Ox
     result["mags"] = mags
     result["ptbl"] = ptbl
-    result["z"] = zs
+    result["z"] = zs.values
     result["seps"] = seps
     result["sizes"] = sizes
     

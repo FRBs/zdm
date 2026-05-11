@@ -936,8 +936,20 @@ class model_wrapper:
         self.OpticalState = model.OpticalState
         
         #parameters defining chance of identifying a galaxy with magnitude m
-        self.pU_mean = self.OpticalState.id.pU_mean
-        self.pU_width = self.OpticalState.id.pU_width
+        self.pU_meth = self.OpticalState.id.pU_method
+        
+        if self.pU_meth == 0:
+            # soft cuts on max only
+            self.pUfunc = pUgm
+            self.pU_arg1 = self.OpticalState.id.pU_mean
+            self.pU_arg2 = self.OpticalState.id.pU_width
+        else:
+            # hard cuts at min and max
+            self.pUfunc = pUgm_minmax
+            self.pU_arg1 = self.OpticalState.id.pU_min
+            self.pU_arg2 = self.OpticalState.id.pU_max
+        
+        
         
         # specific substate of the model
         self.opstate = model.opstate
@@ -1211,7 +1223,8 @@ class model_wrapper:
         self.prior_DM = DM
         self.raw_priors = priors
         
-        pU = pUgm(self.AppMags,self.pU_mean,self.pU_width)
+        pU = self.pUfunc(self.AppMags,self.pU_arg1,self.pU_arg2)
+        #pU = pUgm(self.AppMags,self.pU_mean,self.pU_width)
         
         # this calculation acts in 1D - over magnitude
         self.priors = self.raw_priors * (1.-pU)
@@ -1396,7 +1409,8 @@ class model_wrapper:
             Oi /= self.dAppmag 
             
             # modify sigma_ms by P(m|O)
-            pogm = (1.-pUgm(mag,self.pU_mean,self.pU_width))
+            pogm = 1.-self.pUfunc(mag,self.pU_arg1,self.pU_arg2)
+            #pogm = 1.-pUgm(mag,self.pU_mean,self.pU_width)
             numerator = Sigma_ms[i] * pogm
             Oi /= numerator # normalise by host counts
             
@@ -1661,8 +1675,8 @@ def get_pz_prior(grid, DM):
     kdm2 = (DM - dm1)/ddm
     kdm1 = 1.-kdm2
     
-    # calculate p(z) based on interpolating grid.rates
-    pz = kdm1 * grid.rates[:,idm1] + kdm2 * grid.rates[:,idm2]
+    # calculate p(z) based on interpolating grid FRB rates in z-DM space
+    pz = kdm1 * grid.get_rates()[:,idm1] + kdm2 * grid.get_rates()[:,idm2]
     pz = pz/np.sum(pz,axis=0)
     return pz
 
@@ -2049,6 +2063,37 @@ def plot_frb(name,ralist,declist,plist,opfile):
     plt.savefig(opfile)
     plt.tight_layout()
     plt.close()
+
+def pUgm_minmax(mag,themin,themax):
+    """
+    Return the probability that a galaxy is undetected as a function of magnitude.
+
+    Models the survey detection completeness as simple min and max cut
+    
+    Args:
+        mag (float or np.ndarray): r-band apparent magnitude(s) at which to
+            evaluate the detection-failure probability.
+        themin (float): magnitude below which p(U) = 1.
+        themax (float): magnitude above which p(U) = 1.
+
+    Returns:
+        pU (float or np.ndarray): probability of non-detection at each
+            magnitude in ``mag``, in the range [0, 1].
+    """
+    
+    if np.isscalar(mag):
+        if mag < themin:
+            pU = 1.
+        elif mag > themax:
+            pU = 1.
+        else:
+            pU = 0.
+    else:
+        pU = np.zeros([mag.size])
+        pU[np.where(mag < themin)[0]] = 1.
+        pU[np.where(mag > themax)[0]] = 1.
+    
+    return pU
 
 def pUgm(mag,mean,width):
     """

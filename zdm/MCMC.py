@@ -60,7 +60,9 @@ def calc_log_posterior(param_vals, state, params, surveys_sep, Pn=False, pNreps=
                 log_halo=False, lin_host=False, ind_surveys=False, g0info=None, nz=500, ndm=1400,
                 dopath=False, opstate=None, opt_params=None, opt_model=None):
     """Calculate log-posterior probability for a parameter vector.
-
+    
+    Alternate version of main function, which aims to initialise only one survet at a time
+    
     This is the main function called by emcee samplers. It evaluates the
     log-posterior (proportional to log-likelihood for uniform priors) by
     building grids and computing likelihoods for all surveys.
@@ -156,6 +158,9 @@ def calc_log_posterior(param_vals, state, params, surveys_sep, Pn=False, pNreps=
     if in_priors is False:
         llsum = -np.inf
     else:
+        # calculate all the likelihoods
+        llsum = 0
+        
         # minimise_const_only does the grid updating so we don't need to do it explicitly beforehand
         # In an MCMC analysis the parameter spaces are sampled throughout and hence with so many parameters
         # it is easy to reach impossible regions of the parameter space. This results in math errors
@@ -167,7 +172,26 @@ def calc_log_posterior(param_vals, state, params, surveys_sep, Pn=False, pNreps=
         state.update_params(param_dict)
 
         surveys = surveys_sep[0] + surveys_sep[1]
-
+        
+        # gets new zDM grid if F and H0 in the param_dict
+        if 'H0' in param_dict or 'logF' in param_dict or g0info is None:
+            datdir = resources.files('zdm').joinpath('GridData')
+            zDMgrid, zvals,dmvals = mf.get_zdm_grid(
+                state, new=True, plot=False, method='analytic',
+                datdir=datdir,nz=nz,ndm=ndm)
+            g0info = [zDMgrid, zvals,dmvals]
+        
+        if dopath:
+            opstate.update_params(opt_param_dict)
+            opt_model = opt.select_model(opstate) #initialise optical model
+            # technically, we need one model wrapper per optical survey sensitivity
+            # it doesn't need to be associated with a given FRB survey, or grid
+        
+        # holds expected rates and observed rates. We calculate these likelihoods later
+        # so we don';t have tohold all the grids in memory
+        rs = []
+        os = []
+        
         # Recreate grids every time, but not surveys, so must update survey params
         for i,s in enumerate(surveys):
             
@@ -188,66 +212,53 @@ def calc_log_posterior(param_vals, state, params, surveys_sep, Pn=False, pNreps=
                 # this would get re-done within init_widths above, so only do this
                 # if it has *not* been recalculated
                 s.do_efficiencies() #get_efficiency_from_wlist(s.wlist,s.wplist,model=s.meta['WBIAS']) 
+            
+            # Initialise grids
+            if dopath:
+                wrappers = []
         
-        # Initialise grids
-        grids = []
-        if dopath:
-            wrappers = []
-        
-        # gets new zDM grid if F and H0 in the param_dict
-        if 'H0' in param_dict or 'logF' in param_dict or g0info is None:
-            datdir = resources.files('zdm').joinpath('GridData')
-            zDMgrid, zvals,dmvals = mf.get_zdm_grid(
-                state, new=True, plot=False, method='analytic',
-                datdir=datdir,nz=nz,ndm=ndm)
-            g0info = [zDMgrid, zvals,dmvals]
-        
-        if len(surveys_sep[0]) != 0:
-            # generates zdm grid
-            grids += mf.initialise_grids(surveys_sep[0], zDMgrid, zvals, dmvals, state, wdist=True, repeaters=False)
-        
-        if len(surveys_sep[1]) != 0:
-            # generates zdm grid
-            grids += mf.initialise_grids(surveys_sep[1], zDMgrid, zvals, dmvals, state, wdist=True, repeaters=True)
-        
-        if dopath:
-            opstate.update_params(opt_param_dict)
-            opt_model = opt.select_model(opstate) #initialise optical model
-            # technically, we need one model wrapper per optical survey sensitivity
-            # it doesn't need to be associated with a given FRB survey, or grid
-            for i,g in enumerate(grids):
-                wrappers.append(opt.model_wrapper(opt_model,g.zvals))
-        
-        # Minimse the constant accross all surveys
-        if Pn:
-            newC, llC = it.minimise_const_only(None, grids, surveys, update=True)
-
-        # calculate all the likelihoods
-        llsum = 0
-        # changes to this, so we can choose to icnlude path or not
-        for isurvey,s in enumerate(surveys):
-            g = grids[isurvey]
+            if i < len(surveys_sep[0]):
+                # generate normal zdm grid
+                grids = mf.initialise_grids([s], zDMgrid, zvals, dmvals, state, wdist=True, repeaters=False)
+                g = grids[0]
+                if s.TOBS is not None:
+                    rs.append(np.sum(g.get_rates())*s.TOBS)
+                    os.append(s.NORM_FRB)
+            else:
+                # generates repeating zdm grid
+                grids = mf.initialise_grids([s], zDMgrid, zvals, dmvals, state, wdist=True, repeaters=True)
+                g = grids[0]
+                # TOBS is already taken into account in the singles/repeater calculation
+                rs.append(np.sum(g.get_exact_singles()))
+                rs.append(np.sum(g.get_exact_reps()))
+                os.append(s.NORM_SINGLES)
+                os.append(s.NORM_REPS)
+                
+            if dopath:
+                w = opt.model_wrapper(opt_model,g.zvals)
             
             if dopath:
-                w = wrappers[isurvey]
-                ll = it.get_joint_path_zdm_likelihoods(g, s, w, Pn=Pn,pNreps=pNreps,
+                ll = it.get_joint_path_zdm_likelihoods(g, s, w, Pn=False, pNreps=pNreps,
                                                         psnr=psnr,ptauw=ptauw,pwb=pwb)
             else:
-                ll = it.get_log_likelihood(grid,s,Pn=Pn,pNreps=pNreps,psnr=psnr,ptauw=ptauw,pwb=pwb)
+                ll = it.get_log_likelihood(g,s,Pn=False,pNreps=pNreps,psnr=psnr,ptauw=ptauw,pwb=pwb)
             llsum += ll
             if ind_surveys:
                 ll_list.append(ll)
-
-        #except ValueError as e:
-        #    print("Error, setting likelihood to -inf: " + str(e))
-        #    llsum = -np.inf
-        #    ll_list = [-np.inf for _ in range(len(surveys))]
+        
+        
+        # Minimse the constant accross all surveys
+        if Pn:
+            # dC is change in log constant from current number
+            # llc is log probability
+            os = np.array(os)
+            rs = np.array(rs)
+            dC, llC = it.minimise_const_only2(os,rs)
+            llsum += llC # adds Pn to llsum
 
     if np.isnan(llsum):
         print("llsum was NaN. Setting to -infinity", param_dict)    
         llsum = -np.inf
-    
-    # print("Posterior calc time: " + str(time.time()-t0) + " seconds", flush=True)
     
     # now clean up memory from energetics. Gammas are floating-point numbers,
     # and will never be re-used
