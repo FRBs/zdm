@@ -32,7 +32,7 @@ def main():
     # approximate best-fit values from recent analysis
     # best-fit from Jordan et al
     # plot scat "updated" if better, but takes ages!
-    state = states.load_state("HoffmannHalo25",scat="updated",rep=None)
+    state = states.load_state("HoffmannHalo25",rep=None)
     
     if not os.path.exists(opdir):
         os.mkdir(opdir)
@@ -66,8 +66,8 @@ def main():
             label='$\\log_{10} p({\\rm DM}_{\\rm EX},z)$ [a.u.]',
             project=False,ylabel='${\\rm DM}_{\\rm EX}$',
             zmax=zmax,DMmax=DMmax,Aconts=[0.01,0.1,0.5],
-            FRBDMs=s.frbs['DMEG'].values,FRBZs=s.frbs['Z'].values,
-            DMlines = s.frbs['DMEG'].values[noz])
+            FRBDMs=s.DMEGs,FRBZs=s.Zs,
+            DMlines = s.DMEGs[noz])
             
             
             
