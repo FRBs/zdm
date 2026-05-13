@@ -56,7 +56,8 @@ from zdm import optical as opt
 from zdm import optical_params as op
 #==============================================================================
 
-def calc_log_posterior(param_vals, state, params, surveys_sep, Pn=False, pNreps=True, psnr=True, ptauw=False, pwb=False,
+def calc_log_posterior(param_vals, state, params, surveys_sep, Pn=False, Pns=False, Pnr=False,
+                pNreps=True, psnr=True, ptauw=False, pwb=False,
                 log_halo=False, lin_host=False, ind_surveys=False, g0info=None, nz=500, ndm=1400,
                 dopath=False, opstate=None, opt_params=None, opt_model=None):
     """Calculate log-posterior probability for a parameter vector.
@@ -80,6 +81,10 @@ def calc_log_posterior(param_vals, state, params, surveys_sep, Pn=False, pNreps=
         Two-element list: [non_repeater_surveys, repeater_surveys].
     Pn : bool, optional
         Include Poisson likelihood for total number of FRBs. Default False.
+    Pns : bool, optional
+        Include Poisson likelihood for non-repeating surveys. Default False.
+    Pnr : bool, optional
+        Include Poisson likelihood for repeating surveys. Default False.
     pNreps : bool, optional
         Include likelihood for number of repeaters. Default True.
     ptauw : bool, optional
@@ -221,18 +226,20 @@ def calc_log_posterior(param_vals, state, params, surveys_sep, Pn=False, pNreps=
                 # generate normal zdm grid
                 grids = mf.initialise_grids([s], zDMgrid, zvals, dmvals, state, wdist=True, repeaters=False)
                 g = grids[0]
-                if s.TOBS is not None:
+                if s.TOBS is not None and (Pn or Pns):
                     rs.append(np.sum(g.get_rates())*s.TOBS)
                     os.append(s.NORM_FRB)
             else:
                 # generates repeating zdm grid
                 grids = mf.initialise_grids([s], zDMgrid, zvals, dmvals, state, wdist=True, repeaters=True)
                 g = grids[0]
-                # TOBS is already taken into account in the singles/repeater calculation
-                rs.append(np.sum(g.get_exact_singles()))
-                rs.append(np.sum(g.get_exact_reps()))
-                os.append(s.NORM_SINGLES)
-                os.append(s.NORM_REPS)
+                # TOBS is already taken into account in the singles/repeater calculation.
+                # But still need Pn or Pnr
+                if Pn or Pnr:
+                    rs.append(np.sum(g.get_exact_singles()))
+                    rs.append(np.sum(g.get_exact_reps()))
+                    os.append(s.NORM_SINGLES)
+                    os.append(s.NORM_REPS)
                 
             if dopath:
                 w = opt.model_wrapper(opt_model,g.zvals)
@@ -248,7 +255,7 @@ def calc_log_posterior(param_vals, state, params, surveys_sep, Pn=False, pNreps=
         
         
         # Minimse the constant accross all surveys
-        if Pn:
+        if (Pn or Pns or Pnr) and (len(os) > 0):
             # dC is change in log constant from current number
             # llc is log probability
             os = np.array(os)
@@ -272,7 +279,7 @@ def calc_log_posterior(param_vals, state, params, surveys_sep, Pn=False, pNreps=
 #==============================================================================
 
 def mcmc_runner(logpf, outfile, state, params, surveys, nwalkers=10, nsteps=100, nthreads=1,
-                Pn=False, pNreps=True, psnr=True, ptauw=False, pwb=False, log_halo=False,
+                Pn=False, Pns=False, Pnr=False, pNreps=True, psnr=True, ptauw=False, pwb=False, log_halo=False,
                 lin_host=False, ind_surveys=False, g0info=None, nz=500, ndm=1400, reset=False,
                 dopath=False, opstate=None, opt_params=None):
     """
@@ -290,6 +297,8 @@ def mcmc_runner(logpf, outfile, state, params, surveys, nwalkers=10, nsteps=100,
         nsteps      (int)           =   Number of steps
         nthreads    (int)           =   Number of threads (currently not implemented - uses default)
         Pn          (bool)          =   Include Pn or not
+        Pns          (bool)         =   Include Pn for non-repeating surveys or not or not
+        Pnr          (bool)         =   Include Pn for repeating surveys or not
         pNreps      (bool)          =   Include pNreps or not
         ptauw       (bool)          =   Include ptauw or not
         log_halo    (bool)          =   Use a log uniform prior on DMhalo
@@ -350,7 +359,7 @@ def mcmc_runner(logpf, outfile, state, params, surveys, nwalkers=10, nsteps=100,
     
     with Pool() as pool: # could add mp.Pool(ntrheads=5) or Pool = None
         sampler = emcee.EnsembleSampler(nwalkers, ndim, logpf,
-                                        args=[state, params, surveys, Pn, pNreps, psnr,
+                                        args=[state, params, surveys, Pn, Pns, Pnr, pNreps, psnr,
                                             ptauw, pwb, log_halo, lin_host, ind_surveys, g0info,
                                             nz, ndm, dopath, opstate, opt_params],
                                         backend=backend, pool=pool)

@@ -121,7 +121,6 @@ def get_joint_path_zdm_likelihoods(g, s, wrapper, norm=True, psnr=True, Pn=False
     
     # if return all, construct posterior distribution of magnitudes and radial offsets
     
-    
     if return_all:
         # return all relevant information for all FRBs
         return lltot,data
@@ -204,7 +203,7 @@ def sum_path_lls(pxrad,path_results):
         DoPath = True
     NFRB = pxrad.size
     plists=[]
-    
+    ll2s=[]
     for i in np.arange(NFRB):
         ll1 = np.log10(pxrad[i]) # FRB data, from 1D FRB
         
@@ -224,7 +223,10 @@ def sum_path_lls(pxrad,path_results):
         else:
             ll2=0 #i.e., log10(1)
             plists.append([]) # empty list, so we are not out of alignment
+        
         lltot += ll1+ll2 # total log-likelihood
+        ll2s.append(ll2)
+    path_results["llpath"]=np.array(ll2s)
     return lltot,plists
 
 
@@ -267,7 +269,6 @@ def construct_popt(POs,PxOs,pzs,pfs,PU):
     ptot += PU
     pUx = PU/ptot
     pOxlist = plist/ptot
-    
     ll = np.log10(ptot)
     return ll,plist,pOxlist,pUx
     
@@ -2043,13 +2044,21 @@ def minimise_const_only(vparams:dict,grids:list,surveys:list,
             rs.append(r)
             os.append(o)
 
+    
+    
     # Check it is not an empty survey. We allow empty surveys as a 
     # non-detection still gives information on the FRB event rate.
     if len(rs) != 0:
         data=np.array([rs,os])
-        ratios=np.log10(data[1,:]/data[0,:])
-        bounds=(np.min(ratios),np.max(ratios))
-        startlog10C=(bounds[0]+bounds[1])/2.
+        ratios=data[1,:]/data[0,:]
+        themin = np.min(ratios)
+        themax = np.max(ratios)
+        themean = np.mean(ratios)
+        if themin == 0:
+            themin = themax * 1e-10
+        
+        bounds=[(np.log10(themin),np.log10(themax))]
+        startlog10C=np.log10(themean)
         bounds=[bounds]
         t0=time.process_time()
         # If only 1 survey, the answer is trivial

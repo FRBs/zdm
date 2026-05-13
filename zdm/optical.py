@@ -1115,6 +1115,11 @@ class model_wrapper:
         else:
             pzgm = np.zeros(pmz.shape)
         
+        bad = np.where(pzgm < 0.)[0]
+        if len(bad) > 0:
+            pzgm[bad] = 1.e-5
+            pzgm /= np.sum(pzgm)
+        
         if z is not None:
             # linear interpolation
             iz1 = int((z-self.zvals[0])/self.dz)
@@ -1124,6 +1129,8 @@ class model_wrapper:
             pz = pzgm[iz1]*kz1 + pzgm[iz2]*kz2
             # normalise to "per z"
             pz /= self.dz # so that the integral comes to unity
+            if pz <= 0.:
+                pz = 1.e-5 # random small number. Hopefully small enough?
             return pz
         else:
             return pzgm

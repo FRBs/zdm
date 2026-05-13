@@ -59,6 +59,8 @@ def main():
     parser.add_argument('--edir', default=None, type=str, help="Directory containing efficiency files")
     parser.add_argument('--outdir', default="", type=str, help="Output directory")
     parser.add_argument('--Pn', default=False, action='store_true', help="Include Pn")
+    parser.add_argument('--Pns', default=False, action='store_true', help="Include Pn for non-repeating surveys")
+    parser.add_argument('--Pnr', default=False, action='store_true', help="Include Pn for repeating surveys")
     parser.add_argument('--no_psnr', default=False, action='store_true', help="Exclude psnr")
     parser.add_argument('--no_pNreps', default=False, action='store_true', help="Exclude pNreps")
     parser.add_argument('--pwb', default=False, action='store_true', help="Include individual beam values")
@@ -91,6 +93,8 @@ def main():
     print("Config: ", mcmc_dict["config"])
 
     print('Pn:', args.Pn)
+    print('Pns:', args.Pns)
+    print('Pnr:', args.Pnr)
     print('psnr:', args.psnr)
     print('ptauw:', args.ptauw)
     print('pwb:', args.pwb)
@@ -169,6 +173,7 @@ def main():
     
     MCMC.mcmc_runner(MCMC.calc_log_posterior, os.path.join(args.outdir, args.opfile), state, params, surveys, 
                          nwalkers=args.walkers, nsteps=args.steps, nthreads=args.nthreads, Pn=args.Pn,
+                         Pns=args.Pns,Pnr=args.Pnr,
                          pNreps=args.pNreps, psnr=args.psnr, ptauw=args.ptauw, pwb=args.pwb, log_halo=args.log_halo,
                          lin_host=args.lin_host, g0info=g0info, nz=args.Nz, ndm=args.Ndm, reset=args.reset,
                          dopath=dopath, opstate=opstate, opt_params=opt_params)
