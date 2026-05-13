@@ -71,6 +71,66 @@ class SimpleParams(data_class.myDataClass):
                   'unit': '', 
                   'Notation': 'k',
                   })
+    SPv1: float = field( 
+        default=0.1, 
+        metadata={'help': "First value of absolute magnitude parameterisation",
+                  'unit': '', 
+                  'Notation': 'k',
+                  })
+    SPv2: float = field( 
+        default=0.1, 
+        metadata={'help': "Second value of absolute magnitude parameterisation",
+                  'unit': '', 
+                  'Notation': 'k',
+                  })
+    SPv3: float = field( 
+        default=0.1, 
+        metadata={'help': "Third value of absolute magnitude parameterisation",
+                  'unit': '', 
+                  'Notation': 'k',
+                  })
+    SPv4: float = field( 
+        default=0.1, 
+        metadata={'help': "Fourth value of absolute magnitude parameterisation",
+                  'unit': '', 
+                  'Notation': 'k',
+                  })
+    SPv5: float = field( 
+        default=0.1, 
+        metadata={'help': "Fifth value of absolute magnitude parameterisation",
+                  'unit': '', 
+                  'Notation': 'k',
+                  })
+    SPv6: float = field( 
+        default=0.1, 
+        metadata={'help': "Sixth value of absolute magnitude parameterisation",
+                  'unit': '', 
+                  'Notation': 'k',
+                  })
+    SPv7: float = field( 
+        default=0.1, 
+        metadata={'help': "Seventh value of absolute magnitude parameterisation",
+                  'unit': '', 
+                  'Notation': 'k',
+                  })
+    SPv8: float = field( 
+        default=0.1, 
+        metadata={'help': "Eighth value of absolute magnitude parameterisation",
+                  'unit': '', 
+                  'Notation': 'k',
+                  })
+    SPv9: float = field( 
+        default=0.1, 
+        metadata={'help': "Ninth value of absolute magnitude parameterisation",
+                  'unit': '', 
+                  'Notation': 'k',
+                  })
+    SPv10: float = field( 
+        default=0.1, 
+        metadata={'help': "Tenth value of absolute magnitude parameterisation",
+                  'unit': '', 
+                  'Notation': 'k',
+                  })
 
 
 # Nick Loudas's SFR model. Actually, we never really need many/any of these, it's all contained in optical
@@ -140,6 +200,24 @@ class Identification(data_class.myDataClass):
     pU_width: float = field( 
         default=0.342, 
         metadata={'help': "Width of pU|mr distribution in ln space", 
+                  'unit': '', 
+                  'Notation': '',
+                  })
+    pU_method: int = field( 
+        default=0, 
+        metadata={'help': "Method of implementing p(U|m) cut in the data. 0: use mean, width above. 1: use min/max.", 
+                  'unit': '', 
+                  'Notation': '',
+                  })
+    pU_min: float = field( 
+        default=14, 
+        metadata={'help': "Minimum magnitude to consider in P(U|m) - sets this to zero for m < Pu_min. Used iff pUmeth=1", 
+                  'unit': '', 
+                  'Notation': '',
+                  })
+    pU_max: float = field( 
+        default=22, 
+        metadata={'help': "Maximum magnitude to consider in P(U|m) - sets this to zero for m > Pu_max. Used iff pUmeth=1", 
                   'unit': '', 
                   'Notation': '',
                   })

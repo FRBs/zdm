@@ -19,25 +19,29 @@ Step 2: ASSIGN HOSTS (python run_assign_host.py)
     
     It may produce unassigned FRBs if there are many very faint or bright hosts.
 
-STEP 3: WRITE FRB and PATH files (python write_frb_and_cand_files.py)
-
-    We next generate candidate files, and FRB files, for use by PATH
-
-    This produces fake PATH csv input files in CandidateFiles,
-    and fake FRB json files in FRBFiles
-
-    Writing fake candidate files takes a long time, due to having to query
-    the catalogues.
-
-STEP 4: WRITE FAKE SURVEY FILE (python write_fake_survey_file.py)
+STEP 3: WRITE FAKE SURVEY FILE (python write_fake_survey_file.py)
     
     Writes fake survey files corresponding to the MC generation.
     
     Three get generated in the directory "Surveys"
     Each has 100, 1000, and about 10,000 FRBs, respectively
     
-    You can actually do this as Step 3 if you like.
     
+STEP 4: WRITE FRB and PATH files (python write_frb_and_cand_files.py)
+
+    We next generate candidate files, and FRB files, for use by PATH
+
+    This produces fake PATH csv input files in CandidateFiles,
+    and fake FRB json files in FRBFiles.
+    
+    FRBFiles takes about 1-2 seconds - it's quick.
+
+    Writing fake candidate files takes a long time, due to having to query
+    the catalogues. O~ 2 hrs. If you only want to use the first e.g. 1000
+    FRBs, then one could begin an MCMC run part-way into writing
+    the files.
+
+
 STEP 5: TEST LIKELIHOOD EVALUATION (python test_likelihood.py)
 
     Creates surveys and grids for each of the three fake surveys,

@@ -573,6 +573,13 @@ class Grid:
         
         rates = np.zeros(self.rates.shape)
         rates[:,:] = self.rates * 10**self.state.FRBdemo.lC
+        rates = self.get_dm_bias(rates)
+        return rates
+        
+    def get_dm_bias(self,rates):
+        """
+        processes various DM-dependent biases on a rates array
+        """
         # multiplies by DM mask if applicable
         if self.survey.dm_mask is not None:
             rates = rates*self.survey.dm_mask

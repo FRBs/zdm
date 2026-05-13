@@ -121,7 +121,6 @@ def get_joint_path_zdm_likelihoods(g, s, wrapper, norm=True, psnr=True, Pn=False
     
     # if return all, construct posterior distribution of magnitudes and radial offsets
     
-    
     if return_all:
         # return all relevant information for all FRBs
         return lltot,data
@@ -204,7 +203,7 @@ def sum_path_lls(pxrad,path_results):
         DoPath = True
     NFRB = pxrad.size
     plists=[]
-    
+    ll2s=[]
     for i in np.arange(NFRB):
         ll1 = np.log10(pxrad[i]) # FRB data, from 1D FRB
         
@@ -224,7 +223,10 @@ def sum_path_lls(pxrad,path_results):
         else:
             ll2=0 #i.e., log10(1)
             plists.append([]) # empty list, so we are not out of alignment
+        
         lltot += ll1+ll2 # total log-likelihood
+        ll2s.append(ll2)
+    path_results["llpath"]=np.array(ll2s)
     return lltot,plists
 
 
@@ -267,7 +269,6 @@ def construct_popt(POs,PxOs,pzs,pfs,PU):
     ptot += PU
     pUx = PU/ptot
     pOxlist = plist/ptot
-    
     ll = np.log10(ptot)
     return ll,plist,pOxlist,pUx
     
@@ -443,7 +444,7 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,
         
     # Determine which array to perform operations on and initialise
     if grid_type == 1: 
-        rates = grid.exact_reps 
+        rates = grid.get_exact_reps()
         if PATH:
             nozlist = survey.replist
         elif survey.nozreps is not None:
@@ -451,7 +452,7 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,
         else:
             raise ValueError("No non-localised repeaters in this survey, cannot calculate 1D likelihoods")
     elif grid_type == 2: 
-        rates = grid.exact_singles 
+        rates = grid.get_exact_singles()
         if PATH:
             nozlist=survey.singleslist
         elif survey.nozsingles is not None:
@@ -459,7 +460,7 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,
         else:
             raise ValueError("No non-localised singles in this survey, cannot calculate 1D likelihoods")
     else: 
-        rates=grid.rates 
+        rates=grid.get_rates()
         if PATH:
             nozlist = np.arange(survey.NFRB) # just use all the FRBs!
         elif survey.nozlist is not None:
@@ -1142,7 +1143,7 @@ def calc_likelihoods_2D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,p
     
     # Determine which array to perform operations on and initialise
     if grid_type == 1:
-        rates = grid.exact_reps 
+        rates = grid.get_exact_reps() 
         if survey.zreps is not None:
             DMobs=survey.DMEGs[survey.zreps]
             Zobs=survey.Zs[survey.zreps]
@@ -1150,9 +1151,9 @@ def calc_likelihoods_2D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,p
             zbweights = survey.frb_zbweights_reps
             zwweights = survey.frb_zwweights_reps
         else:
-            raise ValueError("No localised singles in this survey, cannot calculate 1D likelihoods")
+            raise ValueError("No localised singles in this survey, cannot calculate 2D likelihoods")
     elif grid_type == 2: 
-        rates = grid.exact_singles 
+        rates = grid.get_exact_singles() 
         if survey.zsingles is not None:
             DMobs=survey.DMEGs[survey.zsingles]
             Zobs=survey.Zs[survey.zsingles]
@@ -1160,9 +1161,9 @@ def calc_likelihoods_2D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,p
             zbweights = survey.frb_zbweights_singles
             zwweights = survey.frb_zwweights_singles
         else:
-            raise ValueError("No localised repeaters in this survey, cannot calculate 1D likelihoods")
+            raise ValueError("No localised repeaters in this survey, cannot calculate 2D likelihoods")
     else: 
-        rates=grid.rates 
+        rates=grid.get_rates() 
         if survey.zlist is not None:
             DMobs=survey.DMEGs[survey.zlist]
             Zobs=survey.Zs[survey.zlist]
@@ -1170,8 +1171,8 @@ def calc_likelihoods_2D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,p
             zbweights = survey.frb_zbweights
             zwweights = survey.frb_zwweights
         else:
-            raise ValueError("No nlocalised FRBs in this survey, cannot calculate 1D likelihoods")
-
+            raise ValueError("No localised FRBs in this survey, cannot calculate 2D likelihoods")
+    
     zvals=grid.zvals
     dmvals=grid.dmvals
 
@@ -1909,23 +1910,70 @@ def GetFirstConstantEstimate(grids,surveys,pset):
     disable=np.arange(NPARAMS-1)
     C_ll,C_p=my_minimise(pset,grids,surveys,disable=disable,psnr=False,PenTypes=None,PenParams=None)
     newC=C_p[-1]
-    print("Calculating C_ll as ",C_ll,C_p)
+    #print("Calculating C_ll as ",C_ll,C_p)
     return newC
 
 
 def minus_poisson_ps(log10C,data):
     rs=data[0,:]
     os=data[1,:]
+    # chages rs by the log-constant
     rsp = rs*10**log10C
     lp=0
+    
     for i,r in enumerate(rsp):
         Pn=Poisson_p(os[i],r)
         if (Pn == 0):
-            lp = -1e10
+            lp = -1000
         else:
             lp += np.log10(Pn)
     return -lp
+
+def minimise_const_only2(os,rs):
+    """
+    Only minimises for the constant, but returns the full likelihood
+    It treats the rest as constants
+    the grids must be initialised at the currect values for pset already
+
+    Args:
+        os (np.ndarray, ints): list of integer measurements of FRB rates
+        rs (np.ndarray, floats): list of float expectations, based
+            on previous log-constant
     
+    Returns:
+        tuple: required change in rate (logspace), and likelihood
+    """
+    
+    # Check it is not an empty survey. We allow empty surveys as a 
+    # non-detection still gives information on the FRB event rate.
+    #data=np.array([rs,os])
+    
+    Nn = os.size
+    data=np.zeros([2,Nn])
+    data[0,:] = rs
+    data[1,:] = os
+    ratios=(os/rs)
+    themin = np.min(ratios)
+    themax = np.max(ratios)
+    themean = np.mean(ratios)
+    if themin == 0:
+        themin = themax * 1e-10
+    
+    # first condition the data and
+    bounds=[(np.log10(themin),np.log10(themax))]
+    startlog10C=np.log10(themean)
+    
+    
+    # If only 1 survey, the answer is trivial
+    #print("about to minimize",startlog10C,data,bounds)
+    #exit()
+    result=minimize(minus_poisson_ps,startlog10C,
+                        args=data,bounds=bounds)
+    dC=result.x
+    dC = np.array(dC) #ensures the type is a numpy array
+    llC=-minus_poisson_ps(dC,data)
+    
+    return dC,llC
 
 def minimise_const_only(vparams:dict,grids:list,surveys:list,
                         Verbose=False, use_prev_grid:bool=True, update=False):
@@ -1996,13 +2044,21 @@ def minimise_const_only(vparams:dict,grids:list,surveys:list,
             rs.append(r)
             os.append(o)
 
+    
+    
     # Check it is not an empty survey. We allow empty surveys as a 
     # non-detection still gives information on the FRB event rate.
     if len(rs) != 0:
         data=np.array([rs,os])
-        ratios=np.log10(data[1,:]/data[0,:])
-        bounds=(np.min(ratios),np.max(ratios))
-        startlog10C=(bounds[0]+bounds[1])/2.
+        ratios=data[1,:]/data[0,:]
+        themin = np.min(ratios)
+        themax = np.max(ratios)
+        themean = np.mean(ratios)
+        if themin == 0:
+            themin = themax * 1e-10
+        
+        bounds=[(np.log10(themin),np.log10(themax))]
+        startlog10C=np.log10(themean)
         bounds=[bounds]
         t0=time.process_time()
         # If only 1 survey, the answer is trivial

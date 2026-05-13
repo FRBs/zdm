@@ -39,6 +39,8 @@ def main():
     state = states.load_state("HoffmannHalo25") # old scattering
     state.width.WNbins = 100
     state.width.WNInternalBins = 1000
+    state.MW.sigmaHalo=0.
+    state.MW.sigmaDM=0.
     
     #survey_state = sd.SurveyData()
     #survey_state.telescope.NBINS = 30
@@ -47,43 +49,52 @@ def main():
     
     # generate or load surveys and grids as appropriate
     
-    if True:
+    pklfile = 'survey_and_grid.pkl'
+    
+    if os.path.exists(pklfile):
+        with open('survey_and_grid.pkl', 'rb') as pklfile:
+            surveys = pickle.load(pklfile)
+            grids = pickle.load(pklfile)
+    else:
         surveys, grids = loading.surveys_and_grids(survey_names = [name],repeaters=False,
                                                 init_state=state,survey_dict = survey_dict)
         
         with open('survey_and_grid.pkl', 'ab') as pklfile:
             pickle.dump(surveys, pklfile)
             pickle.dump(grids, pklfile)
-        
-    else:
-        with open('survey_and_grid.pkl', 'rb') as pklfile:
-            surveys = pickle.load(pklfile)
-            grids = pickle.load(pklfile)
     
     s = surveys[0]
     g = grids[0]
     
     plot_prediction(g,opdir)
     
-    NMC = 10000
-    
+    # Do the below for some hard-core tests - but only if you perhaps don't
+    # want to assign host galaxy magnitudes, which takes longer
+    #NMC = 1000000
     #savefile="1M_craco_900_mc_sample.csv"
+    
+    # standard run. Only 1000 get used in MCMC
+    NMC = 10000
     savefile="craco_900_mc_sample.csv"
+    
     if os.path.exists(savefile):
         frbs = pd.read_csv(savefile)
     else:
         frbs = gen_mc_frbs(g,NMC)
+        
+        # adds m_r values to the FRBs
+        gen_hosts(g,frbs)
+    
         frbs.to_csv(savefile,index=False)
     
-    # I did this once for N=100,000
-    compare_rates(g,frbs,opdir,downsample=1)
-    
-    # adds m_r values to the FRBs
-    gen_hosts(g,frbs)
+    # I did this once for N=1,000,000. It works!
+    compare_rates(g,frbs,opdir,downsample=10)
     
     # loads fake survey according to 
     compare_b_w_dists(g,s,frbs,opdir)
-
+    
+    make_scatter_plots(frbs,opdir)
+    
 def compare_b_w_dists(g,s,frbs,opdir):
     """
     Compares beam and width distributions of FRBs
@@ -108,18 +119,19 @@ def compare_b_w_dists(g,s,frbs,opdir):
     wrate = np.zeros([nw])
     for i in np.arange(nw):
         #nzxndm giving volume * fraction
-        #wv = np.multiply(wf[:,:,i].T, g.dV).T
-        #wrate[i] = np.sum(wv * g.sfr_smear * s.dm_mask)
-        wrate[i] = np.sum(wf[:,:,i])
+        wv = np.multiply(wf[:,:,i].T, g.dV).T
+        wrate[i] = np.sum(wv * g.sfr_smear * s.dm_mask)
+        #wrate[i] = np.sum(wf[:,:,i])
     
     
     ###### get MC values #####
     
     # also does MC init calculation
-    g.initMC()
-    pwb = g.MCpwb.reshape([nb,nw])
-    MCpw = np.sum(pwb,axis=0)
-    MCpb = np.sum(pwb,axis=1)
+    #print("initting MC")
+    #g.initMC()
+    #pwb = g.MCpwb.reshape([nb,nw])
+    #MCpw = np.sum(pwb,axis=0)
+    #MCpb = np.sum(pwb,axis=1)
     
     ##### Calculates width from data #######
     
@@ -135,9 +147,9 @@ def compare_b_w_dists(g,s,frbs,opdir):
     plt.figure()
     plt.plot(width_hist/np.sum(width_hist),label="Generated")
     plt.plot(wrate/np.sum(wrate),label="Predicted")
-    plt.plot(g.eff_weights/np.sum(g.eff_weights),label="weights")
+    #plt.plot(g.eff_weights/np.sum(g.eff_weights),label="weights")
     plt.plot(ebar/np.sum(ebar),label="efficiencies")
-    plt.plot(MCpw/np.sum(MCpw),label="MC prediction")
+    #plt.plot(MCpw/np.sum(MCpw),label="MC prediction")
     plt.legend()
     plt.ylabel("$P(w)$")
     plt.xlabel("Width bin")
@@ -152,7 +164,7 @@ def compare_b_w_dists(g,s,frbs,opdir):
     plt.figure()
     plt.plot(bweights/np.sum(bweights),label="Generated")
     plt.plot(brate/np.sum(brate),label="Predicted")
-    plt.plot(MCpb/np.sum(MCpb),label="MC prediction")
+    #plt.plot(MCpb/np.sum(MCpb),label="MC prediction")
     plt.legend()
     plt.ylabel("$P(B)$")
     plt.xlabel("Beam bin")
@@ -294,5 +306,82 @@ def gen_mc_frbs(g,NMC):
     })
     return df
 
+def make_scatter_plots(frbs,opdir):
+    """
+    Makes scatter plots of the generated frbs
+    """
+    # generate scatter plot of z and mr
+    plt.figure()
+    plt.scatter(frbs["z"],frbs["m_r"],s=1,c=frbs["DMeg"], cmap='gnuplot2_r')
+    cbar = plt.colorbar()
+    cbar.set_label("DM$_{\\rm EG}$")
+    plt.xlabel("Redshift, $z$")
+    plt.ylabel("Apparent magnitude, $m_r$")
+    plt.xlim(0,2.5)
+    plt.ylim(10,32)
+    plt.tight_layout()
+    plt.savefig(opdir+"mr_z_plot.png")
+    plt.close()
+    
+    plt.figure()
+    plt.scatter(frbs["z"],frbs["DMeg"],s=3,c=frbs["m_r"], cmap='gnuplot2_r')
+    cbar = plt.colorbar()
+    plt.xlim(0,2.5)
+    plt.ylim(0,2000)
+    plt.xlabel("Redshift, $z$")
+    cbar.set_label("Host $m_r$")
+    plt.ylabel("Extragalactic DM, DM$_{\\rm EG}$")
+    plt.tight_layout()
+    plt.savefig(opdir+"dmeg_z_plot.png")
+    plt.close()
+
+
+    # snr selection
+    OK1 = np.where(frbs["z"]> 0.1)[0]
+    OK2 = np.where(frbs["z"]< 0.2)[0]
+    OK3 = np.intersect1d(OK1,OK2)
+    OK4 = np.where(frbs["B"]> 0.5)[0]
+    OK5 = np.where(frbs["B"]< 1.0)[0]
+    OK6  = np.intersect1d(OK4,OK5)
+    OK7 = np.intersect1d(OK3,OK6)
+
+    
+    plt.figure()
+    
+    ### bins data ###
+    bins=np.linspace(0,3,31)
+    bcs = bins[0:-1]+0.5*(bins[1]-bins[0])
+    ls = np.log10(frbs["s"])
+    h,b = np.histogram(ls,bins=bins)
+    h2,b = np.histogram(ls[OK7],bins=bins)
+    lh = np.log10(h)
+    lh2 = np.log10(h2)
+    plt.plot(bcs,lh-lh[0],label="Generated: all parameter space")
+    plt.plot(bcs,lh2-lh2[0],label="Selected subset")
+
+    ## does a fit ####
+    slope,intercept = np.polyfit(bcs, lh, 1)
+    print("Fit slope was ",slope)
+    fitted = intercept+slope*bcs
+    plt.plot(bcs,fitted-fitted[0],label="fit: slope = "+str(slope)[0:5])
+    
+    plt.plot(bcs,bcs*-1.5-bcs[0]*-1.5,label="Cartesian",color="black",linestyle="--")
+    
+    from zdm import energetics
+    diff_lf = np.log10(energetics.vector_diff_gamma(10**bcs,1.,100,-1.12))
+    
+    diff_lf += bcs
+    Es = np.logspace(0,3,1000)
+    #diff_lf = energetics.vector_diff_gamma(10**bcs,1.,100,-1.12)
+    plt.plot(bcs,diff_lf-diff_lf[0] ,label="Schechter, slope = -1.12")
+    
+    plt.ylim(-5,0)
+    plt.xlabel("$\\log_{10}$SNR/SNR$_{\\rm th}$, s")
+    #plt.yscale("log")
+    plt.ylabel("$\\log_{10}$ Counts")
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(opdir+"snr_histogram.png")
+    plt.close()
 
 main()
