@@ -233,7 +233,7 @@ def calc_log_posterior(param_vals, state, params, surveys_sep, Pn=False, pNreps=
                 ll = it.get_joint_path_zdm_likelihoods(g, s, w, Pn=Pn,pNreps=pNreps,
                                                         psnr=psnr,ptauw=ptauw,pwb=pwb)
             else:
-                ll = it.get_log_likelihood(grid,s,Pn=Pn,pNreps=pNreps,psnr=psnr,ptauw=ptauw,pwb=pwb)
+                ll = it.get_log_likelihood(g,s,Pn=Pn,pNreps=pNreps,psnr=psnr,ptauw=ptauw,pwb=pwb)
             llsum += ll
             if ind_surveys:
                 ll_list.append(ll)
