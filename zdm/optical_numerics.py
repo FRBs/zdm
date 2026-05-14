@@ -365,8 +365,9 @@ def calc_path_priors(frblist,ss,gs,wrappers,verbose=True,usemodel=True,P_U=0.1,
                 
                 # add info for primary galaxy
                 if s.Zs[imatch] > 0.:
-                    pz[0] = wrapper.get_pz_g_mr(result["mags"][0],s.Zs[imatch])
-                    pf[0] = field.get_pzgm(result["mags"][0],s.Zs[imatch])
+                    i_likely = np.argmax(result["POx"])
+                    pz[i_likely] = wrapper.get_pz_g_mr(result["mags"][i_likely],s.Zs[imatch])
+                    pf[i_likely] = field.get_pzgm(result["mags"][i_likely],s.Zs[imatch])
             else:
                 pz = np.full([result["Ncand"]],1.) # set all to no info by default
                 pf = np.full([result["Ncand"]],1.) # set all to no info by default
@@ -1079,7 +1080,10 @@ def run_path(name,P_U=0.1,usemodel=False,sort=False,failOK=False,scale=0.5,ppath
     result["POx"] = P_Ox
     result["mags"] = mags
     result["ptbl"] = ptbl
-    result["z"] = zs.values
+    if zs is not None:
+        result["z"] = zs.values
+    else:
+        result["z"] = None
     result["seps"] = seps
     result["sizes"] = sizes
     

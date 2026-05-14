@@ -1419,8 +1419,11 @@ class model_wrapper:
             pogm = 1.-self.pUfunc(mag,self.pU_arg1,self.pU_arg2)
             #pogm = 1.-pUgm(mag,self.pU_mean,self.pU_width)
             numerator = Sigma_ms[i] * pogm
-            Oi /= numerator # normalise by host counts
-            
+            if numerator > 0.:
+                Oi /= numerator # normalise by host counts
+            else:
+                raise ValueError("Impossible galaxy found, please revise P(O|m) for mag ",mag,
+                                    "having chance of observation ",pogm)
             Ois.append(Oi)
         
         Ois = np.array(Ois)
