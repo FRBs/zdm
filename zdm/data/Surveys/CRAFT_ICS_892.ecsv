@@ -22,7 +22,7 @@
 # - {name: B, datatype: float64}
 # meta: !!omap
 # - {survey_data: '{"observing": {"NORM_FRB": 15, "TOBS": 317.293429793, "MAX_IDT": 4096, "MAX_IW": 12, "MAXWMETH": 1}, 
-#                   "telescope": {"BEAM": "ASKAP_892", "DIAM": 12.0, "NBEAMS": 1, "NBINS": 5}}'}
+#                   "telescope": {"BEAM": "ASKAP_892", "DIAM": 12.0, "NBEAMS": 1, "NBINS": 5, "WCODE": 1}}'}
 # schema: astropy-2.0
 TNS       BW    DM     DMG FBAR   FRES Gb                 Gl              SNR  SNRTHRESH THRESH TRES WIDTH XW95 TAU DEC      RA                 Z          B
 20191001A 336.0 506.92 44.2 919.5 1.0 -61.65860153281646  292.33820148500735  62.0 9.0 4.4 1.728  5.3   13.468 4.52   -54:44:54 21:33:24        0.23       0.728
