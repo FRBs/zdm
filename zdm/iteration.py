@@ -471,13 +471,23 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,
     
     # extract extragalactic DMEGs, and appropriate bweights and w_weights
     DMobs=survey.DMEGs[nozlist]
+    
+    llsum=0
+    
+    if grid.state.MW.sigmaDMG == 0.0 and grid.state.MW.sigmaHalo == 0.0:
+        if np.any(DMobs < 0):
+            bad = np.where(DMobs < 0.)[0]
+            nozlist = np.delete(nozlist,bad)
+            DMobs = survey.DMEGs[nozlist]
+            llsum -= len(bad) * -100 #large penalty in log-likelihood if frbs have negative DM!
+    
     bweights = survey.frb_bweights[nozlist,:]
     wweights = survey.frb_wweights[nozlist,:]
     
     dmvals=grid.dmvals
     zvals=grid.zvals
     
-    llsum=0
+    
     lllist={}
     longlist={}
     idms1,idms2,dkdms1,dkdms2 = grid.get_dm_coeffs(DMobs)
@@ -569,9 +579,7 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,
             log_global_norm=0
 
         if grid.state.MW.sigmaDMG == 0.0 and grid.state.MW.sigmaHalo == 0.0:
-            if np.any(DMobs < 0):
-                raise ValueError("Negative DMobs with no uncertainty")
-
+            
             # Linear interpolation
             pvals=pdm[idms1]*dkdms1 + pdm[idms2]*dkdms2
         else:
@@ -1210,6 +1218,10 @@ def calc_likelihoods_2D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,p
         ############## Calculate probability p(z,DM) ################
         if grid.state.MW.sigmaDMG == 0.0 and grid.state.MW.sigmaHalo == 0.0:
             if np.any(DMobs < 0):
+                print(DMobs)
+                print("WOOF2",np.min(DMobs))
+                print("MEOW2",np.where(DMobs < 0))
+                exit()
                 raise ValueError("Negative DMobs with no uncertainty")
 
             # Linear interpolation
