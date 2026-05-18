@@ -17,7 +17,7 @@ Key Features
 - Cosmological volume elements (dV) and time-volume elements (dVdtau)
 - Interpolated lookup tables for fast array operations
 - Energy-fluence conversions for FRB analysis
-- Source evolution functions (SFR, power-law)
+- Source evolution functions (SFR, power-law, DTDs)
 
 Usage
 -----
@@ -583,6 +583,8 @@ def choose_source_evolution_function(which=0):
              SFR(z)^n where SFR follows the cosmic star formation history.
         - 1: Simple power law (1+z)^(2.7*n), without the high-z turnover.
              Useful for comparison with SFR model.
+        - 2: Power-law delay time distribution convolved with Madau & Dickinson (2014) SFRD
+        
         Default is 0.
 
     Returns
@@ -594,14 +596,16 @@ def choose_source_evolution_function(which=0):
     Raises
     ------
     ValueError
-        If `which` is not 0 or 1.
+        If `which` is not 0, 1 or 2.
     """
     if which==0:
         source_evolution=sfr_evolution
     elif which==1:
         source_evolution=opz_evolution
+    elif which==2:
+        source_evolution=powerlaw_DTD_evolution
     else:
-        raise ValueError("Undefined source evolution function ",which," choose 0 or 1")
+        raise ValueError("Undefined source evolution function ",which," choose 0, 1, or 2")
     return source_evolution
 
 def sfr_evolution(z,*params):
@@ -646,6 +650,12 @@ def opz_evolution(z,*params):
         Relative source density at redshift z.
     """
     return (1+z)**(2.7*params[0])
+
+def powerlaw_DTD_evolution(z,*params):
+    '''
+    TBD powerlaw DTD convolution with MD14 SFRD
+    '''
+    return 
 
 
 def sfr(z):

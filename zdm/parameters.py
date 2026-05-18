@@ -142,8 +142,8 @@ class FRBDemoParams(data_class.myDataClass):
         default=0,
         metadata={
             "help": "Integer flag specifying the function used.  "
-            + "0: SFR^n; 1: (1+z)^(2.7n)",
-            "options": [0, 1],
+            + "0: SFR^n; 1: (1+z)^(2.7n); 2: power-law DTD",
+            "options": [0, 1, 2],
         },
     )
     alpha_method: int = field(
