@@ -41,6 +41,11 @@ import numpy as np
 import scipy.integrate as integrate
 from zdm import parameters
 
+import astropy.units as u
+from astropy.cosmology import Planck18 as P18cosmo
+from astropy.cosmology import z_at_value
+from scipy.interpolate import interp1d
+
 
 
 '''
@@ -653,9 +658,83 @@ def opz_evolution(z,*params):
 
 def powerlaw_DTD_evolution(z,*params):
     '''
-    TBD powerlaw DTD convolution with MD14 SFRD
+    Function to convolve a power-law delay time distribution with the 
+    Madau & Dickinson 2014 star formation rate density for a single 
+    FRB redshift. Implements equations 2, 3, and 4 of Zevin et al 2022
+    generalized to any transient.
+
+    Parameters
+    ----------
+    z : float [dimensionless]
+        Redshift
+    *params : floats 
+        Power-law parameters. First is pl_alpha [dimensionless] the power-law index, second is t_min [any time unit] the minimum delay time, third is t_max [any time unit] the maximum delay time.
+
+    Returns
+    -------
+    n : float
+        Relative source density at redshift z [formally Mpc^-3 yr^-1]
     '''
-    return 
+    # pull out DTD params
+    pl_alpha = params[0]
+    t_min = params[1]
+    t_max = params[2]
+
+    # ensure power law time bounds are in yrs
+    t_min = t_min.to(u.yr).value
+    t_max = t_max.to(u.yr).value
+
+    # set up fine redshift grid for interpolations
+    z_grid = np.linspace(0.0, 30.0, 10000)
+
+    # compute MD14 SFRD over fine redshift grid
+    SFRD = 0.015 * (((1+z_grid)**2.7)/(1+((1+z_grid)/2.9)**5.6))
+    SFRD_interp = interp1d(z_grid, SFRD)
+
+    # compute dtdz over fine redshift grid and convert to yr
+    dtdz = (1.0 / (H(z_grid) * (1.0 + z_grid))).to(u.yr).value
+    dtdz_interp = interp1d(z_grid, dtdz)
+
+    # make lookback time grid to evaluate, uniform in lookback time
+    tL_arr = np.linspace(P18cosmo.lookback_time(0.001).to(u.Gyr).value, P18cosmo.lookback_time(20.0).to(u.Gyr).value, 1000)
+
+    # get corresponding redshifts to linear lookback time grid
+    z_from_tL_vals = []
+    for tlb in tL_arr:
+        z_from_tL_vals.append(z_at_value(P18cosmo.lookback_time, tlb*(u.Gyr)))
+    z_from_tL_vals = np.asarray(z_from_tL_vals)
+
+    # set up powerlaw
+    def powerlaw(t_d, alpha, t_min, t_max):
+    
+        # ensure t_d is a numpy array
+        t_d = np.asarray(t_d)
+
+        # compute normalization constant
+        if alpha == -1:
+            norm = 1.0 / np.log(t_max / t_min)
+        else:
+            norm = (1.0 + alpha) / (t_max**(1.0 + alpha) - t_min**(1.0+alpha))
+    
+        # power-law
+        p = norm * np.power(t_d, alpha)
+
+        # set values outside tmin/tmax bounds to (essentially) zero
+        p = np.where(((t_d < t_min) | (t_d > t_max)), 1e-40, p)
+
+        return np.asarray(p)
+
+    # set up integral
+    def integrand(zprime):
+        lam = 1 # Msun/yr formation efficiency
+        t_eval = P18cosmo.lookback_time(zprime).to(u.yr).value - P18cosmo.lookback_time(z).to(u.yr).value
+        val = powerlaw(t_eval, pl_alpha, t_min, t_max) * lam * SFRD_interp(zprime) * dtdz_interp(zprime)
+        return val
+
+    # do integration from zprime=infinity (aka max z_grid) to zprime=passed z
+    n = integrate.quad(integrand, z, max(z_grid))[0] # [Mpc^-3 yr^-1]
+
+    return n
 
 
 def sfr(z):
