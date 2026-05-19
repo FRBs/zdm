@@ -347,8 +347,14 @@ class Grid:
 
     def set_evolution(self):  # ,n,alpha=None):
         """ Scales volumetric rate by SFR """
-        self.sfr=self.source_function(self.zvals,
-                                      self.state.FRBdemo.sfr_n)
+        # keep previous behavior if 0 or 1
+        if self.state.FRBdemo.source_evolution == 0 or self.state.FRBdemo.source_evolution == 1:
+            self.sfr=self.source_function(self.zvals,
+                                          self.state.FRBdemo.sfr_n)
+        # pass powerlaw parameters if 2
+        elif self.state.FRBdemo.source_evolution == 2:
+            self.sfr=self.source_function(self.zvals, self.state.FRBdemo.pl_alpha, 
+                                          self.state.FRBdemo.pl_tmin, self.state.FRBdemo.pl_tmax)
         if self.state.FRBdemo.alpha_method==1:
             self.sfr *= (1.0 + self.zvals)**(-self.state.energy.alpha) #reduces rate with alpha
 

@@ -167,6 +167,29 @@ class FRBDemoParams(data_class.myDataClass):
         default=3.3249,
         metadata={"help": "log10 constant in number per Mpc^-3 day^-1 at z=0"},
     )
+    pl_alpha: float = field(
+        default = -1.0,
+        metadata={
+            "help": "Power-law delay time distribution power-law index",
+            "unit": "",
+        }
+    )
+    pl_tmin: float = field(
+        default = 0.01,
+        metadata={
+            "help": "Power-law minimum delay time",
+            "unit": "Gyr",
+            "Notation": "t_{\\rm min}",
+        }
+    )
+    pl_tmax: float = field(
+        default = 14.0,
+        metadata={
+            "help": "Power-law maximum delay time",
+            "unit": "Gyr",
+            "Notation": "t_{\\rm max}",
+        }
+    )
 
 
 
