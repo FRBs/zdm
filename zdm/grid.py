@@ -1068,6 +1068,7 @@ class Grid:
                     bandwidth
             set_evolution
                 sfr_n
+                pl_alpha
                 H0
             
             smear_grid
@@ -1130,6 +1131,10 @@ class Grid:
         if self.chk_upd_param("sfr_n", vparams, update=True):
             set_evol = True
             new_sfr_smear = True  # True for either alpha_method
+        # ensure evolution and smearing still updates if power-law DTD selected
+        if self.chk_upd_param("pl_alpha", vparams, update=True):
+            set_evol = True
+            new_sfr_smear = True
         if self.chk_upd_param("alpha", vparams, update=True):
             set_evol = True
             if self.state.FRBdemo.alpha_method == 0:
