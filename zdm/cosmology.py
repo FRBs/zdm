@@ -665,7 +665,7 @@ def powerlaw_DTD_evolution(z,*params):
 
     Parameters
     ----------
-    z : float [dimensionless]
+    z : float or array_like [dimensionless]
         Redshift
     *params : floats 
         Power-law parameters. First is pl_alpha [dimensionless] the power-law index, second is pl_tmin [Gyr] the minimum delay time, third is pl_tmax [Gyr] the maximum delay time.
@@ -692,7 +692,7 @@ def powerlaw_DTD_evolution(z,*params):
     SFRD_interp = interp1d(z_grid, SFRD)
 
     # compute dtdz over fine redshift grid and convert to yr
-    dtdz = (1.0 / (H(z_grid) * (1.0 + z_grid))).to(u.yr).value
+    dtdz = (1.0 / (H(z_grid) * (1.0 + z_grid)))*(1/(u.km/u.s/u.Mpc)).to(u.yr).value
     dtdz_interp = interp1d(z_grid, dtdz)
 
     # make lookback time grid to evaluate, uniform in lookback time
@@ -724,17 +724,25 @@ def powerlaw_DTD_evolution(z,*params):
 
         return np.asarray(p)
 
-    # set up integral
-    def integrand(zprime):
-        lam = 1 # Msun/yr formation efficiency
-        t_eval = P18cosmo.lookback_time(zprime).to(u.yr).value - P18cosmo.lookback_time(z).to(u.yr).value
-        val = powerlaw(t_eval, pl_alpha, pl_tmin, pl_tmax) * lam * SFRD_interp(zprime) * dtdz_interp(zprime)
-        return val
+    # handle scalar or array z
+    scalar_z = np.isscalar(z)
+    z_arr = np.atleast_1d(z)
 
-    # do integration from zprime=infinity (aka max z_grid) to zprime=passed z
-    n = integrate.quad(integrand, z, max(z_grid))[0] # [Mpc^-3 yr^-1]
+    # initialize array to store merger rates
+    n = np.zeros_like(z_arr, dtype=float)
 
-    return n
+    # set up integral and integrate
+    for i, z_val in enumerate(z_arr):
+        def integrand(zprime, zmerge=z_val):
+            lam = 1 # Msun^-1 formation efficiency
+            t_eval = P18cosmo.lookback_time(zprime).to(u.yr).value - P18cosmo.lookback_time(zmerge).to(u.yr).value
+            val = powerlaw(t_eval, pl_alpha, pl_tmin, pl_tmax) * lam * SFRD_interp(zprime) * dtdz_interp(zprime)
+            return val
+        
+        # do integration from zprime=infinity (aka max z_grid) to zprime = passed z array values
+        n[i] = integrate.quad(integrand, z_val, max(z_grid))[0] # [Mpc^-3 yr^-1]
+
+    return float(n[0]) if scalar_z else n
 
 
 def sfr(z):
