@@ -41,6 +41,10 @@ def main():
     state.width.WNInternalBins = 1000
     state.MW.sigmaHalo=0.
     state.MW.sigmaDM=0.
+    state.energy.lEmin = 30
+    
+    
+    # default value of fsfr is 0.5!!!
     
     #survey_state = sd.SurveyData()
     #survey_state.telescope.NBINS = 30

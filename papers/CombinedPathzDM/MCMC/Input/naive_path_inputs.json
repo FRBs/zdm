@@ -1,0 +1,77 @@
+{
+    "mcmc": {
+        "parameter_order": ["SPv1","SPv2","SPv3","SPv4","SPv5","SPv6","SPv7","SPv8","SPv9","SPv10","k","Scale"]
+    },
+    "config": {
+        "iModel": 2,
+        "pU_mean": 26.176,
+        "pU_width": 0.342,
+        "pU_method": 1,
+        "pU_min": 14.0,
+        "pU_max": 22.0,
+        "NModelBins": 10,
+        "Absmin": -25.0,
+        "Absmax": -15.0,
+        "AppModelID": 1
+    },
+    "SPv1": {
+        "DC": "simple",
+        "min": 0.0,
+        "max": 1.0
+    },
+    "SPv2": {
+        "DC": "simple",
+        "min": 0.0,
+        "max": 1.0
+    },
+    "SPv3": {
+        "DC": "simple",
+        "min": 0.0,
+        "max": 1.0
+    },
+    "SPv4": {
+        "DC": "simple",
+        "min": 0.0,
+        "max": 1.0
+    },
+    "SPv5": {
+        "DC": "simple",
+        "min": 0.0,
+        "max": 1.0
+    },
+    "SPv6": {
+        "DC": "simple",
+        "min": 0.0,
+        "max": 1.0
+    },
+    "SPv7": {
+        "DC": "simple",
+        "min": 0.0,
+        "max": 1.0
+    },
+    "SPv8": {
+        "DC": "simple",
+        "min": 0.0,
+        "max": 1.0
+    },
+    "SPv9": {
+        "DC": "simple",
+        "min": 0.0,
+        "max": 1.0
+    },
+    "SPv10": {
+        "DC": "simple",
+        "min": 0.0,
+        "max": 1.0
+    },
+    "fSFR": {
+        "DC": "loudas",
+        "min": 0,
+        "max": 2
+    },
+    "Scale": {
+        "DC": "path",
+        "min": 0.001,
+        "max": 6
+    }
+}

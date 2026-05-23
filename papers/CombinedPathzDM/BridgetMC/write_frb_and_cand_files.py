@@ -20,14 +20,14 @@ from zdm import optical as opt
 from astropy.io import ascii
 from astropy.table import Table
 
-def main():
+def main(frbfile,hostfile,FRBPath,CandPath,search_radius_arcmin):
     """
     Main program
     """
     
     ### read in frb data, and write these out as individual FRB files ###
-    frbs = pd.read_csv("craco_900_mc_sample.csv")
-    hosts = pd.read_csv("craco_assigned_galaxies.csv")
+    frbs = pd.read_csv(frbfile)
+    hosts = pd.read_csv(hostfile)
     NFRB=len(frbs)
     Nhosts = len(hosts)
     
@@ -35,7 +35,7 @@ def main():
     print("FRB info is ",frbs.columns)
     print("Host info is ",hosts.columns)
     
-    path = "FRBFiles/"
+    path = FRBPath
     if not os.path.exists(path):
         os.mkdir(path)
     
@@ -94,7 +94,7 @@ def main():
     FRB_IDS = hosts["FRB_ID"]
     
     ###################### WRITING CANDIDATES ########################
-    opdir="CandidateFiles/"
+    opdir=CandPath
     if not os.path.exists(opdir):
         os.mkdir(opdir)
     
@@ -125,7 +125,7 @@ def main():
         #print(host)
         
         host = hosts.iloc[i]
-        candidates = extract_candidates(frb,galaxies, search_radius_arcmin=0.167)
+        candidates = extract_candidates(frb,galaxies, search_radius_arcmin= search_radius_arcmin)
         
         if len(candidates) > 0:
             # adds redshift info. Begins by setting all candidates to "unknown" (code = -1)
@@ -211,4 +211,18 @@ def extract_candidates(frb_row, galaxies, search_radius_arcmin=1.0):
 
     return catalog
 
-main()
+frbfile = "craco_900_mc_sample.csv"
+hostfile = "craco_assigned_galaxies.csv"
+FRBPath = "FRBFiles/"
+CandPath = "CandidateFiles/"
+search_radius_arcmin=0.167
+#main(frbfile,hostfile,FRBPath,CandPath,search_radius_arcmin)
+
+
+frbfile = "craco_900_mc_sample.csv"
+hostfile = "loc30_craco_assigned_galaxies.csv"
+FRBPath = "loc30FRBFiles/"
+CandPath = "loc30CandidateFiles/"
+main(frbfile,hostfile,FRBPath,CandPath,search_radius_arcmin=2)
+
+

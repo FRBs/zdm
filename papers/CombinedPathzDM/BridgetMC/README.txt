@@ -1,6 +1,6 @@
 This directory contains files for generating the MC sample of FRB hosts.
 
-STEP 1: GEN MC FRBS (pythpn gen_mc_frbs_w_hosts.py)
+STEP 1: GEN MC FRBS (python gen_mc_frbs_w_hosts.py)
 
     It begins by generating an MC sample of FBBs.
     That will produce plots in MC_Generation_Plots
@@ -37,13 +37,17 @@ STEP 4: WRITE FRB and PATH files (python write_frb_and_cand_files.py)
     FRBFiles takes about 1-2 seconds - it's quick.
 
     Writing fake candidate files takes a long time, due to having to query
-    the catalogues. O~ 2 hrs. If you only want to use the first e.g. 1000
+    the catalogues. O~ 2-3 hrs. If you only want to use the first e.g. 1000
     FRBs, then one could begin an MCMC run part-way into writing
     the files.
 
 
-STEP 5: TEST LIKELIHOOD EVALUATION (python test_likelihood.py)
+STEP 5a: TEST LIKELIHOOD EVALUATION (python test_Bridget_likelihood.py)
 
     Creates surveys and grids for each of the three fake surveys,
     and evaluates likelihoods with each. Generally, this will be
     OK, provided that it doesn't crash!
+    
+    5b: (python test_craft_likelihood.py)
+
+    As above, but using actual CRAFT FRBs
