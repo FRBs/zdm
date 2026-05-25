@@ -462,6 +462,7 @@ class repeat_Grid(grid.Grid):
         
         singles = self.exact_singles * self.Rc
         singles = self.get_dm_bias(singles)
+        singles *= self.Nfields
         return singles
     
     def get_exact_reps(self):
@@ -471,6 +472,7 @@ class repeat_Grid(grid.Grid):
         
         reps = self.exact_reps * self.Rc
         reps = self.get_dm_bias(reps)
+        reps *= self.Nfields
         return reps
     
     def perform_exact_calculations(self,slow=False):

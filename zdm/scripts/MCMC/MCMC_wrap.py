@@ -175,7 +175,8 @@ def main():
                          nwalkers=args.walkers, nsteps=args.steps, nthreads=args.nthreads, Pn=args.Pn,
                          Pns=args.Pns,Pnr=args.Pnr,
                          pNreps=args.pNreps, psnr=args.psnr, ptauw=args.ptauw, pwb=args.pwb, log_halo=args.log_halo,
-                         lin_host=args.lin_host, g0info=g0info, nz=args.Nz, ndm=args.Ndm, reset=args.reset,
+                         lin_host=args.lin_host, g0info=g0info, nz=args.Nz, ndm=args.Ndm, zmax=args.zmax,
+                         dmmax = args.dmmax,reset=args.reset,
                          dopath=dopath, opstate=opstate, opt_params=opt_params)
 
 #==============================================================================
