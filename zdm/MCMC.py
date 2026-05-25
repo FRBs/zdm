@@ -374,7 +374,7 @@ def mcmc_runner(logpf, outfile, state, params, surveys, nwalkers=10, nsteps=100,
         'Slogmean'  in keys or 'Slogsigma' in keys):
         state.scat.Sbackproject = True
     
-    with Pool(1) as pool: # could add mp.Pool(ntrheads=5) or Pool = None
+    with Pool() as pool: # could add mp.Pool(ntrheads=5) or Pool = None
         sampler = emcee.EnsembleSampler(nwalkers, ndim, logpf,
                                         args=[state, params, surveys, Pn, Pns, Pnr, pNreps, psnr,
                                             ptauw, pwb, log_halo, lin_host, ind_surveys, g0info,
