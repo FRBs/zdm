@@ -1,11 +1,12 @@
 #!/bin/bash
-#SBATCH --job-name=reps_test
-#SBATCH --output=../../mcmc/reps_test.out
-#SBATCH --ntasks=10
-#SBATCH --time=24:00:00
+#SBATCH --job-name=reps_Pnr_noH0_pwb
+#SBATCH --output=../../mcmc/reps_Pnr_noH0_pwb.out
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=20
+#SBATCH --time=48:00:00
 #SBATCH --export=NONE
-# SBATCH --mem=100GB
-#SBATCH --mem-per-cpu=8GB
+#SBATCH --mem=32GB
+# SBATCH --mem-per-cpu=8GB
 
 ###############################################################################
 #   Author: Jordan Hoffmann                                                   #
@@ -23,13 +24,14 @@ source $ZDM/.venv/bin/activate
 
 cd $ZDM/zdm
 
-outfile="mcmc/reps_test"
+outfile="mcmc/reps_Pnr_noH0_pwb"
 walkers=40
 steps=3000
 
-surveys="DSA MeerTRAPcoherent MeerTRAPincoherent FAST CRAFT_class_I_and_II CRAFT_ICS_892 CRAFT_ICS_1300 CRAFT_ICS_1632 parkes_mb_class_I_and_II"
-# surveys="DSA CRAFT_class_I_and_II private_CRAFT_ICS_892_14 private_CRAFT_ICS_1300_14 private_CRAFT_ICS_1632_14 parkes_mb_class_I_and_II"
-rep_surveys="CHIME/CHIME_decbin_0_of_6 CHIME/CHIME_decbin_1_of_6 CHIME/CHIME_decbin_2_of_6 CHIME/CHIME_decbin_3_of_6 CHIME/CHIME_decbin_4_of_6 CHIME/CHIME_decbin_5_of_6"
+# surveys="DSA no_Tobs/MeerTRAPcoherent no_Tobs/MeerTRAPincoherent no_Tobs/FAST no_Tobs/CRAFT_class_I_and_II no_Tobs/parkes_mb_class_I_and_II"
+surveys="DSA MeerTRAPcoherent MeerTRAPincoherent FAST CRAFT_class_I_and_II parkes_mb_class_I_and_II"
+
+rep_surveys="CRAFT_average_ICS CHIME/CHIME_decbin_0_of_6 CHIME/CHIME_decbin_1_of_6 CHIME/CHIME_decbin_2_of_6 CHIME/CHIME_decbin_3_of_6 CHIME/CHIME_decbin_4_of_6 CHIME/CHIME_decbin_5_of_6"
 # rep_surveys=CHIME/CHIME_decbin_3_of_6
 # cd data/Surveys/
 # rep_surveys=$(ls CHIME/*)
@@ -41,6 +43,7 @@ echo "Walkers: $walkers"
 echo "Steps: $steps"
 
 # command="python scripts/MCMC/MCMC_wrap.py -f $surveys -p data/MCMC/params.json -o $outfile -w $walkers -s $steps"
-command="python scripts/MCMC/MCMC_wrap.py -f $surveys -r $rep_surveys -p data/MCMC/params4.json -o $outfile -w $walkers -s $steps --reset"
+command="srun python scripts/MCMC/MCMC_wrap.py -f $surveys -r $rep_surveys -p data/MCMC/params3.json -o $outfile -w $walkers -s $steps --Pnr --pwb"
+# command="python scripts/MCMC/MCMC_wrap.py -f $surveys -r $rep_surveys -p data/MCMC/params3.json -o $outfile -w $walkers -s $steps --Pn"
 echo $command
 $command

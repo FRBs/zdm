@@ -1924,7 +1924,7 @@ def minus_poisson_ps(log10C,data):
     for i,r in enumerate(rsp):
         Pn=Poisson_p(os[i],r)
         if (Pn == 0):
-            lp = -1000
+            lp += -1e10
         else:
             lp += np.log10(Pn)
     return -lp
@@ -1962,7 +1962,6 @@ def minimise_const_only2(os,rs):
     # first condition the data and
     bounds=[(np.log10(themin),np.log10(themax))]
     startlog10C=np.log10(themean)
-    
     
     # If only 1 survey, the answer is trivial
     #print("about to minimize",startlog10C,data,bounds)

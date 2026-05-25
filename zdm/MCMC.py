@@ -350,14 +350,14 @@ def mcmc_runner(logpf, outfile, state, params, surveys, nwalkers=10, nsteps=100,
     
     # may or may not be needed
     #os.environ["OMP_NUM_THREADS"] = "1"
-    import multiprocessing as mp
+    cpus = int(os.environ.get("SLURM_CPUS_PER_TASK", 1))
+    print(f"Using {cpus} CPUs from Slurm allocation")
     Pool = mp.get_context('fork').Pool
     
-    num_cpus = mp.cpu_count()
-    print(f"Number of CPUs detected: {num_cpus}")
+    # num_cpus = mp.cpu_count()
+    # print(f"Number of CPUs detected: {num_cpus}")
     
-    
-    with Pool() as pool: # could add mp.Pool(ntrheads=5) or Pool = None
+    with Pool(processes=cpus) as pool: # could add mp.Pool(ntrheads=5) or Pool = None
         sampler = emcee.EnsembleSampler(nwalkers, ndim, logpf,
                                         args=[state, params, surveys, Pn, Pns, Pnr, pNreps, psnr,
                                             ptauw, pwb, log_halo, lin_host, ind_surveys, g0info,
