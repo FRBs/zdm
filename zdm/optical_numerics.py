@@ -161,7 +161,7 @@ def make_cdf(xs,ys,ws,norm=True):
     return cdf
 
     
-def calc_path_priors(frblist,ss,gs,wrappers,verbose=True,usemodel=True,P_U=0.1,
+def calc_path_priors(frblist,ss=None,gs=None,wrappers=None,verbose=True,usemodel=True,P_U=0.1,
                     failOK=False,doz=True,field=None,pzlist=None,scale=0.5):
     """
     Run PATH on a list of FRBs and return priors, posteriors, and P_U values.
@@ -282,22 +282,24 @@ def calc_path_priors(frblist,ss,gs,wrappers,verbose=True,usemodel=True,P_U=0.1,
         
         # determines if this FRB was seen by the survey, and
         # if so, what its DMEG is
-        for j,s in enumerate(ss):
-            imatch = op.matchFRB(frb,s)
-            if imatch is not None:
-                # this is the survey to be used
-                g=gs[j]
-                s = ss[j]
-                if usemodel:
+        if usemodel:
+            for j,s in enumerate(ss):
+                imatch = op.matchFRB(frb,s)
+                if imatch is not None:
+                    # this is the survey to be used
+                    g=gs[j]
+                    s = ss[j]
                     wrapper = wrappers[j]
-                jmatch = j
-                frbs.append(frb)
-                break
-        
-            if imatch is None:
-                if verbose:
-                    print("Could not find ",frb," in any survey")
-                continue
+                    jmatch = j
+                    frbs.append(frb)
+                    break
+                
+                if imatch is None:
+                    if verbose:
+                        print("Could not find ",frb," in any survey")
+                    continue
+        else:
+            frbs.append(frb)
         
         nfitted += 1
         
@@ -306,12 +308,8 @@ def calc_path_priors(frblist,ss,gs,wrappers,verbose=True,usemodel=True,P_U=0.1,
         else:
             AppMags = None
         
-        # record this info  
-        DMEG = s.DMEGs[imatch]
-        dms.append(DMEG)
-        
         if usemodel:
-            
+            DMEG = s.DMEGs[imatch]
             # this is where the particular survey comes into it
             # Must be priors on magnitudes for this FRB
             if pzlist is not None:
@@ -328,13 +326,7 @@ def calc_path_priors(frblist,ss,gs,wrappers,verbose=True,usemodel=True,P_U=0.1,
         if usemodel:
             P_U = wrapper.estimate_unseen_prior()
             
-        result = run_path(frb,usemodel=usemodel,P_U = P_U, failOK = failOK, scale=scale,sort=True)
-        if "ptbl" in result:
-            result["Ncand"] = len(result["ptbl"])
-        else:
-            result["Ncand"] = 0
-        
-        Ncands.append(result["Ncand"])
+        result = run_path(frb,usemodel=usemodel,P_U = P_U, failOK = failOK, scale=scale)
         
         if result["Error"]:
             if failOK:
@@ -343,8 +335,39 @@ def calc_path_priors(frblist,ss,gs,wrappers,verbose=True,usemodel=True,P_U=0.1,
                 print("run_path failed unexpectedly, quitting...")
                 exit()
         
+        
         OKlist.append(i)
         OKfrb.append(frb)
+        
+        # determine number of found candidates
+        if "ptbl" in result:
+            result["Ncand"] = len(result["ptbl"])
+        else:
+            result["Ncand"] = 0
+        
+        # new version creating a list of lists
+        ObsMags = np.array(result["mags"])
+        allObsMags.append(ObsMags)
+        allPOx.append(result["POx"])
+        allPxO.append(result["PxO"])
+        allPO.append(result["PO"])
+        allseps.append(result["seps"])
+        allsizes.append(result["sizes"])
+        sumPU += P_U
+        sumPUx += result["PUx"]
+        allPU.append(P_U)
+        allPUx.append(result["PUx"])
+        Ncands.append(result["Ncand"])
+        
+        # continue to next FRB if we are not using a prior model
+        if not usemodel:
+            continue
+        
+        ##########################################################
+        # everything from here is dependent on having a prior model
+        ##########################################################
+        
+        dms.append(DMEG)
         
         # IF we are calculating redshift probabilities,
         # AND there is at least one candidate
@@ -363,10 +386,12 @@ def calc_path_priors(frblist,ss,gs,wrappers,verbose=True,usemodel=True,P_U=0.1,
                 pz = np.full([result["Ncand"]],1.) # set all to no info
                 pf = np.full([result["Ncand"]],1.) # set all to no info
                 
-                # add info for primary galaxy
+                # add info for primary galaxy. Used ONLY for cases where z comes
+                # from zdm
                 if s.Zs[imatch] > 0.:
-                    pz[0] = wrapper.get_pz_g_mr(result["mags"][0],s.Zs[imatch])
-                    pf[0] = field.get_pzgm(result["mags"][0],s.Zs[imatch])
+                    i_likely = np.argmax(result["POx"])
+                    pz[i_likely] = wrapper.get_pz_g_mr(result["mags"][i_likely],s.Zs[imatch])
+                    pf[i_likely] = field.get_pzgm(result["mags"][i_likely],s.Zs[imatch])
             else:
                 pz = np.full([result["Ncand"]],1.) # set all to no info by default
                 pf = np.full([result["Ncand"]],1.) # set all to no info by default
@@ -377,50 +402,33 @@ def calc_path_priors(frblist,ss,gs,wrappers,verbose=True,usemodel=True,P_U=0.1,
                 
             allpz.append(pz)
             allpf.append(pf)
-        else:
+        elif result["Ncand"] == 0:
             # missing data should not get counted - but best to give 100% probability 
             # and we need an entry here anyway to avoid mis-aligned data
             allpz.append([1])
             allpf.append([1])
         
         # adds m and driver rho values to results
-        if usemodel:
-            if len(result["ptbl"]) > 0:
-                result["Pm"] = wrapper.path_base_prior(result["mags"])
-                result["rhom"] = chance.differential_driver_sigma(result["mags"])
-            else:
-                result["Pm"] = []
-                result["rhom"] = []
-        if i==0:
-            allgals = result["ptbl"]
-        elif len(result["ptbl"]) > 0: # this keeps a giant table of all host galaxies. Maybe a little extreme...
-            
-            if len(allgals)==0:
-                allgals = result["ptbl"]
-            else:
-                allgals = pandas.concat([allgals,result["ptbl"]], ignore_index=True)
-            
-            
-        ObsMags = np.array(result["mags"])
+        if len(result["ptbl"]) > 0:
+            result["Pm"] = wrapper.path_base_prior(result["mags"])
+            result["rhom"] = chance.differential_driver_sigma(result["mags"])
+        else:
+            result["Pm"] = []
+            result["rhom"] = []
         
-        # new version creating a list of lists
-        allObsMags.append(ObsMags)
-        allPOx.append(result["POx"])
-        allPxO.append(result["PxO"])
-        allPO.append(result["PO"])
+        #if i==0:
+        #    allgals = result["ptbl"]
+        #elif len(result["ptbl"]) > 0: # this keeps a giant table of all host galaxies. Maybe a little extreme...
+        #    if len(allgals)==0:
+        #        allgals = result["ptbl"]
+        #    else:
+        #        allgals = pandas.concat([allgals,result["ptbl"]], ignore_index=True)
         
-        allseps.append(result["seps"])
-        allsizes.append(result["sizes"])
-        
+        allPm.append(result["Pm"])
+        allrhom.append(result["rhom"])
         allMagPriors.append(MagPriors)
-        if usemodel:
-            allPm.append(result["Pm"])
-            allrhom.append(result["rhom"])
+            
         
-        sumPU += P_U
-        sumPUx += result["PUx"]
-        allPU.append(P_U)
-        allPUx.append(result["PUx"])
     
     # once-off code for exporting
     #subset = allgals[['frb','mag','VLT_FORS2_R']].copy()
@@ -432,8 +440,6 @@ def calc_path_priors(frblist,ss,gs,wrappers,verbose=True,usemodel=True,P_U=0.1,
     # creates a dict to hold results
     results = {}
     results["NFRB"] = nfitted
-    results["AppMags"] = AppMags
-    results["AppMagPriors"] = allMagPriors
     results["ObsMags"] = allObsMags
     results["PO"] = allPO
     results["POx"] = allPOx
@@ -442,18 +448,19 @@ def calc_path_priors(frblist,ss,gs,wrappers,verbose=True,usemodel=True,P_U=0.1,
     results["PUx"] = allPUx
     results["sumPU"] = sumPU
     results["sumPUx"] = sumPUx
-    results["frbs"] = frbs
-    results["dms"] = dms
     results["OK"] = OKlist
-    results["pz"] = allpz
-    results["pf"] = allpf
-    results["OKlist"] = OKlist
     results["frblist"] = OKfrb
-    results["Pm"] = allPm
-    results["rhom"] = allrhom
     results["seps"] = allseps
     results["sizes"] = allsizes 
     results["Ncand"] = Ncands
+    if usemodel:
+        results["pz"] = allpz
+        results["pf"] = allpf
+        results["AppMags"] = AppMags
+        results["AppMagPriors"] = allMagPriors
+        results["dms"] = dms
+        results["rhom"] = allrhom
+        results["Pm"] = allPm
     
     return results
 
@@ -1079,7 +1086,10 @@ def run_path(name,P_U=0.1,usemodel=False,sort=False,failOK=False,scale=0.5,ppath
     result["POx"] = P_Ox
     result["mags"] = mags
     result["ptbl"] = ptbl
-    result["z"] = zs.values
+    if zs is not None:
+        result["z"] = zs.values
+    else:
+        result["z"] = None
     result["seps"] = seps
     result["sizes"] = sizes
     

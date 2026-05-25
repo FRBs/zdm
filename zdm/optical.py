@@ -87,7 +87,7 @@ def select_model(opstate):
     elif imodel == 1:
         return loudas_model(opstate)
     elif imodel==2:
-        return simple_model(opstate)
+        return simple_host_model(opstate)
     else:
         raise ValueError("Model ids 0 (Marnoch), 1 (Loudas), 2 (Naive) implemented only")
 
@@ -1391,6 +1391,11 @@ class model_wrapper:
         
         """
         
+        # this is for test purposes only
+        if "ZDM_CORRECT_DRIVER_FLAG" in os.environ:
+            if os.environ["ZDM_CORRECT_DRIVER_FLAG"] == "True":
+                Sigma_ms *= (1.5 + 1.04 * np.exp(16.9-mags))
+        
         ngals = len(mags)
         Ois = []
         for i,mag in enumerate(mags):
@@ -1419,8 +1424,11 @@ class model_wrapper:
             pogm = 1.-self.pUfunc(mag,self.pU_arg1,self.pU_arg2)
             #pogm = 1.-pUgm(mag,self.pU_mean,self.pU_width)
             numerator = Sigma_ms[i] * pogm
-            Oi /= numerator # normalise by host counts
-            
+            if numerator > 0.:
+                Oi /= numerator # normalise by host counts
+            else:
+                raise ValueError("Impossible galaxy found, please revise P(O|m) for mag ",mag,
+                                    "having chance of observation ",pogm)
             Ois.append(Oi)
         
         Ois = np.array(Ois)
@@ -1500,7 +1508,7 @@ class Field:
         
     def get_pzgm(self,m,z=None):
         """
-        Samples from the pzgm distribution. Linear interpolation
+        Samples from the pzgm distribution of field galaxies. Linear interpolation
         
         Args:
             m (float): magnitude at which to return p(z|m)
@@ -1518,22 +1526,6 @@ class Field:
         k2 = (m-self.rmags[i1])/self.drmag
         k1 = 1.-k2
         
-        # calculate pz, either as a distribution, or just a number
-        #if z is not None:
-        #    j1 = int((z-self.zvals[0])/self.dz)
-        #    j2 = j1+1
-        #    
-        #    if j1 < 0 or j1 > self.zvals.size-2:
-        #        raise ValueError("z value ",z," outside of range ",self.vals[0],"-",self.zvals[-1])
-        #
-        #    
-        #    l2 = (z-self.zvals[j1])/self.dz
-        #    l1 = 1.-l2
-        #    
-        #    pz = self.pzgmr[j1,i1]*k1*l1 + self.pzgmr[j1,i2]*k2*l1 \
-        #            + self.pzgmr[j2,i1]*k1*l2 + self.pzgmr[j2,i2]*k2*l2
-        #else:
-        
         pz = self.pzgmr[:,i1]*k1 + self.pzgmr[:,i2]*k2
         
         # normalises such that the integral is unity
@@ -1541,6 +1533,12 @@ class Field:
         
         if z is not None:
             pz = np.interp(z,self.zvals,pz)
+            if pz <= 0.:
+                pz = 1.e-8 #hard-coded minimum
+        else:
+            toolow = np.where(pz <= 0.)[0]
+            if len(toolow) > 0:
+                pz[toolow] = 1.e-8
         
         return pz
         

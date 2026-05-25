@@ -83,6 +83,50 @@ def get_joint_path_zdm_likelihoods(g, s, wrapper, norm=True, psnr=True, Pn=False
     data
         Extra data on FRB likelihoods
     
+    
+    ##### Info on PATH Results ####
+    
+    AppMags:
+        float (array) of apparent magnitudes used by Wrapper over which p(m) is calculated.
+    OK:
+        array of ints, length NFRB, giving indices of original FRB list for which optical info (FRB file and
+        candidate file) was found
+    frblist:
+        list of FRB TNS names for which optical data was found
+    llpath:
+        Total log-likelihood of that optical observation
+    Ncand:
+        list of NOK ints giving number of host candidates for each FRB
+        
+    The following are all lists, of length NOK, where each entry is itself a list of Ncand values
+    
+    AppMagPriors:
+        list of NOK arrays of length AppMags giving priors p(m) for each FRB
+    ObsMags:
+        list of NOK lists giving host candidate observed magnitudes
+    POx:
+        list of NOK lists giving normalised posterior likelihoods of each galaxy being the host
+    PxO:
+        list of NOK lists giving likelihood of optical localisation given that candidate is the true host
+    PO:
+        list of NOK lists giving magnitude prior on each host galaxy
+    PU:
+        list of NOK floats giving prior on true host being unobservable
+    PUx:
+        list of NOK floats giving normalised posterior on true host being unobservable
+    dms:
+        DMEG values used for calculations above. Note that these currently do not include uncertainties
+    rhom:
+        list of NOK lists giving values of galaxy angular density rho(m)
+    seps:
+        list of NOK lists giving angular separation between candidates and FRB localisation [arcsec]
+    sizes:
+        list of NOK lists giving angular sizes of candidates [arcsec]
+    pz:
+        list of NOK lists giving p(z|xrad,m) if that galaxy is the true host
+    pf:
+        list of NOK lists giving p(z|m) if that galaxy is a field galaxy
+    
     """
     
     # gets p(z|DM) for all FRBs, regardless of whether or not they are localised
@@ -165,14 +209,12 @@ def get_PATH_lls(s,g,wrapper,op):
     path_results = on.calc_path_priors(frblist,[s],[g],[wrapper],usemodel=True,
                                             failOK=True,doz=True,pzlist=pzgxrad.T,
                                             scale=scale)
-    path_results["frblist"] = frblist
+    #path_results["frblist"] = frblist
     
     # this tells us which FRBs have valid host galaxy data
     #print(path_results["OK"])
-    path_lls,plists = sum_path_lls(pxrad,path_results)
+    path_lls = sum_path_lls(pxrad,path_results)
     lltot += path_lls
-    
-    path_results["phosts"] = plists
     
     return lltot,path_results
     
@@ -194,40 +236,26 @@ def sum_path_lls(pxrad,path_results):
     jpath=0
     lltot = 0.
     
-    # search over indices with PATH results
-    npath = len(path_results["OK"])
-    
-    if npath == 0:
-        DoPath = False
-    else:
-        DoPath = True
     NFRB = pxrad.size
-    plists=[]
     ll2s=[]
+    # adds in zDM log-likelihood info
     for i in np.arange(NFRB):
         ll1 = np.log10(pxrad[i]) # FRB data, from 1D FRB
-        
-        # constructs p(z,m) if appropriate
-        # Note that jpath
-        if DoPath and i == path_results["OK"][jpath]:
-            # this has P(x|O) from PATH
-            ll2,plist,pOxlist,pUx = construct_popt(path_results["PO"][jpath],path_results["PxO"][jpath],
-                            path_results["pz"][jpath],path_results["pf"][jpath],
-                            path_results["PU"][jpath])
-            plists.append(plist)
-            path_results["POx"][jpath] = pOxlist
-            path_results["PUx"][jpath] = pUx
-            jpath += 1 # increment to search for next one!
-            if jpath == npath:
-                DoPath=False
-        else:
-            ll2=0 #i.e., log10(1)
-            plists.append([]) # empty list, so we are not out of alignment
-        
-        lltot += ll1+ll2 # total log-likelihood
+        lltot += ll1
+    
+    # constructs likelihood for FRBs with PATH results
+    for i,ipath in enumerate(path_results["OK"]):
+        ll2,pOxlist,pUx = construct_popt(path_results["PO"][i],path_results["PxO"][i],
+                            path_results["pz"][i],path_results["pf"][i],
+                            path_results["PU"][i])
+        # over-writes original PATH values, which are outdated (don't include redshift info)
+        path_results["POx"][i] = pOxlist
+        path_results["PUx"][i] = pUx
+        lltot += ll2
         ll2s.append(ll2)
+            
     path_results["llpath"]=np.array(ll2s)
-    return lltot,plists
+    return lltot
 
 
 def construct_popt(POs,PxOs,pzs,pfs,PU):
@@ -270,7 +298,7 @@ def construct_popt(POs,PxOs,pzs,pfs,PU):
     pUx = PU/ptot
     pOxlist = plist/ptot
     ll = np.log10(ptot)
-    return ll,plist,pOxlist,pUx
+    return ll,pOxlist,pUx
     
 
 def get_log_likelihood(grid, s, norm=True, psnr=True, Pn=False, pNreps=True, ptauw=False, pwb=False):
@@ -471,13 +499,23 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,
     
     # extract extragalactic DMEGs, and appropriate bweights and w_weights
     DMobs=survey.DMEGs[nozlist]
+    
+    llsum=0
+    
+    if grid.state.MW.sigmaDMG == 0.0 and grid.state.MW.sigmaHalo == 0.0:
+        if np.any(DMobs < 0):
+            bad = np.where(DMobs < 0.)[0]
+            nozlist = np.delete(nozlist,bad)
+            DMobs = survey.DMEGs[nozlist]
+            llsum -= len(bad) * -100 #large penalty in log-likelihood if frbs have negative DM!
+    
     bweights = survey.frb_bweights[nozlist,:]
     wweights = survey.frb_wweights[nozlist,:]
     
     dmvals=grid.dmvals
     zvals=grid.zvals
     
-    llsum=0
+    
     lllist={}
     longlist={}
     idms1,idms2,dkdms1,dkdms2 = grid.get_dm_coeffs(DMobs)
@@ -569,9 +607,7 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,
             log_global_norm=0
 
         if grid.state.MW.sigmaDMG == 0.0 and grid.state.MW.sigmaHalo == 0.0:
-            if np.any(DMobs < 0):
-                raise ValueError("Negative DMobs with no uncertainty")
-
+            
             # Linear interpolation
             pvals=pdm[idms1]*dkdms1 + pdm[idms2]*dkdms2
         else:
@@ -1210,6 +1246,10 @@ def calc_likelihoods_2D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,p
         ############## Calculate probability p(z,DM) ################
         if grid.state.MW.sigmaDMG == 0.0 and grid.state.MW.sigmaHalo == 0.0:
             if np.any(DMobs < 0):
+                print(DMobs)
+                print("WOOF2",np.min(DMobs))
+                print("MEOW2",np.where(DMobs < 0))
+                exit()
                 raise ValueError("Negative DMobs with no uncertainty")
 
             # Linear interpolation

@@ -19,30 +19,41 @@ E.g. typical error message:
 """
 
 import os
+import time
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 from pathlib import Path
 from matplotlib.patches import Ellipse
 
-# Set up plotting style
-plt.rcParams['figure.figsize'] = (10, 6)
-plt.rcParams['font.size'] = 12
 
-from astropath.simulations import assign_host as assign
-
-#os.environ['FRB_APATH'] = "./"
-catalogue = pd.read_parquet("combined_HSC_DECaLs_HECATE_galaxies_hecatecut.parquet")
-
-frbs = pd.read_csv("craco_900_mc_sample.csv")
-localisation=(0.5,0.5,0.) # randomise some of these parameters?
-scale=0.5
-
-#mag_range=[17.,28]
-seed=9609572
-assignments = assign.assign_frbs_to_hosts(frb_df=frbs, galaxy_catalog=catalogue,
+def main(outfile,localisation,seed):
+    
+    # Set up plotting style
+    plt.rcParams['figure.figsize'] = (10, 6)
+    plt.rcParams['font.size'] = 12
+    
+    from astropath.simulations import assign_host as assign
+    
+    #os.environ['FRB_APATH'] = "./"
+    catalogue = pd.read_parquet("combined_HSC_DECaLs_HECATE_galaxies_hecatecut.parquet")
+    
+    frbs = pd.read_csv("craco_900_mc_sample.csv")
+    scale=0.5
+    
+    #mag_range=[17.,28]
+    
+    assignments = assign.assign_frbs_to_hosts(frb_df=frbs, galaxy_catalog=catalogue,
                                         localization=localisation,
                                         scale=scale, seed=seed)
+    
+    assignments.to_csv(outfile,index=False)
 
-assignments.to_csv("craco_assigned_galaxies.csv",index=False)
 
+seed=9609572
+localisation=(0.5,0.5,0.)
+#main("craco_assigned_galaxies.csv",localisation,seed)
+
+seed=1057248
+localisation=(30.,30.,0.)
+main("loc30_craco_assigned_galaxies.csv",localisation,seed)

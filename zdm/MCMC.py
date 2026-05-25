@@ -47,6 +47,7 @@ from astropy.cosmology import Planck18
 
 import multiprocessing as mp
 
+from zdm import cosmology as cos
 from zdm import misc_functions as mf
 from zdm import repeat_grid
 import os
@@ -56,9 +57,11 @@ from zdm import optical as opt
 from zdm import optical_params as op
 #==============================================================================
 
+
 def calc_log_posterior(param_vals, state, params, surveys_sep, Pn=False, Pns=False, Pnr=False,
                 pNreps=True, psnr=True, ptauw=False, pwb=False,
                 log_halo=False, lin_host=False, ind_surveys=False, g0info=None, nz=500, ndm=1400,
+                zmax=5.,dmmax=7000.,
                 dopath=False, opstate=None, opt_params=None, opt_model=None):
     """Calculate log-posterior probability for a parameter vector.
     
@@ -175,15 +178,24 @@ def calc_log_posterior(param_vals, state, params, surveys_sep, Pn=False, Pns=Fal
         
         # Set state
         state.update_params(param_dict)
-
+        
+        # special updates
+        if 'DMhalo' in param_dict:
+            if log_halo:
+                DMhalo = 10**param_dict['DMhalo']
+                state.MW.DMhalo = DMhalo
+        
+        
         surveys = surveys_sep[0] + surveys_sep[1]
         
         # gets new zDM grid if F and H0 in the param_dict
         if 'H0' in param_dict or 'logF' in param_dict or g0info is None:
+            cos.set_cosmology(state)
+            cos.init_dist_measures()
             datdir = resources.files('zdm').joinpath('GridData')
             zDMgrid, zvals,dmvals = mf.get_zdm_grid(
                 state, new=True, plot=False, method='analytic',
-                datdir=datdir,nz=nz,ndm=ndm)
+                datdir=datdir,nz=nz,ndm=ndm,zmax=zmax,dmmax=dmmax)
             g0info = [zDMgrid, zvals,dmvals]
         
         if dopath:
@@ -197,31 +209,27 @@ def calc_log_posterior(param_vals, state, params, surveys_sep, Pn=False, Pns=Fal
         rs = []
         os = []
         
+        
         # Recreate grids every time, but not surveys, so must update survey params
         for i,s in enumerate(surveys):
             
-            
-            # updates survey according to DMhalo estimates
-            if 'DMhalo' in param_dict:
-                if log_halo:
-                    DMhalo = 10**param_dict['DMhalo']
-                else:
-                    DMhalo = param_dict['DMhalo']
-                s.init_DMEG(DMhalo)
-                
-            if ('Wlogmean' in param_dict or 'Wlogsigma' in param_dict or \
-                'Slogmean'  in param_dict or 'Slogsigma' in param_dict):
-                state.scat.Sbackproject = True
-                s.init_widths(state=state)
-            elif 'DMhalo' in param_dict:
-                # this would get re-done within init_widths above, so only do this
-                # if it has *not* been recalculated
-                s.do_efficiencies() #get_efficiency_from_wlist(s.wlist,s.wplist,model=s.meta['WBIAS']) 
+            # reinitialises survey using updated state variables
+            # just generally safest to do this. Noe that this does NOT
+            # change 'analysis' variables which govern e.g. which FRBs
+            # are or are not included in the sample
+            # In theory, we could save time by checking if this needs to be done or not
+            # But generally, it does need to be done
+            s.reinit(state)
             
             # Initialise grids
             if dopath:
                 wrappers = []
-        
+            
+            
+            ident = np.random.randint(0,1000000)
+            sident = str(ident)
+            
+            
             if i < len(surveys_sep[0]):
                 # generate normal zdm grid
                 grids = mf.initialise_grids([s], zDMgrid, zvals, dmvals, state, wdist=True, repeaters=False)
@@ -240,15 +248,19 @@ def calc_log_posterior(param_vals, state, params, surveys_sep, Pn=False, Pns=Fal
                     rs.append(np.sum(g.get_exact_reps()))
                     os.append(s.NORM_SINGLES)
                     os.append(s.NORM_REPS)
-                
+            
             if dopath:
                 w = opt.model_wrapper(opt_model,g.zvals)
             
             if dopath:
-                ll = it.get_joint_path_zdm_likelihoods(g, s, w, Pn=False, pNreps=pNreps,
-                                                        psnr=psnr,ptauw=ptauw,pwb=pwb)
+                ll,result = it.get_joint_path_zdm_likelihoods(g, s, w, Pn=False, pNreps=pNreps,
+                                                        psnr=psnr,ptauw=ptauw,pwb=pwb,
+                                                        return_all=True)
             else:
                 ll = it.get_log_likelihood(g,s,Pn=False,pNreps=pNreps,psnr=psnr,ptauw=ptauw,pwb=pwb)
+            # write state and resulting likelihood for later tests
+            # generate prefix filename to allow files to be match
+            
             llsum += ll
             if ind_surveys:
                 ll_list.append(ll)
@@ -280,7 +292,7 @@ def calc_log_posterior(param_vals, state, params, surveys_sep, Pn=False, Pns=Fal
 
 def mcmc_runner(logpf, outfile, state, params, surveys, nwalkers=10, nsteps=100, nthreads=1,
                 Pn=False, Pns=False, Pnr=False, pNreps=True, psnr=True, ptauw=False, pwb=False, log_halo=False,
-                lin_host=False, ind_surveys=False, g0info=None, nz=500, ndm=1400, reset=False,
+                lin_host=False, ind_surveys=False, g0info=None, nz=500, ndm=1400, zmax=5.,dmmax=7000., reset=False,
                 dopath=False, opstate=None, opt_params=None):
     """
     Handles the MCMC running.
@@ -357,11 +369,17 @@ def mcmc_runner(logpf, outfile, state, params, surveys, nwalkers=10, nsteps=100,
     # num_cpus = mp.cpu_count()
     # print(f"Number of CPUs detected: {num_cpus}")
     
+    keys = params.keys()
+    # need to turn this on to enable fitting of these parameters
+    if ('Wlogmean' in keys or 'Wlogsigma' in keys or \
+        'Slogmean'  in keys or 'Slogsigma' in keys):
+        state.scat.Sbackproject = True
+    
     with Pool(processes=cpus) as pool: # could add mp.Pool(ntrheads=5) or Pool = None
         sampler = emcee.EnsembleSampler(nwalkers, ndim, logpf,
                                         args=[state, params, surveys, Pn, Pns, Pnr, pNreps, psnr,
                                             ptauw, pwb, log_halo, lin_host, ind_surveys, g0info,
-                                            nz, ndm, dopath, opstate, opt_params],
+                                            nz, ndm, zmax, dmmax, dopath, opstate, opt_params],
                                         backend=backend, pool=pool)
         if exists:
             # start from last saved position

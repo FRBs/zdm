@@ -127,33 +127,45 @@ class Survey:
         if zvals is not None:
             self.NZ = zvals.size
         self.edir = edir
-        # Load up
+        self.rand_DMG = rand_DMG
+        
+        # Load up - uses internal frb_tbl that's already been loaded
         self.process_survey_file(filename, NFRB, iFRB, min_lat=state.analysis.min_lat,
-                        dmg_cut=state.analysis.DMG_cut,survey_dict = survey_dict)
-        
-        # Check if repeaters or not and set relevant parameters
-        # Now done in loading
-        # self.repeaters=False
-        # self.init_repeaters()
-        # DM EG
-        self.init_halo_coeffs()
-        if rand_DMG:
-            self.randomise_DMG(state.MW.sigmaDMG)
-        
-        self.init_DMEG(state.MW.DMhalo, state.MW.halo_method)
-        
-        # Zs
-        self.init_zs() # This should be redone every time DMhalo is changed IF we use a flat cutoff on DMEG
+                               dmg_cut=state.analysis.DMG_cut,survey_dict = survey_dict)
         
         # Allows survey metadata to over-ride parameter defaults if present.
         # This is required when mixing CHIME and non-CHIME FRBs
         beam_method = self.meta['BMETHOD']
         beam_thresh = self.meta['BTHRESH']
         
-        self.init_beam(
-                       method=beam_method, 
-                       plot=False, 
+        self.init_beam(method=beam_method, plot=False, 
                        thresh=beam_thresh) # tells the survey to use the beam file
+        
+        # perform all state-based initialisations here
+        # The sole exception is the analysis-dependent variables, which are required for
+        # process_survey_file
+        self.reinit(state)
+        
+    def reinit(self,state):
+        """
+        Initialisation stages containing all steps that could vary depending on
+        variables defined in state. This allows simple reinitialisation from
+        an external source without adding to any i/o burden
+        
+        Args:
+            state: zdm state class objects
+        """
+        self.state = state
+        
+        # DM EG
+        self.init_halo_coeffs()
+        if self.rand_DMG:
+            self.randomise_DMG(state.MW.sigmaDMG)
+        
+        self.init_DMEG(state.MW.DMhalo, state.MW.halo_method)
+        
+        # Zs
+        self.init_zs() # This should be redone every time DMhalo is changed IF we use a flat cutoff on DMEG
         
         # initialise scattering/width and resulting efficiences
         self.init_widths()
@@ -943,10 +955,10 @@ class Survey:
                             iFRB:int=0,
                             min_lat=None,
                             dmg_cut=None,
-                            survey_dict = None): 
+                            survey_dict = None):
         """ Loads a survey file, then creates 
         dictionaries of the loaded variables 
-
+        
         Args:
             filename (str): Survey filename
             NFRB (int, optional): Use only a subset of the FRBs in the Survey file.
@@ -962,6 +974,7 @@ class Survey:
 
         # Read
         frb_tbl = Table.read(filename, format='ascii.ecsv')
+        
         # Survey Data
         self.survey_data = survey_data.SurveyData.from_jsonstr(
             frb_tbl.meta['survey_data'])

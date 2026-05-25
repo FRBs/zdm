@@ -6,12 +6,12 @@ import numpy as np
 import pandas as pd
 import os
 
-def main(NMAX,label):
+def main(NMAX,label,frbfile,hostfile):
     """
     Creates a fake CRACO_900 survey
     """
-    frbs = pd.read_csv("craco_900_mc_sample.csv")
-    hosts = pd.read_csv("craco_assigned_galaxies.csv")
+    frbs = pd.read_csv(frbfile)
+    hosts = pd.read_csv(hostfile)
     NFRB=len(frbs)
     Nhosts = len(hosts)
     
@@ -119,7 +119,8 @@ def load_craco_text():
 
 
 
-
-main(NMAX=10000,label="fake_CRACO_900")
-main(NMAX=1000,label="short_fake_CRACO_900")
-main(NMAX=100,label="very_short_fake_CRACO_900")
+frbfile = "craco_900_mc_sample.csv"
+hostfile = "craco_assigned_galaxies.csv"
+main(NMAX=10000,label="fake_CRACO_900",frbfile,hostfile)
+main(NMAX=1000,label="short_fake_CRACO_900",frbfile,hostfile)
+main(NMAX=100,label="very_short_fake_CRACO_900",frbfile,hostfile)
