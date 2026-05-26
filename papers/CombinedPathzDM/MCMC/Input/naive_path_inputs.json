@@ -14,6 +14,11 @@
         "Absmax": -15.0,
         "AppModelID": 1
     },
+    "k": {
+        "DC": "simple",
+        "min": -3.0,
+        "max": 3.0
+    },
     "SPv1": {
         "DC": "simple",
         "min": 0.0,
