@@ -47,6 +47,7 @@ def load_state(case="HoffmannHalo25",scat=None,rep=None):
     ###### scattering ######
     scats=["orig","CHIME","updated"]
     if scat is not None:
+        print("Meow, I am here,",scat)
         # just use the user-defined scattering version. Check if this exists!
         if not scat in scats:
             raise ValueError("Case ",scat," undefined, please choose from ",scats)
@@ -59,6 +60,7 @@ def load_state(case="HoffmannHalo25",scat=None,rep=None):
     elif case == "JamesSFR22":
         scat="orig"
         vparams = set_orig_scat(vparams)
+        print("NOMS")
     #elif case == "JamesH022" or case == "BaptisaF24" \
     #        or case == "HoffmannEmin25" or case == "HoffmannHalo25":
     elif case == "HoffmannRepeaters26":

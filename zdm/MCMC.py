@@ -249,6 +249,8 @@ def calc_log_posterior(param_vals, state, params, surveys_sep, Pn=False, Pns=Fal
                     os.append(s.NORM_SINGLES)
                     os.append(s.NORM_REPS)
             
+            
+            
             if dopath:
                 w = opt.model_wrapper(opt_model,g.zvals)
             
@@ -373,6 +375,11 @@ def mcmc_runner(logpf, outfile, state, params, surveys, nwalkers=10, nsteps=100,
     if ('Wlogmean' in keys or 'Wlogsigma' in keys or \
         'Slogmean'  in keys or 'Slogsigma' in keys):
         state.scat.Sbackproject = True
+    
+    # initialises cosmology. This is redundant if H0 is in the MCMC params, but it's safest to get
+    # it done here
+    cos.set_cosmology(state)
+    cos.init_dist_measures()
     
     with Pool() as pool: # could add mp.Pool(ntrheads=5) or Pool = None
         sampler = emcee.EnsembleSampler(nwalkers, ndim, logpf,
