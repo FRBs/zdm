@@ -3,7 +3,7 @@
 #SBATCH --ntasks=10
 #SBATCH --time=24:00:00
 #SBATCH --export=NONE
-#SBATCH --mem-per-cpu=5GB
+#SBATCH --mem-per-cpu=4GB
 
 # activate python environment
 source  /fred/oz313/cwjames/virtual_environment/bin/activate
@@ -78,5 +78,3 @@ $runcommand
 echo $runcommand
 $runcommand
 
-echo $runcommand
-$runcommand
