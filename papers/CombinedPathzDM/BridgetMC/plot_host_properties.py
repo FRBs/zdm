@@ -33,12 +33,12 @@ def main():
     frbs = pd.read_csv("craco_900_mc_sample.csv")
     hosts = pd.read_csv("craco_assigned_galaxies.csv")
     
-    #plot_host_properties(frbs,hosts,opdir)
+    plot_host_properties(frbs,hosts,opdir)
     
     get_true_hosts(frbs,hosts,opdir)
     #get_true_hosts(frbs,hosts,opdir+"arcmin_",indir="WideCandidateFiles/")
     
-    #compare_posteriors(frbs,hosts,opdir)
+    compare_posteriors(frbs,hosts,opdir)
     
     
     
@@ -299,9 +299,10 @@ def plot_host_properties(frbs,hosts,opdir):
     Makes plots comparing host and assigned host magnitudes
     """
     
-    print(frbs.keys())
+    print("FRB keys are ",frbs.keys())
     
-    print(hosts.keys())
+    print("Host keys are ",hosts.keys())
+    
     m1 = frbs["m_r"][hosts["FRB_ID"]]    
     
     print("Number of assigned hosts is ",len(m1))
@@ -314,6 +315,44 @@ def plot_host_properties(frbs,hosts,opdir):
     plt.savefig(opdir+"host_assigned_scatter.png")
     plt.close()
     
+    plt.figure()
+    plt.scatter(m1,hosts["mag"])
+    plt.xlabel("Simulated host magnitude")
+    plt.ylabel("Assigned catalogue host magnitude")
+    plt.tight_layout()
+    plt.savefig(opdir+"host_assigned_scatter.png")
+    plt.close()
     
+    # calculates a moving average
+    bins = np.linspace(10,30,21)
+    bbar = np.linspace(10.5,29.5,20)
+    h1,b = np.histogram(hosts["mag"],weights=hosts["half_light"],bins=bins)
+    h2, b = np.histogram(hosts["mag"],bins=bins)
+    hlbar = h1/h2
+    
+    for i,m in enumerate(bbar):
+        print(m,hlbar[i])
+    
+    plt.figure()
+    plt.scatter(hosts["mag"],hosts["half_light"],s=1)
+    plt.scatter(bbar,hlbar,s=30,marker="+")
+    plt.xlabel("Simulated host magnitude")
+    plt.ylabel("Half-light radius [arcsec]")
+    plt.tight_layout()
+    plt.savefig(opdir+"mag_halflight.png")
+    plt.close()
+    
+    HCTE = np.where(hosts["mag"] < 14.0)[0]
+    hosts["half_light"][HCTE] = hosts["half_light"][HCTE]*20.
+    plt.figure()
+    plt.scatter(hosts["mag"],hosts["half_light"],s=1)
+    hlbar[0:4] *= 20
+    plt.scatter(bbar,hlbar,s=30,marker="+")
+    plt.xlabel("Simulated host magnitude")
+    plt.ylabel("Half-light radius [arcsec]")
+    plt.tight_layout()
+    plt.savefig(opdir+"mod_mag_halflight.png")
+    plt.close()
+    exit()
 
 main()

@@ -6,16 +6,25 @@ import numpy as np
 import pandas as pd
 import os
 
-def main(NMAX,label,frbfile,hostfile):
+def main(NMAX,label,frbfile,hostfile,IOK=None):
     """
     Creates a fake CRACO_900 survey
+    
+    
+    Args:
+        NMAX (int): max number of FRBs to write from frb/host file
+        label (string): prefix to ".csv" used to name survey file
+        frbfile (string): csv file containing MC generated FRBs from gen_mc_frbs_w_hosts.py 
+        hostfile (string): csv file containing assigned hosts from run_assign_host.py
+        IOK (array of ints, optional): if not None, only include FRBs if they are in the IOK list
+        
     """
     frbs = pd.read_csv(frbfile)
     hosts = pd.read_csv(hostfile)
     NFRB=len(frbs)
     Nhosts = len(hosts)
     
-    
+    # hard-coded, becasue all surveys are asssumed to live here
     opdir = "Surveys/"
     if not os.path.exists(opdir):
         os.mkdir(opdir)
@@ -64,6 +73,9 @@ def main(NMAX,label,frbfile,hostfile):
     for i in np.arange(Nhosts):
         if i==NMAX:
             break
+        if IOK is not None:
+            if not (i in IOK):
+                continue
         host=hosts.loc[i]
         j = host["FRB_ID"]
         frb = frbs.loc[j]
@@ -118,9 +130,9 @@ def load_craco_text():
     return Prefix, Suffix
 
 
-
-frbfile = "craco_900_mc_sample.csv"
-hostfile = "craco_assigned_galaxies.csv"
-main(NMAX=10000,label="fake_CRACO_900",frbfile,hostfile)
-main(NMAX=1000,label="short_fake_CRACO_900",frbfile,hostfile)
-main(NMAX=100,label="very_short_fake_CRACO_900",frbfile,hostfile)
+if __name__ == "__main__":
+    frbfile = "craco_900_mc_sample.csv"
+    hostfile = "craco_assigned_galaxies.csv"
+    main(10000,"fake_CRACO_900",frbfile,hostfile)
+    main(1000,"short_fake_CRACO_900",frbfile,hostfile)
+    main(100,"very_short_fake_CRACO_900",frbfile,hostfile)

@@ -1,10 +1,12 @@
 """ 
-Demonstrates how to set likelihood components for the MC analysis
 
-Also plots posteriors for best-fitting parameters
+This script runs the likelihood calculation for MC truth parameters,
+(which are reproduced from emcee fitting), and analyses the posterior
+distribution of observables in host magnitude and angular offset.
 
-Also compares this to previous PATH work
-
+It requires one to have first run "run_path_only.py", since it 
+makes comparison plots of posterior observables to those derived
+when running PATH.
 """
 import os
 import time

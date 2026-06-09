@@ -612,15 +612,15 @@ class simple_host_model:
         self.AppModelID = self.opstate.AppModelID
         self.AbsModelID = self.opstate.AbsModelID
         
-        
-        
         self.init_abs_bins()
         self.init_model_bins()
         
         # could perhaps use init args for this?
         if self.opstate.AbsPriorMeth==0:
             # uniform prior in log space of absolute magnitude
-            AbsPrior = np.full([self.ModelNBins],1./self.NAbsBins)
+            AbsPrior = np.full([self.ModelNBins],1./self.ModelNBins)
+        elif self.opstate.AbsPriorMeth==0:
+            self.set_args() #sets according to opstate
         else:
             # other methods to be added as required
             raise ValueError("Luminosity prior method ",self.opstate.AbsPriorMeth," not implemented")
@@ -638,6 +638,32 @@ class simple_host_model:
         # the below is done for the wrapper function
         #self.ZMAP = False # records that we need to initialise this
     
+    def set_args(self):
+        """
+        Sets arguments from the opstate variables. Works up to 10 currently
+        """
+        
+        if self.NModelBins >= 1:
+            self.AbsPrior[0] = self.opstate.SPv1 
+        if self.NModelBins >= 2:
+            self.AbsPrior[1] = self.opstate.SPv2
+        if self.NModelBins >= 3:
+            self.AbsPrior[2] = self.opstate.SPv3 
+        if self.NModelBins >= 4:
+            self.AbsPrior[3] = self.opstate.SPv4 
+        if self.NModelBins >= 5:
+            self.AbsPrior[4] = self.opstate.SPv5 
+        if self.NModelBins >= 6:
+            self.AbsPrior[5] = self.opstate.SPv6 
+        if self.NModelBins >= 7:
+            self.AbsPrior[6] = self.opstate.SPv7 
+        if self.NModelBins >= 8:
+            self.AbsPrior[7] = self.opstate.SPv8 
+        if self.NModelBins >= 9:
+            self.AbsPrior[8] = self.opstate.SPv9 
+        if self.NModelBins >= 10:
+            self.AbsPrior[9] = self.opstate.SPv10
+            
     def get_args(self):
         """
         function to return args as a vector in the form of init_args
@@ -1309,7 +1335,7 @@ class model_wrapper:
             the visible magnitudes, and subtracting them from unity. 
         
         args:
-            mag_limit (float): maximum observable magnitude of host galaxies
+            None. P(U) will already have been computed
         
         returns:
             PU (float): probability PU of true hist being unseen in the optical

@@ -1245,13 +1245,17 @@ def calc_likelihoods_2D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,p
         
         ############## Calculate probability p(z,DM) ################
         if grid.state.MW.sigmaDMG == 0.0 and grid.state.MW.sigmaHalo == 0.0:
-            if np.any(DMobs < 0):
-                print(DMobs)
-                print("WOOF2",np.min(DMobs))
-                print("MEOW2",np.where(DMobs < 0))
-                exit()
-                raise ValueError("Negative DMobs with no uncertainty")
-
+            baddm = DMobs <= 0.
+            if np.any(baddm):
+                # uses lowest DM bin available, then gives huge penalty
+                idms1[baddm] = 0
+                idms2[baddm] = 1
+                dkdms1[baddm] = 1.
+                dkdms2[baddm] = 0.
+                flg_baddm = True
+            else:
+                flg_baddm = False
+                
             # Linear interpolation
             pvals = rates[izs1,idms1]*dkdms1*dkzs1
             pvals += rates[izs2,idms1]*dkdms1*dkzs2
@@ -1265,12 +1269,15 @@ def calc_likelihoods_2D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,p
                 pvals[i] = np.sum(rates[izs1[i],iweights[i]] * dm_weights[i] * dkzs1[i] 
                                 + rates[izs2[i],iweights[i]] * dm_weights[i] * dkzs2[i])
         
-        bad= pvals <= 0.
+        bad = pvals <= 0.
         flg_bad = False
         if np.any(bad):
             # This avoids a divide by 0 but we are in a NAN regime
-            pvals[bad]=1e-50 # hopefully small but not infinitely so
+            pvals[bad] = 1e-50 # hopefully small but not infinitely so
             flg_bad = True
+        
+        if flg_baddm:
+            pvals[baddm] = 1e-50 # change this to penalty constant?
         
         # holds individual FRB data
         longlist+=np.log10(pvals)-np.log10(norm)
