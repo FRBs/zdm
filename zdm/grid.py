@@ -105,7 +105,7 @@ class Grid:
         self.source_function = cos.choose_source_evolution_function(
             state.FRBdemo.source_evolution
         )
-
+        
         # Energetics
         if self.state.energy.luminosity_function in [3]:
             self.use_log10 = True
@@ -127,7 +127,6 @@ class Grid:
             self.smear = prev_grid.smear.copy()
             self.smear_grid = prev_grid.smear_grid.copy()
         
-            
         if wdist is not None:
             efficiencies = survey.efficiencies  # two OR three dimensions
             weights = survey.wplist

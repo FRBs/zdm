@@ -10,34 +10,32 @@ def main():
     Reads in CRACO log file, extracts unique configurations,
     produces observation time for each unique configuration
     """
-    infile = "Logs/craco_13ms_survey_db.weight.altaz.csv"
+    
+    infile = "Logs/craco_84500_survey_db.csv"
+    
+    #infile = "Logs/craco_13ms_survey_db.weight.altaz.csv"
     df = read_logfile(infile = infile)
+    
     
     # adds statistical weighting factors
     # turn on if extra info is not yet generated
     df = add_columns(df,infile) 
     
-    # gets unique configurations
-    logfile="Logs/configs.csv"
-    if not os.path.exists(logfile):
-        get_unique(df,logfile)
+    itsamps = np.unique(df["itsamp"])
     
-    
-    ##### 3.4ms survey ####
-    
-    infile = "Logs/craco_3ms_survey_db.csv"
-    df = read_logfile(infile = infile)
-    
-    # adds statistical weighting factors
-    # turn on if extra info is not yet generated
-    df = add_columns(df,infile) 
-    
-    # gets unique configurations
-    # gets unique configurations
-    logfile="Logs/3ms_configs.csv"
-    if not os.path.exists(logfile):
-        get_unique(df,logfile)
-    
+    for itsamp in itsamps:
+        # gets unique configurations
+        logfile="Logs/configs_"+str(itsamp)+".csv"
+        
+        
+        subset = df.loc[df["itsamp"] == itsamp]
+        
+        if not os.path.exists(logfile):
+            get_unique(subset,logfile)
+        
+        cffile="Logs/itsamp_"+str(itsamp)+".csv"
+        if not os.path.exists(cffile):
+            subset.to_csv(cffile,index=False)
     
     
 def add_columns(df,opfile):
@@ -80,6 +78,8 @@ def add_columns(df,opfile):
     
     df["fbar"] = (df["fmin"] + df["fmax"])/2.
     
+    df["itsamp"] = (df["tsamp"]/0.001728).astype('int') # converts to units of 1.728ms
+    
     df.to_csv(opfile,index=False)
     return df
     
@@ -107,7 +107,7 @@ def get_unique(df,opfile):
         opfile: name of output file
     """
     
-    footprints = np.unique(df["footprint"])
+    footprints = np.unique(df["footprint"].values)
     
     
     config_fp=[]
@@ -118,6 +118,8 @@ def get_unique(df,opfile):
     
     for fp in footprints:
         OK = np.where(df["footprint"] == fp)[0]
+        indices = df.index
+        OK = indices[OK]
         fppitch = df["pitch"][OK]
         pitches = np.unique(fppitch)
         for pitch in pitches:
@@ -138,7 +140,6 @@ def get_unique(df,opfile):
                 # relative to Nant = 24, which is max in data
                 total = np.sum(fp_p_fb_tobs)/3600
                 wtotal = np.sum(fp_p_fb_tobs*weights)/3600
-                print(fp,pitch,fb,total,wtotal)
                 config_fp.append(fp)
                 config_pitch.append(pitch)
                 config_fb.append(fb)

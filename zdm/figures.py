@@ -432,7 +432,11 @@ def plot_grid(
             zstop = kDM * zvals[stop2] + (1.0 - kDM) * zvals[stop1]
             zstop /= zvals[1] - zvals[0]
             DM /= dmvals[1] - dmvals[0]
-            plt.plot([0, zstop], [DM, DM], color=plt_dicts[0]['color'], linestyle=":")
+            if plt_dicts is not None and "color" in plt_dicts[0]:
+                color = plt_dicts[0]['color']
+            else:
+                color = "black"
+            plt.plot([0, zstop], [DM, DM], color=color, linestyle=":")
 
     if DMlims is not None:
         for DMlim in DMlims:

@@ -21,7 +21,7 @@ class FRB(data_class.myDataClass):
                   'Notation': '',
                   })
     DMG: float = field( 
-        default=0., 
+        default=30., 
         metadata={'help': "Galactic contribution to DM",
                   'unit': 'pc/cm**3', 
                   'Notation': '',
