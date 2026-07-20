@@ -40,7 +40,6 @@ def main(NMAX,label,frbfile,hostfile,IOK=None):
     
     DMhalo = np.median(s.DMhalos)
     DMG = np.median(s.DMGs)
-    
     print("Adding MW contributions of ",DMG," pc/cm3 for the ISM, and ",DMhalo," for the halo")
     
     # extra info to add to FRB file
@@ -133,6 +132,6 @@ def load_craco_text():
 if __name__ == "__main__":
     frbfile = "craco_900_mc_sample.csv"
     hostfile = "craco_assigned_galaxies.csv"
-    main(10000,"fake_CRACO_900",frbfile,hostfile)
+    #main(10000,"fake_CRACO_900",frbfile,hostfile)
     main(1000,"short_fake_CRACO_900",frbfile,hostfile)
     main(100,"very_short_fake_CRACO_900",frbfile,hostfile)

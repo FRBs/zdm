@@ -62,13 +62,13 @@
     },
     "H0": {
         "DC": "cosmo",
-        "min": 60.0, 
-        "max": 80.0
+        "min": 30.0, 
+        "max": 120.0
     },
     "alpha": {
         "DC": "energy",
-        "min": 0.0, 
-        "max": 2.5
+        "min": -2.0, 
+        "max": 6.0
     },
     "gamma": {
         "DC": "energy",

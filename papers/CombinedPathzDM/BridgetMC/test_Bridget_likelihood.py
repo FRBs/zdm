@@ -58,7 +58,7 @@ def main(prefix,pathfile,wpathfile,hostfile):
     g = grids[0]
     
     opstate = op.OpticalState()
-    opstate.loudas.fsfr=0.5
+    opstate.loudas.fsfr=1.5
     opstate.id.pU_method=1
     opstate.id.pU_min=14
     opstate.id.pU_max=22
@@ -310,7 +310,7 @@ wpathfile = "w_m14cut_hosts_1000.csv"
 prefix=""
 hostfile = "craco_assigned_galaxies.csv"
 main(prefix,pathfile,wpathfile,hostfile)
-
+exit()
 hostfile = "loc30_craco_assigned_galaxies.csv"
 pathfile = "loc30_m14cut_hosts_1000.csv"
 wpathfile = "loc30_w_m14cut_hosts_1000.csv"

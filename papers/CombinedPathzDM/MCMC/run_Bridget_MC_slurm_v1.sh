@@ -18,7 +18,7 @@ sdir="/fred/oz313/cwjames/zdm/papers/CombinedPathzDM/BridgetMC/Surveys/"
 steps=100
 walkers=40
 # use --rep_surveys to give repeater surveys
-opfile="Output/Bridget_mcmc_v1_output_W"$walkers
+opfile="Output/f1.5_Bridget_mcmc_v1_output_W"$walkers
 
 # reduce size - this is CRACO data after all
 Nz=300

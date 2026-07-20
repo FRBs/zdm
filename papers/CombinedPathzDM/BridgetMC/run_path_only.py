@@ -23,7 +23,7 @@ font = {'family' : 'Helvetica',
 matplotlib.rc('font', **font)
 
 
-def main(outfile,woutfile,N,frbfile,hostfile,CUT=False,prefix="",surveyfile=None,POxcut=0.95):
+def main(outfile,woutfile,N,frbfile,hostfile,CUT=False,fprefix="",cprefix="",surveyfile=None,POxcut=0.95):
     """
     Runs original PATH algorithm on FRBs, and outputs FRBs passing POxcut, and weighted by POx
     
@@ -63,8 +63,8 @@ def main(outfile,woutfile,N,frbfile,hostfile,CUT=False,prefix="",surveyfile=None
     
     
     ### sets system variables to point towards fake FRB data
-    galdir = resources.files('zdm').joinpath("../papers/CombinedPathzDM/BridgetMC/"+prefix+"CandidateFiles")
-    frbdir = resources.files('zdm').joinpath("../papers/CombinedPathzDM/BridgetMC/"+prefix+"FRBFiles")
+    galdir = resources.files('zdm').joinpath("../papers/CombinedPathzDM/BridgetMC/"+cprefix+"CandidateFiles")
+    frbdir = resources.files('zdm').joinpath("../papers/CombinedPathzDM/BridgetMC/"+fprefix+"FRBFiles")
     os.environ["ZDM_PATH_FRBDIR"] = str(frbdir)
     os.environ["ZDM_PATH_GALDIR"] = str(galdir)
     
@@ -93,11 +93,25 @@ def main(outfile,woutfile,N,frbfile,hostfile,CUT=False,prefix="",surveyfile=None
     
     for i in np.arange(N):
         # will always find an FRB file by construction
-        if results["Ncand"][i] == 0:
-            continue
+        DONE=False
+        # tests to see if the true host is even in the FRBfile
+        mtrue = truth["mag"][i]
         
-        # appends all path posteriors
-        if i == 0:
+        # check if this is just going to be added anyway
+        if CUT and mtrue < 14.:
+            allpox.append(1.)
+            allmag.append(mtrue)
+            allz.append(zdm["z"][i])
+            alli.append(i)
+            allseps.append(truth["gal_off"])
+            allsizes.append(truth["half_light"])
+            DONE=True
+            
+        if results["Ncand"][i] == 0:
+            if not DONE:
+                noti.append(i)
+            continue
+        elif i == 0:
             rawmags = np.array(results["ObsMags"][i])
             rawposts =  np.array(results["POx"][i])
             rawseps =  np.array(results["seps"][i])
@@ -111,19 +125,9 @@ def main(outfile,woutfile,N,frbfile,hostfile,CUT=False,prefix="",surveyfile=None
         likely = np.where(results["POx"][i] > POxcut)[0]
         FRBfile = str(galdir)+"/FRB"+str(i)+"_PATH.csv"
         
-        # tests to see if the true host is even in the FRBfile
-        mtrue = truth["mag"][i]
         
         
-        # has been excluded as being too bright - just assume host is identified
-        if CUT and mtrue < 14.:
-            allpox.append(1.)
-            allmag.append(mtrue)
-            allz.append(zdm["z"][i])
-            alli.append(i)
-            allseps.append(truth["gal_off"])
-            allsizes.append(truth["half_light"])
-        elif len(likely) == 1:
+        if not DONE and len(likely) == 1:
             cands = pd.read_csv(FRBfile)
             j = likely[0]
             allpox.append(results["POx"][i][j])
@@ -133,7 +137,8 @@ def main(outfile,woutfile,N,frbfile,hostfile,CUT=False,prefix="",surveyfile=None
             allseps.append(results["seps"][i][j])
             allsizes.append(results["sizes"][i][j])
         else:
-            noti.append(i)
+            if not DONE:
+                noti.append(i)
     
     weighted = pd.DataFrame()
     weighted["mags"] = rawmags
@@ -166,6 +171,7 @@ def plot_confidant_frbs(OK,NOTOK,opdir="MC_Generation_Plots/"):
     """
     # FRB list
     frbs = pd.read_csv("craco_900_mc_sample.csv")
+    hosts = pd.read_csv("craco_assigned_galaxies.csv")
     
     plt.figure()
     #plt.scatter(frbs["z"][OK],frbs["m_r"][OK],s=1,c=frbs["DMeg"][OK], cmap='cubehelix',marker='o')
@@ -198,7 +204,23 @@ def plot_confidant_frbs(OK,NOTOK,opdir="MC_Generation_Plots/"):
     plt.savefig(opdir+"confidant_dmeg_z_plot.png")
     plt.close()
 
-
+    
+    plt.figure()
+    #plt.scatter(frbs["z"][OK],frbs["DMeg"][OK],s=3,c=frbs["m_r"][OK], cmap='cubehelix',marker='o')
+    #plt.scatter(frbs["z"][NOTOK],frbs["DMeg"][NOTOK],s=3,c=frbs["m_r"][NOTOK], cmap='cubehelix',marker='x')
+    plt.scatter(hosts["mag"][OK],hosts["half_light"][OK],s=3, marker='o',label="$P(O|x) > 0.95$")
+    plt.scatter(hosts["mag"][NOTOK],hosts["half_light"][NOTOK],s=5,marker='x',label="$P(O|x) < 0.95$")
+    #cbar = plt.colorbar()
+    #plt.xlim(0,2.5)
+    #plt.ylim(0,2000)
+    plt.xlabel("Magnitude, $m_r$")
+    #cbar.set_label("Host $m_r$")
+    plt.ylabel("Half-light radius [arcsec]")
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(opdir+"confidant_mag_hl.png")
+    plt.close()
+    
 def gen_frb_list(N):
     """
     generates a fake list of FRB names
@@ -216,17 +238,13 @@ def gen_frb_list(N):
 
 hostfile = "craco_assigned_galaxies.csv"
 frbfile = "craco_900_mc_sample.csv"
-    
-# runs this four times, generating DSA-like hosts, and when including the 14th magnitude cut
 
-# standard run,
-#main("m14cut_hosts_1000.csv","w_m14cut_hosts_1000.csv",1000,frbfile,hostfile,
-#        CUT=False,prefix="",surveyfile="confidant_short_fake_CRACO_900")
+# standard run, without forcing low-magnitude hosts to exist
+main("m14cut_hosts_1000.csv","w_m14cut_hosts_1000.csv",1000,frbfile,hostfile,
+        CUT=False,fprefix="",cprefix="",surveyfile="confidant_short_fake_CRACO_900")
 
-#main("m14cut_hosts_10000.csv","w_m14cut_hosts_10000.csv",10000,frbfile,hostfile,False,prefix="")
-
-main("DSA_like_hosts_1000.csv","w_DSA_like_hosts_1000.csv",1000,frbfile,hostfile,True,prefix="",surveyfile="confidant_short_fake_DSAlike")
-#main("DSA_like_hosts_10000.csv","w_DSA_like_hosts_10000.csv",10000,frbfile,hostfile,True,prefix="")
+# generates DSA-like hosts, but choosing only confidant host candidates, and making a survey file from them
+main("DSA_like_hosts_1000.csv","w_DSA_like_hosts_1000.csv",1000,frbfile,hostfile,True,fprefix="",cprefix="",surveyfile="confidant_short_fake_DSAlike")
 exit()
 # repeats this for the sample assumed to have 30" localisations
 hostfile = "loc30_craco_assigned_galaxies.csv"

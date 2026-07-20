@@ -1231,7 +1231,7 @@ class model_wrapper:
             
             At least one of grid or pz must be set
         """
-        
+          
         if pz is None:
             if grid is None:
                 raise ValueError("Require one of grid or pz to be set!")
@@ -1239,7 +1239,8 @@ class model_wrapper:
             # we start by getting the posterior distribution p(z)
             # for an FRB with DM DM seen by the 'grid'
             pz = get_pz_prior(grid,DM)
-            
+        oldpz = np.copy(pz)
+        
         # checks that pz is normalised
         pz /= np.sum(pz)
         
@@ -1420,7 +1421,7 @@ class model_wrapper:
         # this is for test purposes only
         if "ZDM_CORRECT_DRIVER_FLAG" in os.environ:
             if os.environ["ZDM_CORRECT_DRIVER_FLAG"] == "True":
-                Sigma_ms *= (1.5 + 1.04 * np.exp(16.9-mags))
+                Sigma_ms *= (1.03 + 4.26 * np.exp(14.0-mags))
         
         ngals = len(mags)
         Ois = []
@@ -1458,6 +1459,7 @@ class model_wrapper:
             Ois.append(Oi)
         
         Ois = np.array(Ois)
+        
         return Ois
 
 class Field:

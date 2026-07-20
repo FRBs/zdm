@@ -18,6 +18,8 @@ Step 2: ASSIGN HOSTS (python run_assign_host.py)
     Typically takes ~1 minute for 10,000 FRBs.
     
     It may produce unassigned FRBs if there are many very faint or bright hosts.
+    
+    Does this for two sets of FRBs - 1", and 30" localisation
 
 STEP 3: WRITE FAKE SURVEY FILE (python write_fake_survey_file.py)
     
@@ -42,11 +44,19 @@ STEP 4: WRITE FRB and PATH files (python write_frb_and_cand_files.py)
     the files.
 
 
-STEP 5a: TEST LIKELIHOOD EVALUATION (python test_Bridget_likelihood.py)
+######## Congratulations! You have created fake FRBs #########
+Most things from hereon can be done in any order, except where otherwise noted.
+
+STEP 5: Determine PATH behaviour on the dataset (pythion run_path_only.py)
+    Creates further survey files "confidant..."
+
+STEP 6: TEST LIKELIHOOD EVALUATION (python test_Bridget_likelihood.py)
 
     Creates surveys and grids for each of the three fake surveys,
     and evaluates likelihoods with each. Generally, this will be
     OK, provided that it doesn't crash!
+    
+    Gives output in LikelihoodTests
     
     5b: (python test_craft_likelihood.py)
 

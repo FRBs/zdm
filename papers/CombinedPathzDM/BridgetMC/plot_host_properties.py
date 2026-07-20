@@ -35,10 +35,19 @@ def main():
     
     plot_host_properties(frbs,hosts,opdir)
     
-    get_true_hosts(frbs,hosts,opdir)
-    #get_true_hosts(frbs,hosts,opdir+"arcmin_",indir="WideCandidateFiles/")
+    # NOTE: the maghist is only generated using candidates from wide-field obs
+    # otherwise, there are not enough stats on field galaxies
+    hosts = pd.read_csv("loc30_craco_assigned_galaxies.csv")
     
-    compare_posteriors(frbs,hosts,opdir)
+    # do this for standard generation. Will have less field galaxies.
+    get_true_hosts(frbs,hosts,opdir,width=10)
+    
+    # do this for wide loc30 survey with 2'x2'. Will have correct field galaxies.
+    opdir= "loc30Hosts/"
+    if not os.path.exists(opdir):
+        os.mkdir(opdir)
+    get_true_hosts(frbs,hosts,opdir,frbdir="loc30FRBFiles/",indir="loc30CandidateFiles/",width=120)
+    
     
     
     
@@ -85,12 +94,14 @@ def get_xy_offsets(ra1,dec1,ra2,dec2):
     
     return ew,north
     
-def get_true_hosts(frbs,hosts,opdir,indir="WideCandidateFiles/",frbdir="EminFRBFiles/",NMAX=10000):
+def get_true_hosts(frbs,hosts,opdir,indir="CandidateFiles/",frbdir="FRBFiles/",NMAX=1000,width=10):
     """
     Runs through candidate files, getting which FRBs have a
     host, and which do not
-    """
     
+    args:
+        width: image width is arcseconds
+    """
     
     NFRB = len(frbs)
     if NMAX > NFRB:
@@ -216,17 +227,16 @@ def get_true_hosts(frbs,hosts,opdir,indir="WideCandidateFiles/",frbdir="EminFRBF
     
     # cumulative distributions
     densities = sigma(bins)
-    # images are 10 x 10 arcmin
-    expectation = np.pi*100*(densities[1:] - densities[:-1])*1e4 # 1e4 is number of galaxies, 100 is arcsec^2
-    hweight = np.full([notmlist.size],1./36.)
+    # images are circular with radius width in arcsec
+    expectation = np.pi*width**2*(densities[1:] - densities[:-1])*NMAX # 1e4 is number of galaxies, 100 is arcsec^2
     values = 0.5*(bins[1:] + bins[:-1])
     
     plt.figure()
     plt.hist(frbs["m_r"][:NMAX],label="All hosts",histtype='step',ls="-",bins=bins,lw=2)
     plt.hist(hmlist,label="Observed hosts",histtype='step',ls="--",bins=bins,lw=2)
-    plt.hist(notmlist,label="Field galaxies",histtype='step',ls=":",bins=bins,lw=2,weights=hweight)
+    plt.hist(notmlist,label="Field galaxies",histtype='step',ls=":",bins=bins,lw=2)#,weights=hweight)
     plt.hist(values,label="Expectation",histtype='step',ls=":",bins=bins,lw=2,weights=expectation)
-    plt.ylim(1,1e5)
+    plt.ylim(0.1,1e5)
     
     plt.legend(loc="upper left")
     plt.yscale("log")
@@ -258,25 +268,21 @@ def get_true_hosts(frbs,hosts,opdir,indir="WideCandidateFiles/",frbdir="EminFRBF
     obshist2,bins = np.histogram(mlist,bins=bins)
     #exphist,bins = np.histogram(values,bins=bins)
     
-    fit = np.polyfit(bcs,obshist/expectation/36.,deg=2)
-    
-    
-    fit2 = 1+np.exp(16-bcs)
-    
+    fit = np.polyfit(bcs,obshist/expectation,deg=2)
     
     from scipy.optimize import curve_fit as cf
     p0=[1.,1.,16.]
     
-    cffit = cf(fit2f,bcs,obshist/expectation/36.,p0=p0)
-    cffit2 = cf(fit2f,bcs,obshist2/expectation/36.,p0=p0)
-    print(cffit)
+    cffit = cf(fit2f,bcs,obshist/expectation,p0=p0)
+    cffit2 = cf(fit2f,bcs,obshist2/expectation,p0=p0)
+    print("Fit to field galaxies is ",cffit)
     print(cffit2)
     #thefit = np.polyval(fit,bcs)
     fit = cffit[0][0]+cffit[0][1]*np.exp(cffit[0][2]-bcs)
     fit2= cffit2[0][0]+cffit2[0][1]*np.exp(cffit2[0][2]-bcs)
     #plt.plot(bcs,thefit,label="fit")
-    plt.plot(bcs,obshist/expectation/36.,label="ratio field galaxies")
-    plt.plot(bcs,obshist2/expectation/36.,label="ratio all galaxies")
+    plt.plot(bcs,obshist/expectation,label="ratio field galaxies")
+    plt.plot(bcs,obshist2/expectation,label="ratio all galaxies")
     plt.plot(bcs,fit,label="fit")
     plt.plot(bcs,fit2,label="fit")
     plt.xlabel("mag")
@@ -343,7 +349,7 @@ def plot_host_properties(frbs,hosts,opdir):
     plt.close()
     
     HCTE = np.where(hosts["mag"] < 14.0)[0]
-    hosts["half_light"][HCTE] = hosts["half_light"][HCTE]*20.
+    hosts.loc[HCTE,"half_light"] = hosts["half_light"][HCTE]*20.
     plt.figure()
     plt.scatter(hosts["mag"],hosts["half_light"],s=1)
     hlbar[0:4] *= 20
@@ -353,6 +359,6 @@ def plot_host_properties(frbs,hosts,opdir):
     plt.tight_layout()
     plt.savefig(opdir+"mod_mag_halflight.png")
     plt.close()
-    exit()
+    
 
 main()

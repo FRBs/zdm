@@ -141,7 +141,7 @@ class LoudasParams(data_class.myDataClass):
     FRBs as some fraction of the star-formation rate.
     """
     fSFR: float = field( 
-        default=0.5, 
+        default=3, 
         metadata={'help': "Fraction of FRBs associated with star-formation", 
                   'unit': '', 
                   'Notation': '',

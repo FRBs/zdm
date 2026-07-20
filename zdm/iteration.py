@@ -159,7 +159,13 @@ def get_joint_path_zdm_likelihoods(g, s, wrapper, norm=True, psnr=True, Pn=False
         op = calc_likelihoods_1D(g, s, norm=norm, pdmz=pdmz, psnr=psnr,dolist=0, Pn=Pn,
                                     ptauw=ptauw,pwb=pwb, PATH=True)
         data["zdm_s"] = op
+        #print(op.keys())
+        
+        #print("Size of zdm_s is ",print(len(op["psnrbwdm"])))
+        
+        #exit()
         lltot,path_s = get_PATH_lls(s,g,wrapper,op)
+        #print("Size of path_s[lls] is ",path_s["
         data["path_s"] = path_s
     
     
@@ -202,17 +208,18 @@ def get_PATH_lls(s,g,wrapper,op):
     if "pReps" in op:
         lltot += np.log10(op["pReps"])
     
-    frblist = s.frbs["TNS"].values[op["ilist"]]
+    ##### only use FRBs when they have a viable p(z) distribution #####
+    OKilist = op["ilist"][op["OK"]]
+    frblist = s.frbs["TNS"].values[OKilist]
+    pzlist = pzgxrad[:,op["OK"]].T
     
     scale = wrapper.OpticalState.path.Scale
     
     path_results = on.calc_path_priors(frblist,[s],[g],[wrapper],usemodel=True,
-                                            failOK=True,doz=True,pzlist=pzgxrad.T,
+                                            failOK=True,doz=True,pzlist=pzlist,
                                             scale=scale)
-    #path_results["frblist"] = frblist
     
     # this tells us which FRBs have valid host galaxy data
-    #print(path_results["OK"])
     path_lls = sum_path_lls(pxrad,path_results)
     lltot += path_lls
     
@@ -507,7 +514,7 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,
             bad = np.where(DMobs < 0.)[0]
             nozlist = np.delete(nozlist,bad)
             DMobs = survey.DMEGs[nozlist]
-            llsum -= len(bad) * -100 #large penalty in log-likelihood if frbs have negative DM!
+            llsum -= len(bad) * 100 #large penalty in log-likelihood if frbs have negative DM!
     
     bweights = survey.frb_bweights[nozlist,:]
     wweights = survey.frb_wweights[nozlist,:]
@@ -661,7 +668,6 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,
         tomult = rates[:,zidms1]*zdkdms1 + rates[:,zidms2]*zdkdms2
         # normalise to a p(z) distribution for each FRB
         tomult /= np.sum(tomult,axis=0)
-        
     else:
         dm_weights, iweights = calc_DMG_weights(DMobs, survey.DMhalos[nozlist],
                                         survey.DMGs[nozlist], dmvals, grid.state.MW.sigmaDMG, 
@@ -678,6 +684,7 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,
     
     if PATH:
         PATH_OP["pzgdm"] = tomult # normalised p(z|DM) distribution
+        
     
     ########### Calculation of p((Tau,w)) ##############
     if ptauw:
@@ -801,13 +808,13 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,
             psnrbws = np.zeros([nb,nw,nz*nfrb]) # holds psnr_gbw * p(b,w,) for each b,w bin
             psnr_gbws = np.zeros([nb,nw,nz*nfrb]) # holds psnr given b,w for each b,w bin
             pbws = np.zeros([nb,nw,nz*nfrb]) # holds p(bw given z,dm) for each b,w, bin
-            
+        
         for i,b in enumerate(survey.beam_b):
             #iterate over the grid of weights
             bEths=Eths/b #this is the only bit that depends on j, but OK also!
             #now wbEths is the same 2D grid
             # bEobs has dimensions Nwidths * Nz * NFRB
-
+            
             bEobs=bEths*survey.Ss[nozlist] #should correctly multiply the last dimensions
             
             for j,w in enumerate(grid.eff_weights):
@@ -951,18 +958,18 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,
             
             # calcs p(width, beam)
             bad = np.where(pbw == 0.)
-            pbw[bad] = 1.e-10
+            pbw[bad] = 1.e-99
             llpbw = np.sum(np.log10(pbw))
             #llsum += llpbw
             
             # cals psnr values
             bad = np.where(psnr_gbw == 0.)
-            psnr_gbw[bad] = 1.e-10
+            psnr_gbw[bad] = 1.e-99
             llpsnr_gbw = np.sum(np.log10(psnr_gbw))
             
             # adds psnrbw values to the list
             bad = np.where(psnrbw == 0.)
-            psnrbw[bad] = 1.e-10
+            psnrbw[bad] = 1.e-99
             llpsnrbw = np.log10(psnrbw)
             llsum += np.sum(llpsnrbw) # only count this if B is known. Won't be for all FRBs
             
@@ -1058,7 +1065,7 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,
             
             # and also p(snr,b,w|dm) = \int p(z,snr,b,w|DM) dz ....(3)
             psnrbwgdm = np.sum(pzsnrbwgdm,axis=0) # sums over z-axis. #dimensions: NFRB
-        
+            
             # hence, we find from (1) that p(z|snr,b,w,DM) = p(z,snr,b,w|DM) / p(snr,b,w|DM) ...(4)
             # dimensions: NZ x NFRB
             pzgsnrbwdm = np.copy(pzsnrbwgdm)
@@ -1085,6 +1092,13 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,
         elif pdmz:
             PATH_OP["pxrad"] = PATH_OP["pdm"]
             PATH_OP["pzgxrad"] = PATH_OP["pzgdm"]
+        
+        # checks which are OK here
+        OK = np.where(PATH_OP["pxrad"] > 0.)[0]
+        PATH_OP["OK"] = OK # list of FRBs that are possible
+        
+        NZ,NFRB = PATH_OP["pzgxrad"].shape
+        
         return PATH_OP
     
     # determines which list of things to return

@@ -39,6 +39,7 @@ def main(outfile,localisation,seed):
     catalogue = pd.read_parquet("combined_HSC_DECaLs_HECATE_galaxies_hecatecut.parquet")
     
     frbs = pd.read_csv("craco_900_mc_sample.csv")
+    # scale is the offset from host centre parameter
     scale=0.5
     
     #mag_range=[17.,28]
@@ -51,8 +52,8 @@ def main(outfile,localisation,seed):
 
 
 seed=9609572
-localisation=(0.5,0.5,0.)
-#main("craco_assigned_galaxies.csv",localisation,seed)
+localisation=(1.0,1.0,0.)
+main("craco_assigned_galaxies.csv",localisation,seed)
 
 seed=1057248
 localisation=(30.,30.,0.)
