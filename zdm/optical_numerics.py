@@ -17,7 +17,7 @@ analogous to ``iteration.py`` for the zdm grid. It provides:
   and applying colour corrections to convert to r-band.
 
 - **``calculate_likelihood_statistic``** and **``calculate_ks_statistic``**
-  — goodness-of-fit statistics comparing the model apparent magnitude prior
+  goodness-of-fit statistics comparing the model apparent magnitude prior
   to the observed PATH posteriors across all FRBs.
 
 - **``make_cumulative_plots``** plotting routine for visualising
@@ -273,6 +273,13 @@ def calc_path_priors(frblist,ss=None,gs=None,wrappers=None,verbose=True,usemodel
     allpz = []
     allpf = []
     
+    # this is partially dangerous, because it assumes that all
+    # wrappers have the same AppMags. Which they probably do, but still...
+    if usemodel:
+        AppMags = wrappers[0].AppMags
+    else:
+        AppMags = None
+    
     for i,frb in enumerate(frblist):
         # interates over the FRBs. "Do FRB"
         # P_O is the prior for each galaxy
@@ -302,11 +309,6 @@ def calc_path_priors(frblist,ss=None,gs=None,wrappers=None,verbose=True,usemodel
             frbs.append(frb)
         
         nfitted += 1
-        
-        if usemodel:
-            AppMags = wrapper.AppMags
-        else:
-            AppMags = None
         
         if usemodel:
             DMEG = s.DMEGs[imatch]
