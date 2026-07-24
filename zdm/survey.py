@@ -257,7 +257,7 @@ class Survey:
             #wbins[0] = wbins[1]-dlogw # no longer tint: 1.e-10 # set to a tiny value, to ensure we capture all small widths
             # offsets the mean by half the log-spacing for each
             wlist = np.logspace(np.log10(self.WMin)+dlogw/2.,np.log10(self.WMax)-dlogw/2.,self.NWbins)
-            wbins[0] -= 3 # ensures we capture low values!
+            wbins[0] /= 1000. # ensures we capture low values!
         else:
             wbins[0] = self.WMin
             wbins[1] = self.WMax

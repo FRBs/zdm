@@ -40,6 +40,10 @@ import scipy.stats as st
 from zdm import repeat_grid as zdm_repeat_grid
 from zdm import optical_numerics as on
 
+# (negative) penalty in log-space for impossible FRBs
+PENALTY = 100
+
+
 def get_joint_path_zdm_likelihoods(g, s, wrapper, norm=True, psnr=True, Pn=False,
                                     pdmz=True, pNreps=True, ptauw=False, pwb=False,
                                     return_all=False):
@@ -159,13 +163,8 @@ def get_joint_path_zdm_likelihoods(g, s, wrapper, norm=True, psnr=True, Pn=False
         op = calc_likelihoods_1D(g, s, norm=norm, pdmz=pdmz, psnr=psnr,dolist=0, Pn=Pn,
                                     ptauw=ptauw,pwb=pwb, PATH=True)
         data["zdm_s"] = op
-        #print(op.keys())
         
-        #print("Size of zdm_s is ",print(len(op["psnrbwdm"])))
-        
-        #exit()
         lltot,path_s = get_PATH_lls(s,g,wrapper,op)
-        #print("Size of path_s[lls] is ",path_s["
         data["path_s"] = path_s
     
     
@@ -180,7 +179,8 @@ def get_joint_path_zdm_likelihoods(g, s, wrapper, norm=True, psnr=True, Pn=False
 def get_PATH_lls(s,g,wrapper,op):
     """
     Constructs a log-likelihood from the output of calc_likelihoods_1d
-    for PATH.
+    for PATH. It takes the p(xrad) from calc_likelihoods_1d, and
+    ads on values from PATH, including p(z|xrad)
     
     Args:
         s: survey object
@@ -191,6 +191,8 @@ def get_PATH_lls(s,g,wrapper,op):
     Returns:
         lltot: total log10 likelihood
     """
+    global PENALTY
+    
     # only Pn - no FRBs!
     lltot = np.log10(op["pN"])
     
@@ -215,14 +217,18 @@ def get_PATH_lls(s,g,wrapper,op):
     
     scale = wrapper.OpticalState.path.Scale
     
+    # filter for impossible FRBs. Only process optical observations where p(xrad) > 0
+    NBAD = np.where(pxrad > 0.)[0]
+    #frblist = frblist[OK]
+    
     path_results = on.calc_path_priors(frblist,[s],[g],[wrapper],usemodel=True,
                                             failOK=True,doz=True,pzlist=pzlist,
                                             scale=scale)
     
     # this tells us which FRBs have valid host galaxy data
-    path_lls = sum_path_lls(pxrad,path_results)
+    path_lls = sum_path_lls(pxrad[op["OK"]],path_results)
     lltot += path_lls
-    
+    lltot -= PENALTY * len(op["BAD"]) # give a penalty for every FRB which is impossible
     return lltot,path_results
     
         
@@ -470,6 +476,8 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,
         2: assumes the grid passed is a repeat_grid.zdm_repeat_grid object and calculates likelihood for single bursts
 
     """
+    # this contains the penalty (in negative log-likelihood) for impossible FRBs
+    global PENALTY
     
     if ptauw:
         if not survey.backproject:
@@ -507,35 +515,46 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,
     # extract extragalactic DMEGs, and appropriate bweights and w_weights
     DMobs=survey.DMEGs[nozlist]
     
+    # contains total log likelihood for all FRBs to be analysed
     llsum=0
     
+    
+    if PATH:
+        # create PATH dict
+        PATH_OP={}
+        PATH_OP["ilist"] = nozlist # record which FRBs in survey are being analysed
+        PATH_OP["BAD"] = [] # records bad FRBs from original list
+    
+    # checks to see if any FRBs have impossible DMs, and then removes them from the calculation list
+    # gives a penalty to llsum for any such FRBs
     if grid.state.MW.sigmaDMG == 0.0 and grid.state.MW.sigmaHalo == 0.0:
         if np.any(DMobs < 0):
             bad = np.where(DMobs < 0.)[0]
+            # record how many FRBs are impossible
+            if PATH:
+                for entry in bad:
+                    PATH_OP["BAD"].append(nozlist[entry])
             nozlist = np.delete(nozlist,bad)
             DMobs = survey.DMEGs[nozlist]
-            llsum -= len(bad) * 100 #large penalty in log-likelihood if frbs have negative DM!
-    
+            llsum -= len(bad) * PENALTY #large penalty in log-likelihood if frbs have negative DM!
+            
+                
+            
     bweights = survey.frb_bweights[nozlist,:]
     wweights = survey.frb_wweights[nozlist,:]
     
     dmvals=grid.dmvals
     zvals=grid.zvals
     
-    
     lllist={}
     longlist={}
     idms1,idms2,dkdms1,dkdms2 = grid.get_dm_coeffs(DMobs)
-    
-    if PATH:
-        # create PATH dict
-        PATH_OP={}
-        PATH_OP["ilist"] = nozlist # record which FRBs in survey are being analysed
     
     ####### Check to see if there is a chance of observing anything ######
     pdm=np.sum(rates,axis=0)
     
     # checks in case there is no probability of seeing anything
+    # we do not give a "penalty", we return nan
     if np.sum(pdm) == 0:
         if PATH:
             PATH_OP={}
@@ -571,9 +590,9 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,
         probN=Poisson_p(observed,expected)
         
         if Pn==0:
-            Nll=-1e10
+            Nll = -PENALTY
         else:
-            Nll=np.log10(probN)
+            Nll = np.log10(probN)
         
         lllist["pN"]=Nll
         lllist["Nexpected"]=expected
@@ -626,7 +645,10 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,
                 pvals[i]=np.sum(pdm[iweights[i]]*dm_weights[i])
         
         # sums over all FRBs for total likelihood
-        lpdm = np.sum(np.log10(pvals))-log_global_norm*DMobs.size
+        lp = np.log10(pvals)-log_global_norm
+        # individual FRB probabilities. Maybe add in the future. *maybe*!
+        # llfrblist += lp
+        lpdm = np.sum(lp)
         llsum += lpdm
     
         ### Assesses total number of FRBs ###
@@ -638,20 +660,22 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,
         dm_weights, iweights = calc_DMG_weights(DMobs, survey.DMhalos[nozlist], survey.DMGs[nozlist], dmvals, grid.state.MW.sigmaDMG, 
                                                  grid.state.MW.sigmaHalo, grid.state.MW.logu)
         pvals = np.zeros(len(idms1))
-        lpdm = -np.inf
+        lpdm = -np.inf # should not be used here I think?
         # For each FRB
         for i in range(len(idms1)):
             pvals[i]=np.sum(pdm[iweights[i]]*dm_weights[i])
+        lp = np.log10(pvals)-log_global_norm
     
     if PATH:
         PATH_OP["pdm"] = pvals/global_norm
     
     # sums over all FRBs for total likelihood
-    llsum=np.sum(np.log10(pvals))-log_global_norm*DMobs.size
+    # this should not be here. It ignores penalties for impossible FRBs
+    #llsum=np.sum(np.log10(pvals))-log_global_norm*DMobs.size
     
     # initialise dicts to return detailed log-likelihood information
     longlist["pzDM"]={}
-    longlist["pzDM"]["pdm"]=np.log10(pvals)-log_global_norm
+    longlist["pzDM"]["pdm"]=lp
     
     lllist["pzDM"]={} # pz,DM
     lllist["pzDM"]["pdm"]=lpdm
@@ -731,8 +755,8 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,
         
         bad1 = np.where(piws==0)
         bad2 = np.where(ptaus==0)
-        piws[bad1] = 1e-10
-        ptaus[bad2] = 1e-10
+        piws[bad1] = 10**-PENALTY
+        ptaus[bad2] = 10**-PENALTY
         pbars = 0.5*ptaus + 0.5*piws # take the mean of these two
         
         llptw = np.sum(np.log10(ptaus))
@@ -824,14 +848,13 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,
                 # wait - p(b,w|DM,z) is calculated using cumulative at *threshold*, while
                 # p(SNR) is calculated using cumulative at observed!
                 differential = grid.array_diff_lf(bEobs[j,:,:],Emin,Emax,gamma) * bEths[j,:,:]
-                cumulative=grid.array_cum_lf(bEths[j,:,:],Emin,Emax,gamma)
+                cumulative = grid.array_cum_lf(bEths[j,:,:],Emin,Emax,gamma)
                 
                 if zwidths:
                     usew = np.repeat(w,nfrb).reshape([nz,nfrb]) # old
                 else:
                     usew = w
                 
-                ### OLD ###
                 # this keeps track of the \sum_w,b cumulative*w*Omegab
                 dpbw = survey.beam_o[i]*usew*cumulative
                 pbw_norm += dpbw
@@ -840,7 +863,6 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,
                 if ptauw and not pwb:
                     # record probability of this w summed over all beams for each FRB
                     dpbws[j,:,:] += dpbw
-                
                 if pwb:
                     # psnr given beam, width, z,dm
                     cumulative = cumulative.flatten() # first index is [0,0], next is [0,1]
@@ -871,7 +893,7 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,
             temp *= tomult.T
             pws = np.sum(temp,axis=1) # sum in the linear domain - it's summing over p(z)
             bad = np.where(pws == 0.)[0]
-            pws[bad] = 1.e-10 # prevents nans, but penalty is a bit arbitrary.
+            pws[bad] = 10**-PENALTY # prevents nans, but penalty is a bit arbitrary.
             llpws = np.sum(np.log10(pws))
             llsum += llpws
             
@@ -958,18 +980,18 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,
             
             # calcs p(width, beam)
             bad = np.where(pbw == 0.)
-            pbw[bad] = 1.e-99
+            pbw[bad] = 10**-PENALTY
             llpbw = np.sum(np.log10(pbw))
             #llsum += llpbw
             
             # cals psnr values
             bad = np.where(psnr_gbw == 0.)
-            psnr_gbw[bad] = 1.e-99
+            psnr_gbw[bad] = 10**-PENALTY
             llpsnr_gbw = np.sum(np.log10(psnr_gbw))
             
             # adds psnrbw values to the list
             bad = np.where(psnrbw == 0.)
-            psnrbw[bad] = 1.e-99
+            psnrbw[bad] = 10**-PENALTY
             llpsnrbw = np.log10(psnrbw)
             llsum += np.sum(llpsnrbw) # only count this if B is known. Won't be for all FRBs
             
@@ -1022,9 +1044,9 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,
         bad=np.array(np.where(fpsnr == 0.))
         
         # keeps individual FRB values
-        fpsnr[bad] = 1e-100
+        fpsnr[bad] = 10**-PENALTY
         longlist["psnr"] = np.log10(fpsnr)
-        longlist["psnr"][bad] = -1e10
+        longlist["psnr"][bad] = -PENALTY
 
         snrll = np.sum(longlist["psnr"])
 
@@ -1043,7 +1065,7 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,
                 pReps = grid.calc_exact_repeater_probability(Nreps=survey.frbs["NREP"][irep],DM=survey.DMs[irep],z=None)
                 allpReps.append(float(pReps))
                 if pReps == 0:
-                    repll += -1e10
+                    repll += -PENALTY
                 else:
                     repll += np.log10(float(pReps))
         lllist["pReps"]=repll
@@ -1069,6 +1091,7 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,
             # hence, we find from (1) that p(z|snr,b,w,DM) = p(z,snr,b,w|DM) / p(snr,b,w|DM) ...(4)
             # dimensions: NZ x NFRB
             pzgsnrbwdm = np.copy(pzsnrbwgdm)
+            # prevents against nans.
             OK = np.where(psnrbwgdm>0.)[0]
             pzgsnrbwdm[:,OK] /= psnrbwgdm[OK]
             
@@ -1094,9 +1117,11 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,
             PATH_OP["pzgxrad"] = PATH_OP["pzgdm"]
         
         # checks which are OK here
-        OK = np.where(PATH_OP["pxrad"] > 0.)[0]
+        OK = np.where(PATH_OP["pxrad"] > 1.1*10**-PENALTY)[0]
+        BAD = np.where(PATH_OP["pxrad"] <= 1.1*10**-PENALTY)[0]
+        for entry in BAD:
+            PATH_OP["BAD"].append(nozlist[entry])
         PATH_OP["OK"] = OK # list of FRBs that are possible
-        
         NZ,NFRB = PATH_OP["pzgxrad"].shape
         
         return PATH_OP
@@ -1768,9 +1793,9 @@ def calc_likelihoods_2D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,p
         # else:
         #     snrll = np.sum(np.log10(psnr))
         
-        psnr[bad] = 1e-100
+        psnr[bad] = 10**-PENALTY
         longlist["psnr"] = np.log10(psnr)
-        longlist["psnr"][bad] = -1e10
+        longlist["psnr"][bad] = -PENALTY
 
         snrll = np.sum(longlist["psnr"])
         
@@ -1976,6 +2001,8 @@ def GetFirstConstantEstimate(grids,surveys,pset):
 
 
 def minus_poisson_ps(log10C,data):
+    
+    global PENALTY
     rs=data[0,:]
     os=data[1,:]
     # chages rs by the log-constant
@@ -1985,7 +2012,7 @@ def minus_poisson_ps(log10C,data):
     for i,r in enumerate(rsp):
         Pn=Poisson_p(os[i],r)
         if (Pn == 0):
-            lp = -1000
+            lp = -PENALTY
         else:
             lp += np.log10(Pn)
     return -lp

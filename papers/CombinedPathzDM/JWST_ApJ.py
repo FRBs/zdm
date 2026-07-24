@@ -43,7 +43,7 @@ matplotlib.rc('font', **font)
 def main():
     
     # p-values for confidence intervals
-    pvalues=np.array([0.6827,0.90,0.9545,0.9973])
+    pvalues=np.array([0.001, 0.6827,0.90,0.9545,0.9973])
     
     # set op directory
     opdir="20210912A/"
