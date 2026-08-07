@@ -87,7 +87,13 @@ def main():
     state.set_astropy_cosmo(Planck18)
     state.update_params(mcmc_dict["config"])
 
+    if args.ptauw:
+        state.scat.Sbackproject = True
+        state.width.Wmethod = 3
+
     print("Config: ", mcmc_dict["config"])
+    if args.ptauw:
+        print("ptauw initialisation: Sbackproject=True, Wmethod=3")
 
     print('Pn:', args.Pn)
     print('psnr:', args.psnr)
@@ -111,7 +117,7 @@ def main():
     g0info = [zDMgrid,zvals,dmvals]
     
     # set z-dependent weights in surveys
-    if ('Wlogmean' in params or 'Wlogsigma' in params or \
+    if (args.ptauw or 'Wlogmean' in params or 'Wlogsigma' in params or \
                     'Slogmean'  in params or 'Slogsigma' in params):
         survey_dict = {"WMETHOD": 3}
     else:
