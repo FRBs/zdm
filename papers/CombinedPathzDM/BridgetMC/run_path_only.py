@@ -244,9 +244,11 @@ main("m14cut_hosts_1000.csv","w_m14cut_hosts_1000.csv",1000,frbfile,hostfile,
         CUT=False,fprefix="",cprefix="",surveyfile="confidant_short_fake_CRACO_900")
 
 # generates DSA-like hosts, but choosing only confidant host candidates, and making a survey file from them
-main("DSA_like_hosts_1000.csv","w_DSA_like_hosts_1000.csv",1000,frbfile,hostfile,True,fprefix="",cprefix="",surveyfile="confidant_short_fake_DSAlike")
-exit()
+main("DSA_like_hosts_1000.csv","w_DSA_like_hosts_1000.csv",1000,frbfile,hostfile,
+        True,fprefix="",cprefix="",surveyfile="confidant_short_fake_DSAlike")
+
 # repeats this for the sample assumed to have 30" localisations
 hostfile = "loc30_craco_assigned_galaxies.csv"
 frbfile = "craco_900_mc_sample.csv"
-main("loc30_m14cut_hosts_1000.csv","loc30_w_m14cut_hosts_1000.csv",1000,frbfile,hostfile,False,prefix="loc30")
+main("loc30_m14cut_hosts_1000.csv","loc30_w_m14cut_hosts_1000.csv",1000,
+            frbfile,hostfile,False,fprefix="loc30",cprefix="loc30")

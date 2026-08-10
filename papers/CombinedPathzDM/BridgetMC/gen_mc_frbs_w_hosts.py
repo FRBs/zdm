@@ -6,6 +6,7 @@ from zdm import survey_data as sd
 from zdm import optical as opt
 from zdm import optical_params as op
 from zdm import figures
+from zdm import misc_functions as mf
 
 import matplotlib.pyplot as plt
 
@@ -85,14 +86,13 @@ def main(prefix=""):
         frbs = gen_mc_frbs(g,NMC)
         
         # adds m_r values to the FRBs
-        gen_hosts(g,frbs,fsfr=1.5)
-    
+        gen_hosts(g,frbs,opdir,fsfr=1.5)
+        
         frbs.to_csv(savefile,index=False)
     
     # makes scatter plots of generated FRBs
     make_scatter_plots(frbs,opdir)
     
-    exit()
     # Do the below for tests, typically using 100,000 FRBs at least.
     # I did this once for N=1,000,000. It works!
     compare_rates(g,frbs,opdir,downsample=10)
@@ -273,7 +273,7 @@ def compare_rates(g,frbs,opdir,downsample=10):
             other_alevels=[[1.]],othernames=["",""],cmap="bwr",clim=[-3,3])
     
     
-def gen_hosts(g,frbs,fsfr=1.5):
+def gen_hosts(g,frbs,opdir,fsfr=1.5):
     """
     Generate absolute and apparent magnitudes for FRB hosts
     
@@ -286,6 +286,25 @@ def gen_hosts(g,frbs,fsfr=1.5):
     model = opt.loudas_model(opstate)
     wrapper = opt.model_wrapper(model,g.zvals)
     mrs = wrapper.gen_mc_mr(np.array(frbs["z"]))
+    pms = 0.
+    for i, z in enumerate(frbs["z"]):
+        pm = wrapper.get_pm_g_z(z)
+        pms += pm
+    
+    cpms = np.cumsum(pms)
+    cpms /= cpms[-1]
+    
+    plt.figure()
+    plt.plot(wrapper.AppMags,cpms,label="expected")
+    mx,my = mf.make_cum_dist(mrs)
+    plt.plot(mx,my,label="generated")
+    plt.xlabel("$m_r$")
+    plt.ylabel("cdf($m_r$)")
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(opdir+"/magnitude_comparison.png")
+    plt.close()
+    
     frbs["m_r"] = mrs
     
     frbs["M_r"] = opt.SimpleAbsoluteMags(frbs["m_r"],frbs["z"])

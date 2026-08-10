@@ -976,7 +976,6 @@ class model_wrapper:
             self.pU_arg2 = self.OpticalState.id.pU_max
         
         
-        
         # specific substate of the model
         self.opstate = model.opstate
         
@@ -1064,36 +1063,7 @@ class model_wrapper:
             mr: apparent host magnitudes
         
         """
-        nmc = zvals.size
-        
-        # get coefficients for redshift
-        kvals = (zvals-self.zmin)/self.dz
-        i1s = kvals.astype('int')
-        i2s = i1s +1
-        k2s = kvals - i1s
-        k1s = 1.-k2s
-        
-        # protection against high or low values
-        # in principle, should never happen - this is an edge case
-        toolow = np.where(i1s < 0)[0]
-        if len(toolow) > 0:
-            print("WARNING: zvalues ",zvals[toolow]," are too low. Rounding up...")
-            i1s[toolow] = 0
-            i2s[toolow] = 1
-            k1s[toolow] = 1.
-            k2s[toolow] = 0.
-        toohigh = np.where(i2s >= self.nz)[0]
-        if len(toohigh > 0):
-            print("WARNING: zvalues ",zvals[toohigh]," are too high. Rounding down...")
-            i1s[toohigh] = -2
-            i2s[toolow] = -1
-            k1s[toolow] = 0.
-            k2s[toolow] = 1.
-            
-        # generatew cumulative distributions
-        pzs = self.p_mr_z[:,i1s]*k1s + self.p_mr_z[:,i2s]*k2s
-        pzs = np.cumsum(pzs,axis=0)
-        pzs /= pzs[-1,:]
+        nmc = len(zvals)
         
         # randomly generate m_r
         probs = np.random.rand(nmc)
@@ -1102,7 +1072,14 @@ class model_wrapper:
         mrs = np.zeros([nmc])
         for i,p in enumerate(probs):
             # because the cumulative sum begins at zero at the left-hand bins
-            temp[1:] = pzs[:,i]
+            # pzs is the probability *in* the bin - hence, the cumulative
+            # value applies at the right-hand-side
+            
+            pmz = self.get_pm_g_z(zvals[i])
+            cpmz = np.cumsum(pmz)
+            cpmz /= cpmz[-1]
+            temp[1:] = cpmz
+            # interpolates magnitude
             mag = np.interp(p,temp,self.AppBins)
             mrs[i] = mag
             
