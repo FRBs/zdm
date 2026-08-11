@@ -51,12 +51,42 @@ from zdm import cosmology as cos
 from zdm import misc_functions as mf
 from zdm import repeat_grid
 import os
+import cProfile
 
 from zdm import optical_numerics as on
 from zdm import optical as opt
 from zdm import optical_params as op
 #==============================================================================
 
+PROFILED_PID = None
+
+def profiled_calc_log_posterior(param_vals, state, params, surveys_sep, Pn=False, Pns=False, Pnr=False,
+                pNreps=True, psnr=True, ptauw=False, pwb=False,
+                log_halo=False, lin_host=False, ind_surveys=False, g0info=None, nz=500, ndm=1400,
+                zmax=5.,dmmax=7000.,
+                dopath=False, opstate=None, opt_params=None, opt_model=None):
+    
+    global PROFILED_PID
+    pid = os.getpid()
+
+    # If we haven't chosen a worker yet, choose this one
+    if PROFILED_PID is None:
+        PROFILED_PID = pid
+
+    if pid == PROFILED_PID:
+        profiler_output = f"worker_{pid}.prof"
+        return cProfile.runctx(
+            "calc_log_posterior(param_vals, state, params, surveys_sep, Pn, Pns, Pnr, "
+            "pNreps, psnr, ptauw, pwb, log_halo, lin_host, ind_surveys, g0info, nz, ndm, zmax,dmmax, "
+            "dopath, opstate, opt_params, opt_model)", 
+            globals(), 
+            locals(), 
+            profiler_output
+        )
+    else:
+        return calc_log_posterior(param_vals, state, params, surveys_sep, Pn, Pns, Pnr, 
+                pNreps, psnr, ptauw, pwb, log_halo, lin_host, ind_surveys, g0info, nz, ndm, zmax,dmmax,
+                dopath, opstate, opt_params, opt_model)
 
 def calc_log_posterior(param_vals, state, params, surveys_sep, Pn=False, Pns=False, Pnr=False,
                 pNreps=True, psnr=True, ptauw=False, pwb=False,
@@ -205,9 +235,9 @@ def calc_log_posterior(param_vals, state, params, surveys_sep, Pn=False, Pns=Fal
             # it doesn't need to be associated with a given FRB survey, or grid
         
         # holds expected rates and observed rates. We calculate these likelihoods later
-        # so we don';t have tohold all the grids in memory
+        # so we don't have tohold all the grids in memory
         rs = []
-        os = []
+        obs = []
         
         
         # Recreate grids every time, but not surveys, so must update survey params
@@ -236,7 +266,7 @@ def calc_log_posterior(param_vals, state, params, surveys_sep, Pn=False, Pns=Fal
                 g = grids[0]
                 if s.TOBS is not None and (Pn or Pns):
                     rs.append(np.sum(g.get_rates())*s.TOBS)
-                    os.append(s.NORM_FRB)
+                    obs.append(s.NORM_FRB)
             else:
                 # generates repeating zdm grid
                 grids = mf.initialise_grids([s], zDMgrid, zvals, dmvals, state, wdist=True, repeaters=True)
@@ -246,8 +276,8 @@ def calc_log_posterior(param_vals, state, params, surveys_sep, Pn=False, Pns=Fal
                 if Pn or Pnr:
                     rs.append(np.sum(g.get_exact_singles()))
                     rs.append(np.sum(g.get_exact_reps()))
-                    os.append(s.NORM_SINGLES)
-                    os.append(s.NORM_REPS)
+                    obs.append(s.NORM_SINGLES)
+                    obs.append(s.NORM_REPS)
             
             if dopath:
                 w = opt.model_wrapper(opt_model,g.zvals)
@@ -267,12 +297,12 @@ def calc_log_posterior(param_vals, state, params, surveys_sep, Pn=False, Pns=Fal
         
         
         # Minimse the constant accross all surveys
-        if (Pn or Pns or Pnr) and (len(os) > 0):
+        if (Pn or Pns or Pnr) and (len(obs) > 0):
             # dC is change in log constant from current number
             # llc is log probability
-            os = np.array(os)
+            obs = np.array(obs)
             rs = np.array(rs)
-            dC, llC = it.minimise_const_only2(os,rs)
+            dC, llC = it.minimise_const_only2(obs,rs)
             llsum += llC # adds Pn to llsum
 
     if np.isnan(llsum):

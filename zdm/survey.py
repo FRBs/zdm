@@ -140,7 +140,7 @@ class Survey:
         
         self.init_beam(method=beam_method, plot=False, 
                        thresh=beam_thresh) # tells the survey to use the beam file
-        
+
         # perform all state-based initialisations here
         # The sole exception is the analysis-dependent variables, which are required for
         # process_survey_file
@@ -164,17 +164,14 @@ class Survey:
         
         self.init_DMEG(state.MW.DMhalo, state.MW.halo_method)
         
-        # Zs
-        self.init_zs() # This should be redone every time DMhalo is changed IF we use a flat cutoff on DMEG
-        
+        self.init_zs()
+
         # initialise scattering/width and resulting efficiences
         self.init_widths()
         self.calc_max_dm()
         
         self.init_frb_bvals() #initial;ise weights for FRBs with known beam values
         self.init_frb_wvals()
-        
-        self.calc_max_dm()
         
     def init_widths(self,state=None):
         """
