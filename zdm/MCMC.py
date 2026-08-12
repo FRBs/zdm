@@ -279,6 +279,8 @@ def calc_log_posterior(param_vals, state, params, surveys_sep, Pn=False, Pns=Fal
                     obs.append(s.NORM_SINGLES)
                     obs.append(s.NORM_REPS)
             
+            
+            
             if dopath:
                 w = opt.model_wrapper(opt_model,g.zvals)
             
@@ -288,13 +290,35 @@ def calc_log_posterior(param_vals, state, params, surveys_sep, Pn=False, Pns=Fal
                                                         return_all=True)
             else:
                 ll = it.get_log_likelihood(g,s,Pn=False,pNreps=pNreps,psnr=psnr,ptauw=ptauw,pwb=pwb)
-            # write state and resulting likelihood for later tests
-            # generate prefix filename to allow files to be match
+            
+            
+            debug=False
+            if debug:
+                # write state and resulting likelihood for later tests
+                # generate prefix filename to allow files to be match
+                rand = np.random.randint(low=0,high=999999999)
+                statefile="Debug/"+str(rand)+".json"
+                state.write(statefile)
+                # now also write likelihood info
+                lfile = "Debug/"+str(rand)+".dat"
+                with open(lfile,'w') as out:
+                    out.write(str(ll))
+                
+                # writes optical state
+                if opstate is not None:
+                    pathfile="Debug/path_"+str(rand)+".json"
+                    opstate.write(pathfile)
             
             llsum += ll
             if ind_surveys:
                 ll_list.append(ll)
         
+        # keep this text here for debug purposes. use it to save states,
+        # which can then be loaded to allow likelihood tests
+        # generate a random number. This is because there is no way to order or label internal MCMC
+        # states. So just generated a random number, and hope for no double-ups
+        
+        # state.write
         
         # Minimse the constant accross all surveys
         if (Pn or Pns or Pnr) and (len(obs) > 0):
@@ -404,6 +428,11 @@ def mcmc_runner(logpf, outfile, state, params, surveys, nwalkers=10, nsteps=100,
     if ('Wlogmean' in keys or 'Wlogsigma' in keys or \
         'Slogmean'  in keys or 'Slogsigma' in keys):
         state.scat.Sbackproject = True
+    
+    # initialises cosmology. This is redundant if H0 is in the MCMC params, but it's safest to get
+    # it done here
+    cos.set_cosmology(state)
+    cos.init_dist_measures()
     
     with Pool(processes=cpus) as pool: # could add mp.Pool(ntrheads=5) or Pool = None
         sampler = emcee.EnsembleSampler(nwalkers, ndim, logpf,

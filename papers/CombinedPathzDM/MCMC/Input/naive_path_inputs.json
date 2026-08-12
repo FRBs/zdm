@@ -12,7 +12,13 @@
         "NModelBins": 10,
         "Absmin": -25.0,
         "Absmax": -15.0,
-        "AppModelID": 1
+        "AppModelID": 1,
+        "AbsPriorMeth": 1
+    },
+    "k": {
+        "DC": "simple",
+        "min": -3.0,
+        "max": 3.0
     },
     "SPv1": {
         "DC": "simple",

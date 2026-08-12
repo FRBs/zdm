@@ -49,7 +49,7 @@ class SimpleParams(data_class.myDataClass):
                   })
     AbsPriorMeth: int = field( 
         default=0, 
-        metadata={'help': "Model for abs mag prior and function description. 0: uniform distribution. Others to be implemented.",
+        metadata={'help': "Model for abs mag prior and function description. 0: uniform distribution. 1: use SPvalues. Others to be implemented.",
                   'unit': '', 
                   'Notation': '',
                   })
@@ -75,61 +75,61 @@ class SimpleParams(data_class.myDataClass):
         default=0.1, 
         metadata={'help': "First value of absolute magnitude parameterisation",
                   'unit': '', 
-                  'Notation': 'k',
+                  'Notation': 'x_1',
                   })
     SPv2: float = field( 
         default=0.1, 
         metadata={'help': "Second value of absolute magnitude parameterisation",
                   'unit': '', 
-                  'Notation': 'k',
+                  'Notation': 'x_2',
                   })
     SPv3: float = field( 
         default=0.1, 
         metadata={'help': "Third value of absolute magnitude parameterisation",
                   'unit': '', 
-                  'Notation': 'k',
+                  'Notation': 'x_3',
                   })
     SPv4: float = field( 
         default=0.1, 
         metadata={'help': "Fourth value of absolute magnitude parameterisation",
                   'unit': '', 
-                  'Notation': 'k',
+                  'Notation': 'x_4',
                   })
     SPv5: float = field( 
         default=0.1, 
         metadata={'help': "Fifth value of absolute magnitude parameterisation",
                   'unit': '', 
-                  'Notation': 'k',
+                  'Notation': 'x_5',
                   })
     SPv6: float = field( 
         default=0.1, 
         metadata={'help': "Sixth value of absolute magnitude parameterisation",
                   'unit': '', 
-                  'Notation': 'k',
+                  'Notation': 'x_6',
                   })
     SPv7: float = field( 
         default=0.1, 
         metadata={'help': "Seventh value of absolute magnitude parameterisation",
                   'unit': '', 
-                  'Notation': 'k',
+                  'Notation': 'x_7',
                   })
     SPv8: float = field( 
         default=0.1, 
         metadata={'help': "Eighth value of absolute magnitude parameterisation",
                   'unit': '', 
-                  'Notation': 'k',
+                  'Notation': 'x_8',
                   })
     SPv9: float = field( 
         default=0.1, 
         metadata={'help': "Ninth value of absolute magnitude parameterisation",
                   'unit': '', 
-                  'Notation': 'k',
+                  'Notation': 'x_9',
                   })
     SPv10: float = field( 
         default=0.1, 
         metadata={'help': "Tenth value of absolute magnitude parameterisation",
                   'unit': '', 
-                  'Notation': 'k',
+                  'Notation': 'x_{10}',
                   })
 
 
@@ -141,7 +141,7 @@ class LoudasParams(data_class.myDataClass):
     FRBs as some fraction of the star-formation rate.
     """
     fSFR: float = field( 
-        default=0.5, 
+        default=3, 
         metadata={'help': "Fraction of FRBs associated with star-formation", 
                   'unit': '', 
                   'Notation': '',

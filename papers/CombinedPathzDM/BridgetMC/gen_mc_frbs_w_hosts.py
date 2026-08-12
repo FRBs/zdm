@@ -6,6 +6,7 @@ from zdm import survey_data as sd
 from zdm import optical as opt
 from zdm import optical_params as op
 from zdm import figures
+from zdm import misc_functions as mf
 
 import matplotlib.pyplot as plt
 
@@ -13,7 +14,6 @@ import numpy as np
 import pandas as pd
 import pickle
 from frb.dm import igm
-
 
 import matplotlib
 
@@ -24,7 +24,7 @@ font = {'family' : 'Helvetica',
         'size'   : defaultsize}
 matplotlib.rc('font', **font)
 
-def main():
+def main(prefix=""):
     """
     Generates a Monte Carlo sample of FRB properties, including host properties
     
@@ -43,8 +43,7 @@ def main():
     state.MW.sigmaDM=0.
     state.energy.lEmin = 30
     
-    
-    # default value of fsfr is 0.5!!!
+    # default value of fsfr is 0.5!!! Change it to 1.5
     
     #survey_state = sd.SurveyData()
     #survey_state.telescope.NBINS = 30
@@ -53,17 +52,17 @@ def main():
     
     # generate or load surveys and grids as appropriate
     
-    pklfile = 'survey_and_grid.pkl'
+    pklname = 'survey_and_grid.pkl'
     
-    if os.path.exists(pklfile):
-        with open('survey_and_grid.pkl', 'rb') as pklfile:
+    if os.path.exists(pklname):
+        with open(pklname, 'rb') as pklfile:
             surveys = pickle.load(pklfile)
             grids = pickle.load(pklfile)
     else:
         surveys, grids = loading.surveys_and_grids(survey_names = [name],repeaters=False,
                                                 init_state=state,survey_dict = survey_dict)
         
-        with open('survey_and_grid.pkl', 'ab') as pklfile:
+        with open(pklname, 'ab') as pklfile:
             pickle.dump(surveys, pklfile)
             pickle.dump(grids, pklfile)
     
@@ -78,8 +77,8 @@ def main():
     #savefile="1M_craco_900_mc_sample.csv"
     
     # standard run. Only 1000 get used in MCMC
-    NMC = 10000
-    savefile="craco_900_mc_sample.csv"
+    NMC = 1000
+    savefile=prefix+"craco_900_mc_sample.csv"
     
     if os.path.exists(savefile):
         frbs = pd.read_csv(savefile)
@@ -87,17 +86,21 @@ def main():
         frbs = gen_mc_frbs(g,NMC)
         
         # adds m_r values to the FRBs
-        gen_hosts(g,frbs)
-    
+        gen_hosts(g,frbs,opdir,fsfr=1.5)
+        
         frbs.to_csv(savefile,index=False)
     
+    # makes scatter plots of generated FRBs
+    make_scatter_plots(frbs,opdir)
+    
+    # Do the below for tests, typically using 100,000 FRBs at least.
     # I did this once for N=1,000,000. It works!
     compare_rates(g,frbs,opdir,downsample=10)
     
     # loads fake survey according to 
     compare_b_w_dists(g,s,frbs,opdir)
     
-    make_scatter_plots(frbs,opdir)
+    
     
 def compare_b_w_dists(g,s,frbs,opdir):
     """
@@ -270,7 +273,7 @@ def compare_rates(g,frbs,opdir,downsample=10):
             other_alevels=[[1.]],othernames=["",""],cmap="bwr",clim=[-3,3])
     
     
-def gen_hosts(g,frbs):
+def gen_hosts(g,frbs,opdir,fsfr=1.5):
     """
     Generate absolute and apparent magnitudes for FRB hosts
     
@@ -279,9 +282,29 @@ def gen_hosts(g,frbs):
                                 frb["z"] redshifts
     """
     opstate = op.OpticalState()
+    opstate.loudas.fSFR=fsfr
     model = opt.loudas_model(opstate)
     wrapper = opt.model_wrapper(model,g.zvals)
     mrs = wrapper.gen_mc_mr(np.array(frbs["z"]))
+    pms = 0.
+    for i, z in enumerate(frbs["z"]):
+        pm = wrapper.get_pm_g_z(z)
+        pms += pm
+    
+    cpms = np.cumsum(pms)
+    cpms /= cpms[-1]
+    
+    plt.figure()
+    plt.plot(wrapper.AppMags,cpms,label="expected")
+    mx,my = mf.make_cum_dist(mrs)
+    plt.plot(mx,my,label="generated")
+    plt.xlabel("$m_r$")
+    plt.ylabel("cdf($m_r$)")
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(opdir+"/magnitude_comparison.png")
+    plt.close()
+    
     frbs["m_r"] = mrs
     
     frbs["M_r"] = opt.SimpleAbsoluteMags(frbs["m_r"],frbs["z"])
@@ -365,7 +388,7 @@ def make_scatter_plots(frbs,opdir):
 
     ## does a fit ####
     slope,intercept = np.polyfit(bcs, lh, 1)
-    print("Fit slope was ",slope)
+    #print("Fit slope was ",slope)
     fitted = intercept+slope*bcs
     plt.plot(bcs,fitted-fitted[0],label="fit: slope = "+str(slope)[0:5])
     
@@ -388,4 +411,5 @@ def make_scatter_plots(frbs,opdir):
     plt.savefig(opdir+"snr_histogram.png")
     plt.close()
 
-main()
+prefix=""
+main(prefix)

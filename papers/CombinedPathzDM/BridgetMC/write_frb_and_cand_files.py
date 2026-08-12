@@ -107,6 +107,7 @@ def main(frbfile,hostfile,FRBPath,CandPath,search_radius_arcmin):
         deviates = np.random.rand(Nhosts)
         pUs = np.interp(hosts["mag"],magnitudes,pU)
     else:
+        # hard-coded cuts, to match actual parquet file
         MinMag = 14.
         MaxMag = 22.
     
@@ -216,8 +217,15 @@ hostfile = "craco_assigned_galaxies.csv"
 FRBPath = "FRBFiles/"
 CandPath = "CandidateFiles/"
 search_radius_arcmin=0.167
-#main(frbfile,hostfile,FRBPath,CandPath,search_radius_arcmin)
+main(frbfile,hostfile,FRBPath,CandPath,search_radius_arcmin)
 
+# creates new candidate files, with more candidates from a broader region
+frbfile = "craco_900_mc_sample.csv"
+hostfile = "craco_assigned_galaxies.csv"
+FRBPath = "FRBFiles/"
+CandPath = "wx6CandidateFiles/"
+search_radius_arcmin=1.0
+main(frbfile,hostfile,FRBPath,CandPath,search_radius_arcmin)
 
 frbfile = "craco_900_mc_sample.csv"
 hostfile = "loc30_craco_assigned_galaxies.csv"

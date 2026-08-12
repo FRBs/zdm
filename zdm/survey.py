@@ -161,7 +161,6 @@ class Survey:
         self.init_halo_coeffs()
         if self.rand_DMG:
             self.randomise_DMG(state.MW.sigmaDMG)
-        
         self.init_DMEG(state.MW.DMhalo, state.MW.halo_method)
         
         self.init_zs()
@@ -169,6 +168,7 @@ class Survey:
         # initialise scattering/width and resulting efficiences
         self.init_widths()
         self.calc_max_dm()
+        
         
         self.init_frb_bvals() #initial;ise weights for FRBs with known beam values
         self.init_frb_wvals()
@@ -254,7 +254,7 @@ class Survey:
             #wbins[0] = wbins[1]-dlogw # no longer tint: 1.e-10 # set to a tiny value, to ensure we capture all small widths
             # offsets the mean by half the log-spacing for each
             wlist = np.logspace(np.log10(self.WMin)+dlogw/2.,np.log10(self.WMax)-dlogw/2.,self.NWbins)
-            wbins[0] -= 3 # ensures we capture low values!
+            wbins[0] /= 1000. # ensures we capture low values!
         else:
             wbins[0] = self.WMin
             wbins[1] = self.WMax
@@ -316,10 +316,9 @@ class Survey:
 
         # Should contain DM in the first row and efficiencies in the second row
         sensitivity_array = np.load(filename)
-        if self.DMGs is not None:
-            effective_vals = self.dmvals + self.state.MW.DMhalo + np.median(self.DMGs)
-        else:
-            effective_vals = self.dmvals + self.state.MW.DMhalo + 30
+        
+        effective_vals = self.dmvals + self.state.MW.DMhalo + self.meta["DMG"]
+        
         dm_mask = np.interp(effective_vals, sensitivity_array[0,:], sensitivity_array[1,:], left=1.,right=0)
         self.dm_mask = dm_mask
     
@@ -578,6 +577,14 @@ class Survey:
             bvals (optional): artifical values of b to insert
         """
         
+        if self.NFRB == 0:
+            self.frb_bweights = None
+            self.OKB = []
+            # speedups when iterating through 1D and 2D likelihoods
+            self.frb_zbweights = None
+            self.frb_nozbweights = None
+            return
+        
         # by default, uses own b values, but can return data from
         # external sources
         if bvals is None:
@@ -590,7 +597,6 @@ class Survey:
         
         # initialise array to determine if the B-values are OK
         OKB = np.zeros([len(bvals)])
-        
         
         
         for i,B in enumerate(bvals):
@@ -630,8 +636,11 @@ class Survey:
         
         This is for a slightly different purpose than the init widths routine
         """
-        
-        
+        if self.NFRB == 0:
+            self.frb_wweights = None
+            self.frb_zwweights = None
+            self.frb_nozwweights = None
+            return
         #wlist = survey.WIDTHs # measured total widths
         nw = self.wlist.size
         frb_wweights = np.zeros([self.NFRB,nw])
@@ -718,9 +727,13 @@ class Survey:
     def init_DMEG(self,DMhalo,halo_method=0):
         """ Calculates extragalactic DMs assuming halo DM """
         self.DMhalo=DMhalo
-        self.process_dmhalo(halo_method)
-        self.DMEGs=self.DMs-self.DMGs - self.DMhalos
-    
+        if self.NFRB > 0:
+            self.process_dmhalo(halo_method)
+            self.DMEGs=self.DMs-self.DMGs - self.DMhalos
+        else:
+            self.DMhalo = self.state.MW.DMhalo
+            self.DMEGs=[]
+            
     def process_dmhalo(self, halo_method):
         """
         Calculates directionally dependent DMhalo from Yamasaki and Totani 2020 
@@ -839,7 +852,7 @@ class Survey:
             self.ignored_Zlist = []
 
         # Pandas resolves None to Nan
-        if len(self.frbs["Z"])>0:
+        if self.NFRB > 0: #len(self.frbs["Z"])>0:
             
             self.Zs=np.array(self.frbs["Z"].values).astype('float')
             # checks for any redhsifts identically equal to zero
@@ -866,7 +879,7 @@ class Survey:
         else:
             self.nD=1
             self.Zs=None
-            self.nozlist=np.arange(self.NFRB)
+            self.nozlist=None #np.arange(self.NFRB)
             self.zlist=None
         
     def init_zs_reps(self):
@@ -986,7 +999,7 @@ class Survey:
                 value = getattr(self.survey_data[DC],key)
                 if value == getattr(default_telescope,key):
                     # using default value - check if the FRBs have this
-                    if key in frb_tbl.columns:
+                    if key in frb_tbl.columns and len(frb_tbl) > 0:
                         value = np.mean(frb_tbl[key])
                 self.meta[key] = value
             else:
@@ -1032,7 +1045,10 @@ class Survey:
             # Not sure the following linematters given the Error above
             themax = max(NFRB+iFRB,self.NFRB)
             self.frbs=self.frbs[iFRB:themax]
-        
+        else:
+            self.NFRB = len(self.frbs)
+            if self.NFRB is None:
+                self.NFRB = 0
         # fills in missing coordinates if possible
         # also converts RA and Dec strings to floats
         self.fix_coordinates(verbose=False)
@@ -1053,10 +1069,12 @@ class Survey:
             print("Using maximum DMG of " + str(dmg_cut) + ". Excluding " + str(tot - included) + " FRBs")
 
         # Get new number of FRBs
-        self.NFRB = len(self.frbs)
+        if self.NFRB > 0:
+            self.NFRB = len(self.frbs)
         
-        # Vet
-        vet_frb_table(self.frbs, mandatory=True)
+        # Vet FRB values
+        if self.NFRB > 0:
+            vet_frb_table(self.frbs, mandatory=True)
         
         print("Loaded FRB info")
         
@@ -1070,58 +1088,87 @@ class Survey:
             for key in keylist:
                 if not key in self.meta:
                     self.meta[key] = np.median(self.frbs[key])
+        else:
+            default_frb = survey_data.FRB()
+            keylist = ['SNRTHRESH','THRESH','BW','FBAR','FRES','TRES','WIDTH','DMG']
+            for key in keylist:
+                if not key in self.meta:
+                    self.meta[key] = default_frb[key]
+                    
         # over-rides survey data if applicable
         if survey_dict is not None:
             for key in survey_dict:
                 self.meta[key] = survey_dict[key]
                 print(self.meta[key], "overidden by ",survey_dict[key])
-        ### processes galactic contributions
-        self.process_dmg()
         
-        ### get pointers to correct results ,for better access
-        self.DMs=self.frbs['DM'].values
-        self.DMGs=self.frbs['DMG'].values
-        self.SNRs=self.frbs['SNR'].values
-        self.WIDTHs=self.frbs['WIDTH'].values
-        self.WCODEs=self.frbs['WCODE'].values
-        self.TRESs=self.frbs['TRES'].values
-        self.FRESs=self.frbs['FRES'].values
-        self.FBARs=self.frbs['FBAR'].values
-        self.BWs=self.frbs['BW'].values
-        self.THRESHs=self.frbs['THRESH'].values
-        self.SNRTHRESHs=self.frbs['SNRTHRESH'].values
-        self.Ss=self.SNRs/self.SNRTHRESHs
+        if self.NFRB > 0:
+            ### processes galactic contributions
+            self.process_dmg()
+
+            ### get pointers to correct results ,for better access
+            self.DMs=self.frbs['DM'].values
+            self.DMGs=self.frbs['DMG'].values
+            self.SNRs=self.frbs['SNR'].values
+            self.WIDTHs=self.frbs['WIDTH'].values
+            self.WCODEs=self.frbs['WCODE'].values
+            self.TRESs=self.frbs['TRES'].values
+            self.FRESs=self.frbs['FRES'].values
+            self.FBARs=self.frbs['FBAR'].values
+            self.BWs=self.frbs['BW'].values
+            self.THRESHs=self.frbs['THRESH'].values
+            self.SNRTHRESHs=self.frbs['SNRTHRESH'].values
+            self.Ss=self.SNRs/self.SNRTHRESHs
+            self.Gbs=self.frbs['Gb'].values
+            self.Gls=self.frbs['Gl'].values
+
+            # calculates intrinsic widths
+            # Uses the model of James et al 2025
+            # assumes we have S/N maximising widths
+            # if scattering dominates total width, expect tau = 0.816 w
+            tscale = 1.225 # scale scattering time to total width at +- 1 sigma
+
+            TEMP = self.frbs['WIDTH'].values**2 - (tscale*self.frbs['TAU'].values)**2
+            self.OKTAU = np.where(self.frbs['TAU'].values != -1.)[0] # code for non-existent
+            toolow = np.where(TEMP <= 0.)
+            TEMP[toolow] = 0.01*self.frbs['TAU'].values[toolow]**2 # 10% of scattering width
+            iwidths = TEMP**0.5 # scale to SNR max width assuming Gaussian shape
+            self.IWIDTHs = iwidths
+            self.TAUs = self.frbs['TAU'].values
+            # checks for incorrectSNR values
+            toolow = np.where(self.Ss < 1.)[0]
+            if len(toolow) > 0:
+                raise ValueError("FRBs ",toolow," have SNR < SNRTHRESH!!! Please correct this. Exiting...")
+
+            # ensure all widths are intrinsic + scattering, but exclude DM smearing
+            self.adjust_widths()
+        else:
+            self.DMs=[]
+            self.DMGs=[]
+            self.SNRs=[]
+            self.WIDTHs=[]
+            self.WCODEs=[]
+            self.TRESs=[]
+            self.FRESs=[]
+            self.FBARs=[]
+            self.BWs=[]
+            self.THRESHs=[]
+            self.SNRTHRESHs=[]
+            self.Ss=[]
+            self.Gbs=[]
+            self.Gls=[]
+            self.OKTAU=[]
+            self.IWIDTHS=[]
+            self.TAUs=[]
+        
         self.TOBS=self.meta['TOBS']
         self.NORM_FRB=self.meta['NORM_FRB']
-        self.Gbs=self.frbs['Gb'].values
-        self.Gls=self.frbs['Gl'].values
         
-        # calculates intrinsic widths
-        # Uses the model of James et al 2025
-        # assumes we have S/N maximising widths
-        # if scattering dominates total width, expect tau = 0.816 w
-        tscale = 1.225 # scale scattering time to total width at +- 1 sigma
-        
-        TEMP = self.frbs['WIDTH'].values**2 - (tscale*self.frbs['TAU'].values)**2
-        self.OKTAU = np.where(self.frbs['TAU'].values != -1.)[0] # code for non-existent
-        toolow = np.where(TEMP <= 0.)
-        TEMP[toolow] = 0.01*self.frbs['TAU'].values[toolow]**2 # 10% of scattering width
-        iwidths = TEMP**0.5 # scale to SNR max width assuming Gaussian shape
-        self.IWIDTHs = iwidths
-        self.TAUs = self.frbs['TAU'].values
-
         # sets the 'beam' values to unity by default
         self.beam_b=np.array([1])
         self.beam_o=np.array([1])
         self.NBEAMS=1
         
-        # checks for incorrectSNR values
-        toolow = np.where(self.Ss < 1.)[0]
-        if len(toolow) > 0:
-            raise ValueError("FRBs ",toolow," have SNR < SNRTHRESH!!! Please correct this. Exiting...")
         
-        # ensure all widths are intrinsic + scattering, but exclude DM smearing
-        self.adjust_widths()
         print("FRB survey sucessfully initialised with ",self.NFRB," FRBs starting from", self.iFRB)
         
     
@@ -1153,6 +1200,10 @@ class Survey:
         Note that now, RA, DEC, Gl, and Gb will be present
         But their default values are None
         """
+        # if no FRBs, no coordinates to fix!
+        if self.NFRB == 0:
+            return
+        
         # converts to float if in string. Will do nothing if None
         if isinstance(self.frbs['RA'][0],str):
             RAs = np.zeros([len(self.frbs['RA'])])
@@ -1333,8 +1384,10 @@ class Survey:
         efficiencies=np.zeros([wlist.size,DMlist.size])
         
         if addGalacticDM:
-            # toAdd = self.DMhalo + self.meta['DMG']
-            toAdd = np.median(self.DMhalos + self.DMGs)
+            if self.NFRB == 0:
+                toAdd = self.DMhalo + self.meta['DMG']
+            else:
+                toAdd = np.median(self.DMhalos + self.DMGs)
             # toAdd = self.DMGal
         else:
             toAdd = 0.

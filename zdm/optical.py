@@ -612,15 +612,15 @@ class simple_host_model:
         self.AppModelID = self.opstate.AppModelID
         self.AbsModelID = self.opstate.AbsModelID
         
-        
-        
         self.init_abs_bins()
         self.init_model_bins()
         
         # could perhaps use init args for this?
         if self.opstate.AbsPriorMeth==0:
             # uniform prior in log space of absolute magnitude
-            AbsPrior = np.full([self.ModelNBins],1./self.NAbsBins)
+            AbsPrior = np.full([self.ModelNBins],1./self.ModelNBins)
+        elif self.opstate.AbsPriorMeth==0:
+            self.set_args() #sets according to opstate
         else:
             # other methods to be added as required
             raise ValueError("Luminosity prior method ",self.opstate.AbsPriorMeth," not implemented")
@@ -638,6 +638,32 @@ class simple_host_model:
         # the below is done for the wrapper function
         #self.ZMAP = False # records that we need to initialise this
     
+    def set_args(self):
+        """
+        Sets arguments from the opstate variables. Works up to 10 currently
+        """
+        
+        if self.NModelBins >= 1:
+            self.AbsPrior[0] = self.opstate.SPv1 
+        if self.NModelBins >= 2:
+            self.AbsPrior[1] = self.opstate.SPv2
+        if self.NModelBins >= 3:
+            self.AbsPrior[2] = self.opstate.SPv3 
+        if self.NModelBins >= 4:
+            self.AbsPrior[3] = self.opstate.SPv4 
+        if self.NModelBins >= 5:
+            self.AbsPrior[4] = self.opstate.SPv5 
+        if self.NModelBins >= 6:
+            self.AbsPrior[5] = self.opstate.SPv6 
+        if self.NModelBins >= 7:
+            self.AbsPrior[6] = self.opstate.SPv7 
+        if self.NModelBins >= 8:
+            self.AbsPrior[7] = self.opstate.SPv8 
+        if self.NModelBins >= 9:
+            self.AbsPrior[8] = self.opstate.SPv9 
+        if self.NModelBins >= 10:
+            self.AbsPrior[9] = self.opstate.SPv10
+            
     def get_args(self):
         """
         function to return args as a vector in the form of init_args
@@ -950,7 +976,6 @@ class model_wrapper:
             self.pU_arg2 = self.OpticalState.id.pU_max
         
         
-        
         # specific substate of the model
         self.opstate = model.opstate
         
@@ -1038,36 +1063,7 @@ class model_wrapper:
             mr: apparent host magnitudes
         
         """
-        nmc = zvals.size
-        
-        # get coefficients for redshift
-        kvals = (zvals-self.zmin)/self.dz
-        i1s = kvals.astype('int')
-        i2s = i1s +1
-        k2s = kvals - i1s
-        k1s = 1.-k2s
-        
-        # protection against high or low values
-        # in principle, should never happen - this is an edge case
-        toolow = np.where(i1s < 0)[0]
-        if len(toolow) > 0:
-            print("WARNING: zvalues ",zvals[toolow]," are too low. Rounding up...")
-            i1s[toolow] = 0
-            i2s[toolow] = 1
-            k1s[toolow] = 1.
-            k2s[toolow] = 0.
-        toohigh = np.where(i2s >= self.nz)[0]
-        if len(toohigh > 0):
-            print("WARNING: zvalues ",zvals[toohigh]," are too high. Rounding down...")
-            i1s[toohigh] = -2
-            i2s[toolow] = -1
-            k1s[toolow] = 0.
-            k2s[toolow] = 1.
-            
-        # generatew cumulative distributions
-        pzs = self.p_mr_z[:,i1s]*k1s + self.p_mr_z[:,i2s]*k2s
-        pzs = np.cumsum(pzs,axis=0)
-        pzs /= pzs[-1,:]
+        nmc = len(zvals)
         
         # randomly generate m_r
         probs = np.random.rand(nmc)
@@ -1076,7 +1072,14 @@ class model_wrapper:
         mrs = np.zeros([nmc])
         for i,p in enumerate(probs):
             # because the cumulative sum begins at zero at the left-hand bins
-            temp[1:] = pzs[:,i]
+            # pzs is the probability *in* the bin - hence, the cumulative
+            # value applies at the right-hand-side
+            
+            pmz = self.get_pm_g_z(zvals[i])
+            cpmz = np.cumsum(pmz)
+            cpmz /= cpmz[-1]
+            temp[1:] = cpmz
+            # interpolates magnitude
             mag = np.interp(p,temp,self.AppBins)
             mrs[i] = mag
             
@@ -1205,7 +1208,7 @@ class model_wrapper:
             
             At least one of grid or pz must be set
         """
-        
+          
         if pz is None:
             if grid is None:
                 raise ValueError("Require one of grid or pz to be set!")
@@ -1213,7 +1216,8 @@ class model_wrapper:
             # we start by getting the posterior distribution p(z)
             # for an FRB with DM DM seen by the 'grid'
             pz = get_pz_prior(grid,DM)
-            
+        oldpz = np.copy(pz)
+        
         # checks that pz is normalised
         pz /= np.sum(pz)
         
@@ -1309,7 +1313,7 @@ class model_wrapper:
             the visible magnitudes, and subtracting them from unity. 
         
         args:
-            mag_limit (float): maximum observable magnitude of host galaxies
+            None. P(U) will already have been computed
         
         returns:
             PU (float): probability PU of true hist being unseen in the optical
@@ -1394,7 +1398,7 @@ class model_wrapper:
         # this is for test purposes only
         if "ZDM_CORRECT_DRIVER_FLAG" in os.environ:
             if os.environ["ZDM_CORRECT_DRIVER_FLAG"] == "True":
-                Sigma_ms *= (1.5 + 1.04 * np.exp(16.9-mags))
+                Sigma_ms *= (1.03 + 4.26 * np.exp(14.0-mags))
         
         ngals = len(mags)
         Ois = []
@@ -1432,6 +1436,7 @@ class model_wrapper:
             Ois.append(Oi)
         
         Ois = np.array(Ois)
+        
         return Ois
 
 class Field:

@@ -11,15 +11,14 @@ source  /fred/oz313/cwjames/virtual_environment/bin/activate
 export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
 
 ####### ACTUAL RUN #######
-pfile="Input/bridget_mcmc.json"
+pfile="Input/bridget_mcmc_v1.json"
 files="short_fake_CRACO_900"
 sdir="/fred/oz313/cwjames/zdm/papers/CombinedPathzDM/BridgetMC/Surveys/"
-#files="CRAFT_average_ICS"
 
 steps=100
 walkers=40
 # use --rep_surveys to give repeater surveys
-opfile="Output/newFRB_Bridget_mcmc_output_W"$walkers
+opfile="Output/f1.5_Bridget_mcmc_v1_output_W"$walkers
 
 # reduce size - this is CRACO data after all
 Nz=300
@@ -34,7 +33,6 @@ export ZDM_PATH_FRBDIR=$frbdir
 export ZDM_PATH_GALDIR=$galdir
 echo $ZDM_PATH_FRBDIR
 echo $ZDM_PATH_GALDIR
-
 
 script="../../../zdm/scripts/MCMC/MCMC_wrap.py"
 

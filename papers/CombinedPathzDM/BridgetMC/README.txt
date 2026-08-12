@@ -14,10 +14,13 @@ Step 2: ASSIGN HOSTS (python run_assign_host.py)
     galaxy to each FRB from the catalogue
     combined_HSC_DECaLs_HECATE_galaxies_hecatecut.parquet
     These FRBs are written to craco_assigned_galaxies.csv
+    and loc30_craco_assigned_galaxies.csv
     
     Typically takes ~1 minute for 10,000 FRBs.
     
     It may produce unassigned FRBs if there are many very faint or bright hosts.
+    
+    Does this for two sets of FRBs - 1", and 30" localisation
 
 STEP 3: WRITE FAKE SURVEY FILE (python write_fake_survey_file.py)
     
@@ -37,17 +40,43 @@ STEP 4: WRITE FRB and PATH files (python write_frb_and_cand_files.py)
     FRBFiles takes about 1-2 seconds - it's quick.
 
     Writing fake candidate files takes a long time, due to having to query
-    the catalogues. O~ 2-3 hrs. If you only want to use the first e.g. 1000
-    FRBs, then one could begin an MCMC run part-way into writing
+    the catalogues. O~20 minutes for 1000 FRBs.
+    
+    If you are writing many files, but only want to use e.g. 100,
+    you could begin an MCMC run part-way into writing
     the files.
 
 
-STEP 5a: TEST LIKELIHOOD EVALUATION (python test_Bridget_likelihood.py)
+######## Congratulations! You have created fake FRBs #########
+Most things from hereon can be done in any order, except where otherwise noted.
+
+STEP 5: Determine PATH behaviour on the dataset (python run_path_only.py)
+    This creates output files containing information when PATH on its own
+    (i.e., with no zDm input) is run on the simulated galaxies.
+    
+    Creates further survey files "confidant..."
+
+STEP 6: TEST LIKELIHOOD EVALUATION (python test_Bridget_likelihood.py)
 
     Creates surveys and grids for each of the three fake surveys,
     and evaluates likelihoods with each. Generally, this will be
     OK, provided that it doesn't crash!
     
-    5b: (python test_craft_likelihood.py)
+    - Gives output in LikelihoodTests
+    
+    - Does this for both the standard distribution (0.5" loc uncertainty), and the 30" localisation uncertainty
+    
+    - Produces plots of posterior FRB host galaxy propoerties in each case, compared
+        to standard analysis using PATH, and analysis weighted by likelihoods
+    
+    6b: (python test_craft_likelihood.py)
 
     As above, but using actual CRAFT FRBs
+
+
+
+####### Now perform an MCMC and check that this all works! #######
+
+Go to ../MCMC. There are scripts to run the MCMC using SLURM and locally.
+Test locally first. The SLURM scripts are optimised for OZSTAR at Swinburne.
+See that directory for more information.

@@ -17,7 +17,7 @@ analogous to ``iteration.py`` for the zdm grid. It provides:
   and applying colour corrections to convert to r-band.
 
 - **``calculate_likelihood_statistic``** and **``calculate_ks_statistic``**
-  — goodness-of-fit statistics comparing the model apparent magnitude prior
+  goodness-of-fit statistics comparing the model apparent magnitude prior
   to the observed PATH posteriors across all FRBs.
 
 - **``make_cumulative_plots``** plotting routine for visualising
@@ -273,6 +273,13 @@ def calc_path_priors(frblist,ss=None,gs=None,wrappers=None,verbose=True,usemodel
     allpz = []
     allpf = []
     
+    # this is partially dangerous, because it assumes that all
+    # wrappers have the same AppMags. Which they probably do, but still...
+    if usemodel:
+        AppMags = wrappers[0].AppMags
+    else:
+        AppMags = None
+    
     for i,frb in enumerate(frblist):
         # interates over the FRBs. "Do FRB"
         # P_O is the prior for each galaxy
@@ -304,11 +311,6 @@ def calc_path_priors(frblist,ss=None,gs=None,wrappers=None,verbose=True,usemodel
         nfitted += 1
         
         if usemodel:
-            AppMags = wrapper.AppMags
-        else:
-            AppMags = None
-        
-        if usemodel:
             DMEG = s.DMEGs[imatch]
             # this is where the particular survey comes into it
             # Must be priors on magnitudes for this FRB
@@ -325,6 +327,7 @@ def calc_path_priors(frblist,ss=None,gs=None,wrappers=None,verbose=True,usemodel
         # calculates unseen prior
         if usemodel:
             P_U = wrapper.estimate_unseen_prior()
+        
             
         result = run_path(frb,usemodel=usemodel,P_U = P_U, failOK = failOK, scale=scale)
         
@@ -914,6 +917,8 @@ def run_path(name,P_U=0.1,usemodel=False,sort=False,failOK=False,scale=0.5,ppath
     ptbl : pd.DataFrame
         Full PATH candidate table loaded from the CSV file, with an
         additional ``'frb'`` column set to ``name``.
+    biox_hwidth: float
+        half-width of box used for PATH analysis (arcsec). Defaults to 60.
     """
     
     result={}
@@ -934,10 +939,12 @@ def run_path(name,P_U=0.1,usemodel=False,sort=False,failOK=False,scale=0.5,ppath
         else:
             print("Could not run_path - no frb data for FRB ",name)
             exit()
+    # get max image size as 10" plus FRB uncertainties out to 3 sigma
+    max_image_size = 10.+3.*(my_frb.eellipse['a']**2 + my_frb.eellipse['b']**2)**0.5
     
     result["Error"]=0 # it's OK!
     
-    this_path = frbassociate.FRBAssociate(my_frb, max_radius=10.)
+    this_path = frbassociate.FRBAssociate(my_frb, max_radius=max_image_size)
     
     # reads in galaxy info. Can pass explicitly through ppath
     # if not there, copies this from 
@@ -1054,9 +1061,9 @@ def run_path(name,P_U=0.1,usemodel=False,sort=False,failOK=False,scale=0.5,ppath
     
     # Calculate p(O_i|x)
     debug = True
-    P_Ox,P_Ux = this_path.calc_posteriors('fixed', 
-                         box_hwidth=10., 
-                         max_radius=10., 
+    P_Ox,P_Ux = this_path.calc_posteriors('local', 
+                         box_hwidth=max_image_size, 
+                         survey_radius=max_image_size, # max allowed galaxy radius
                          debug=debug)
     
     # probability of x given O, and P(O)
