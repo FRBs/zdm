@@ -54,7 +54,9 @@ def plot_grid(
     othergrids=None,
     othernames=None,
     c_cmap = None,
-    cont_clrs = None
+    cont_clrs = None,
+    alevels = None,
+    other_alevels = None
 ):
     """
     Very complicated routine for plotting 2D zdm grids 
@@ -108,6 +110,11 @@ def plot_grid(
             Used only if othergrids is not None. Must be length of othergrids +1.
         c_cmap (string): Name of colormap used to plot "Acont" contours
         cont_clrs (float, np.ndarray): list of colors in colourmap to use for contours
+        alevels (float, optional): list of levels at which to plot contours for
+                    the grids. Used only Aconts is set, and over-rides these values.
+        other_alevels (float, optional): list of levels at which to plot contours for
+                    other grids. Used only if othergrids is not None. Matches length of
+                    Aconts.
     """
     if H0 is None:
         H0 = cos.cosmo.H0
@@ -254,13 +261,14 @@ def plot_grid(
     # sets contours according to norm
     if Aconts:
         
-        alevels = get_alevels(zDMgrid,Aconts)
+        if alevels is None:
+            alevels = get_alevels(zDMgrid,Aconts)
         if norm == 1:
             alevels /= ddm
         elif norm == 2:
             alevels /= xnorm
         
-        if othergrids is not None:
+        if othergrids is not None and other_alevels is None:
             other_alevels=[]
             for grid in othergrids:
                 other_alevels.append(get_alevels(grid,Aconts))
@@ -366,7 +374,7 @@ def plot_grid(
         
         if othergrids is not None:
             for i,grid in enumerate(othergrids):
-                print("size of i in othergrids is ",i)
+                print("size of i in othergrids is ",i,"levels are ",other_alevels[i])
                 cntr = ax.contour(grid.T, levels=other_alevels[i], origin="lower",
                     **cont_dicts[i+1])
                 if othernames is not None:
@@ -424,7 +432,11 @@ def plot_grid(
             zstop = kDM * zvals[stop2] + (1.0 - kDM) * zvals[stop1]
             zstop /= zvals[1] - zvals[0]
             DM /= dmvals[1] - dmvals[0]
-            plt.plot([0, zstop], [DM, DM], color=plt_dicts[0]['color'], linestyle=":")
+            if plt_dicts is not None and "color" in plt_dicts[0]:
+                color = plt_dicts[0]['color']
+            else:
+                color = "black"
+            plt.plot([0, zstop], [DM, DM], color=color, linestyle=":")
 
     if DMlims is not None:
         for DMlim in DMlims:
@@ -474,8 +486,8 @@ def plot_grid(
 
         # idea is that 1 point is 1, hence...
         zeval = zvals / dz
-        DMEG_mean = (DM_cosmic + meanHost) / ddm
-        DMEG_median = (DM_cosmic + medianHost) / ddm
+        DMEG_mean = (DM_cosmic + meanHost/(1+zeval)) / ddm
+        DMEG_median = (DM_cosmic + medianHost/(1+zeval)) / ddm
         plt.plot(
             zeval,
             DMEG_mean,

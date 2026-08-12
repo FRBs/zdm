@@ -17,7 +17,7 @@ analogous to ``iteration.py`` for the zdm grid. It provides:
   and applying colour corrections to convert to r-band.
 
 - **``calculate_likelihood_statistic``** and **``calculate_ks_statistic``**
-  — goodness-of-fit statistics comparing the model apparent magnitude prior
+  goodness-of-fit statistics comparing the model apparent magnitude prior
   to the observed PATH posteriors across all FRBs.
 
 - **``make_cumulative_plots``** plotting routine for visualising
@@ -38,6 +38,7 @@ from zdm import optical as op
 from frb.frb import FRB
 from astropath.priors import load_std_priors
 from astropath.path import PATH
+from astropath import chance
 from frb.associate import frbassociate
     
 def function(x,args):
@@ -64,7 +65,7 @@ def function(x,args):
           ``init_args``).
         - ``POxcut`` (float or None): if not None, restrict the statistic
           to FRBs whose best host candidate has P(O|x) > POxcut.
-        - ``istat`` (int): statistic to use — 0 for KS-like statistic,
+        - ``istat`` (int): statistic to use 0 for KS-like statistic,
           1 for maximum-likelihood (returned as negative log-likelihood
           so that minimisation maximises the likelihood).
 
@@ -87,17 +88,21 @@ def function(x,args):
     model.init_args(x)
     wrappers = make_wrappers(model,gs)
     
-    NFRB,AppMags,AppMagPriors,ObsMags,ObsPriors,ObsPosteriors,PUprior,PUobs,sumPUprior,sumPUobs,frbs,dms = calc_path_priors(frblist,ss,gs,wrappers,verbose=False)
+    
+    results = calc_path_priors(frblist,ss,gs,wrappers,verbose=False)
+    #NFRB,AppMags,AppMagPriors,ObsMags,ObsPriors,ObsPosteriors,PUprior,PUobs,sumPUprior,sumPUobs,frbs,dms = calc_path_priors(frblist,ss,gs,wrappers,verbose=False)
     
     # we re-normalise the sum of PUs by NFRB
     
     # prevents infinite plots being created
     if istat==0:
-        stat = calculate_ks_statistic(NFRB,AppMags,AppMagPriors,ObsMags,ObsPosteriors,
-                sumPUobs,sumPUprior,plotfile=None,POxcut=POxcut)
+        stat = calculate_ks_statistic(results["NFRB"],results["AppMags"],results["AppMagPriors"],
+                                    results["ObsMags"],results["POx"],
+                                    results["sumPUx"],results["sumPU"],plotfile=None,POxcut=POxcut)
     elif istat==1:
-        stat = calculate_likelihood_statistic(NFRB,AppMags,AppMagPriors,ObsMags,ObsPosteriors,
-                PUobs,PUprior,plotfile=None,POxcut=POxcut)
+        stat = calculate_likelihood_statistic(results["NFRB"],results["AppMags"],results["AppMagPriors"],
+                                    results["ObsMags"],results["POx"],results["PUx"],results["PU"],
+                                    plotfile=None,POxcut=POxcut)
         # need to construct stat so that small values are good! Log-likelihood being good means large!
         stat *= -1
     
@@ -156,7 +161,8 @@ def make_cdf(xs,ys,ws,norm=True):
     return cdf
 
     
-def calc_path_priors(frblist,ss,gs,wrappers,verbose=True,usemodel=True,P_U=0.1):
+def calc_path_priors(frblist,ss=None,gs=None,wrappers=None,verbose=True,usemodel=True,P_U=0.1,
+                    failOK=False,doz=True,field=None,pzlist=None,scale=0.5):
     """
     Run PATH on a list of FRBs and return priors, posteriors, and P_U values.
 
@@ -191,7 +197,17 @@ def calc_path_priors(frblist,ss,gs,wrappers,verbose=True,usemodel=True,P_U=0.1):
     P_U : float, optional
         Fixed prior probability that the host galaxy is undetected. Only
         used when ``usemodel=False``. Defaults to 0.1.
-
+    failOK : bool, optional
+        If True, allows failed attempts to find an FRB - simply skips cases where
+        no FRB data could be found
+    doz : bool, optional
+        If true, calculate p(z) for both field and host galaxies for these FRBs
+    fiedd: optical.Field object, optional
+        Option to pass existing field object for speedup purposes
+    pzlist: list of np.ndarray, optional
+        If given, must be [NFRB x g.zvals] in szie list giving p(z) for
+        each FRB in the list
+    
     Returns
     -------
     nfitted : int
@@ -230,8 +246,10 @@ def calc_path_priors(frblist,ss,gs,wrappers,verbose=True,usemodel=True,P_U=0.1):
     #allMagPriors = None
     
     # new version recording one list per FRB. For max likelihood functionality
+    #TODO: redo this to form signle dict
     allObsMags = []
     allPOx = []
+    allPxO = []
     allPO = []
     allMagPriors = []
     
@@ -239,10 +257,28 @@ def calc_path_priors(frblist,ss,gs,wrappers,verbose=True,usemodel=True,P_U=0.1):
     sumPUx = 0.
     allPU = []
     allPUx = []
+    allPm = []
+    allrhom = []
+    allseps = []
+    allsizes = []
+    Ncands = []
     nfitted = 0
     
     frbs=[]
     dms=[]
+    
+    OKlist = []
+    OKfrb = []
+    
+    allpz = []
+    allpf = []
+    
+    # this is partially dangerous, because it assumes that all
+    # wrappers have the same AppMags. Which they probably do, but still...
+    if usemodel:
+        AppMags = wrappers[0].AppMags
+    else:
+        AppMags = None
     
     for i,frb in enumerate(frblist):
         # interates over the FRBs. "Do FRB"
@@ -253,96 +289,183 @@ def calc_path_priors(frblist,ss,gs,wrappers,verbose=True,usemodel=True,P_U=0.1):
         
         # determines if this FRB was seen by the survey, and
         # if so, what its DMEG is
-        for j,s in enumerate(ss):
-            imatch = op.matchFRB(frb,s)
-            if imatch is not None:
-                # this is the survey to be used
-                g=gs[j]
-                s = ss[j]
-                if usemodel:
+        if usemodel:
+            for j,s in enumerate(ss):
+                imatch = op.matchFRB(frb,s)
+                if imatch is not None:
+                    # this is the survey to be used
+                    g=gs[j]
+                    s = ss[j]
                     wrapper = wrappers[j]
-                jmatch = j
-                frbs.append(frb)
-                break
-        
-            if imatch is None:
-                if verbose:
-                    print("Could not find ",frb," in any survey")
-                continue
+                    jmatch = j
+                    frbs.append(frb)
+                    break
+                
+                if imatch is None:
+                    if verbose:
+                        print("Could not find ",frb," in any survey")
+                    continue
+        else:
+            frbs.append(frb)
         
         nfitted += 1
         
         if usemodel:
-            AppMags = wrapper.AppMags
-        else:
-            AppMags = None
-        
-        # record this info  
-        DMEG = s.DMEGs[imatch]
-        dms.append(DMEG)
-        
-        if usemodel:
-            
+            DMEG = s.DMEGs[imatch]
             # this is where the particular survey comes into it
             # Must be priors on magnitudes for this FRB
-            wrapper.init_path_raw_prior_Oi(DMEG,g)
+            if pzlist is not None:
+                wrapper.init_path_raw_prior_Oi(DMEG,pz=pzlist[i])
+            else:
+                wrapper.init_path_raw_prior_Oi(DMEG,grid=g)
         
             # extracts priors as function of absolute magnitude for this grid and DMEG
             MagPriors = wrapper.priors
         else:
             MagPriors = None
-            
-        # defunct now
-        #mag_limit=26  # might not be correct. TODO! Should be in FRB object
         
         # calculates unseen prior
         if usemodel:
             P_U = wrapper.estimate_unseen_prior()
-        #MagPriors[:] = 1./len(MagPriors) # log-uniform priors when no model used
         
-        
-        P_O,P_Ox,P_Ux,ObsMags,ptbl = run_path(frb,usemodel=usemodel,P_U = P_U)
-        
-        
-        # replaces PO value with raw PO value, i.e. excluding the driver sigma
-        if usemodel:
-            P_O = wrapper.path_base_prior(ObsMags)
             
-        # kept here for debugging
-        if False:
-            print("P_U is ",P_U)
-            print("P_O is ",P_O)
-            print("P_Ox is ",P_Ox)
-            plt.figure()
-            plt.plot(AppMags,MagPriors)
-            plt.show()
-            plt.close()
+        result = run_path(frb,usemodel=usemodel,P_U = P_U, failOK = failOK, scale=scale)
         
-        if i==0:
-            allgals = ptbl
+        if result["Error"]:
+            if failOK:
+                continue
+            else:
+                print("run_path failed unexpectedly, quitting...")
+                exit()
+        
+        
+        OKlist.append(i)
+        OKfrb.append(frb)
+        
+        # determine number of found candidates
+        if "ptbl" in result:
+            result["Ncand"] = len(result["ptbl"])
         else:
-            allgals = pandas.concat([allgals,ptbl], ignore_index=True)
-        
-        ObsMags = np.array(ObsMags)
+            result["Ncand"] = 0
         
         # new version creating a list of lists
+        ObsMags = np.array(result["mags"])
         allObsMags.append(ObsMags)
-        allPOx.append(P_Ox)
-        allPO.append(P_O)
-        allMagPriors.append(MagPriors)
-        
+        allPOx.append(result["POx"])
+        allPxO.append(result["PxO"])
+        allPO.append(result["PO"])
+        allseps.append(result["seps"])
+        allsizes.append(result["sizes"])
         sumPU += P_U
-        sumPUx += P_Ux
+        sumPUx += result["PUx"]
         allPU.append(P_U)
-        allPUx.append(P_Ux)
+        allPUx.append(result["PUx"])
+        Ncands.append(result["Ncand"])
+        
+        # continue to next FRB if we are not using a prior model
+        if not usemodel:
+            continue
+        
+        ##########################################################
+        # everything from here is dependent on having a prior model
+        ##########################################################
+        
+        dms.append(DMEG)
+        
+        # IF we are calculating redshift probabilities,
+        # AND there is at least one candidate
+        if doz and result["Ncand"] > 0:
+            # calculate p(z) for model galaxies for result["mags"]
+            # we assume it's the most likely galaxy that has a redshift.
+            # this functionality NEEDS to change!
+            if field is None:
+                field = op.Field()
+            
+            # IF the redshift of candidates is not given in the ptbl
+            # THEN retrieve it from the survey. This should be removed
+            # from future behaviour, but needs new FRB library solution.
+            if result["z"] is None:
+                zs = np.full([result["Ncand"]],-1) # set all to missing
+                pz = np.full([result["Ncand"]],1.) # set all to no info
+                pf = np.full([result["Ncand"]],1.) # set all to no info
+                
+                # add info for primary galaxy. Used ONLY for cases where z comes
+                # from zdm
+                if s.Zs[imatch] > 0.:
+                    i_likely = np.argmax(result["POx"])
+                    pz[i_likely] = wrapper.get_pz_g_mr(result["mags"][i_likely],s.Zs[imatch])
+                    pf[i_likely] = field.get_pzgm(result["mags"][i_likely],s.Zs[imatch])
+            else:
+                pz = np.full([result["Ncand"]],1.) # set all to no info by default
+                pf = np.full([result["Ncand"]],1.) # set all to no info by default
+                for ic in np.arange(result["Ncand"]):
+                    if result["z"][ic] > 0:
+                        pz[ic] = wrapper.get_pz_g_mr(result["mags"][ic],result["z"][ic])
+                        pf[ic] = field.get_pzgm(result["mags"][ic],result["z"][ic])
+                
+            allpz.append(pz)
+            allpf.append(pf)
+        elif result["Ncand"] == 0:
+            # missing data should not get counted - but best to give 100% probability 
+            # and we need an entry here anyway to avoid mis-aligned data
+            allpz.append([1])
+            allpf.append([1])
+        
+        # adds m and driver rho values to results
+        if len(result["ptbl"]) > 0:
+            result["Pm"] = wrapper.path_base_prior(result["mags"])
+            result["rhom"] = chance.differential_driver_sigma(result["mags"])
+        else:
+            result["Pm"] = []
+            result["rhom"] = []
+        
+        #if i==0:
+        #    allgals = result["ptbl"]
+        #elif len(result["ptbl"]) > 0: # this keeps a giant table of all host galaxies. Maybe a little extreme...
+        #    if len(allgals)==0:
+        #        allgals = result["ptbl"]
+        #    else:
+        #        allgals = pandas.concat([allgals,result["ptbl"]], ignore_index=True)
+        
+        allPm.append(result["Pm"])
+        allrhom.append(result["rhom"])
+        allMagPriors.append(MagPriors)
+            
+        
     
-    subset = allgals[['frb','mag','VLT_FORS2_R']].copy()
-    
+    # once-off code for exporting
+    #subset = allgals[['frb','mag','VLT_FORS2_R']].copy()
     # saves all galaxies
-    if not os.path.exists("allgalaxies.csv"):
-        subset.to_csv("allgalaxies.csv",index=False)
+    #if not os.path.exists("allgalaxies.csv"):
+    #    subset.to_csv("allgalaxies.csv",index=False)
     
-    return nfitted,AppMags,allMagPriors,allObsMags,allPO,allPOx,allPU,allPUx,sumPU,sumPUx,frbs,dms
+    
+    # creates a dict to hold results
+    results = {}
+    results["NFRB"] = nfitted
+    results["ObsMags"] = allObsMags
+    results["PO"] = allPO
+    results["POx"] = allPOx
+    results["PxO"] = allPxO
+    results["PU"] = allPU
+    results["PUx"] = allPUx
+    results["sumPU"] = sumPU
+    results["sumPUx"] = sumPUx
+    results["OK"] = OKlist
+    results["frblist"] = OKfrb
+    results["seps"] = allseps
+    results["sizes"] = allsizes 
+    results["Ncand"] = Ncands
+    if usemodel:
+        results["pz"] = allpz
+        results["pf"] = allpf
+        results["AppMags"] = AppMags
+        results["AppMagPriors"] = allMagPriors
+        results["dms"] = dms
+        results["rhom"] = allrhom
+        results["Pm"] = allPm
+    
+    return results
 
 
 def calculate_likelihood_statistic(NFRB,AppMags,AppMagPriors,ObsMags,ObsPosteriors,PUobs,
@@ -743,13 +866,13 @@ def get_cand_properties(frblist):
         all_candidates.append(candidates)
     return all_candidates
 
-def run_path(name,P_U=0.1,usemodel=False,sort=False):
+def run_path(name,P_U=0.1,usemodel=False,sort=False,failOK=False,scale=0.5,ppath=None):
     """
     Run the PATH algorithm on a single FRB and return host association results.
 
     Loads the FRB object and its pre-generated PATH candidate table from the
     ``frb`` package, applies colour corrections to convert candidate magnitudes
-    to r-band (using fixed offsets: I → R: +0.65, g → R: −0.65), sets up the
+    to r-band (using fixed offsets: IR: +0.65, gR: 0.65), sets up the
     FRB localisation ellipse and offset prior, and evaluates PATH posteriors.
 
     The magnitude prior used for the candidates is:
@@ -777,7 +900,10 @@ def run_path(name,P_U=0.1,usemodel=False,sort=False):
     sort : bool, optional
         If True, sort the returned arrays by P(O|x) in ascending order.
         Defaults to False.
-
+    failOK : bool, optional
+        If True, allows a return without crashing
+    ppath : string, optional
+        If given, search this directory for optical data
     Returns
     -------
     P_O : np.ndarray
@@ -791,18 +917,71 @@ def run_path(name,P_U=0.1,usemodel=False,sort=False):
     ptbl : pd.DataFrame
         Full PATH candidate table loaded from the CSV file, with an
         additional ``'frb'`` column set to ``name``.
+    biox_hwidth: float
+        half-width of box used for PATH analysis (arcsec). Defaults to 60.
     """
     
-    ######### Loads FRB, and modifes properties #########
-    my_frb = FRB.by_name(name)
-    this_path = frbassociate.FRBAssociate(my_frb, max_radius=10.)
+    result={}
     
-    # reads in galaxy info
-    ppath = os.path.join(resources.files('frb'), 'data', 'Galaxies', 'PATH')
+    # checks to see the name is prefaced by "FRB"
+    if name[0:3] != "FRB":
+        name = "FRB"+name
+    
+    ######### Loads FRB, and modifes properties #########
+    # first checks to see if we have set a specific path for this
+    # use ZDM_PATH_FRBDIR to set it
+    try:
+        my_frb = FRB.by_name(name)
+    except:
+        if failOK:
+            result["Error"]=1
+            return result
+        else:
+            print("Could not run_path - no frb data for FRB ",name)
+            exit()
+    # get max image size as 10" plus FRB uncertainties out to 3 sigma
+    max_image_size = 10.+3.*(my_frb.eellipse['a']**2 + my_frb.eellipse['b']**2)**0.5
+    
+    result["Error"]=0 # it's OK!
+    
+    this_path = frbassociate.FRBAssociate(my_frb, max_radius=max_image_size)
+    
+    # reads in galaxy info. Can pass explicitly through ppath
+    # if not there, copies this from 
+    if ppath is not None:
+        pass
+    elif "ZDM_PATH_GALDIR" in os.environ:
+        ppath = os.environ["ZDM_PATH_GALDIR"]
+    else:
+        ppath = os.path.join(resources.files('frb'), 'data', 'Galaxies', 'PATH')
     pfile = os.path.join(ppath, f'{my_frb.frb_name}_PATH.csv')
-    ptbl = pandas.read_csv(pfile)
+    
+    try:
+        ptbl = pandas.read_csv(pfile)
+    except:
+        if failOK:
+            print("Warning - could not find optical data for ",name, " expecting ",pfile)
+            result["Error"]=1
+            return result
+        else:
+            print("Could not run_path - no optical data for FRB ",name)
+            exit()
     
     ngal = len(ptbl)
+    
+    # check to see if we have no viable candidates!
+    if ngal == 0:
+        result["PUx"] = 1. # must be unseen!
+        result["PO"] = []
+        result["PxO"] = []
+        result["POx"] = []
+        result["mags"] = []
+        result["ptbl"] = ptbl
+        result["z"] = []
+        result["seps"] = []
+        result["sizes"] = []
+        return result
+    
     ptbl["frb"] = np.full([ngal],name)
     
     # Load prior
@@ -811,16 +990,30 @@ def run_path(name,P_U=0.1,usemodel=False,sort=False):
     
     theta_new = dict(method='exp', 
                     max=priors['adopted']['theta']['max'], 
-                    scale=0.5)
+                    scale=scale)
     prior['theta'] = theta_new
     
     # change this to something depending on the FRB DM
     prior['U']=P_U
     
-    candidates = ptbl[['ang_size', 'mag', 'ra', 'dec', 'separation']]
+    candidates = ptbl[['ang_size', 'mag', 'ra', 'dec']].copy()
+    
+    if "separation" not in ptbl.columns:
+        seps = calc_separations(this_path.frb.coord,candidates.ra.values,candidates.dec.values)
+        ptbl["separation"] = seps
+    
+    # see if the candidates table has redshifts listed.
+    # Return these if true
+    if "z" in ptbl.columns:
+        zs = ptbl["z"]
+    else:
+        zs = None
     
     # implements a correction to their relative magnitudes.
     # note that order is R, then I, then g
+    # this option was turned on for the initial PATH/zdm paper
+    # it now no longer complains if it can't find the correct band
+    # this behaviour absolutely should be improved in the future!
     if "VLT_FORS2_R" in ptbl:
         mags = np.array(candidates.mag.values)
     elif "VLT_FORS2_I" in ptbl:
@@ -832,7 +1025,8 @@ def run_path(name,P_U=0.1,usemodel=False,sort=False):
     elif "LRIS_I" in ptbl:
         mags = np.array(candidates.mag.values) + 0.65
     else:
-        raise ValueError("Cannot implement colour correction")
+        mags = np.array(candidates.mag.values)
+        #raise ValueError("Cannot implement colour correction")
         
     
     #this_path = PATH()
@@ -862,23 +1056,81 @@ def run_path(name,P_U=0.1,usemodel=False,sort=False):
                             prior['theta']['max'],
                             prior['theta']['scale'])
     
+    # in the case of a user-specified model, this P(O) is
     P_O=this_path.calc_priors()
     
     # Calculate p(O_i|x)
     debug = True
-    P_Ox,P_Ux = this_path.calc_posteriors('fixed', 
-                         box_hwidth=10., 
-                         max_radius=10., 
+    P_Ox,P_Ux = this_path.calc_posteriors('local', 
+                         box_hwidth=max_image_size, 
+                         survey_radius=max_image_size, # max allowed galaxy radius
                          debug=debug)
     
-    # mags already defined above
-    #mags = candidates['mag']
+    # probability of x given O, and P(O)
+    # note - if method is "user", then P(O) includes 1/density
+    # if it is not, P(O) is renormalised, and includes 1/cumulative
+    P_xO = this_path.p_xOi
     
-    if sort:
-        indices = np.argsort(P_Ox)
+    if False:
+        # sorts from highest to lowest.
+        # I have disabled this, since A: why, and B: pandas ptbl never
+        # truly sorts, so we must keep the other arrays aligned
+        indices = np.argsort(P_Ox)[::-1]
         P_O = P_O[indices]
         P_Ox = P_Ox[indices]
         mags = mags[indices]
+        P_xO = P_xO[indices]
+        ptbl = ptbl.loc[indices]
+        if zs is not None:
+            zs = zs[indices]
     
-    return P_O,P_Ox,P_Ux,mags,ptbl
+    sizes = ptbl["ang_size"].values
+    seps = ptbl["separation"].values
+    
+    result["PUx"] = P_Ux
+    result["PO"] = P_O
+    result["PxO"] = P_xO
+    result["POx"] = P_Ox
+    result["mags"] = mags
+    result["ptbl"] = ptbl
+    if zs is not None:
+        result["z"] = zs.values
+    else:
+        result["z"] = None
+    result["seps"] = seps
+    result["sizes"] = sizes
+    
+    return result
 
+def calc_separations(frb_coord,cand_ras,cand_decs):
+    """
+    Calculate angular separation from frb to galxy candidates, in arcseconds
+    
+    Args:
+        frb_coord( astropy coordinate)
+        cand_ras (list of floats): candidates right ascension, degrees
+        cand_decs (list of flots): candidate declinations, degrees
+    """
+    
+    ra_frb = frb_coord.ra.deg
+    dec_frb = frb_coord.dec.deg
+    torad = np.pi/180
+    ra_frb_rad = ra_frb*torad
+    dec_frb_rad = dec_frb*torad
+    xfrb = np.cos(ra_frb_rad)*np.cos(dec_frb_rad)
+    yfrb = np.sin(ra_frb_rad)*np.cos(dec_frb_rad)
+    zfrb = np.sin(dec_frb_rad)
+    
+    seps = []
+    for i,ra in enumerate(cand_ras):
+        ra *= torad
+        dec = cand_decs[i]*torad
+        x = np.cos(ra)*np.cos(dec)
+        y = np.sin(ra)*np.cos(dec)
+        z = np.sin(dec)
+        off = np.arccos(x*xfrb + y*yfrb +z*zfrb)
+        off *= 180./np.pi * 3600
+        seps.append(off)
+    seps = np.array(seps)
+    return seps
+    

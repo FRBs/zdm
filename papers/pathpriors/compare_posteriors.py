@@ -79,16 +79,15 @@ def main():
     ##### Begins by calculating the original PATH result #####
     # calculates the original PATH result
     wrappers = None
-    NFRB2,AppMags2,AppMagPriors2,ObsMags2,ObsPrior2,ObsPosteriors2,PUprior2,PUobs2,sumPUprior2,sumPUobs2,frbs,dms = \
-                                            on.calc_path_priors(frblist,ss,gs,wrappers,verbose=False,usemodel=False,P_U=0.1)
-    fObsPosteriors2 = np.array(on.flatten(ObsPosteriors2))
+    results2 = on.calc_path_priors(frblist,ss,gs,wrappers,verbose=False,usemodel=False,P_U=0.1)
+    fObsPosteriors2 = np.array(on.flatten(results2["POx"]))
     
     
     with open("posteriors/orig.txt",'w') as f:
-        for i,frb in enumerate(frbs):
-            f.write(str(i)+"  "+frb+"  "+str(dms[i])[0:5]+" "+str(PUprior2[i])[0:4]+"\n")
-            for j,om in enumerate(ObsMags2[i]):
-                f.write(str(om)[0:5]+" "+ "%e" % ObsPrior2[i][j]+" "+"%e" % ObsPosteriors2[i][j]+"\n")
+        for i,frb in enumerate(results2["frbs"]):
+            f.write(str(i)+"  "+frb+"  "+str(results2["dms"][i])[0:5]+" "+str(results2["PU"][i])[0:4]+"\n")
+            for j,om in enumerate(results2["ObsMags"][i]):
+                f.write(str(om)[0:5]+" "+ "%e" % results2["PO"][i][j]+" "+"%e" % results2["POx"][i][j]+"\n")
             f.write("\n")
     
     
@@ -110,9 +109,9 @@ def main():
     model = opt.marnoch_model()
     
     wrappers = on.make_wrappers(model,gs)
-    NFRB1,AppMags1,AppMagPriors1,ObsMags1,ObsPrior1,ObsPosteriors1,PUprior1,PUobs1,sumPUprior1,sumPUobs1,frbs,dms = on.calc_path_priors(frblist,ss,gs,wrappers,verbose=False)
+    results1 = on.calc_path_priors(frblist,ss,gs,wrappers,verbose=False)
     
-    fObsPosteriors1 = np.array(on.flatten(ObsPosteriors1))
+    fObsPosteriors1 = np.array(on.flatten(results1["POx"]))
     plt.sca(ax1)
     plt.scatter(fObsPosteriors2,fObsPosteriors1,label="Marnoch23",marker='s')
     plt.sca(ax2)
@@ -120,11 +119,12 @@ def main():
     
     
     with open("posteriors/marnoch.txt",'w') as f:
-        for i,frb in enumerate(frbs):
-            f.write(str(i)+"  "+frb+"  "+str(dms[i])[0:5]+" "+str(PUprior1[i])[0:4]+"\n")
-            for j,om in enumerate(ObsMags1[i]):
-                f.write(str(om)[0:5]+" "+ "%e" % ObsPrior1[i][j]+" "+"%e" % ObsPosteriors1[i][j]+"\n")
+        for i,frb in enumerate(results1["frbs"]):
+            f.write(str(i)+"  "+frb+"  "+str(results1["dms"][i])[0:5]+" "+str(results1["PU"][i])[0:4]+"\n")
+            for j,om in enumerate(results1["ObsMags"][i]):
+                f.write(str(om)[0:5]+" "+ "%e" % results1["PO"][i][j]+" "+"%e" % results1["POx"][i][j]+"\n")
             f.write("\n")
+    
     
     ####### Model 2: Loudas ########
     
@@ -132,19 +132,19 @@ def main():
     xbest = np.load("loudas_output/best_fit_params.npy")
     model.init_args(xbest) # best-fit arguments
     wrappers = on.make_wrappers(model,gs)
-    NFRB3,AppMags3,AppMagPriors3,ObsMags3,ObsPrior3,ObsPosteriors3,PUprior3,PUobs3,sumPUprior3,sumPUobs3,frbs,dms = on.calc_path_priors(frblist,ss,gs,wrappers,verbose=False)
+    results3 = on.calc_path_priors(frblist,ss,gs,wrappers,verbose=False)
     
-    fObsPosteriors3 = np.array(on.flatten(ObsPosteriors3))
+    fObsPosteriors3 = np.array(on.flatten(results3["POx"]))
     plt.sca(ax1)
     plt.scatter(fObsPosteriors2,fObsPosteriors3,label="Loudas25",marker='x')
     plt.sca(ax2)
     plt.scatter(fObsPosteriors2,fObsPosteriors3-fObsPosteriors2,label="Loudas25",marker='x')
     
     with open("posteriors/loudas.txt",'w') as f:
-        for i,frb in enumerate(frbs):
-            f.write(str(i)+"  "+frb+"  "+str(dms[i])[0:5]+" "+str(PUprior3[i])[0:4]+"\n")
-            for j,om in enumerate(ObsMags3[i]):
-                f.write(str(om)[0:5]+" "+ "%e" % ObsPrior3[i][j]+" "+"%e" % ObsPosteriors3[i][j]+"\n")
+        for i,frb in enumerate(results3["frbs"]):
+            f.write(str(i)+"  "+frb+"  "+str(results3["dms"][i])[0:5]+" "+str(results3["PU"][i])[0:4]+"\n")
+            for j,om in enumerate(results3["ObsMags"][i]):
+                f.write(str(om)[0:5]+" "+ "%e" % results3["PO"][i][j]+" "+"%e" % results3["POx"][i][j]+"\n")
             f.write("\n")
     
     
@@ -163,16 +163,15 @@ def main():
     
     # retrieve default initial arguments in vector form
     xbest = np.load("simple_output/best_fit_params.npy")
-    #x = [-2.28795519,  0.,  0. , 0. , 0.11907231,0.84640048,0.99813815 , 0., 0. , 0. , 0. ]
     
     # initialises best-fit arguments
     model.init_args(xbest)
     
     ############# Generate a KS-like plot showing the best fits ####################
     wrappers = on.make_wrappers(model,gs)
-    NFRB4,AppMags4,AppMagPriors4,ObsMags4,ObsPrior4,ObsPosteriors4,PUprior4,PUobs4,sumPUprior4,sumPUobs4,frbs,dms = on.calc_path_priors(frblist,ss,gs,wrappers,verbose=False)
+    results4 = on.calc_path_priors(frblist,ss,gs,wrappers,verbose=False)
     
-    fObsPosteriors4 = np.array(on.flatten(ObsPosteriors4))
+    fObsPosteriors4 = np.array(on.flatten(results4["POx"]))
     plt.sca(ax1)
     plt.scatter(fObsPosteriors2,fObsPosteriors4,label="Naive",marker='o',s=20)
     plt.sca(ax2)
@@ -206,31 +205,52 @@ def main():
     plt.close()
     
     with open("posteriors/naive.txt",'w') as f:
-        for i,frb in enumerate(frbs):
-            f.write(str(i)+"  "+frb+"  "+str(dms[i])[0:5]+" "+str(PUprior4[i])[0:4]+"\n")
-            for j,om in enumerate(ObsMags4[i]):
-                f.write(str(om)[0:5]+" "+ "%e" % ObsPrior4[i][j]+" "+"%e" % ObsPosteriors4[i][j]+"\n")
+        for i,frb in enumerate(results4["frbs"]):
+            f.write(str(i)+"  "+frb+"  "+str(results4["dms"][i])[0:5]+" "+str(results4["PU"][i])[0:4]+"\n")
+            for j,om in enumerate(results4["ObsMags"][i]):
+                f.write(str(om)[0:5]+" "+ "%e" % results4["PO"][i][j]+" "+"%e" % results4["POx"][i][j]+"\n")
             f.write("\n")
     
     all_candidates = on.get_cand_properties(frblist)
     
+    
+    po1 = results1["PO"]
+    po2 = results2["PO"]
+    po3 = results3["PO"]
+    po4 = results4["PO"]
+    
+    pox1 = results1["POx"]
+    pox2 = results2["POx"]
+    pox3 = results3["POx"]
+    pox4 = results4["POx"]
+    
+    pu1 = results1["PU"]
+    pu2 = results2["PU"]
+    pu3 = results3["PU"]
+    pu4 = results4["PU"]
+    
+    pux1 = results1["PUx"]
+    pux2 = results2["PUx"]
+    pux3 = results3["PUx"]
+    pux4 = results4["PUx"]
+    
     # now iterates through galaxies and writes relevant info
-    for i in np.arange(NFRB1):
-        string1="\multicolumn{5}{c|}{"+frbs[i]+"} & "
-        string1 += f"{PUprior2[i]:.3f} &  {PUobs2[i]:.3f} & "
-        string1 += f"{PUprior1[i]:.3f} &  {PUobs1[i]:.3f} & "
-        string1 += f"{PUprior3[i]:.3f} &  {PUobs3[i]:.3f} & "
-        string1 += f"{PUprior4[i]:.3f} &  {PUobs4[i]:.3f} \\\\ "
+    for i in np.arange(results1["NFRB"]):
+        string1="\multicolumn{5}{c|}{"+results1["frbs"][i]+"} & "
+        string1 += f"{pu2[i]:.3f} &  {pux2[i]:.3f} & "
+        string1 += f"{pu1[i]:.3f} &  {pux1[i]:.3f} & "
+        string1 += f"{pu3[i]:.3f} &  {pux3[i]:.3f} & "
+        string1 += f"{pu4[i]:.3f} &  {pux4[i]:.3f} \\\\ "
         print("\\hline")
         print(string1)
         print("\\hline")
         
         
         
-        for j,mag in enumerate(ObsMags4[i]):
+        for j,mag in enumerate(results4["ObsMags"][i]):
             # check if we print this one at all
-            if ObsPosteriors1[i][j] < 1e-4 and ObsPosteriors2[i][j] < 1e-4 \
-                and ObsPosteriors3[i][j] < 1e-4 and ObsPosteriors4[i][j] < 1e-4:
+            if results1["POx"][i][j] < 1e-4 and results2["POx"][i][j] < 1e-4 \
+                and results3["POx"][i][j] < 1e-4 and results4["POx"][i][j] < 1e-4:
                 
                 continue
             
@@ -239,57 +259,59 @@ def main():
             string2 += f" {all_candidates[i]['ang_size'][j]:.2f} & {all_candidates[i]['mag'][j]:.2f} &"
             
             
-            string2 += f"{ObsPrior2[i][j]:.3f} &  {ObsPosteriors2[i][j]:.3f} & "
-            string2 += f"{ObsPrior1[i][j]:.3f} &  {ObsPosteriors1[i][j]:.3f} & "
-            string2 += f"{ObsPrior3[i][j]:.3f} &  {ObsPosteriors3[i][j]:.3f} & "
-            string2 += f"{ObsPrior4[i][j]:.3f} &  {ObsPosteriors4[i][j]:.3f} \\\\ "
+            
+            
+            string2 += f"{po2[i][j]:.3f} &  {pox2[i][j]:.3f} & "
+            string2 += f"{po1[i][j]:.3f} &  {pox1[i][j]:.3f} & "
+            string2 += f"{po3[i][j]:.3f} &  {pox3[i][j]:.3f} & "
+            string2 += f"{po4[i][j]:.3f} &  {pox4[i][j]:.3f} \\\\ "
             print(string2)
     
     
     
     ######## Makes cumulative distribution KS-style plots
     
-    # loads various marnoch models
+    # loads various loudas models
     model = opt.loudas_model()
     xbest = np.load("loudas_output/best_fit_params.npy")
     for f_sfr in [0,1,xbest]:
         x=[f_sfr]
         model.init_args(x)
         wrappers = on.make_wrappers(model,gs)
-        NFRB,AppMags,AppMagPriors,ObsMags,ObsPriors,ObsPosteriors,PUprior,PUobs,sumPUprior,sumPUobs,frbs,dms = on.calc_path_priors(frblist,ss,gs,wrappers,verbose=False)
+        results = on.calc_path_priors(frblist,ss,gs,wrappers,verbose=False)
         
-        NFRBlist.append(NFRB)
-        AppMagslist.append(AppMags)
-        AppMagPriorslist.append(AppMagPriors)
-        ObsMagslist.append(ObsMags)
-        ObsPosteriorslist.append(ObsPosteriors)
-        PUpriorlist.append(PUprior)
-        PUobslist.append(PUobs)
-        sumPUpriorlist.append(sumPUprior)
-        sumPUobslist.append(sumPUobs)
+        NFRBlist.append(results["NFRB"])
+        AppMagslist.append(results["AppMags"])
+        AppMagPriorslist.append(results["AppMagPriors"])
+        ObsMagslist.append(results["ObsMags"])
+        ObsPosteriorslist.append(results["POx"])
+        PUpriorlist.append(results["PU"])
+        PUobslist.append(results["PUx"])
+        sumPUpriorlist.append(results["sumPU"])
+        sumPUobslist.append(results["sumPUx"])
     
     # loads naive model
-    NFRBlist.append(NFRB4)
-    AppMagslist.append(AppMags4)
-    AppMagPriorslist.append(AppMagPriors4)
-    ObsMagslist.append(ObsMags4)
-    ObsPosteriorslist.append(ObsPosteriors4)
-    PUpriorlist.append(PUprior4)
-    PUobslist.append(PUobs4)
-    sumPUpriorlist.append(sumPUprior4)
-    sumPUobslist.append(sumPUobs4)
+    NFRBlist.append(results4["NFRB"])
+    AppMagslist.append(results4["AppMags"])
+    AppMagPriorslist.append(results4["AppMagPriors"])
+    ObsMagslist.append(results4["ObsMags"])
+    ObsPosteriorslist.append(results4["POx"])
+    PUpriorlist.append(results4["PU"])
+    PUobslist.append(results4["PUx"])
+    sumPUpriorlist.append(results4["sumPU"])
+    sumPUobslist.append(results4["sumPUx"])
     
     
     # loads Marnoch model
-    NFRBlist.append(NFRB1)
-    AppMagslist.append(AppMags1)
-    AppMagPriorslist.append(AppMagPriors1)
-    ObsMagslist.append(ObsMags1)
-    ObsPosteriorslist.append(ObsPosteriors1)
-    PUpriorlist.append(PUprior1)
-    PUobslist.append(PUobs1)
-    sumPUpriorlist.append(sumPUprior1)
-    sumPUobslist.append(sumPUobs1)
+    NFRBlist.append(results1["NFRB"])
+    AppMagslist.append(results1["AppMags"])
+    AppMagPriorslist.append(results1["AppMagPriors"])
+    ObsMagslist.append(results1["ObsMags"])
+    ObsPosteriorslist.append(results1["POx"])
+    PUpriorlist.append(results1["PU"])
+    PUobslist.append(results1["PUx"])
+    sumPUpriorlist.append(results1["sumPU"])
+    sumPUobslist.append(results1["sumPUx"])
     
     
     plotlabels=["Loudas25: $f_{\\rm sfr} = 0$", "                  $f_{\\rm sfr} = 1$",

@@ -2,25 +2,14 @@
 This script creates zdm grids for MeerTRAP
 
 """
-import os
 
-from astropy.cosmology import Planck18
-from zdm import cosmology as cos
 from zdm import figures
-from zdm import parameters
-from zdm import survey
-from zdm import pcosmic
-from zdm import iteration as it
 from zdm import loading
-from zdm import io
-from zdm import optical as opt
 from zdm import states
 
+import os
 import numpy as np
-from zdm import survey
 from matplotlib import pyplot as plt
-import importlib.resources as resources
-
 import matplotlib
 
 defaultsize=14
@@ -35,18 +24,17 @@ def main():
     
     # approximate best-fit values from recent analysis
     # load states from Hoffman et al 2025
-    state = states.load_state("HoffmannEmin25",scat="updated",rep=None)
+    state = states.load_state("HoffmannEmin25",scat=None)
     opdir="MeerTRAP/"
     
     if not os.path.exists(opdir):
         os.mkdir(opdir)
     
     # Initialise surveys and grids
-    sdir = resources.files('zdm').joinpath('data/Surveys')
     names=['MeerTRAPcoherent']
     
     ss,gs = loading.surveys_and_grids(
-        survey_names=names,repeaters=False,init_state=state,sdir=sdir) # should be equal to actual number of FRBs, but for this purpose it doesn't matter
+        survey_names=names,repeaters=False,init_state=state) # should be equal to actual number of FRBs, but for this purpose it doesn't matter
     
     # set limits for plots - will be LARGE!   
     DMmax=3000
