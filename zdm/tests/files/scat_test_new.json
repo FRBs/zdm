@@ -40,8 +40,7 @@
         "Wlogmean": 0.0,
         "Wlogsigma": 0.97,
         "Wthresh": 0.5,
-        "Wbins": 10,
-        "Wscale": 2
+        "WNbins": 10
     },
     "scat": {
         "Slogmean": 0.7,

@@ -1,11 +1,11 @@
 """ Codes related to C """
 import os
 import ctypes
-from pkg_resources import resource_filename
+import importlib.resources as resources
 from scipy import LowLevelCallable
 
 lib_path = os.path.join(
-    resource_filename('zdm', 'src'), 'zdmlib.so')
+    resources.files('zdm').joinpath('src'), 'zdmlib.so')
 
 if not os.path.isfile(lib_path):
     raise ImportError("You need to create zdmlib.so!!")

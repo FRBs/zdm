@@ -17,7 +17,7 @@ from matplotlib import pyplot as plt
 import pandas
 
 from zdm import iteration as it
-from zdm.craco import loading
+from zdm.MC_sample import loading
 from zdm import io
 from zdm import real_loading
 

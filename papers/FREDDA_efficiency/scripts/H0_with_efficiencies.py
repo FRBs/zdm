@@ -4,7 +4,7 @@ slice of likelihoods through H0
 
 """
 from zdm import iteration as it
-from zdm.craco import loading
+from zdm.MC_sample import loading
 import numpy as np
 import os
 

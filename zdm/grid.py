@@ -123,7 +123,6 @@ class Grid:
         # State
         self.state = state
         self.MCinit = False
-
         # Cluster / lensing parameters
         self.cluster = cluster
         self.clusterRedshift = clusterRedshift
@@ -281,7 +280,7 @@ class Grid:
         """
         self.nz = self.zvals.size
         self.ndm = self.dmvals.size
-
+        
         # check to see if these are log-spaced
         if (self.zvals[-1] - self.zvals[-2]) / (self.zvals[1] - self.zvals[0]) > 1.01:
             if (
@@ -294,7 +293,7 @@ class Grid:
         else:
             self.zlog = False
             self.dz = self.zvals[1] - self.zvals[0]
-
+        
         self.ddm = self.dmvals[1] - self.dmvals[0]
         shape = self.grid.shape
         if shape[0] != self.nz:
@@ -508,6 +507,7 @@ class Grid:
         )  # sums over b-axis [ we could ignore this step?]
         self.pdv = np.multiply(self.fractions.T, self.dV).T
 
+
     def get_pw_dist(self):
         """
         Function asking the grid to return the p(w) distribution.
@@ -595,6 +595,7 @@ class Grid:
         
         return Wtots,Wzs,Wdms
 
+
     def calc_rates(self):
         """ multiplies the rate per cell with the appropriate pdm plot """
 
@@ -615,6 +616,17 @@ class Grid:
         except:
             print("WARNING: no volumetric probability pdv yet calculated")
             exit()
+        
+        # zfraction describes the fraction of host galaxies estimated to be
+        # visible at a given redshift. Implementing zfraction then means this grid
+        # is calculating the *observable* z-DM space, rather than the intrinsic z-DM space
+        # zfractions are given as two arrays - the zvalues, and the f(z) values
+        if self.survey.survey_data.observing.Z_FRACTION is not None:
+            fdir = str(resources.files('zdm').joinpath('data/optical'))
+            ffile = fdir + "/fz_"+str(self.survey.survey_data.observing.Z_FRACTION)+".npy"
+            zfile = fdir + "/z_"+str(self.survey.survey_data.observing.Z_FRACTION)+".npy"
+            self.construct_fz(ffile,zfile)
+            self.sfr *= self.fz
 
         if self.cluster:
             # --- Cluster mode: compute rates per-beam then sum ---
@@ -901,6 +913,14 @@ class Grid:
                 wb_fraction = (self.beam_o[i]* w  * pzDM)
                 pdv = np.multiply(wb_fraction.T, self.dV).T
                 rate = pdv * self.sfr_smear
+                
+                # We do not implement photo-z smearing here
+                # the MC generates truth values of parameters
+                # smearing can be done very simple afterwards
+                # this smears the
+                #if self.survey.observing.Z_PHOTO > 1.:
+                #    rate = self.smear_z(rate,self.survey.observing.Z_PHOTO)
+                #    #rate=np.copy(self.smear_zgrid)
 
                 rates.append(rate)
                 pwb[i * nw + j] = np.sum(rate)
@@ -993,12 +1013,18 @@ class Grid:
         # each probability represents the p(bin), i.e. z-dz/2. to z+dz/2
         # first, find the bin where the cumulative probability is higher
         # than the sampled amount.
+        # Alternative method: just use the distribution from the bin,
+        # then multiply the resulting DM linearly with deltaz/z.
+        # Would be better at low z, worse at high z
         iz2 = np.where(pzc > r)[0][0]
         if iz2 > 0:
             iz1 = iz2 - 1
             iz3 = iz2 + 1
             dr = r - pzc[iz1]
             fz = dr / (pzc[iz2] - pzc[iz1])  # fraction of way to upper z value
+            
+            # move a fraction of kz2 between z-dz/0.5 and z + dz/0.5
+            #MCz = self.zvals[iz2] + (kz2-0.5)*dz
             
             # weigts between iz1 and iz2
             if fz < 0.5:
@@ -1320,7 +1346,7 @@ class Grid:
         elif new_pdv_smear:
             self.rates = self.pdv * self.sfr_smear  # does pdv mult only, 'by hand'
 
-        # Catch all the changes just in case, e.g. lC
+        # Catch all the changes just in case, e.g. lCf
         # Can no longer do this because of repeat_grid
         self.state.update_params(vparams)
 

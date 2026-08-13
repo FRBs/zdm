@@ -12,7 +12,7 @@ Plots results.
 import pytest
 
 from zdm import io
-from zdm.craco import loading
+from zdm.MC_sample import loading
 from pkg_resources import resource_filename
 import os
 import copy
@@ -264,7 +264,7 @@ def survey_and_grid(survey_name:str='CRAFT/CRACO_1_5000',
         tuple: Survey, Grid objects
     """
     # Init state
-    from zdm.craco import loading
+    from zdm.MC_sample import loading
     state = loading.set_state(alpha_method=alpha_method)
 
     # Addiitonal updates

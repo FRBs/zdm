@@ -26,7 +26,7 @@ def main():
     # off by default
     #time_splines(Nreps=1)
 
-def test_default_spline(gamma=-1.5837, amin=1e-6, amax=1e6,
+def test_default_spline(gamma=-1.5837, amin=1e-6, amax=1e2,
         Ntest=1000, plot=False):
     """
     Function to test the accuracy of the spline interplation

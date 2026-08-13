@@ -26,7 +26,7 @@ CRAFT_CRACO_MC_alpha1_gamma_1000_missing.dat
 
 """
 
-from zdm.craco import loading
+from zdm.MC_sample import loading
 from pkg_resources import resource_filename
 import os
 import copy

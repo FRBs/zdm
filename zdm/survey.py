@@ -796,6 +796,8 @@ class Survey:
         # Yamasaki and Totani 2020
         elif halo_method == 1:
             no_coords = np.where(self.Gls == 1.0)[0]
+            # if np.any(np.isnan(self.RA[no_coords])) or np.any(np.isnan(self.Dec[no_coords])):
+            #     raise ValueError('Galactic coordinates must be set if using directional dependence')
             
             if len(no_coords) != 0:
                 for i in no_coords:
@@ -818,14 +820,17 @@ class Survey:
             # Evaluate each one
             self.DMhalos = np.zeros(self.DMs.shape, dtype='float')
             for i in range(8):
-                for j in range(8 - i):
-                    self.DMhalos = self.DMhalos + self.c[i][j] * np.abs(self.Gls) ** i * np.abs(self.Gbs) ** j
+                for j in range(8-i):
+                    self.DMhalos = self.DMhalos + self.c[i][j] * np.abs(self.Gls)**i * np.abs(self.Gbs)**j
             
             self.DMhalos = self.DMhalos * self.DMhalo / 43
+            # self.DMGals = self.DMhalos + self.DMGs
 
         # Sanskriti et al. 2020
         elif halo_method == 2:
             no_coords = np.where(self.Gls == 1.0)[0]
+            # if np.any(np.isnan(self.XRA[no_coords])) or np.any(np.isnan(self.Dec[no_coords])):
+            #     raise ValueError('Galactic coordinates must be set if using directional dependence')
             
             if len(no_coords) != 0:
                 for i in no_coords:
@@ -838,6 +843,7 @@ class Survey:
         
             self.DMhalos = np.zeros(len(self.frbs))
             self.DMhalo = 0
+            # self.DMGals = np.zeros(len(self.frbs))
             self.DMG_el = np.zeros(len(self.frbs))
             self.DMG_eu = np.zeros(len(self.frbs))
             DMMWs = np.zeros(len(self.frbs))
@@ -1046,7 +1052,7 @@ class Survey:
         default_frb = survey_data.FRB()
         
         # we now populate missing fields with the default values
-        for field in fields(default_frb):
+        for field in fields(default_frb):\
             # checks to see if this is a field in metadata: if so, takes priority
             if survey_dict is not None and field.name in survey_dict.keys():
                 default_value = survey_dict[field.name]
@@ -1059,13 +1065,14 @@ class Survey:
             if field.name in frb_tbl.columns:
                 # iterate over fields, checking if they are populated.
                 # only replaces values that are []
-                for i, val in enumerate(frb_tbl[field.name]):
-                    if isinstance(val, np.ma.core.MaskedArray):
+                for i,val in enumerate(frb_tbl[field.name]):
+                    if isinstance(val,np.ma.core.MaskedArray):
                         frb_tbl[field.name][i] = default_value
             else:
+                #default_value = getattr(default_frb, field.name)
                 frb_tbl[field.name] = default_value
-                print("WARNING: no ", field.name, " found in survey",
-                    "replacing with default value of ", default_value)
+                print("WARNING: no ",field.name," found in survey",
+                    "replacing with default value of ",default_value)
         
         self.frbs = frb_tbl.to_pandas()
         
@@ -1101,6 +1108,28 @@ class Survey:
         # Get new number of FRBs
         self.NFRB = len(self.frbs)
         
+        # fills in missing coordinates if possible
+        # also converts RA and Dec strings to floats
+        self.fix_coordinates(verbose=False)
+        
+        # Min latitude
+        if min_lat is not None and min_lat > 0.0:
+            tot = len(self.frbs)
+            mask = [(Gb is None) or (np.abs(Gb) > min_lat) for Gb in self.frbs['Gb'].values]
+            self.frbs = self.frbs[mask]
+            included = len(self.frbs)
+            
+            print("Using minimum galactic latitude of " + str(min_lat) + ". Excluding " + str(tot - included) + " FRBs")
+        # Max DM
+        if dmg_cut is not None:
+            tot = len(self.frbs)
+            self.frbs = self.frbs[np.abs(self.frbs['DMG'].values) < dmg_cut]
+            included = len(self.frbs)
+            print("Using maximum DMG of " + str(dmg_cut) + ". Excluding " + str(tot - included) + " FRBs")
+
+        # Get new number of FRBs
+        self.NFRB = len(self.frbs)
+        
         # Vet
         vet_frb_table(self.frbs, mandatory=True)
         
@@ -1112,10 +1141,18 @@ class Survey:
             
             # replace default values with observed media values
             # it's unclear if median or mean is the best here
-            keylist = ['SNRTHRESH', 'THRESH', 'BW', 'FBAR', 'FRES', 'TRES', 'WIDTH', 'DMG']
+            keylist = ['SNRTHRESH','THRESH','BW','FBAR','FRES','TRES','WIDTH','DMG']
             for key in keylist:
                 if not key in self.meta:
                     self.meta[key] = np.median(self.frbs[key])
+            #self.meta['SNRTHRESH'] = np.median(self.frbs['SNRTHRESH'])
+            #self.meta['THRESH'] = np.median(self.frbs['THRESH'])
+            #self.meta['BW'] = np.median(self.frbs['BW'])
+            #self.meta['FBAR'] = np.median(self.frbs['FBAR'])
+            #self.meta['FRES'] = np.median(self.frbs['FRES'])
+            #self.meta['TRES'] = np.median(self.frbs['TRES'])
+            #self.meta['WIDTH'] = np.median(self.frbs['WIDTH'])
+            #self.meta['DMG'] = np.mean(self.frbs['DMG'])
         # over-rides survey data if applicable
         if survey_dict is not None:
             for key in survey_dict:
@@ -1669,10 +1706,14 @@ def quadrature_convolution(width_function, width_args, scat_function, scat_args,
     # these need to be normalised by the internal bin width
     logbinwidth = internal_logvals[-1] - internal_logvals[-2]
     
+    # these functions should *not* be normalsid, since some true distribution
+    # may extend beyond the range of interest. But it means that the below functions
+    # absolutely should be correctly normalised
     pw = width_function(internal_logvals, *width_args) * logbinwidth
     ptau = scat_function(internal_logvals, *scat_args) * logbinwidth
     
-    # adds extra bits onto the lowest bin.
+    # adds extra bits onto the lowest bin. Does this by integrating in
+    # log space. Assumes exp(-10) is small enough!
     lowest = internal_logvals[0] - logbinwidth / 2.
     extrapw, err = quad(width_function, lowest - 10, lowest, args=width_args)
     extraptau, err = quad(scat_function, lowest - 10, lowest, args=scat_args)
@@ -1774,7 +1815,12 @@ def halflognormal(log10w, *args):
     Generates a parameterised half-lognormal distribution.
     This acts as a lognormal in the lower half, but
     keeps a constant per-log-bin width in the upper half
-    There is no formal way to normalise this function.
+    There is nor formal way to normalise this function.
+    
+    It can also be verified that changing the normalisation of these functions
+    only changes the P(N) calculation, which should in any case be
+    separately optimised. Note however that this changes the interpretation
+    of the log-constant, which may be incorrect to within such a normalisation factor.
     
     Args:
         log10w: log base 10 of widths
@@ -1827,465 +1873,6 @@ def constant(log10w, *args):
         if log10w < args[0]:
             result = np.array([0])
         else:
-            result = np.array([1. / width])
+            result = np.array([1./width])
     return result
-
-
-# ---- Legacy support ----
-
-class OldSurvey:
-    """A class to hold an FRB survey (legacy format)
-
-    Attributes:
-        frbs (dict): Holds the data for the FRBs
-
-    """
-    def __init__(self):
-        self.init = False
-        self.do_beam = False
-    
-    def get_efficiency(self, DMlist, model="Quadrature", dsmear=True):
-        """ Gets efficiency to FRBs
-        Returns a list of relative efficiencies
-        as a function of dispersion measure for each FRB.
-        """
-        efficiencies = np.zeros([self.NFRB, DMlist.size])
-        for i in np.arange(self.NFRB):
-            efficiencies[i, :] = calc_relative_sensitivity(self.DMs[i], DMlist, self.WIDTHs[i],
-                self.FBARs[i], self.TRESs[i], self.FRESs[i], model=model, dsmear=dsmear)
-        # keep an internal record of this
-        self.efficiencies = efficiencies
-        self.DMlist = DMlist
-        self.wplist = np.array([1])# weight of 1
-        mean_efficiencies = np.mean(efficiencies, axis=0)
-        self.mean_efficiencies = mean_efficiencies
-        return efficiencies
-    
-    def get_efficiency_from_wlist(self, DMlist, wlist, plist, 
-                                  model="Quadrature", 
-                                  addGalacticDM=True):
-        """ Gets efficiency to FRBs (legacy) """
-        efficiencies = np.zeros([wlist.size, DMlist.size])
-        if addGalacticDM:
-            toAdd = self.DMhalo + self.meta["DMG"]
-        else:
-            toAdd = 0.
         
-        for i, w in enumerate(wlist):
-            efficiencies[i, :] = calc_relative_sensitivity(
-                None, DMlist + toAdd, w,
-                np.median(self.frbs['FBAR']),
-                np.median(self.frbs['TRES']),
-                np.median(self.frbs['FRES']),
-                model=model,
-                dsmear=False)
-        self.efficiencies = efficiencies
-        self.wplist = plist
-        self.wlist = wlist
-        self.DMlist = DMlist
-        mean_efficiencies = np.mean(efficiencies, axis=0)
-        self.mean_efficiencies = mean_efficiencies
-        return efficiencies
-    
-    def process_survey_file(self, filename: str, NFRB: int = None,
-                            iFRB: int = 0):
-        """ Loads a survey file, then creates 
-        dictionaries of the loaded variables 
-
-        Args:
-            filename (str): Survey filename
-            NFRB (int, optional): Use only a subset of the FRBs in the Survey file.
-            iFRB (int, optional): Start grabbing FRBs at this index
-        """
-        info = []
-        keys = []
-        self.meta = {}
-        self.frbs = {}
-        basename = os.path.basename(filename)
-        name = os.path.splitext(basename)[0]
-        self.name = name
-        self.iFRB = iFRB
-
-        nlines = 0
-        with open(filename) as infile:
-            i = -1
-            for line in infile:
-                i += 1
-                line = line.strip()
-                if line == "":
-                    continue
-                elif line[0] == '#':
-                    continue
-                else:
-                    nocomments = line.split("#")[0]
-                    words = nocomments.split()
-                    key = words[0]
-                    keys.append(key)
-                    rest = words[1:]
-                    info.append(rest)
-                    nlines += 1
-        
-        self.info = info
-        self.keys = keys
-
-        if NFRB is None:
-            self.NFRB = keys.count('FRB')
-        else:
-            self.NFRB = min(keys.count('FRB'), NFRB)
-        if self.NFRB == 0:
-            print('No FRBs found in file ' + filename)
-        
-        self.meta['NFRB'] = self.NFRB
-        
-        self.frblist = self.find(keys, 'FRB')
-
-        if NFRB is not None:
-            if self.NFRB < NFRB + iFRB:
-                raise ValueError("Cannot return sufficient FRBs, did you mean NFRB=None?")
-            themax = min(NFRB + iFRB, self.NFRB)
-            self.frblist = self.frblist[iFRB:themax]
-        
-        iKEY = self.do_metakey('KEY')
-        self.keylist = info[iKEY]
-        
-        which = 1
-        self.do_keyword_char('BEAM', which, None)
-        self.do_keyword('TOBS', which, None)
-        self.do_keyword('DIAM', which, None)
-        self.do_keyword('NBEAMS', which, 1)
-        self.do_keyword('NORM_FRB', which, self.NFRB)
-        self.do_keyword('NBINS', which, 1)
-        self.meta['NBINS'] = int(self.meta['NBINS'])
-        
-        if False:
-            self.do_keyword('BMETHOD', which, 3)
-            self.do_keyword('BTHRESH', which, 0)
-            self.do_keyword('WMETHOD', which, 0)
-            self.do_keyword('WBIAS', which, "CHIME")
-        else:
-            self.do_keyword('BMETHOD', which, 2)
-            self.do_keyword('BTHRESH', which, 0)
-            self.do_keyword('WMETHOD', which, 2)
-            self.do_keyword('WBIAS', which, "Quadrature")
-        
-        which = 3
-        self.do_keyword('THRESH', which)
-        self.do_keyword('TRES', which, 1.265)
-        self.do_keyword('FRES', which, 1)
-        self.do_keyword('FBAR', which, 1196)
-        self.do_keyword('BW', which, 336)
-        self.do_keyword('SNRTHRESH', which, 9.5)
-        self.do_keyword('DMG', which, 35)
-        self.do_keyword('NREP', which, 1)
-        
-        which = 2
-        self.do_keyword('SNR', which)
-        self.do_keyword('DM', which)
-        self.do_keyword('WIDTH', which, 0.1)
-        self.do_keyword_char('TNS', which, None, dtype='str')
-        self.do_keyword('Gl', which, None)
-        self.do_keyword('Gb', which, None)
-        self.do_keyword_char('XRA', which, None, dtype='str')
-        self.do_keyword_char('XDec', which, None, dtype='str')
-        
-        self.do_keyword('Z', which, None)
-
-        if self.frbs["Z"] is not None:
-            
-            self.Zs = self.frbs["Z"]
-            zeroz = np.where(self.Zs == 0.)[0]
-            if len(zeroz) > 0:
-                self.Zs[zeroz] = 0.001
-            
-            self.zlist = np.where(self.Zs > 0.)[0]
-            if len(self.zlist) < self.NFRB:
-                self.nozlist = np.where(self.Zs < 0.)[0]
-                self.nD = 3
-            else:
-                self.nozlist = None
-                self.nD = 2
-        else:
-            self.nD = 1
-            self.Zs = None
-            self.nozlist = np.arange(self.NFRB)
-            self.zlist = None
-        
-        self.process_dmg()
-        
-        self.DMs = self.frbs['DM']
-        self.DMGs = self.frbs['DMG']
-        self.SNRs = self.frbs['SNR']
-        self.WIDTHs = self.frbs['WIDTH']
-        self.TRESs = self.frbs['TRES']
-        self.FRESs = self.frbs['FRES']
-        self.FBARs = self.frbs['FBAR']
-        self.BWs = self.frbs['BW']
-        self.THRESHs = self.meta['THRESH']
-        self.SNRTHRESHs = self.meta['SNRTHRESH']
-        self.NORM_FRB = self.meta['NORM_FRB']
-        
-        self.Ss = self.SNRs / self.SNRTHRESHs
-        self.TOBS = self.meta['TOBS']
-        self.Ss[np.where(self.Ss < 1.)[0]] = 1
-        
-        self.beam_b = np.array([1])
-        self.beam_o = np.array([1])
-        self.NBEAMS = 1
-        
-        self.init = True
-        print("FRB survey sucessfully initialised with ", self.NFRB, " FRBs starting from", self.iFRB)
-        
-    def init_DMEG(self, DMhalo):
-        """ Calculates extragalactic DMs assuming halo DM """
-        self.DMhalo = DMhalo
-        self.DMEGs = self.DMs - self.DMGs - DMhalo
-    
-    def do_metakey(self, key):
-        """ This kind of key can *only* be metadata """
-        n = self.keys.count(key)
-        if (n != 1):
-            raise ValueError('Key ', key, ' should appear once and only once, list is ', self.keys)
-            
-        elif (n == 1):
-            i = self.keys.index(key)
-            self.meta[key] = self.info[i]
-        return i
-    
-    def do_keyword(self, key, which=3, default=-1):
-        """ This kind of key can either be in the metadata, or the table, not both """
-        n = self.keys.count(key)
-        if (n > 1):
-            raise ValueError('Repeat information: key ', key, ' appears more than once')
-        elif (which != 2) and (n == 1):
-            ik = self.keys.index(key)
-            self.meta[key] = float(self.info[ik][0])
-            self.frbs[key] = np.full([self.NFRB], float(self.info[ik][0]))
-            
-        elif (which != 1) and (self.keylist.count(key) == 1) and self.NFRB > 0:
-            ik = self.keylist.index(key)
-            mean = 0.
-            values = np.zeros([self.NFRB])
-            for i, j in enumerate(self.frblist):
-                values[i] = float(self.info[j][ik])
-                mean += values[i]
-            self.frbs[key] = values
-            self.meta[key] = mean / self.NFRB
-        else:
-            if default == None:
-                self.meta[key] = None
-                self.frbs[key] = None
-            elif default == '-1':
-                raise ValueError('No information on ', key, ' available')
-            else:
-                self.meta[key] = default
-                self.frbs[key] = np.full([self.NFRB], default)
-    
-    def do_keyword_char(self, key: str,
-                        which: int, default=-1, 
-                        dtype='float'):
-        """Slurp in a set of character keywords"""
-        n = self.keys.count(key)
-        if (n > 1):
-            raise ValueError('Repeat information: key ', key, ' appears more than once')
-        elif (which != 2) and (n == 1):
-            ik = self.keys.index(key)
-            self.meta[key] = self.info[ik][0]
-            self.frbs[key] = np.full([self.NFRB], self.info[ik][0])
-            
-        elif (which != 1) and (self.keylist.count(key) == 1):
-            ik = self.keylist.index(key)
-            if dtype == 'str':
-                values = []
-                for i, j in enumerate(self.frblist):
-                    values.append(self.info[j][ik])
-                values = np.array(values)
-            else:
-                values = np.zeros([self.NFRB], dtype=dtype)
-                for i, j in enumerate(self.frblist):
-                    values[i] = self.info[j][ik]
-            self.frbs[key] = values
-        else:
-            if default == None:
-                self.meta[key] = None
-                self.frbs[key] = None
-            elif default == '-1':
-                raise ValueError('No information on ', key, ' available')
-            else:
-                self.meta[key] = default
-                self.frbs[key] = np.full([self.NFRB], default)
-
-    
-    def process_dmg(self):
-        """ Estimates galactic DM """
-        if self.frbs["DMG"] is None:
-            if self.frbs["Gl"] is None or self.frbs["Gb"] is None:
-                raise ValueError('Can not estimate Galactic contributions.')
-            print("Calculating DMG from NE2001. Please record this, it takes a while!")
-            ne = density.ElectronDensity()
-            DMGs = np.zeros([self.NFRB])
-            for i, l in enumerate(self.frbs["Gl"]):
-                b = self.frbs["Gb"][i]
-                ismDM = ne.DM(l, b, 100.)
-                print(i, l, b, ismDM)
-            DMGs = np.array(DMGs)
-            self.frbs["DMG"] = DMGs
-            self.DMGs = DMGs
-
-    def find(self, lst, val):
-            return [i for i, x in enumerate(lst) if x == val]
-    
-    def get_key(self, key):
-        if key in self.keys:
-            return self.keys
-    
-    def init_beam(self, plot=False, method=1, thresh=1e-3, Gauss=False):
-        """ Initialises the beam """
-        if Gauss:
-            b, omegab = beams.gauss_beam(thresh=thresh,
-                                      nbins=self.meta['NBINS'],
-                                      freq=self.meta["FBAR"], D=self.meta["DIAM"])
-            self.beam_b = b
-            self.beam_o = omegab * self.meta["NBEAMS"]
-            self.orig_beam_b = self.beam_b
-            self.orig_beam_o = self.beam_o
-            
-        elif self.meta["BEAM"] is not None:
-            
-            logb, omegab = beams.load_beam(self.meta["BEAM"])
-            self.orig_beam_b = 10 ** logb
-            self.orig_beam_o = omegab
-            if plot:
-                savename = 'Plots/Beams/' + self.name + '_' + self.meta["BEAM"] + '_' + str(method) + '_' + str(thresh) + '_beam.pdf'
-            else:
-                savename = None
-            b2, o2 = beams.simplify_beam(logb, omegab, self.meta['NBINS'],
-                                      savename=savename, method=method, thresh=thresh)
-            self.beam_b = b2
-            self.beam_o = o2
-            self.do_beam = True
-            self.NBEAMS = b2.size
-            
-        else:
-            print("No beam found to initialise...")
-            
-    def __repr__(self):
-        repr = '<{:s}: \n'.format(self.__class__.__name__)
-        repr += f'name={self.name}'
-        return repr
-
-
-def refactor_old_survey_file(survey_name: str, outfile: str, 
-                             clobber: bool = False, sdir=None):
-    """Refactor an old survey file to the new format
-
-    Args:
-        survey_name (str): Name of the survey
-        outfile (str): Name of the output file
-        clobber (bool, optional): Clobber the output file. Defaults to False.
-        sdir: directory to find survey in. Defaults to None, i.e.
-            the zdm/data/Survey/Original will be used
-    """
-    from pkg_resources import resource_filename
-    
-    state = parameters.State()
-    srvy_data = survey_data.SurveyData()
-    
-    nbins = None
-    if 'private' in survey_name:
-        nbins = 5
-
-    isurvey = _load_old_survey(survey_name, state, 
-                         np.linspace(0., 2000., 1000),
-                         sdir=sdir, nbins=nbins)
-    
-    # FRBs
-    frbs = pandas.DataFrame(isurvey.frbs)
-
-    # Fill in fixed survey_data from meta
-    for field in srvy_data.telescope.fields:
-        if not (field in isurvey.meta) or isurvey.meta[field] is None:
-            isurvey.meta[field] = '-1'
-            print("Could not find field ", field, " setting to -1")
-        setattr(srvy_data.telescope, field, srvy_data.telescope.__dataclass_fields__[field].type(
-                isurvey.meta[field]))
-        
-    for field in srvy_data.observing.fields:
-        if field != 'NORM_FRB' or 'NORM_FRB' in isurvey.meta:
-            setattr(srvy_data.observing, field, srvy_data.observing.__dataclass_fields__[field].type(
-                isurvey.meta[field]))
-        else:
-            srvy_data.observing.NORM_FRB = len(frbs)
-            
-    # Trim down FRB table
-    for key in srvy_data.to_dict().keys():
-        for key2 in srvy_data.to_dict()[key]:
-            if key2 in frbs.keys():
-                frbs.drop(columns=[key2], inplace=True)
-
-    frbs.rename(columns={'ID': 'TNS'}, inplace=True)
-
-    vet_frb_table(frbs, mandatory=False, fill=True)
-
-    for letter in ['A', 'B', 'C', 'D', 'E', 'F', 
-                   'G', 'H', 'I', 'J', 'K']:
-        key = f'X{letter}'
-        isurvey.do_keyword_char(key, 3, None, dtype='str')
-        if isurvey.frbs[key] is None:
-            continue
-        frbs[key] = isurvey.frbs[key]
-
-    frbs = frbs.reindex(sorted(frbs.columns), axis=1)
-
-    col = frbs.pop("TNS")
-    frbs.insert(0, col.name, col)
-
-    frbs = Table.from_pandas(frbs)
-
-    frbs.meta['survey_data'] = json.dumps(
-        srvy_data.to_dict(), sort_keys=True, indent=4, 
-        separators=(',', ': '))
-
-    frbs.write(outfile, overwrite=clobber, format='ascii.ecsv')
-    
-    print(f"Wrote: {outfile}")
-
-
-def _load_old_survey(survey_name: str, state: parameters.State,
-                     dmvals: np.ndarray, sdir: str = None,
-                     NFRB: int = None, nbins=None, iFRB: int = 0):
-    """Internal helper: load a survey in the original .dat format."""
-    from pkg_resources import resource_filename
-    
-    if sdir is None:
-        sdir = os.path.join(resource_filename('zdm', 'data'), 'Surveys', 'Original')
-
-    if survey_name == 'CRAFT/FE':
-        dfile = 'CRAFT_class_I_and_II'
-    elif survey_name == 'CRAFT/ICS':
-        dfile = 'CRAFT_ICS'
-    elif survey_name == 'CRAFT/ICS892':
-        dfile = 'CRAFT_ICS_892'
-    elif survey_name == 'CRAFT/ICS1632':
-        dfile = 'CRAFT_ICS_1632'
-    elif survey_name == 'PKS/Mb':
-        dfile = 'parkes_mb_class_I_and_II'
-    elif 'private' in survey_name:
-        dfile = survey_name
-        if nbins is None:
-            raise IOError("You must specify nbins with a private survey file")
-    else:
-        dfile = survey_name
-    
-    dfile += '.dat'
-
-    srvy = OldSurvey()
-    srvy.name = survey_name
-    srvy.process_survey_file(os.path.join(sdir, dfile), NFRB=NFRB, iFRB=iFRB)
-    srvy.init_DMEG(state.MW.DMhalo)
-
-    beam_method = srvy.meta['BMETHOD']
-    beam_thresh = srvy.meta['BTHRESH']
-    width_bias = srvy.meta['WBIAS']
-
-    srvy.init_beam(method=beam_method, plot=False, thresh=beam_thresh)
-    return srvy

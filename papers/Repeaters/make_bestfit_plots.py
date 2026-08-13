@@ -36,7 +36,7 @@ import pickle
 import utilities as ute
 import states as st
 
-from zdm.craco import loading
+from zdm.MC_sample import loading
 from zdm import cosmology as cos
 from zdm import repeat_grid as rep
 from zdm import misc_functions

@@ -1,4 +1,4 @@
-from zdm.craco import loading
+from zdm.MC_sample import loading
 import time
 import numpy as np
 import os

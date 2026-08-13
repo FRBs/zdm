@@ -9,12 +9,12 @@ from matplotlib import pyplot as plt
 import matplotlib
 
 
-
-matplotlib.rcParams['image.interpolation'] = None
+# now apparently deprecated
+#matplotlib.rcParams['image.interpolation'] = None
 
 defaultsize=14
 ds=4
-font = {'family' : 'normal',
+font = {'family' : 'Helvetica',
         'weight' : 'normal',
         'size'   : defaultsize}
 matplotlib.rc('font', **font)
@@ -143,29 +143,30 @@ def main():
     o_scats *= (1.3/0.9)**4
     
     
-    dms=np.loadtxt('Figure1/craft_892_frbs.dat')
-    smear=8.3 * 1. * dms * (0.892)**-3 / 1000.
-    d=False
-    xmax=30
-    bins=np.linspace(0,xmax,16)
-    plt.figure()
-    #plt.hist(o_scats[supper],bins=bins,label='CHIME upper limits',alpha=0.3,fill=False,linewidth=3,edgecolor='red',density=True)
-    #plt.hist(o_scats[sOK],bins=bins,label='CHIME scatter',alpha=0.3,fill=False,linewidth=3,edgecolor='blue',density=True)
-    
-    plt.hist(-hdata[hupper],bins=bins,label='CRAFT upper limits',alpha=0.7,fill=False,linewidth=3,edgecolor='green',density=d,linestyle=":")
-    plt.hist(hdata[hOK],bins=bins,label='CRAFT scatter',alpha=0.5,fill=False,linewidth=3,edgecolor='purple',density=d)
-    
-    plt.hist(smear,bins=bins,label='CRAFT 900MHz FRB DM smearing',alpha=1.0,fill=False,linewidth=1,edgecolor='black',density=d,linestyle='--')
-    
-    plt.xlim(0,xmax)
-    #plt.ylim(0,20)
-    plt.legend()
-    plt.xlabel('$\\tau$ [1.3 GHz]')
-    plt.ylabel('Occurences')
-    plt.tight_layout()
-    plt.savefig('Figure1/900_scaled_scattering_times.pdf')
-    plt.close()
-    
+    ############# DM smearing #######3
+    if False:
+        dms=np.loadtxt('Figure1/craft_892_frbs.dat')
+        smear=8.3 * 1. * dms * (0.892)**-3 / 1000.
+        d=False
+        xmax=30
+        bins=np.linspace(0,xmax,16)
+        plt.figure()
+        #plt.hist(o_scats[supper],bins=bins,label='CHIME upper limits',alpha=0.3,fill=False,linewidth=3,edgecolor='red',density=True)
+        #plt.hist(o_scats[sOK],bins=bins,label='CHIME scatter',alpha=0.3,fill=False,linewidth=3,edgecolor='blue',density=True)
+        
+        plt.hist(-hdata[hupper],bins=bins,label='CRAFT upper limits',alpha=0.7,fill=False,linewidth=3,edgecolor='green',density=d,linestyle=":")
+        plt.hist(hdata[hOK],bins=bins,label='CRAFT scatter',alpha=0.5,fill=False,linewidth=3,edgecolor='purple',density=d)
+        
+        plt.hist(smear,bins=bins,label='CRAFT 900MHz FRB DM smearing',alpha=1.0,fill=False,linewidth=1,edgecolor='black',density=d,linestyle='--')
+        
+        plt.xlim(0,xmax)
+        #plt.ylim(0,20)
+        plt.legend()
+        plt.xlabel('$\\tau$ [1.3 GHz]')
+        plt.ylabel('Occurences')
+        plt.tight_layout()
+        plt.savefig('Figure1/900_scaled_scattering_times.pdf')
+        plt.close()
     
     ####### compares widths #######
     
@@ -179,7 +180,9 @@ def main():
     plt.tight_layout()
     plt.savefig('Figure1/width_comparison.pdf')
     plt.close()
-
+    
+    
+    
     ############################# CUMULATIVE DISTRIBUTIONS ######################
     #creates cumulative distribution for ASKAP
     #sets all limits to zero

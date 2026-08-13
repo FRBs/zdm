@@ -194,16 +194,16 @@ def get_chime_data(DMhalo=50,snrcut=None):
     chimedir = 'CHIME_FRBs/'
     infile = chimedir+'chimefrbcat1.csv'
     
-    idec=5
-    idm=29
-    idmeg=9
+    idec=6
+    idm=24
+    idmeg=26
     iname=0
     irep=2
-    iwidth=32
-    isnr=10
+    iwidth=42
+    isnr=23
     
     # hard-coded number of FRBs
-    NFRB=536
+    NFRB=600
     decs=np.zeros([NFRB])
     dms=np.zeros([NFRB])
     dmegs=np.zeros([NFRB])

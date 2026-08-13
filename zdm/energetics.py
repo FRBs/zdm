@@ -1,3 +1,41 @@
+"""
+FRB luminosity/energy function implementations.
+
+This module provides functions for computing FRB luminosity (energy) distributions,
+including both cumulative and differential forms. The main luminosity functions
+implemented are:
+
+1. **Power Law**: Simple power-law distribution dN/dE ~ E^gamma between Emin and Emax
+2. **Gamma Function**: Upper incomplete gamma function distribution with exponential cutoff
+
+The gamma function implementation uses spline interpolation for efficiency, as
+direct evaluation of the incomplete gamma function is computationally expensive
+when called many times during grid calculations.
+
+Key Functions
+-------------
+- `vector_cum_power_law`: Cumulative power-law luminosity function
+- `vector_cum_gamma_spline`: Cumulative gamma function with spline interpolation
+- `array_cum_gamma_spline`: N-dimensional array wrapper for gamma function
+- `init_igamma_splines`: Initialize spline lookup tables for gamma functions
+
+Module Variables
+----------------
+igamma_splines : dict
+    Cache of spline interpolators keyed by gamma value.
+SplineMin, SplineMax : float
+    Log10 range for spline interpolation.
+SplineLog : bool
+    If True, perform interpolation in log-log space (recommended).
+
+Example
+-------
+>>> from zdm import energetics
+>>> Eth = np.logspace(38, 42, 100)  # Energy thresholds in erg
+>>> params = (1e38, 1e42, -1.5)  # Emin, Emax, gamma
+>>> fraction = energetics.vector_cum_power_law(Eth, *params)
+"""
+
 import numpy as np
 from scipy import interpolate
 import mpmath
@@ -5,34 +43,74 @@ from astropy.cosmology import Planck18 as cosmo
 
 from IPython import embed
 
+# Global cache for spline interpolators
 igamma_splines = {}
 igamma_linear = {}
 igamma_linear_log10 = {}
-SplineMin = -6
-SplineMax = 6
-NSpline = 1000
 
-############## this section defines different luminosity functions ##########
+# Spline interpolation settings
+SplineMin = -6   # Log10 of minimum argument for incomplete gamma
+SplineMax = 6    # Log10 of maximum argument
+NSpline = 1000   # Number of spline points
+SplineLog = True # Use log-space interpolation (more accurate)
 
-def init_igamma_splines(gammas, reinit=False):
-    global SplineMin,SplineMax,NSpline
+def init_igamma_splines(gammas, reinit=False, k=3):
+    """Initialize spline interpolators for the upper incomplete gamma function.
+
+    Pre-computes spline representations of the upper incomplete gamma function
+    Gamma(gamma, x) for fast evaluation during grid calculations. Splines are
+    cached globally and reused across calls.
+
+    Parameters
+    ----------
+    gammas : list of float
+        Values of gamma (the shape parameter) for which to create splines.
+    reinit : bool, optional
+        If True, reinitialize splines even if they already exist. Default False.
+    k : int, optional
+        Degree of spline interpolation. Default is 3 (cubic). Valid range: 1-5.
+        Note: k=2 and k=4 not recommended due to numerical issues.
+
+    Notes
+    -----
+    If module variable `SplineLog` is True (default), interpolation is performed
+    in log-log space, which provides better accuracy over the wide dynamic range
+    of the incomplete gamma function.
+    """
+    global SplineMin,SplineMax,NSpline,SplineLog
     for gamma in gammas:
         if gamma not in igamma_splines.keys() or reinit:
-            print(f"Initializing igamma_spline for gamma={gamma}")
-            avals = 10**np.linspace(SplineMin, SplineMax, NSpline)
+            # print(f"Initializing igamma_spline for gamma={gamma}")
+            lavals = np.linspace(SplineMin, SplineMax, NSpline)
+            avals = 10**lavals
             numer = np.array([float(mpmath.gammainc(
                 gamma, a=iEE)) for iEE in avals])
-            # iGamma
-            igamma_splines[gamma] = interpolate.splrep(avals, numer,k=3)
+            if SplineLog:
+                # check for literal zeros, set them to small values
+                zero = np.where(numer == 0.)[0]
+                ismall = zero[0]-1
+                smallest = numer[ismall]
+                numer[zero] = smallest
+                lnumer = np.log10(numer)
+                igamma_splines[gamma] = interpolate.splrep(lavals, lnumer,k=k)
+            else:
+                igamma_splines[gamma] = interpolate.splrep(avals, numer,k=k)
+            
+  
+def init_igamma_linear(gammas: list, reinit: bool = False,
+                       log: bool = False):
+    """Initialize linear interpolators for the upper incomplete gamma function.
 
-def init_igamma_linear(gammas:list, reinit:bool=False, 
-                       log:bool=False):
-    """ Setup the linear interpolator for gamma
+    Alternative to spline interpolation using scipy's interp1d.
 
-    Args:
-        gammas (list): values of gamma
-        reinit (bool, optional): If True, redo the calculation.
-        log (bool, optional): Perform in log10 space
+    Parameters
+    ----------
+    gammas : list of float
+        Values of gamma for which to create interpolators.
+    reinit : bool, optional
+        If True, reinitialize even if interpolator exists. Default False.
+    log : bool, optional
+        If True, perform interpolation in log10 space. Default False.
     """
 
     for gamma in gammas:
@@ -103,9 +181,24 @@ def array_cum_power_law(Eth,*params):
 
 ########### simple power law functions #############
 
-def vector_cum_power_law(Eth,*params):
-    """ Calculates the fraction of bursts above a certain power law
-    for a given Eth.
+def vector_cum_power_law(Eth, *params):
+    """Cumulative power-law luminosity function.
+
+    Computes the fraction of bursts with energy above threshold Eth for
+    a power-law distribution dN/dE ~ E^gamma between Emin and Emax.
+
+    Parameters
+    ----------
+    Eth : ndarray
+        Energy threshold values in erg.
+    *params : tuple
+        (Emin, Emax, gamma) - minimum energy, maximum energy, power-law index.
+        Gamma is typically negative (e.g., -1.5).
+
+    Returns
+    -------
+    ndarray
+        Fraction of bursts with E > Eth. Returns 1 for Eth < Emin, 0 for Eth > Emax.
     """
     #params=np.array(params)
     Emin=params[0]
@@ -173,9 +266,28 @@ def vector_diff_power_law(Eth,*params):
 
 ########### gamma functions #############
 
-def vector_cum_gamma(Eth,*params):
-    """ Calculates the fraction of bursts above a certain gamma function
-    for a given Eth.
+def vector_cum_gamma(Eth, *params):
+    """Cumulative gamma-function luminosity function (slow, exact version).
+
+    Computes the fraction of bursts with energy above threshold Eth using
+    an upper incomplete gamma function distribution. This version evaluates
+    the gamma function directly using mpmath - accurate but slow.
+
+    Parameters
+    ----------
+    Eth : ndarray
+        Energy threshold values in erg.
+    *params : tuple
+        (Emin, Emax, gamma) - minimum energy, characteristic energy, shape parameter.
+
+    Returns
+    -------
+    ndarray
+        Fraction of bursts with E > Eth. Returns 1 for Eth < Emin.
+
+    See Also
+    --------
+    vector_cum_gamma_spline : Fast spline-interpolated version (recommended).
     """
     params=np.array(params)
     Emin=params[0]
@@ -195,14 +307,27 @@ def vector_cum_gamma(Eth,*params):
     result[low]=1.
     return result
 
-def vector_cum_gamma_spline(Eth:np.ndarray, *params):
-    """ Calculate cumulative Gamma function using a spline
+def vector_cum_gamma_spline(Eth: np.ndarray, *params):
+    """Cumulative gamma-function luminosity function using spline interpolation.
 
-    Args:
-        Eth (np.ndarray): [description]
+    Fast version of `vector_cum_gamma` that uses pre-computed spline
+    interpolators. This is the recommended function for grid calculations.
 
-    Returns:
-        np.ndarray: [description]
+    Parameters
+    ----------
+    Eth : ndarray
+        Energy threshold values in erg.
+    *params : tuple
+        (Emin, Emax, gamma) - minimum energy, characteristic energy, shape parameter.
+
+    Returns
+    -------
+    ndarray
+        Fraction of bursts with E > Eth. Returns 1 for Eth < Emin.
+
+    Notes
+    -----
+    Automatically initializes splines for new gamma values if needed.
     """
     params=np.array(params)
     Emin=params[0]
@@ -308,8 +433,23 @@ def array_cum_gamma_linear(Eth,*params):
     result=result.reshape(dims)
     return result
 
-def vector_diff_gamma(Eth,*params):
-    """ Calculates the differential fraction of bursts for a gamma function
+def vector_diff_gamma(Eth, *params):
+    """Differential gamma-function luminosity function.
+
+    Computes dN/dE normalized such that the integral from Emin to infinity
+    equals 1. This is the probability density of burst energies.
+
+    Parameters
+    ----------
+    Eth : ndarray
+        Energy values in erg at which to evaluate.
+    *params : tuple
+        (Emin, Emax, gamma) - minimum energy, characteristic energy, shape parameter.
+
+    Returns
+    -------
+    ndarray
+        Probability density dN/dE at each energy. Returns 0 for E < Emin.
     """
     Emin=params[0]
     Emax=params[1]

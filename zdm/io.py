@@ -1,9 +1,24 @@
+"""
+Input/output utilities for the zdm package.
+
+This module provides helper functions for file I/O operations including
+JSON file handling and grid data persistence.
+
+Functions
+---------
+- `process_jfile`: Load a JSON file
+- `savejson`: Save a Python object to JSON
+- `save_grid`: Save grid data to compressed file
+- `load_grid`: Load grid data from compressed file
+"""
+
 import os
 import gzip
 import json
 import numpy as np
 
-def process_jfile(jfile:str):
+
+def process_jfile(jfile: str):
     """Load up a JSON file
 
     Args:
@@ -55,7 +70,7 @@ def savejson(filename, obj, overwrite=False, indent=None, easy_to_read=False,
                 json.dump(obj, fh, indent=indent, **kwargs)
 
 ######### misc function to load some data - do we ever use it? ##########
-
+#random
 def load_data(filename):
     if filename.endswith('.npy'):
         data=np.load(filename)
