@@ -1,35 +1,116 @@
+"""
+Core z-DM grid class for FRB population modeling.
+
+This module provides the Grid class, which computes 2D probability distributions
+of FRB detection rates as a function of redshift (z) and dispersion measure (DM).
+
+The Grid combines:
+- Cosmological volume elements and source evolution
+- p(DM|z) from the Macquart relation (cosmic + host)
+- Telescope detection efficiency (fluence threshold, beam pattern)
+- FRB luminosity/energy function
+
+Key Features
+------------
+- Builds normalized 2D probability grids for expected FRB rates
+- Handles beam response and detection efficiency
+- Supports multiple luminosity functions (power-law, gamma, lensed power-law)
+- Efficient updating for MCMC parameter exploration
+- Cluster/lensing support: per-beam smearing and lensed luminosity functions
+
+Example
+-------
+>>> from zdm import grid
+>>> g = grid.Grid(survey, state, zDMgrid, zvals, dmvals, smear_mask)
+>>> expected_rate = g.rates  # Expected detection rate per (z, DM) bin
+
+Author: C.W. James
+"""
+
 from IPython.terminal.embed import embed
 import numpy as np
 import datetime
+from numpy import random
+import scipy.ndimage as ndimage
 
 from zdm import cosmology as cos
 from zdm import misc_functions
 from zdm import energetics
 from zdm import pcosmic
 from zdm import io
-
+import time
+import warnings
+import importlib.resources as resources
 
 class Grid:
-    """A class to hold a grid of z-dm plots
-    
-    Fundamental assumption: each z point represents FRBs created *at* that redshift
-    Interpolation is performed under this assumption.
-    
-    It also assumes a linear uniform grid.
+    """2D grid for computing FRB detection rates as a function of z and DM.
+
+    The Grid class is the core computational object in zdm. It builds a 2D
+    probability distribution representing expected FRB detection rates across
+    the redshift-DM plane for a given survey and parameter set.
+
+    Assumptions:
+    - Each z bin represents FRBs originating at that redshift (not integrated)
+    - Linear uniform spacing in both z and DM
+    - DM includes cosmic + host contributions convolved together
+
+    Attributes
+    ----------
+    rates : ndarray
+        2D array of expected FRB rates per (z, DM) bin.
+    zvals : ndarray
+        Redshift bin centers.
+    dmvals : ndarray
+        DM bin centers in pc/cm^3.
+    state : parameters.State
+        Parameter state used for grid calculation.
+    survey : survey.Survey
+        Associated survey object.
+    cluster : bool
+        If True, use per-beam smearing and lensed luminosity function (LF4).
+    clusterRedshift : float
+        Redshift of the cluster/lens (used when cluster=True and LF=4).
+    bPosNum : int
+        Beam position number passed to the lensed luminosity function.
+    opdir : str
+        Output directory passed to the lensed luminosity function.
     """
 
-    def __init__(self, survey, opdir, bPosNum, state, zDMgrid, zvals, dmvals, smear_mask, wdist, cluster, clusterRedshift):
-        """
-        Class constructor.
+    def __init__(self, survey, state, zDMgrid, zvals, dmvals, smear_mask,
+                 wdist=None, prev_grid=None,
+                 cluster=False, clusterRedshift=np.nan, bPosNum=0, opdir=''):
+        """Initialize the Grid for a survey and parameter state.
 
-        Args: 
-            survey (survey.Survey):
-            state (parameters.State): 
-                Defines the parameters of the analysis
-                Note, each grid holds the *same* copy so modifying
-                it in one place affects them all.
-            wdist (bool):
-                If True, allow for a distribution of widths
+        Parameters
+        ----------
+        survey : survey.Survey
+            Survey object with telescope properties and FRB data.
+        state : parameters.State
+            Parameter state defining the model. Note: grids share the same
+            State object, so modifications affect all grids.
+        zDMgrid : ndarray
+            2D array of p(DM|z) probabilities, shape (nz, ndm).
+        zvals : ndarray
+            Redshift bin centers. Bins span [z - dz/2, z + dz/2].
+        dmvals : ndarray
+            DM bin centers in pc/cm^3. Bins span [DM - dDM/2, DM + dDM/2].
+        smear_mask : ndarray
+            Convolution kernel for host DM smearing. For cluster mode this
+            must be 3D (nz, ndm, n_beam).
+        wdist : bool, optional
+            If True, include width distribution effects.
+        prev_grid : Grid, optional
+            Another Grid with same z/DM values but different survey.
+            Allows reusing pre-computed cosmological quantities.
+        cluster : bool, optional
+            If True, activate per-beam smearing and lensed luminosity function
+            support (LF=4). Default False.
+        clusterRedshift : float, optional
+            Redshift of the cluster/lens. Used when cluster=True and LF=4.
+        bPosNum : int, optional
+            Beam position number passed to the lensed LF. Default 0.
+        opdir : str, optional
+            Output directory passed to the lensed LF. Default ''.
         """
         self.grid = None
         self.survey = survey
@@ -38,8 +119,16 @@ class Grid:
         self.beam_b = survey.beam_b
         self.beam_o = survey.beam_o
         self.b_fractions = None
+        self.w_fractions = None
         # State
         self.state = state
+        self.MCinit = False
+
+        # Cluster / lensing parameters
+        self.cluster = cluster
+        self.clusterRedshift = clusterRedshift
+        self.bPosNum = bPosNum
+        self.opdir = opdir
 
         self.source_function = cos.choose_source_evolution_function(
             state.FRBdemo.source_evolution
@@ -57,31 +146,35 @@ class Grid:
         # Init the grid
         #   THESE SHOULD BE THE SAME ORDER AS self.update()
         self.parse_grid(zDMgrid.copy(), zvals.copy(), dmvals.copy())
-        self.calc_dV()
-        self.smear_dm(smear_mask.copy(), cluster)
-        if wdist:
-            efficiencies = survey.efficiencies  # two dimensions
-            weights = survey.wplist
+
+        if prev_grid is None:
+            self.calc_dV()
+            self.smear_dm(smear_mask.copy())
         else:
-            efficiencies = survey.mean_efficiencies
+            self.dV = prev_grid.dV.copy()
+            self.smear = prev_grid.smear.copy()
+            self.smear_grid = prev_grid.smear_grid.copy()
+        
+            
+        if wdist is not None:
+            efficiencies = survey.efficiencies  # two OR three dimensions
+            weights = survey.wplist
+            # Warning -- THRESH could be different for each FRB, but we don't treat it that way
+            self.calc_thresholds(survey.meta["THRESH"],
+                             efficiencies, weights=weights)
+        else:
+            # this is called when the grid is not iterating over widths internally
+            efficiencies = survey.mean_efficiencies # one dimension
             weights = None
             self.calc_thresholds(survey.meta["THRESH"], efficiencies, weights=weights)
-            efficiencies=survey.mean_efficiencies
-            weights=None
-        # Warning -- THRESH could be different for each FRB, but we don't treat it that way
-        thresh = survey.meta["THRESH"]
-        # was np.median(survey.frbs['THRESH'])
-        self.calc_thresholds(survey, thresh,
-                             efficiencies,
-                             weights=weights)
+        
         # Calculate
-        self.calc_pdv(bPosNum=bPosNum, opdir=opdir, clusterRedshift=clusterRedshift)
-        self.set_evolution()  # sets star-formation rate scaling with z - here, no evoltion...
-        self.calc_rates(cluster)  # includes sfr smearing factors and pdv mult
+        self.calc_pdv()
+        self.set_evolution()  # sets star-formation rate scaling with z - here, no evolution...
+        self.calc_rates()  # includes sfr smearing factors and pdv mult
 
     def init_luminosity_functions(self):
-        """ Set the luminsoity function for FRB energetics """
-        print('----------***************----------', self.luminosity_function)
+        """ Set the luminosity function for FRB energetics """
         if self.luminosity_function == 0:  # Power-law
             self.array_cum_lf = energetics.array_cum_power_law
             self.vector_cum_lf = energetics.vector_cum_power_law
@@ -103,11 +196,9 @@ class Grid:
             self.vector_cum_lf = energetics.vector_cum_gamma_linear
             self.array_diff_lf = energetics.array_diff_gamma
             self.vector_diff_lf = energetics.vector_diff_gamma
-        elif self.luminosity_function == 4:  # Lensed power-law
+        elif self.luminosity_function == 4:  # Lensed power-law (cluster mode)
             self.array_cum_lf = energetics.array_cum_lensed_power_law
             self.vector_cum_lf = energetics.vector_cum_lensed_power_law
-            #self.array_diff_lf = energetics.array_diff_power_law
-            #self.vector_diff_lf = energetics.vector_diff_power_law
         else:
             raise ValueError(
                 "Luminosity function must be 0, not ", self.luminosity_function
@@ -133,9 +224,61 @@ class Grid:
         self.dmvals = io.load_data(dmfile)
         self.check_grid()
         self.volume_grid()
-
-    def check_grid(self):
-
+    
+    def get_dm_coeffs(self, DMlist):
+        """
+        Returns indices and coefficients for interpolating between DM values
+        
+        dmlist: np.ndarray of dispersion measures (extragalactic!)
+        """
+        # get indices in dm space
+        kdms=DMlist/self.ddm - 0.5 # idea: if DMobs = ddm, we are half-way between bin 0 and bin 1
+        Bin0 = np.where(kdms < 0.)[0] # if DMs are in the lower half of the lowest bin, use lowest bin only
+        kdms[Bin0] = 0. 
+        idms1=kdms.astype('int') # rounds down
+        idms2=idms1+1
+        dkdms2=kdms-idms1 # applies to idms2, i.e. the upper bin. If DM = ddm, then this should be 0.5
+        dkdms1 = 1.-dkdms2 # applies to idms1
+        return idms1,idms2,dkdms1,dkdms2
+    
+    def get_z_coeffs(self,zlist):
+        """
+        Returns indices and coefficients for interpolating between z values
+        
+        zlist: np.ndarray of dispersion measures (extragalactic!)
+        """
+        
+        kzs=zlist/self.dz - 0.5
+        Bin0 = np.where(kzs < 0.)[0]
+        kzs[Bin0] = 0. 
+        izs1=kzs.astype('int')
+        izs2=izs1+1
+        dkzs2=kzs-izs1 # applies to izs2
+        dkzs1 = 1. - dkzs2
+        
+        # checks for values which are too large
+        toobigz = np.where(zlist > self.zvals[-1] + self.dz/2.)[0]
+        if len(toobigz) > 0:
+            raise ValueError("Redshift values ",zlist[toobigz],
+                " too large for grid max of ",self.zvals[-1] + self.dz/2.)
+        
+        # checks for zs in top half of top bin - only works because of above bin
+        topbin = np.where(zlist > self.zvals[-1])[0]
+        if len(topbin) > 0:
+            izs2[topbin] = self.zvals.size-1
+            izs1[topbin] = self.zvals.size-2
+            dkzs2[topbin] = 1.
+            dkzs1[topbin] = 0.
+        
+        return izs1, izs2, dkzs1, dkzs2
+    
+    def check_grid(self, TOLERANCE=1e-6):
+        """
+        Check that the grid values are behaving as expected
+        
+        TOLERANCE: defines the max relative difference in expected
+                    and found values that will be tolerated
+        """
         self.nz = self.zvals.size
         self.ndm = self.dmvals.size
 
@@ -174,17 +317,25 @@ class Grid:
             expectation = self.dz * np.arange(0, self.nz) + self.zvals[0]
         diff = self.zvals - expectation
         maxoff = np.max(diff ** 2)
-        if maxoff > 1e-6 * self.dz:
+        if maxoff > TOLERANCE * self.dz:
             raise ValueError(
                 "Maximum non-linearity in z-grid of ",
                 maxoff ** 0.5,
                 "detected, aborting",
             )
 
+        # Ensures that log-spaced bins are truly bin centres
+        if not self.zlog and np.abs(self.zvals[0] - self.dz/2.) > TOLERANCE*self.dz:
+            raise ValueError(
+                "Linear z-grids *must* begin at dz/2. e.g. 0.05,0.15,0.25 etc, ",
+                " first value ",self.zvals[0]," expected to be half of spacing ",
+                self.dz,", aborting..."
+            )
+
         expectation = self.ddm * np.arange(0, self.ndm) + self.dmvals[0]
         diff = self.dmvals - expectation
         maxoff = np.max(diff ** 2)
-        if maxoff > 1e-6 * self.ddm:
+        if maxoff > TOLERANCE * self.ddm:
             raise ValueError(
                 "Maximum non-linearity in dm-grid of ",
                 maxoff ** 0.5,
@@ -236,7 +387,8 @@ class Grid:
                 self.nuObs / self.nuRef
                 ) ** -self.state.energy.alpha  # alpha positive, nuObs<nuref, expected rate increases
 
-    def calc_pdv(self, bPosNum =0, opdir='', clusterRedshift=np.nan, beam_b=None, beam_o=None):
+    def calc_pdv(self, beam_b=None, beam_o=None,
+                 bPosNum=None, opdir=None, clusterRedshift=None):
         """ Calculates the rate per cell.
         Assumed model: a power-law between Emin and Emax (erg)
                        with slope gamma.
@@ -246,7 +398,11 @@ class Grid:
         NOW: this includes a solid-angle and beam factor if initialised
         
         This will recalculate beam factors if they are passed, however
-        during iteration this is not recalculated
+        during iteration this is not recalculated.
+
+        For luminosity_function == 4 (lensed / cluster mode), per-beam
+        thresholds indexed as [j, i, :, :] are used and extra cluster
+        arguments are forwarded to the lensed LF.
         """
 
         if beam_b is not None:
@@ -259,18 +415,33 @@ class Grid:
                 raise ValueError(
                     "Beam values must be numby arrays! Currently ", beam_o, beam_b
                 )
+
+        # Use instance-level cluster params if not overridden
+        if bPosNum is None:
+            bPosNum = self.bPosNum
+        if opdir is None:
+            opdir = self.opdir
+        if clusterRedshift is None:
+            clusterRedshift = self.clusterRedshift
+
         # linear weighted sum of probabilities: pdVdOmega now. Could also be used to include time factor
 
         # For convenience and speed up
         Emin = 10 ** self.state.energy.lEmin
         Emax = 10 ** self.state.energy.lEmax
-        #print(self.zvals)
+
         # this implementation allows us to access the b-fractions later on
-        if (not (self.b_fractions is not None)) or (beam_b is not None):
+        if (self.b_fractions is None) or (beam_b is not None):
             self.b_fractions = np.zeros(
                 [self.zvals.size, self.dmvals.size, self.beam_b.size]
             )
-
+        
+        # we can now access the width information later on
+        if (self.w_fractions is None):
+            self.w_fractions = np.zeros(
+                [self.zvals.size, self.dmvals.size, self.eff_weights.size]
+            )
+        
         # for some arbitrary reason, we treat the beamshape slightly differently... no need to keep an intermediate product!
         main_beam_b = self.beam_b
         
@@ -281,65 +452,150 @@ class Grid:
             )  # use when calling in log10 space conversion
             main_beam_b = np.log10(main_beam_b)
 
+        # Detect whether thresholds are 4D (cluster/per-beam) or 3D (standard)
+        # 4D shape: [nthresh, n_beam, nz, ndm]
+        # 3D shape: [nthresh, nz, ndm]
+        thresholds_4d = (self.thresholds.ndim == 4)
+
         for i, b in enumerate(main_beam_b):
-            for j in range(len(self.eff_weights[:,i,0])):
+            # if eff_weights is 2D (i.e., z-dependent) then w is a vector of length NZ
+            # It is a probability - the detection efficiency is encapsulated by thresh
+            for j, w in enumerate(self.eff_weights):
+                # Select threshold slice: per-beam if 4D, shared if 3D
+                if thresholds_4d:
+                    raw_thresh = new_thresh[j, i, :, :] if self.use_log10 else self.thresholds[j, i, :, :]
+                else:
+                    raw_thresh = new_thresh[j, :, :] if self.use_log10 else self.thresholds[j, :, :]
+
                 # using log10 space conversion
                 if self.use_log10:
-                    thresh = new_thresh[j, i, :, :] - b
+                    thresh = raw_thresh - b
                 else:  # original
-                    thresh = self.thresholds[j, i, :, :] / b
+                    thresh = raw_thresh / b
+                
+                # the below is to ensure this works when w is a vector of length nz
+                w = np.array(w)
 
-                if j == 0:
-                    if self.luminosity_function == 4:
-                        print('we are doing the lensing!') 
-                        self.b_fractions[:, :, i] = (
-                            self.beam_o[i]
-                            * self.eff_weights[j,i,:]
-                            * self.array_cum_lf(
-                                thresh, Emin, Emax, self.state.energy.gamma, self.use_log10,
-                                self.zvals, i, self.survey.name, clusterRedshift, opdir, bPosNum
-                            ).T
-                        ).T
-                    else:
-                        self.b_fractions[:, :, i] = (
-                            self.beam_o[i]
-                            * self.eff_weights[j,i,:]
-                            * self.array_cum_lf(
-                                thresh, Emin, Emax, self.state.energy.gamma, self.use_log10
-                            ).T
-                        ).T
+                # Lensed / cluster LF (luminosity_function == 4) needs extra args
+                if self.luminosity_function == 4:
+                    temp_wb = (
+                        self.beam_o[i]
+                        * (self.array_cum_lf(
+                            thresh, Emin, Emax, self.state.energy.gamma,
+                            self.use_log10,
+                            self.zvals, i, self.survey.name,
+                            clusterRedshift, opdir, bPosNum
+                        ).T * w.T).T
+                    )
                 else:
-                    if self.luminosity_function == 4:
-                        print('we are doing the lensing!') 
-                        self.b_fractions[:, :, i] += (
-                            self.beam_o[i]
-                            * self.eff_weights[j,i,:]
-                            * self.array_cum_lf(
-                                thresh, Emin, Emax, self.state.energy.gamma, self.use_log10,
-                                self.zvals, i, self.survey.name, clusterRedshift, opdir, bPosNum
-                            ).T
-                        ).T
-                    else:
-                        self.b_fractions[:, :, i] += (
-                            self.beam_o[i]
-                            * self.eff_weights[j,i,:]
-                            * self.array_cum_lf(
+                    # this array gives the relative probability of detecting an FRB at this point
+                    # in the beam, with this particular width. We may not have space to store this
+                    # as a 4D (w,b,z,DM) array, hence we store two 3D arrays
+                    temp_wb = self.beam_o[i] \
+                            * (self.array_cum_lf(
                                 thresh, Emin, Emax, self.state.energy.gamma, self.use_log10
-                            ).T
-                    ).T
-
+                            ).T * w.T).T
+                
+                # partial sum over all beam values for a given width
+                self.b_fractions[:, :, i] += temp_wb
+                
+                # partial sum over all width values for a given beam
+                self.w_fractions[:, :, j] += temp_wb
 
         # here, b-fractions are unweighted according to the value of b.
-        #here we sum over the fractions, for cluster per beam increment spread postpone this
         self.fractions = np.sum(
             self.b_fractions, axis=2
         )  # sums over b-axis [ we could ignore this step?]
-        np.save('selffractionsLens', self.fractions)
-        #check algebraically if its ok to do this multiplication after cluster smearing
         self.pdv = np.multiply(self.fractions.T, self.dV).T
-        print(np.sum(self.pdv),'+++++++')
 
-    def calc_rates(self, cluster):
+    def get_pw_dist(self):
+        """
+        Function asking the grid to return the p(w) distribution.
+        
+        This will be an "all-burst" distribution in case of a
+        repeater inherited class.
+        
+        Note that a grid does not actually know what a "width" means:
+        it is simply an abstract category of FRBs corresponding to a
+        particular efficiency and fraction of the population.
+        
+        Args: None
+        
+        Returns:
+            Wtots (np.ndarray): Rate per width bin
+            Wzs (np.ndarray: Nw x Nz): Rate as a function of w and z
+            Wdms (np.ndarray: Nw x Ndm): Rate as a function of w and DM
+        """
+        
+        Wtots = np.zeros([self.nw])
+        Wzs = np.zeros([self.nw,self.nz])
+        Wdms = np.zeros([self.nw,self.ndm])
+        
+        const = 10**self.state.FRBdemo.lC
+        
+        # consider if beamb in log10 space
+        # call log10 beam
+        if self.use_log10:
+            new_thresh = np.log10(
+                self.thresholds
+            )  # use when calling in log10 space conversion
+            main_beam_b = np.log10(self.beam_b)
+        else:
+            main_beam_b = self.beam_b
+        
+        # For convenience and speed up
+        Emin = 10 ** self.state.energy.lEmin
+        Emax = 10 ** self.state.energy.lEmax
+
+        # Detect whether thresholds are 4D (cluster/per-beam) or 3D (standard)
+        thresholds_4d = (self.thresholds.ndim == 4)
+        
+        # we record b-fractions, but NOT the width increments in each
+        for j, w in enumerate(self.eff_weights):
+            # if eff_weights is 2D (i.e., z-dependent) then w is a vector of length NZ
+            
+            # resets p(z,dm) for this w
+            Warray = np.zeros([self.nz,self.ndm]) # we re-use this array for each w
+            
+            # sums over the beam values
+            for i, b in enumerate(self.beam_b):
+                
+                # Select threshold slice: per-beam if 4D, shared if 3D
+                if thresholds_4d:
+                    raw_thresh = new_thresh[j, i, :, :] if self.use_log10 else self.thresholds[j, i, :, :]
+                else:
+                    raw_thresh = new_thresh[j, :, :] if self.use_log10 else self.thresholds[j, :, :]
+
+                # using log10 space conversion
+                if self.use_log10:
+                    thresh = raw_thresh - b
+                else:  # original
+                    thresh = raw_thresh / b
+                
+                # the below is to ensure this works when w is a vector of length nz
+                w = np.array(w)
+                
+                Warray[:, :] += (
+                        self.beam_o[i]
+                        * (self.array_cum_lf(
+                            thresh, Emin, Emax, self.state.energy.gamma, self.use_log10
+                        ).T * w.T).T
+                    )
+            
+            # accounts for z-dependent volumetric fractions
+            Warray = np.multiply(Warray.T, self.dV).T
+            
+            # multiply by the DM distribution and star-formation-rate scaling
+            # and constant number of FRBs
+            Warray *= self.sfr_smear * const
+            
+            Wzs[j,:] = np.sum(Warray,axis = 1)
+            Wdms[j,:] = np.sum(Warray,axis = 0)
+            Wtots[j] = np.sum(Wzs[j,:])
+        
+        return Wtots,Wzs,Wdms
+
+    def calc_rates(self):
         """ multiplies the rate per cell with the appropriate pdm plot """
 
         try:
@@ -360,18 +616,55 @@ class Grid:
             print("WARNING: no volumetric probability pdv yet calculated")
             exit()
 
-        if cluster:
+        if self.cluster:
+            # --- Cluster mode: compute rates per-beam then sum ---
+            # smear_grid is 3D [nz, ndm, n_beam]; b_fractions is 3D [nz, ndm, n_beam]
             tempRates = np.zeros([self.grid.shape[0], self.grid.shape[1], len(self.beam_b)])
             for i in range(len(self.beam_b)):
-                self.sfr_smear = np.multiply(self.smear_grid[:,:,i].T, self.sfr).T
-                tempRates[:,:,i] = (self.b_fractions[:,:,i].T*self.dV).T*self.sfr_smear
-            self.rates = np.sum(tempRates,axis=2)
+                sfr_smear_i = np.multiply(self.smear_grid[:, :, i].T, self.sfr).T
+                tempRates[:, :, i] = (self.b_fractions[:, :, i].T * self.dV).T * sfr_smear_i
+            self.sfr_smear = np.multiply(self.smear_grid[:, :, 0].T, self.sfr).T  # kept for compatibility
+            self.rates = np.sum(tempRates, axis=2)
         else:
-            self.sfr_smear = np.multiply(self.smear_grid.T, self.sfr).T
-            self.rates = self.pdv * self.sfr_smear
-        
+            # --- Standard mode ---
+            # zfraction describes the fraction of host galaxies estimated to be
+            # visible at a given redshift.
+            if self.survey.survey_data.observing.Z_FRACTION is not None:
+                fdir = str(resources.files('zdm').joinpath('data/optical'))
+                ffile = fdir + "/fz_"+str(self.survey.survey_data.observing.Z_FRACTION)+".npy"
+                zfile = fdir + "/z_"+str(self.survey.survey_data.observing.Z_FRACTION)+".npy"
+                self.construct_fz(ffile, zfile)
+                self.sfr *= self.fz
 
-    def calc_thresholds(self, survey, F0:float, 
+            self.sfr_smear = np.multiply(self.smear_grid.T, self.sfr).T
+            
+            # below could pass more parameters internally, but this may not
+            # be the final implementation
+            self.rates = self.pdv * self.sfr_smear
+            self.zsigma = self.survey.survey_data.observing.Z_PHOTO
+            if self.zsigma > 0.:
+                self.smear_zgrid = self.smear_z(self.rates, self.zsigma)
+                self.rates = self.smear_zgrid
+
+    def get_rates(self):
+        """
+        Returns rates, multiplied by the relevant constant,
+        and accounting for any DM preference via a DM mask
+        """
+        
+        rates = np.zeros(self.rates.shape)
+        rates[:,:] = self.rates * 10**self.state.FRBdemo.lC
+        # multiplies by DM mask if applicable
+        if self.survey.dm_mask is not None:
+            rates = rates*self.survey.dm_mask
+        elif self.survey.max_dm is not None:
+            # in case a maximum DM is set in survey
+            if self.survey.max_idm < self.dmvals.size-1:
+                rates[:,self.survey.max_idm+1:]=0.
+        return rates
+
+
+    def calc_thresholds(self, F0:float, 
                         eff_table, 
                         bandwidth=1e9, 
                         nuRef=1.3e9, weights=None):
@@ -379,13 +672,14 @@ class Grid:
 
         Args:
             F0 (float): base survey threshold
-            eff_table ([type]): table of efficiencies corresponding to DM-values
-            bandwidth ([type], optional): [description]. Defaults to 1e9.
-            nuObs ([float], optional): survey frequency (affects sensitivity via alpha - only for alpha method)
-                Defaults to 1.3e9.
-            nuRef ([float], optional): reference frequency we are calculating thresholds at
-                Defaults to 1.3e9.
-            weights ([type], optional): [description]. Defaults to None.
+            eff_table: table of efficiencies corresponding to DM-values.
+                1D  → (NDM,)                  — single width, standard
+                2D  → (nW, NDM)               — multiple widths, standard
+                3D  → (nW, NDM, NZ)           — multiple widths, z-dependent
+                4D  → (nW, NDM, NZ, N_beam)   — cluster/per-beam mode
+            bandwidth (float, optional): Defaults to 1e9.
+            nuRef (float, optional): reference frequency. Defaults to 1.3e9.
+            weights: width weights. Required for multi-width tables.
 
         Raises:
             ValueError: [description]
@@ -400,8 +694,9 @@ class Grid:
             self.nthresh = 1
             self.eff_weights = np.array([1])
             self.eff_table = np.array([eff_table])  # make it an extra dimension
-        else:  # multiple FRB widths: dimensions nW x NDM
-            self.nthresh = eff_table.shape[0]
+        else:  # multiple FRB widths: 2D, 3D, or 4D
+            # check that the weights dimensions check out
+            self.nthresh = eff_table.shape[0] # number of width bins.
             if weights is not None:
                 if weights.shape[0] != self.nthresh:
                     raise ValueError(
@@ -411,59 +706,72 @@ class Grid:
                 raise ValueError(
                     "For a multidimensional efficiency table, please set relative weights"
                 )
-            self.eff_weights = weights / np.sum(weights,0)  # normalises this!
+            # I have removed weight normalisation here. In theory, normalisation to <1 is
+            # a feature, not a bug, representing more/less scattering moving into the
+            # observable range
             self.eff_table = eff_table
+            self.eff_weights = weights
+        
+        self.nw = self.eff_weights.shape[0]
+        
+        # now two, three, or four dimensions
         Eff_thresh = F0 / self.eff_table
+        
+        self.EF(self.state.energy.alpha, bandwidth)  # sets FtoE values - could have been done *WAY* earlier
 
-        self.EF(self.state.energy.alpha, self.bandwidth)  # sets FtoE values - could have been done *WAY* earlier
-
-        self.thresholds = np.zeros([self.nthresh, survey.beam_b.size, self.zvals.size, self.dmvals.size])
-
-        # Performs an outer multiplication of conversion from fluence to energy.
-        # The FtoE array has one value for each redshift.
-        # The effective threshold array has one value for each combination of
-        # FRB width (nthresh) and DM.
-        # We loop over nthesh and generate a NDM x Nz array for each
-        for i in np.arange(self.nthresh):
-            for j in range(len(survey.beam_b)):
-                #self.thresholds[i,j,:,:] = np.outer(self.FtoE, Eff_thresh[i,:])
-                self.thresholds[i,j,:,:] = (self.FtoE*(Eff_thresh[i,:,:,j])).T
-            
-    def smear_dm(self, smear:np.ndarray, cluster):  # ,mean:float,sigma:float):
+        if eff_table.ndim == 4:
+            # --- Cluster / per-beam mode ---
+            # thresholds shape: [nthresh, n_beam, nz, ndm]
+            n_beam = self.beam_b.size
+            self.thresholds = np.zeros([self.nthresh, n_beam, self.zvals.size, self.dmvals.size])
+            for i in np.arange(self.nthresh):
+                for j in range(n_beam):
+                    # Eff_thresh[i, :, :, j] has shape (NDM, NZ) or similar
+                    self.thresholds[i, j, :, :] = (self.FtoE * (Eff_thresh[i, :, :, j])).T
+        else:
+            # --- Standard mode: thresholds shape [nthresh, nz, ndm] ---
+            self.thresholds = np.zeros([self.nthresh, self.zvals.size, self.dmvals.size])
+            for i in np.arange(self.nthresh):
+                if self.eff_table.ndim == 2:
+                    self.thresholds[i,:,:] = np.outer(self.FtoE, Eff_thresh[i,:])
+                else:
+                    self.thresholds[i,:,:] = ((Eff_thresh[i,:,:]).T * self.FtoE).T
+        
+        
+    def smear_dm(self, smear:np.ndarray):  # ,mean:float,sigma:float):
         """ Smears DM using the supplied array.
         Example use: DMX contribution
 
-        smear_grid is created in place
+        smear_grid is created in place.
+
+        For cluster mode (self.cluster=True), smear must be 3D
+        (nz, ndm, n_beam) and smear_grid will be 3D (nz, ndm, n_beam).
 
         Args:
             smear (np.ndarray): Smearing array
         """
         # just easier to have short variables for this
-
-        ls = smear.size
         lz, ldm = self.grid.shape
 
-        if cluster:
+        if self.cluster:
+            # --- Cluster mode: per-beam smearing ---
+            if smear.ndim != 3:
+                raise ValueError(
+                    "Wrong number of dimensions for cluster DM smearing ", smear.shape
+                )
+            self.smear = smear
             self.smear_grid = np.zeros([lz, ldm, len(self.beam_b)])
             for j in range(len(self.beam_b)):
                 for i in np.arange(lz):
-                    # we need to get the length of mode='same', BUT
-                    # we do not want it 'centred', hence must make cut on full
-                    if smear.ndim == 3:
-                        self.smear_grid[i, :, j] = np.convolve(
-                            self.grid[i, :], smear[i, :, j], mode="full"
-                        )[0:ldm]
-                    else:
-                        raise ValueError(
-                            "Wrong number of dimensions for cluster DM smearing ", smear.shape
-                        )
-            
-
+                    self.smear_grid[i, :, j] = np.convolve(
+                        self.grid[i, :], smear[i, :, j], mode="full"
+                    )[0:ldm]
         else:
-            if not hasattr(self, "smear_grid"):    #for cluster do n_beam incremement smearing arrays
+            # --- Standard mode ---
+            if not hasattr(self, "smear_grid"):
                 self.smear_grid = np.zeros([lz, ldm])
             self.smear = smear
-    
+
             # this method is O~7 times faster than the 'brute force' above for large arrays
             for i in np.arange(lz):
                 # we need to get the length of mode='same', BUT
@@ -509,14 +817,14 @@ class Grid:
         If Poisson=True, then interpret N as a Poisson expectation value
         Otherwise, generate precisely N FRBs
         
-        Generated values are DM, z, B, w, and SNR
+        Generated values are [MCz, MCDM, MCb, MCs, MCw]
         NOTE: the routine GenMCFRB does not know 'w', merely
             which w bin it generates.
         
         """
         # Boost?
         if self.state.energy.luminosity_function in [1, 2]:
-            Emax_boost = 2.0
+            Emax_boost = 3.0
         else:
             Emax_boost = 0.0
 
@@ -526,16 +834,99 @@ class Grid:
         else:
             NFRB = int(N)  # just to be sure...
         sample = []
-        pwb = None  # feeds this back to save time. Lots of time.
+        
         for i in np.arange(NFRB):
             if (i % 100) == 0:
                 print(i)
-            frb, pwb = self.GenMCFRB(pwb, Emax_boost=Emax_boost)
+            
+            # Regen if the survey would not find this FRB
+            frb = self.GenMCFRB(Emax_boost)
+            
+            # This is a pretty naive method of generation.
+            if self.survey.max_dmeg is not None:
+                while frb[1] > self.survey.max_dm:
+                    print("Regenerating MC FRB with too high DM ",frb[1],self.survey.max_dm)
+                    frb = self.GenMCFRB(Emax_boost)
+
             sample.append(frb)
+           
+        
         sample = np.array(sample)
         return sample
+    
+    
+    def initMC(self):
+        """
+        Initialises the MC sample, if it has not been done already
+        This uses a great deal of RAM - hence, do not do this lightly!
+        """
+        
+        # shorthand
+        lEmin = self.state.energy.lEmin
+        lEmax = self.state.energy.lEmax
+        gamma = self.state.energy.gamma
+        Emin = 10 ** lEmin
+        Emax = 10 ** lEmax
+        
+        # grid of beam values, weights
+        nw = self.nw
+        nb = self.beam_b.size
+        
+        if self.eff_weights.ndim > 1:
+            raise ValueError("MC generation from z-dependent widths not currently enabled")
+        
+        # holds array of probabilities in w,b space
+        pwb = np.zeros([nw * nb])
+        rates = []
+        pzcs = []
+        
+        # gets list of DM probabilities to set to zero due to
+        # the survey missing these FRBs
+        if self.survey.max_dm is not None:
+            setDMzero = np.where(self.dmvals +self.ddm/2. > self.survey.max_dm)[0]
+                  
+        # Generates a joint distribution in B,w
+        for i, b in enumerate(self.beam_b):
+            for j, w in enumerate(self.eff_weights):
+                # each of the following is a 2D array over DM, z which we sum to generate B,w values
+                pzDM = self.array_cum_lf(
+                            self.thresholds[j, :, :] / b,
+                            Emin, Emax, gamma)
+                
+                # sets to zero if we have a max survey DM
+                if self.survey.max_dm is not None:
+                    pzDM [:,setDMzero] = 0.
+                
+                # weighted pzDM
+                wb_fraction = (self.beam_o[i]* w  * pzDM)
+                pdv = np.multiply(wb_fraction.T, self.dV).T
+                rate = pdv * self.sfr_smear
 
-    def GenMCFRB(self, pwb=None, Emax_boost=0.0):
+                rates.append(rate)
+                pwb[i * nw + j] = np.sum(rate)
+                
+                pz = np.sum(rate, axis=1)
+                pzc = np.cumsum(pz)
+                pzc /= pzc[-1]
+                
+                pzcs.append(pzc)
+        
+        # generates cumulative distribution for sampling w,b
+        pwbc = np.cumsum(pwb)
+        pwbc /= pwbc[-1]
+        
+        # saves cumulative distributions for sampling
+        self.MCpwbc = pwbc
+        
+        # saves individal wxb zDM rates for sampling these distributions
+        self.MCrates = rates
+
+        # saves projections onto z-axis
+        self.MCpzcs = pzcs
+        
+        self.MCinit = True
+    
+    def GenMCFRB(self, Emax_boost):
         """
         Generates a single FRB according to the grid distributions
         
@@ -546,136 +937,167 @@ class Grid:
         NOTE: currently, the actual FRB widths are not part of 'grid'
             only the relative probabilities of any given width.
             Hence, this routine only returns the integer of the width bin
-            not the width itelf.
+            not the width itself.
 
         Args:
-            pwb (optional): probability(width,beam)
-            Emax_boost (float, optional): 
+            Emax_boost (float): 
                 Allow for larger energies than Emax
                 The factor is logarithmic, i.e. Emax_boost = 2. allows
                 for 10**2 higher energies than Emax
 
         Returns:
-            tuple: FRBparams=[MCz,MCDM,MCb,j,MCs], pwb values
+            list: FRBparams=[MCz, MCDM, MCb, MCs, MCw]
+            These are:
+                MCz: redshift
+                MCDM: dispersion measure (extragalactic)
+                MCb: beam value 
+                MCs: SNR/SNRth value of FRB
+                MCw: width value of FRB
         """
-
+        
         # shorthand
         lEmin = self.state.energy.lEmin
         lEmax = self.state.energy.lEmax
         gamma = self.state.energy.gamma
         Emin = 10 ** lEmin
         Emax = 10 ** lEmax
-
+        
         # grid of beam values, weights
-        nw = self.eff_weights.size
+        nw = self.nw
+        if self.eff_weights.ndim > 1:
+            raise ValueError("MC generation from z-dependent widths not currently enabled")
         nb = self.beam_b.size
-
-        # we do this to allow efficient recalculation of this when generating many FRBs
-        if pwb is not None:
-            pwbc = np.cumsum(pwb)
-            pwbc /= pwbc[-1]
-        else:
-            pwb = np.zeros([nw * nb])
-
-            # Generates a joint distribution in B,w
-            for i, b in enumerate(self.beam_b):
-                for j, w in enumerate(self.eff_weights):
-                    # each of the following is a 2D array over DM, z which we sum to generate B,w values
-                    wb_fraction = (
-                        self.beam_o[i]
-                        * w
-                        * self.array_cum_lf(
-                            self.thresholds[j, :, :] / b, Emin, Emax, gamma
-                        )
-                    )
-                    pdv = np.multiply(wb_fraction.T, self.dV).T
-                    rate = pdv * self.sfr_smear
-                    pwb[i * nw + j] = np.sum(rate)
-            pwbc = np.cumsum(pwb)
-            pwbc /= pwbc[-1]
-
+        
+        if not self.MCinit:
+            self.initMC()
+        
         # sample distribution in w,b
         # we do NOT interpolate here - we treat these as qualitative values
         # i.e. as if there was an irregular grid of them
         r = np.random.rand(1)[0]
-        which = np.where(pwbc > r)[0][0]
+        which = np.where(self.MCpwbc > r)[0][0]
         i = int(which / nw)
         j = which - i * nw
         MCb = self.beam_b[i]
         MCw = self.eff_weights[j]
-
-        # calculate zdm distribution for sampled w,b only
-        pzDM = self.array_cum_lf(self.thresholds[j, :, :] / MCb, Emin, Emax, gamma)
-        wb_fraction = self.array_cum_lf(
-            self.thresholds[j, :, :] / MCb, Emin, Emax, gamma
-        )
-        pdv = np.multiply(wb_fraction.T, self.dV).T
-        pzDM = pdv * self.sfr_smear
-
-        # sample distribution in z,DM
-        pz = np.sum(pzDM, axis=1)
-        pzc = np.cumsum(pz)
-        pzc /= pzc[-1]
+        
+        # get p(z,DM) distribution for this b,w
+        pzDM = self.MCrates[which]
+        pzc = self.MCpzcs[which]
+        
         r = np.random.rand(1)[0]
+        
+        # sampling in DM and z space
+        # First choose z: pzc is the cumulative distribution in z
+        # for all dm
+        # each probability represents the p(bin), i.e. z-dz/2. to z+dz/2
+        # first, find the bin where the cumulative probability is higher
+        # than the sampled amount.
         iz2 = np.where(pzc > r)[0][0]
         if iz2 > 0:
             iz1 = iz2 - 1
+            iz3 = iz2 + 1
             dr = r - pzc[iz1]
-            kz2 = dr / (pzc[iz2] - pzc[iz1])  # fraction of way to second value
-            kz1 = 1.0 - kz2
-            MCz = self.zvals[iz1] * kz1 + self.zvals[iz2] * kz2
-            pDM = pzDM[iz1, :] * kz1 + pzDM[iz2, :] * kz2
+            fz = dr / (pzc[iz2] - pzc[iz1])  # fraction of way to upper z value
+            
+            # weigts between iz1 and iz2
+            if fz < 0.5:
+                kz1 = 0.5 - fz
+                kz2 = 0.5 + fz
+                kz3 = 0.
+                iz3 = 0 # dummy
+            elif iz2 == self.zvals.size-1:
+                # we are in the last bin - don't extrapolate, just use it
+                kz1 = 0.
+                kz2 = 1.
+                kz3 = 0.
+                iz1 = 0 # dummy
+                iz3 = 0 # dummy
+            else:
+                kz1 = 0.
+                kz2 = (1.5-fz)
+                kz3 = fz-0.5
+                iz1 = 0 #dummy
+            pDM = pzDM[iz1, :] * kz1 + pzDM[iz2, :] * kz2 + pzDM[iz3, :] * kz3
+            MCz = self.zvals[iz1] * kz1 + self.zvals[iz2] * kz2 + self.zvals[iz3]*kz3
         else:
             # we perform a simple linear interpolation in z from 0 to minimum bin
-            kz2 = r / pzc[iz2]
-            kz1 = 1.0 - kz2
-            MCz = self.zvals[iz2] * kz2
-            pDM = pzDM[iz2, :]  # just use the value of lowest bin
-
+            fz = r / pzc[iz2]
+            kz1 = 0.
+            kz2 = 1.
+            kz3 = 0.
+            iz1 = 0 # dummy
+            iz3 = 0 # dummy
+            MCz = (self.zvals[iz2] + self.dz/0.5) * fz
+            # Just use the value of lowest bin.
+            # This is a gross and repugnant approximation
+            pDM = pzDM[iz2, :]
+            
         # NOW DO dm
-        # pDM=pzDM[k,:]
+        # DM represents the distribution for the centre of z-bin
         pDMc = np.cumsum(pDM)
         pDMc /= pDMc[-1]
         r = np.random.rand(1)[0]
         iDM2 = np.where(pDMc > r)[0][0]
         if iDM2 > 0:
             iDM1 = iDM2 - 1
+            iDM3 = iDM2 + 1
             dDM = r - pDMc[iDM1]
-            kDM2 = dDM / (pDMc[iDM2] - pDMc[iDM1])
-            kDM1 = 1.0 - kDM2
-            MCDM = self.dmvals[iDM1] * kDM1 + self.dmvals[iDM2] * kDM2
-            if iz2 > 0:
-                Eth = (
-                    self.thresholds[j, iz1, iDM1] * kz1 * kDM1
-                    + self.thresholds[j, iz1, iDM2] * kz1 * kDM2
-                    + self.thresholds[j, iz2, iDM1] * kz2 * kDM1
-                    + self.thresholds[j, iz2, iDM2] * kz2 * kDM2
-                )
+            # fraction of value through DM bin
+            fDM = dDM / (pDMc[iDM2] - pDMc[iDM1])
+            
+            # get the MC DM through interpolation
+            if fDM < 0.5:
+                kDM1 = 0.5 - fDM
+                kDM2 = 0.5 + fDM
+                kDM3 = 0.
+                iDM3 = 0    # dummy
+                # sets iDM3 to be safe at 0
+                MCDM = self.dmvals[iDM1] * kDM1 + self.dmvals[iDM2] * kDM2
+            elif iDM2 == self.dmvals.size-1:
+                kDM1 = 0.
+                kDM2 = 1. # for future use, not here
+                kDM3 = 0.
+                iDM1 = 0    # dummy
+                iDM3 = 0    # dummy
+                MCDM = self.dmvals[iDM2] + (fDM - 0.5)*self.dDM # upper DM bins
             else:
-                Eth = (
-                    self.thresholds[j, iz2, iDM1] * kDM1
-                    + self.thresholds[j, iz2, iDM2] * kDM2
-                )
-                Eth *= kz2 ** 2  # assume threshold goes as Eth~z^2 in the near Universe
+                kDM1 = 0.
+                kDM2 = 1.5-fDM
+                kDM3 = fDM - 0.5
+                iDM1 = 0    # dummy
+                
+                MCDM = self.dmvals[iDM3] * kDM3 + self.dmvals[iDM2] * kDM2
         else:
             # interpolate linearly from 0 to the minimum value
-            kDM2 = r / pDMc[iDM2]
-            MCDM = self.dmvals[iDM2] * kDM2
-            if iz2 > 0:  # ignore effect of lowest DM bin on threshold
-                Eth = (
-                    self.thresholds[j, iz1, iDM2] * kz1
-                    + self.thresholds[j, iz2, iDM2] * kz2
-                )
-            else:
-                Eth = self.thresholds[j, iz2, iDM2] * kDM2
-                Eth *= kz2 ** 2  # assume threshold goes as Eth~z^2 in the near Universe
-
+            fDM = r / pDMc[iDM2]
+            MCDM = (self.dmvals[iDM2] + self.ddm/2.) * fDM
+            kDM1 = 0.
+            kDM2 = 1.
+            kDM3 = 0.
+            iDM1 = 0 #dummy
+            iDM3 = 0 #dummy
+            
+        
+        # This is constructed such that weights and iz, iDM will work out
+        # for all cases of the above. Note that only four of these terms at
+        # most will ever be non-zero.
+        Eth = self.thresholds[j, iz1, iDM1] * kz1 * kDM1 \
+                + self.thresholds[j, iz1, iDM2] * kz1 * kDM2 \
+                + self.thresholds[j, iz1, iDM3] * kz1 * kDM3 \
+                + self.thresholds[j, iz2, iDM1] * kz2 * kDM1 \
+                + self.thresholds[j, iz2, iDM2] * kz2 * kDM2 \
+                + self.thresholds[j, iz2, iDM3] * kz2 * kDM3 \
+                + self.thresholds[j, iz3, iDM1] * kz3 * kDM1 \
+                + self.thresholds[j, iz3, iDM2] * kz3 * kDM2 \
+                + self.thresholds[j, iz3, iDM3] * kz3 * kDM3 \
+        
         # now account for beamshape
         Eth /= MCb
 
         # NOW GET snr
         # Eth=self.thresholds[j,k,l]/MCb
-        Es = np.logspace(np.log10(Eth), np.log10(Emax) + Emax_boost, 1000)
+        Es = np.logspace(np.log10(Eth), lEmax + Emax_boost, 1000)
         PEs = self.vector_cum_lf(Es, Emin, Emax, gamma)
         PEs /= PEs[0]  # normalises: this is now cumulative distribution from 1 to 0
         r = np.random.rand(1)[0]
@@ -687,8 +1109,8 @@ class Grid:
         MCE = 10 ** (np.log10(Es[iE1]) * kE1 + np.log10(Es[iE2]) * kE2)
         MCs = MCE / Eth
 
-        FRBparams = [MCz, MCDM, MCb, j, MCs]
-        return FRBparams, pwb
+        FRBparams = [MCz, MCDM, MCb, MCs, MCw]
+        return FRBparams
 
     def build_sz(self):
         pass
@@ -745,11 +1167,17 @@ class Grid:
         Args:
             vparams (dict): [description]
         """
+        warnings.warn("grid.update is deprecated, create a new instantiation instead", DeprecationWarning)
+
         # Init
         reset_cos, get_zdm, calc_dV = False, False, False
         smear_mask, smear_dm, calc_pdv, set_evol = False, False, False, False
         new_sfr_smear, new_pdv_smear, calc_thresh = False, False, False
-
+        
+        # if we are updating a grid, the MC will in-general need to be
+        # re-initialised
+        self.MCinit = False
+        
         # Cosmology -- Only H0 so far
         if self.chk_upd_param("H0", vparams, update=True):
             reset_cos = True
@@ -805,6 +1233,17 @@ class Grid:
                 self.chk_upd_param("gamma", vparams, update=True),
             ]
         ):
+            calc_pdv = True
+            new_pdv_smear = True
+
+        if self.chk_upd_param("DMhalo", vparams, update=True):
+            # Update survey params
+            self.survey.init_DMEG(vparams["DMhalo"])
+            # NOTE: In future we can change this to not need to recalc every time
+            self.survey.get_efficiency_from_wlist(self.survey.DMlist,self.survey.wlist,self.survey.wplist,model=self.survey.meta['WBIAS'])
+            self.eff_table = self.survey.efficiencies
+
+            calc_thresh = True
             calc_pdv = True
             new_pdv_smear = True
 
@@ -871,20 +1310,21 @@ class Grid:
                 bandwidth=self.bandwidth,
                 weights=self.eff_weights,
             )
-
+            
         if calc_pdv or ALL:
             self.calc_pdv()
-
         if set_evol or ALL:
-            self.set_evolution()  # sets star-formation rate scaling with z - here, no evoltion...
-
+            self.set_evolution()  # sets star-formation rate scaling with z - here, no evolution...
         if new_sfr_smear or ALL:
             self.calc_rates()  # includes sfr smearing factors and pdv mult
         elif new_pdv_smear:
             self.rates = self.pdv * self.sfr_smear  # does pdv mult only, 'by hand'
 
         # Catch all the changes just in case, e.g. lC
+        # Can no longer do this because of repeat_grid
         self.state.update_params(vparams)
+
+        return new_sfr_smear, new_pdv_smear, (get_zdm or smear_dm or calc_dV) # If either is true, need to also recalc repeater grids
 
     def chk_upd_param(self, param: str, vparams: dict, update=False):
         """ Check to see whether a parameter is
@@ -911,3 +1351,86 @@ class Grid:
                     self.state.update_param(param, vparams[param])
         #
         return updated
+    
+    def smear_z(self, array, zsigma):
+        """
+        Smear a 2-D z-DM grid along the redshift axis to account for
+        photometric redshift uncertainty.
+
+        When a survey uses photometric rather than spectroscopic redshifts,
+        the true redshift of each FRB host is uncertain. This method convolves
+        each column of the grid (i.e. each fixed-DM slice along the z axis)
+        with a Gaussian kernel whose standard deviation equals ``zsigma``,
+        redistributing probability across neighbouring redshift bins.
+
+        The kernel is truncated at ``state.photo.sigma_width`` standard
+        deviations on each side (default 6σ), rounded up to an odd number of
+        bins so that it is centred exactly on zero.
+
+        Parameters
+        ----------
+        array : np.ndarray, shape (Nz, NDM)
+            Input 2-D grid with redshift along axis 0 and DM along axis 1.
+        zsigma : float
+            Photometric redshift uncertainty (1σ), in the same units as
+            ``self.zvals`` (i.e. dimensionless redshift).
+
+        Returns
+        -------
+        smear_zgrid : np.ndarray, shape (Nz, NDM)
+            Copy of ``array`` with each DM column convolved along the z axis
+            by the Gaussian smearing kernel. Boundary effects are handled with
+            ``np.convolve`` mode ``"same"``, so the output has the same shape
+            as the input.
+
+        Notes
+        -----
+        The kernel width in grid bins is ``zsigma / self.dz``. Values near the
+        grid edges will be underestimated because the convolution truncates to
+        zero outside the grid; for well-chosen grid extents this edge effect is
+        negligible.
+
+        In ``calc_rates``, this method is called with ``zsigma`` taken from
+        ``self.survey.survey_data.observing.Z_PHOTO`` and applied to
+        ``self.rates`` after the FRB rate grid has been computed.
+        """
+        r, c = array.shape
+        # get sigma in grid units
+        sigma = zsigma / (self.dz)
+        smear_size = int(self.state.photo.sigma_width * sigma)
+        smear_size = smear_size - smear_size % 2 + 1
+        smear_arr = np.linspace(-(smear_size-1)/2, (smear_size-1)//2, smear_size)
+        
+        # makes the approximation of taking the central value in the bin.
+        smear_arr = np.exp(-(smear_arr**2) / (2*(sigma**2)))
+        # normalise
+        smear_arr /= np.sum(smear_arr)
+        
+        smear_zgrid = np.zeros([r, c])
+        for i in range(c):
+            smear_zgrid[:, i] = np.convolve(array[:, i], smear_arr, mode="same")
+        
+        return smear_zgrid
+        
+    def construct_fz(self, ffile, zfile):
+        """
+        linearly interpolates passed fz values onto own zvals array
+        
+        Args:
+            ffile (string): file containing fraction of hosts seen at given redshift
+            zfile(string): file containing z values of above
+        """
+        fz = np.load(ffile)
+        z = np.load(zfile)
+        
+        from scipy.interpolate import interp1d
+        f = interp1d(z, fz, kind="linear", bounds_error=False)
+        newfz = f(self.zvals)
+        
+        # check for unphysical values
+        toolow = np.where(newfz < 0.)
+        newfz[toolow] = 0
+        toohigh = np.where(newfz > 1.)
+        newfz[toohigh] = 1.
+        
+        self.fz = newfz
