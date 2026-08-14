@@ -12,7 +12,7 @@ from zdm import parameters
 from zdm import survey
 from zdm import pcosmic
 from zdm import iteration as it
-from zdm.craco import loading
+from zdm import loading
 from zdm import io
 from magnificationMapper import normalisedLensFuncsAcrossBeam
 from astropy.io import fits
@@ -22,18 +22,17 @@ from astropy import units as u
 from astropy import constants as const
 
 import numpy as np
-from zdm import survey
+from zdm import survey, figures
 from matplotlib import pyplot as plt
 
 
-def pullTrigger(clusterRedshift, name):
+def pullTrigger(clusterRedshift, name, gamma, n):
 
-    # in case you wish to switch to another output directory
-    #opdir = "Localised_FRBs/"
-    #clusterRedshift = 0.38
     formatted_cluster_redshift = "{:03.2f}".format(clusterRedshift)
-    #name = 'hlsp_frontier_model_abell370_cats_v4'
-    opdir = "/arc/projects/chime_frb/msammons/CHORD/ClusterLensed/"+name+'/z'+formatted_cluster_redshift+'/'
+    formatted_energy_index = "{:03.2f}".format(gamma)
+    opdir = "/arc/projects/chime_frb/msammons/CHIME/ClusterLensed/highBins/"+name+'/z'+formatted_cluster_redshift+'/'+formatted_energy_index+'/'
+    print(opdir)
+    #opdir = "/arc/projects/chime_frb/msammons/CHIME/ClusterLensed/"+name+'/z'+formatted_cluster_redshift+'/'
 
     # Initialise surveys and grids
 
@@ -52,22 +51,16 @@ def pullTrigger(clusterRedshift, name):
 #    state.FRBdemo.lC = 1.443
     state = parameters.State()
     state.energy.lEmax = 41.63
-    state.energy.gamma = -0.948
+    state.energy.lEmin = 30.0
+    state.energy.gamma = gamma
     state.energy.alpha = 1.03
-    state.FRBdemo.sfr_n = 1.15
+    state.FRBdemo.sfr_n = n
     state.host.lsigma = 0.57
     state.host.lmean = 2.22
-    state.FRBdemo.lC = 2.0
-    state.energy.luminosity_function=4
+    state.FRBdemo.lC = 2.3-9
+    state.energy.luminosity_function=0
     state.FRBdemo.alpha_method=1
-#    state.energy.gamma = -1.3
-#    state.energy.alpha = 1.39
-#    state.FRBdemo.sfr_n = 0.96
-#    state.host.lsigma = 0.41
-#    state.host.lmean = 1.93
-#    state.FRBdemo.lC = 1.443
-#    state.energy.luminosity_function=2
-#    state.FRBdemo.alpha_method=0
+    #state.FRBdemo.source_evolution=0
 #    state = parameters.State()
 #    state.energy.lEmax = 41.42
 #    state.energy.gamma = -1.16
@@ -76,12 +69,12 @@ def pullTrigger(clusterRedshift, name):
 #    state.host.lsigma = 0.46
 #    state.host.lmean = 2.02
 #    state.FRBdemo.lC = 2.0
-#    state.energy.luminosity_function=4
+#    state.energy.luminosity_function=2
 #    state.FRBdemo.alpha_method=1
 
 
-    cluster=True
-    lensing =True
+    cluster=False
+    lensing =False
     
     #relBeamPositions = np.load('relBeamPos.npy') #relative to magni
     relBeamPositions = np.array([[0,0]])
@@ -91,13 +84,15 @@ def pullTrigger(clusterRedshift, name):
     for i in range(len(relBeamPositions[:,0])):
         print('---Beam Pos:', i)
         formatted_number = "{:02d}".format(i)
-        surveyName = 'CHORD_BeamPos_'+str(formatted_number)
+        surveyName = 'CHIME_BeamPos_'+str(formatted_number)
         bPosNum = "{:02d}".format(i)
-        s,g = loading.survey_and_grid(survey_name=surveyName, opdir=opdir, bPosNum=bPosNum,
+        s,gSet = loading.surveys_and_grids(survey_names=[surveyName], opdir=opdir, bPosNum=bPosNum,
             NFRB=None,sdir=sdir,init_state=state, cluster=cluster, 
             clusterRedshift=clusterRedshift, lensing=lensing)
     
-        np.save(opdir+'rates_BP_'+str(formatted_number)+'thresh10', g.rates*10**g.state.FRBdemo.lC)
+        print('gSet lengths:', len(gSet))
+        g = gSet[0]
+        np.save(opdir+'rates_BP_'+str(formatted_number)+'SourceFunc1thresh5NEWZDMSFRn'+str("{:.2f}".format(n)), g.rates*10**g.state.FRBdemo.lC)
         
         
         FRB_rate_per_day = np.sum(g.rates) * 10**g.state.FRBdemo.lC
@@ -107,13 +102,14 @@ def pullTrigger(clusterRedshift, name):
         print("Rate of FRBs per day with z > 1.0 is ",FRB_rate_per_day)
      
         ratesArr[i,1] = FRB_rate_per_day
-        np.save(opdir+surveyName+'RatesArrthresh10', ratesArr)
+        np.save(opdir+surveyName+'RatesArrSourceFunc1thresh5NEWZDMSFRn'+str("{:.2f}".format(n)), ratesArr)
 
-        misc_functions.plot_grid_2(
+        print('SAVING TO', opdir + surveyName + 'SourceFunc1thresh5NEWZDMSFRn'+str("{:.2f}".format(n)))
+        figures.plot_grid(
                 g.rates,
                 g.zvals,
                 g.dmvals,
-                name=opdir + surveyName + "thresh10.pdf",
+                name=opdir + surveyName + 'SourceFunc1thresh5NEWZDMSFRn'+str("{:.2f}".format(n))+'.pdf',
                 norm=3,
                 log=True,
                 label="$\\log_{10} p({\\rm DM}_{\\rm EG},z)$  [a.u.]",
@@ -122,6 +118,5 @@ def pullTrigger(clusterRedshift, name):
                 Aconts=[0.01, 0.1, 0.5],
                 DMmax=4000
             ) #
+     
 
-    return True
-    

@@ -220,6 +220,8 @@ def surveys_and_grids(init_state=None, alpha_method=1,
                       rand_DMG=False, discard_empty=False,
                       state_dict=None,
                       survey_dict=None, verbose=False,
+                      opdir='',
+                      bPosNum=0,
                       cluster=False,
                       clusterRedshift=np.nan,
                       lensing=False): 
@@ -296,6 +298,7 @@ def surveys_and_grids(init_state=None, alpha_method=1,
         s = survey.load_survey(survey_name, state, dmvals, zvals,
                                NFRB=NFRB, sdir=sdir, edir=edir,
                                rand_DMG=rand_DMG, survey_dict=survey_dict,
+                               opdir=opdir,bPosNum=bPosNum,
                                cluster=cluster, clusterRedshift=clusterRedshift,
                                lensing=lensing)
         
@@ -313,8 +316,8 @@ def surveys_and_grids(init_state=None, alpha_method=1,
 
     # generates zdm grid
     grids = misc_functions.initialise_grids(
-        surveys, zDMgrid, zvals, dmvals, state, wdist=True, repeaters=repeaters,
-        cluster=cluster, clusterRedshift=clusterRedshift)
+        surveys, zDMgrid, zvals, dmvals, state, wdist=True, repeaters=repeaters, 
+        opdir=opdir, bPosNum=bPosNum, cluster=cluster, clusterRedshift=clusterRedshift)
     if verbose:
         print("Initialised grids")
 

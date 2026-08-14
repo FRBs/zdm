@@ -1510,16 +1510,16 @@ def test_beam_rates(
 
 def initialise_grids(
     surveys: list,
-    opdir: str,
-    bPosNum: str,
     zDMgrid: np.ndarray,
     zvals: np.ndarray,
     dmvals: np.ndarray,
     state: parameters.State,
     wdist=True,
+    repeaters=False,
+    opdir: str=None,
+    bPosNum: str=None,
     cluster=False,
     clusterRedshift = np.nan,
-    repeaters=False,
 ):
     """ For a list of surveys, construct a zDMgrid object
     wdist indicates a distribution of widths in the survey,
@@ -1559,11 +1559,11 @@ def initialise_grids(
 
         if repeaters:
             grid = zdm_repeat_grid.repeat_Grid(
-                survey, opdir, bPosNum, copy.deepcopy(state), zDMgrid, zvals, dmvals, mask, wdist, cluster, clusterRedshift, prev_grid=prev_grid
+                survey, copy.deepcopy(state), zDMgrid, zvals, dmvals, mask, wdist, prev_grid, cluster, clusterRedshift, bPosNum, opdir 
             )
         else:
             grid = zdm_grid.Grid(
-                survey, opdir, bPosNum, copy.deepcopy(state), zDMgrid, zvals, dmvals, mask, wdist, cluster, clusterRedshift, prev_grid=prev_grid
+                survey, copy.deepcopy(state), zDMgrid, zvals, dmvals, mask, wdist, prev_grid, cluster, clusterRedshift, bPosNum, opdir
             )
 
         grids.append(grid)

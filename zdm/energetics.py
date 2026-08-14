@@ -40,6 +40,7 @@ import numpy as np
 from scipy import interpolate
 import mpmath
 from astropy.cosmology import Planck18 as cosmo
+from pathlib import Path
 
 from IPython import embed
 
@@ -471,11 +472,11 @@ def distanceFraction(zD, zS):
 
 def lensingPDF(mu, zD, zS, bPosNum, beami, opdir):
     formatted_redshift = "{:03.2f}".format(zS)
-    x = np.load(opdir+'mux.npy')
-    yFull = np.load(opdir+'pmux_BP_'+str(bPosNum)+str(formatted_redshift)+'.npy')
+    parent = Path(opdir).parent
+    x = np.load(str(parent)+'/mux.npy')
+    yFull = np.load(str(parent)+'/pmux_BP_'+str(bPosNum)+str(formatted_redshift)+'.npy')
     if np.sum(np.isnan(yFull[:,beami]))==len(yFull[:,beami]):
         return np.ones(len(mu))*np.nan
-    zMap = 9
     y = yFull[:,beami]
     interpFunc = interpolate.interp1d(x,y, bounds_error=False, fill_value=0)
     return interpFunc(np.log10(mu))
