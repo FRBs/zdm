@@ -219,7 +219,10 @@ def surveys_and_grids(init_state=None, alpha_method=1,
                       sdir=None, edir=None,
                       rand_DMG=False, discard_empty=False,
                       state_dict=None,
-                      survey_dict=None,verbose=False): 
+                      survey_dict=None, verbose=False,
+                      cluster=False,
+                      clusterRedshift=np.nan,
+                      lensing=False): 
     """ Load up a survey and grid for a real dataset
 
     Args:
@@ -247,6 +250,12 @@ def surveys_and_grids(init_state=None, alpha_method=1,
         discard_empty (bool, optional):
             If true, does not calculate empty surveys (mostly for after latitude cuts)
         survey_dict (dict,None): list of survey metadata and values to apply
+        cluster (bool, optional):
+            If True, apply cluster (host-galaxy cluster) modelling. Defaults to False.
+        clusterRedshift (float, optional):
+            Redshift of the cluster. Defaults to np.nan (not used unless cluster=True).
+        lensing (bool, optional):
+            If True, apply lensing corrections. Defaults to False.
     Raises:
         IOError: [description]
 
@@ -285,8 +294,10 @@ def surveys_and_grids(init_state=None, alpha_method=1,
     for survey_name in survey_names:
         # print(f"Initializing {survey_name}")
         s = survey.load_survey(survey_name, state, dmvals, zvals,
-                               NFRB=NFRB, sdir=sdir, edir=edir, 
-                               rand_DMG=rand_DMG,survey_dict=survey_dict)
+                               NFRB=NFRB, sdir=sdir, edir=edir,
+                               rand_DMG=rand_DMG, survey_dict=survey_dict,
+                               cluster=cluster, clusterRedshift=clusterRedshift,
+                               lensing=lensing)
         
         if discard_empty == False or s.NFRB != 0:
             # Check necessary parameters exist if considering repeaters
@@ -302,7 +313,8 @@ def surveys_and_grids(init_state=None, alpha_method=1,
 
     # generates zdm grid
     grids = misc_functions.initialise_grids(
-        surveys, zDMgrid, zvals, dmvals, state, wdist=True, repeaters=repeaters)
+        surveys, zDMgrid, zvals, dmvals, state, wdist=True, repeaters=repeaters,
+        cluster=cluster, clusterRedshift=clusterRedshift)
     if verbose:
         print("Initialised grids")
 
