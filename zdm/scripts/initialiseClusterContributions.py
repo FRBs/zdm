@@ -66,7 +66,6 @@ def initialise_Magni(opdir,clusterRedshift, name, clusterNeFile, trueClusterReds
     for i in range(len(relBeamPositions[:,0])):
         bPos = np.array([np.mean(tempCoords[0])+relBeamPositions[i,0], np.mean(tempCoords[1])+relBeamPositions[i,1]])
         for j in range(len(zvals)):
-            print('---Beam Pos:', i, '---Redshift:', j)
             formatted_number = "{:02d}".format(i)
             formatted_redshift = "{:03.2f}".format(zvals[j])
             surveyName = 'CHIME_BeamPos_'+str(formatted_number)
@@ -138,7 +137,6 @@ def initialise_DM_Scattering(opdir, clusterRedshift, name, clusterNeFile, trueCl
     for i in range(len(relBeamPositions[:,0])):
         bPos = np.array([np.mean(tempCoords[0])+relBeamPositions[i,0], np.mean(tempCoords[1])+relBeamPositions[i,1]])
         for j in range(len(zvals)):
-            print('---Beam Pos:', i, '---Redshift:', j)
             formatted_number = "{:02d}".format(i)
             formatted_redshift = "{:03.2f}".format(zvals[j])
             surveyName = 'CHIME_BeamPos_'+str(formatted_number)

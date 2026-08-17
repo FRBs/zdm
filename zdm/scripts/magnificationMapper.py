@@ -46,7 +46,6 @@ def unnormalisedLensFuncAtSubBeam(log10b, dlog10b, OmegaB, imagePlaneBGains, bGa
             gtrMu[i] = np.sum(magniArr[inBeam]>=muThresh[i]) 
         modelledArea = np.sum(planeInBeam)*(pixRes[0]*pixRes[1])
         numUnmodelledCells = (OmegaB - modelledArea)/(pixRes[0]*pixRes[1])
-        print('num in beam', np.sum(inBeam))
         extra1SWhere = muThresh<1
         gtrMu[extra1SWhere] = gtrMu[extra1SWhere]+numUnmodelledCells
         if sourceMagniArr:
@@ -232,7 +231,6 @@ def clusterDMFuncAtSubBeam(log10b, dlog10b, OmegaB, freq, neBGains, neWeightedHi
             numUnmodelledCells = 0
                 
         fractionUnscattered = (numUnmodelledCells+DMLessWeights)/(np.sum(weights*inBeam_2)+numUnmodelledCells)
-        print(log10b, dlog10b, 'fraction unscattered', fractionUnscattered, 'fraction modelled', modelledArea/OmegaB, OmegaB, pixRes, np.sum(inBeam_2), modelledArea, numUnmodelledCells, DMLessWeights, np.amax(gtrScat))
         gtrDM[0] = gtrDM[0]+numUnmodelledCells+DMLessWeights
         probUN = (-1*np.diff((gtrDM))/np.diff(DMThresh))
         #interpFunc = scipy.interpolate.interp1d((DMThresh[:-1]), probUN, bounds_error=False, fill_value=0)
