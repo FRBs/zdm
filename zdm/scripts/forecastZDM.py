@@ -26,11 +26,11 @@ from zdm import survey, figures
 from matplotlib import pyplot as plt
 
 
-def pullTrigger(clusterRedshift, name, gamma, n):
+def pullTrigger(clusterRedshift, name, gamma, n, opdir=''):
 
     formatted_cluster_redshift = "{:03.2f}".format(clusterRedshift)
     formatted_energy_index = "{:03.2f}".format(gamma)
-    opdir = "/arc/projects/chime_frb/msammons/clusterLensing/testZDM/"+name+'/z'+formatted_cluster_redshift+'/'+formatted_energy_index+'/'
+    opdir = opdir+"/"+name+'/z'+formatted_cluster_redshift+'/'+formatted_energy_index+'/'
     print(opdir)
     #opdir = "/arc/projects/chime_frb/msammons/CHIME/ClusterLensed/"+name+'/z'+formatted_cluster_redshift+'/'
 
