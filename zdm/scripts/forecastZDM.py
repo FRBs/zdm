@@ -30,7 +30,7 @@ def pullTrigger(clusterRedshift, name, gamma, n):
 
     formatted_cluster_redshift = "{:03.2f}".format(clusterRedshift)
     formatted_energy_index = "{:03.2f}".format(gamma)
-    opdir = "/arc/projects/chime_frb/msammons/CHIME/ClusterLensed/highBins/"+name+'/z'+formatted_cluster_redshift+'/'+formatted_energy_index+'/'
+    opdir = "/arc/projects/chime_frb/msammons/clusterLensing/testZDM/"+name+'/z'+formatted_cluster_redshift+'/'+formatted_energy_index+'/'
     print(opdir)
     #opdir = "/arc/projects/chime_frb/msammons/CHIME/ClusterLensed/"+name+'/z'+formatted_cluster_redshift+'/'
 
@@ -58,7 +58,7 @@ def pullTrigger(clusterRedshift, name, gamma, n):
     state.host.lsigma = 0.57
     state.host.lmean = 2.22
     state.FRBdemo.lC = 2.3-9
-    state.energy.luminosity_function=0
+    state.energy.luminosity_function=4
     state.FRBdemo.alpha_method=1
     #state.FRBdemo.source_evolution=0
 #    state = parameters.State()
@@ -73,8 +73,8 @@ def pullTrigger(clusterRedshift, name, gamma, n):
 #    state.FRBdemo.alpha_method=1
 
 
-    cluster=False
-    lensing =False
+    cluster=True
+    lensing =True
     
     #relBeamPositions = np.load('relBeamPos.npy') #relative to magni
     relBeamPositions = np.array([[0,0]])
@@ -84,7 +84,7 @@ def pullTrigger(clusterRedshift, name, gamma, n):
     for i in range(len(relBeamPositions[:,0])):
         print('---Beam Pos:', i)
         formatted_number = "{:02d}".format(i)
-        surveyName = 'CHIME_BeamPos_'+str(formatted_number)
+        surveyName = 'CHIME_SynthBeam'
         bPosNum = "{:02d}".format(i)
         s,gSet = loading.surveys_and_grids(survey_names=[surveyName], opdir=opdir, bPosNum=bPosNum,
             NFRB=None,sdir=sdir,init_state=state, cluster=cluster, 
