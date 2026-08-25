@@ -41,6 +41,7 @@ from zdm import grid as zdm_grid
 from zdm import repeat_grid as zdm_repeat_grid
 from zdm import pcosmic
 from zdm import parameters
+import magnificationMapper
 
 
 def get_w_tau_dist(grid,norm=True):
@@ -1515,6 +1516,10 @@ def initialise_grids(
     state: parameters.State,
     wdist=True,
     repeaters=False,
+    opdir: str=None,
+    bPosNum: str=None,
+    cluster=False,
+    clusterRedshift = np.nan,
 ):
     """ For a list of surveys, construct a zDMgrid object
     wdist indicates a distribution of widths in the survey,
@@ -1538,21 +1543,27 @@ def initialise_grids(
 
     # generates a DM mask
     # creates a mask of values in DM space to convolve with the DM grid
-    mask = pcosmic.get_dm_mask(
-        dmvals, (state.host.lmean, state.host.lsigma), zvals, plot=False
-    )
+    if cluster:
+        hostMask = pcosmic.get_dm_mask(
+            dmvals, (state.host.lmean, state.host.lsigma), zvals, plot=True
+        )
+    else:
+        mask = pcosmic.get_dm_mask(
+            dmvals, (state.host.lmean, state.host.lsigma), zvals, plot=True
+        )
     grids = []
     for survey in surveys:
         prev_grid = None
-        # print(f"Working on {survey.name}")
+        if cluster:
+            mask = pcosmic.get_cluster_dm_mask(survey, opdir, bPosNum, dmvals, zvals, hostMask, clusterRedshift)
 
         if repeaters:
             grid = zdm_repeat_grid.repeat_Grid(
-                survey, copy.deepcopy(state), zDMgrid, zvals, dmvals, mask, wdist, prev_grid=prev_grid
+                survey, copy.deepcopy(state), zDMgrid, zvals, dmvals, mask, wdist, prev_grid, cluster, clusterRedshift, bPosNum, opdir 
             )
         else:
             grid = zdm_grid.Grid(
-                survey, copy.deepcopy(state), zDMgrid, zvals, dmvals, mask, wdist, prev_grid=prev_grid
+                survey, copy.deepcopy(state), zDMgrid, zvals, dmvals, mask, wdist, prev_grid, cluster, clusterRedshift, bPosNum, opdir
             )
 
         grids.append(grid)

@@ -91,11 +91,15 @@ def set_state(alpha_method=1, cosmo=Planck18):
 
 
 def survey_and_grid(survey_name:str='CRAFT/CRACO_1_5000',
+            opdir='',
+            bPosNum=0,
             init_state=None,
             state_dict=None, iFRB:int=0,
                alpha_method=1, NFRB:int=100, 
                lum_func:int=2,sdir=None,nz=500,ndm=1400,
-               nbins=5,edir=''):
+               nbins=5, cluster=False,
+               clusterRedshift=np.nan, 
+               lensing=False):
     """ Load up a survey and grid for a CRACO mock dataset
 
     Args:
@@ -108,10 +112,7 @@ def survey_and_grid(survey_name:str='CRAFT/CRACO_1_5000',
             0=power-law, 1=gamma, 2=gamma+spline.  Defaults to 0.
         state_dict (dict, optional):
             Used to init state instead of alpha_method, lum_func parameters
-        sdir (string, optional): Directory containing surveys
-        edir (string, optional): 
-            Directory containing efficiency files if using FRB-specific responses
-            
+
     Raises:
         IOError: [description]
 
@@ -139,18 +140,31 @@ def survey_and_grid(survey_name:str='CRAFT/CRACO_1_5000',
         datdir=resource_filename('zdm', 'GridData'),
         zlog=False,nz=nz,ndm=ndm)
 
+
     ############## Initialise surveys ##############
     if sdir is not None:
         print("Searching for survey in directory ",sdir)
     else:
         sdir = os.path.join(resource_filename('zdm', 'craco'), 'MC_Surveys')
-    isurvey = survey.load_survey(survey_name, state, dmvals,
-                                 NFRB=NFRB, sdir=sdir, nbins=nbins,
-                                 iFRB=iFRB, edir=edir)
+    isurvey = survey.load_survey(
+                survey_name = survey_name,
+                state = state, 
+                opdir = opdir,
+                bPosNum = bPosNum,
+                dmvals = dmvals, 
+                cluster = cluster,
+                clusterRedshift = clusterRedshift, 
+                zvals = zvals, 
+                lensing = lensing, 
+                NFRB=NFRB, 
+                sdir=sdir, 
+                nbins=nbins,
+                iFRB=iFRB
+    )
     
     # generates zdm grid
     grids = misc_functions.initialise_grids(
-        [isurvey], zDMgrid, zvals, dmvals, state, wdist=True)
+        [isurvey], opdir, bPosNum, zDMgrid, zvals, dmvals, state, wdist=True, cluster=cluster, clusterRedshift = clusterRedshift)
     print("Initialised grid")
 
     # Return Survey and Grid

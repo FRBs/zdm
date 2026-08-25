@@ -39,6 +39,8 @@ Example
 import numpy as np
 from scipy import interpolate
 import mpmath
+from astropy.cosmology import Planck18 as cosmo
+from pathlib import Path
 
 from IPython import embed
 
@@ -199,7 +201,7 @@ def vector_cum_power_law(Eth, *params):
     ndarray
         Fraction of bursts with E > Eth. Returns 1 for Eth < Emin, 0 for Eth > Emax.
     """
-    params=np.array(params)
+    #params=np.array(params)
     Emin=params[0]
     Emax=params[1]
     gamma=params[2]
@@ -255,7 +257,7 @@ def vector_diff_power_law(Eth,*params):
     
     low=np.where(Eth < Emin)[0]
     if len(low) > 0:
-        result[low]=0.
+        result[low]=0.  
     high=np.where(Eth > Emax)[0]
     if len(high) > 0:
         result[high]=0.
@@ -328,8 +330,6 @@ def vector_cum_gamma_spline(Eth: np.ndarray, *params):
     -----
     Automatically initializes splines for new gamma values if needed.
     """
-    global SplineLog
-    
     params=np.array(params)
     Emin=params[0]
     Emax=params[1]
@@ -340,10 +340,7 @@ def vector_cum_gamma_spline(Eth: np.ndarray, *params):
     Eth_Emax = Eth/Emax
     if gamma not in igamma_splines.keys():
         init_igamma_splines([gamma])
-    if SplineLog:
-        numer = 10**interpolate.splev(np.log10(Eth_Emax), igamma_splines[gamma])
-    else:
-        numer = interpolate.splev(Eth_Emax, igamma_splines[gamma])
+    numer = interpolate.splev(Eth_Emax, igamma_splines[gamma])
     result=numer/norm
 
     # Low end
@@ -463,6 +460,82 @@ def vector_diff_gamma(Eth, *params):
     result= (Eth/Emax)**(gamma-1) * np.exp(-Eth/Emax) / norm
     
     low= Eth < Emin
-    result[low]=0. 
-    
+    result[low]=0.
+    return result
+
+########### lensing modified #######
+
+def distanceFraction(zD, zS):
+    Dds = cosmo.angular_diameter_distance_z1z2(zD,zS)
+    Ds = cosmo.angular_diameter_distance(zS)
+    return Dds/Ds
+
+def lensingPDF(mu, zD, zS, bPosNum, beami, opdir):
+    formatted_redshift = "{:03.2f}".format(zS)
+    parent = Path(opdir).parent
+    x = np.load(str(parent)+'/mux.npy')
+    yFull = np.load(str(parent)+'/pmux_BP_'+str(bPosNum)+str(formatted_redshift)+'.npy')
+    if np.sum(np.isnan(yFull[:,beami]))==len(yFull[:,beami]):
+        return np.ones(len(mu))*np.nan
+    y = yFull[:,beami]
+    interpFunc = interpolate.interp1d(x,y, bounds_error=False, fill_value=0)
+    return interpFunc(np.log10(mu))
+
+def vector_cum_lensed_power_law(Eth,*params):
+    """ Calculates the fraction of bursts above a certain power law
+    for a given Eth.
+    """
+    #params=np.array(params)
+    Emin=params[0]
+    Emax=params[1]
+    gamma=params[2]
+    zvals=params[4]
+    beami = params[5]
+    surveyName = params[6]
+    zD = params[7]
+    opdir = params[8]
+    bPosNum = params[9]
+    #print(Eth, Emin, Emax, gamma)
+    logEn = np.log(Emin)
+    logEx = np.log(Emax)
+    logSpacing = 0.01
+    logERange = np.arange(logEn, logEx+logSpacing, logSpacing)
+    muNum = int((10+2)/logSpacing)+1
+    #print(muNum)
+    logMu = np.arange(-2, muNum*logSpacing, logSpacing)
+    #print(len(logERange), len(logMu))
+    result = np.zeros(Eth.shape)
+    for i in range(len(zvals)):
+        if zD < np.round(zvals[i],2):
+            probGrid = lensingPDF(np.e**logMu, zD, zvals[i], bPosNum, beami, opdir)
+            if np.sum(np.isnan(probGrid))==len(probGrid):
+                result[i,:]=vector_cum_power_law(Eth[i,:],*params)
+            else:
+                phiGrid = vector_diff_power_law(np.e**logERange, *params)
+                phiL = np.convolve(probGrid*(np.e**logMu), phiGrid)*logSpacing
+                logE_muRange = np.arange(logEn-2, np.amax(logERange)+np.amax(logMu),logSpacing)
+                #print(np.amin(np.e**logE_muRange), np.amax(np.e**logE_muRange))
+                phiLCumConv = np.cumsum(np.flip((np.e**logE_muRange)*phiL*logSpacing))
+                interpFunc = interpolate.interp1d(np.flip(np.e**logE_muRange), phiLCumConv, bounds_error=False, fill_value=(1.0,0.0))
+                #iprint(interpFunc(1e31),interpFunc(1e32))
+                result[i,:] = interpFunc(Eth[i,:])
+        else:
+            result[i,:]=vector_cum_power_law(Eth[i,:],*params)
+
+    return result
+
+
+
+def array_cum_lensed_power_law(Eth,*params):
+    """ Calculates the fraction of bursts above a certain power law
+    for a given Eth, where Eth is an N-dimensional array
+    """
+    dims=Eth.shape
+    #if gamma >= 0: #handles crazy dodgy cases. Or just return 0?
+    #    result=np.zeros([Eth.size])
+    #    result[np.where(Eth < Emax)]=1.
+    #    result=result.reshape(dims)
+    #    Eth=Eth.reshape(dims)
+    #    return result
+    result=vector_cum_lensed_power_law(Eth,*params)
     return result

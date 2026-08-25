@@ -45,7 +45,11 @@ from astropy.cosmology import FlatLambdaCDM
 from frb.dm import igm
 from zdm import cosmology as cos
 from zdm import parameters
-
+from astropy.io import fits
+from astropy import wcs
+from astropy import units as u
+import magnificationMapper
+import scipy
 # from zdm import c_code
 
 import scipy as sp
@@ -529,6 +533,25 @@ def plot_mean(zvals, saveas, title="Mean DM"):
     plt.show()
     plt.close()
 
+def get_cluster_dm_mask(survey, opdir, bPosNum, dmvals, zvals, mask, clusterRedshift):
+
+    DMThresh = np.load(opdir+'DMThresh.npy')
+
+    new_mask = np.zeros([mask.shape[0], mask.shape[1], survey.meta["NBINS"]])
+    for j in range(mask.shape[0]):
+        formatted_redshift = "{:03.2f}".format(zvals[j]) 
+        pdms = np.load(opdir+'pdms_BP_'+str(bPosNum)+str(formatted_redshift)+'.npy')
+        for i in range(survey.meta["NBINS"]):
+            if np.round(zvals[j],2) > clusterRedshift: 
+                if np.sum(np.isnan(pdms[:,i]))==len(pdms[:,i]):
+                    new_mask[j,:,i] = mask[j,:]
+                else:
+                    interpFunc = scipy.interpolate.interp1d(DMThresh[:-1], pdms[:,i], bounds_error=False, fill_value=0)
+                    clusterConv = interpFunc(dmvals)
+                    new_mask[j,:,i] = np.convolve(mask[j,:],clusterConv/np.sum(clusterConv), mode='full')[:mask.shape[1]]
+            else:
+                new_mask[j,:,i] = mask[j,:]
+    return new_mask 
 
 def get_dm_mask(dmvals, params, zvals=None, plot=False):
     """Generate a convolution kernel for host galaxy DM contribution.
