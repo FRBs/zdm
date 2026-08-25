@@ -127,7 +127,11 @@ class Grid:
             self.smear = prev_grid.smear.copy()
             self.smear_grid = prev_grid.smear_grid.copy()
         
+        if wdist == False:
+            raise ValueError("Using old behaviour, use wdist=None")
+            wdist = None # check against old behaviour - could just fix instead of raising error
         if wdist is not None:
+            
             efficiencies = survey.efficiencies  # two OR three dimensions
             weights = survey.wplist
             self.widths = survey.wlist
@@ -209,6 +213,14 @@ class Grid:
         idms2=idms1+1
         dkdms2=kdms-idms1 # applies to idms2, i.e. the upper bin. If DM = ddm, then this should be 0.5
         dkdms1 = 1.-dkdms2 # applies to idms1
+        
+        # checks for values which are too large
+        toobigdm = np.where(DMlist > self.dmvals[-1] + self.ddm/2.)[0]
+        if len(toobigdm) > 0:
+            raise ValueError("DM values ",DMlist[toobigdm],
+                " too large for grid max of ",self.dmvals[-1] + self.ddm/2.)
+        
+        
         return idms1,idms2,dkdms1,dkdms2
     
     def get_z_coeffs(self,zlist):
@@ -955,7 +967,7 @@ class Grid:
             kz3 = 0.
             iz1 = 0 # dummy
             iz3 = 0 # dummy
-            MCz = (self.zvals[iz2] + self.dz/0.5) * fz
+            MCz = (self.zvals[iz2] + self.dz/2.) * fz
             # Just use the value of lowest bin.
             # This is a gross and repugnant approximation
             pDM = pzDM[iz2, :]
@@ -987,7 +999,7 @@ class Grid:
                 kDM3 = 0.
                 iDM1 = 0    # dummy
                 iDM3 = 0    # dummy
-                MCDM = self.dmvals[iDM2] + (fDM - 0.5)*dDM # upper DM bins
+                MCDM = self.dmvals[iDM2] + (fDM - 0.5)*self.ddm # upper DM bins
             else:
                 kDM1 = 0.
                 kDM2 = 1.5-fDM

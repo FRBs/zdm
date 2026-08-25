@@ -63,7 +63,9 @@ def load_state(case="HoffmannHalo25",scat=None,rep=None):
         print("NOMS")
     #elif case == "JamesH022" or case == "BaptisaF24" \
     #        or case == "HoffmannEmin25" or case == "HoffmannHalo25":
-    elif case == "HoffmannRepeaters26":
+    elif case == "HoffmannRepeaters26Pn":
+        pass # scattering already set there
+    elif case == "HoffmannRepeaters26Prep":
         pass # scattering already set there
     else:
         scat="CHIME"
@@ -307,8 +309,8 @@ def set_fit_params(vparams,case):
         vparams["rep"]["RC"] = 0.01
         vparams["rep"]["RE0"] = 1e+39
         vparams["rep"]["Rgamma"] = -2.16
-        vparams["rep"]["lRmax"] = -4.51
-        vparams["rep"]["lRmin"] = 3.78
+        vparams["rep"]["lRmin"] = -4.51
+        vparams["rep"]["lRmax"] = 3.78
         
         vparams["scat"]["Sbackproject"] =  False
         vparams["scat"]["ScatDist"] =  2
@@ -375,8 +377,8 @@ def set_fit_params(vparams,case):
         vparams["rep"]["RC"] = 0.01
         vparams["rep"]["RE0"] = 1e+39
         vparams["rep"]["Rgamma"] = -2.22
-        vparams["rep"]["lRmax"] = -3.92
-        vparams["rep"]["lRmin"] = 2.47
+        vparams["rep"]["lRmin"] = -3.92
+        vparams["rep"]["lRmax"] = 2.47
         
         vparams["scat"]["Sbackproject"] =  False
         vparams["scat"]["ScatDist"] =  2

@@ -151,8 +151,8 @@ def get_joint_path_zdm_likelihoods(g, s, wrapper, norm=True, psnr=True, Pn=False
         
         data["zdm_s"] = ops
         
-        llr,path_r = get_PATH_lls(s,g,wrapper,opr,return_all=True)
-        lls,path_s = get_PATH_lls(s,g,wrapper,ops,return_all=True)
+        llr,path_r = get_PATH_lls(s,g,wrapper,opr)
+        lls,path_s = get_PATH_lls(s,g,wrapper,op)
         lltot = llr + lls
         data["path_r"] = path_r
         data["path_s"] = path_s
@@ -589,7 +589,7 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,
 
         probN=Poisson_p(observed,expected)
         
-        if Pn==0:
+        if probN==0:
             Nll = -PENALTY
         else:
             Nll = np.log10(probN)
@@ -727,8 +727,8 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,
         ztDMobs=survey.DMEGs[noztaulist]
         
         # gets indices of noztaulist within nozlist
-        tz_tomult = tomult[:,:inoztaulist]
-    
+        zt_tomult = tomult[:,inoztaulist]
+        
         # This could all be precalculated within the survey.
         iws1,iws2,dkws1,dkws2 = survey.get_w_coeffs(Wobs) # total width in survey width bins
         itaus1,itaus2,dktaus1,dktaus2 = survey.get_internal_coeffs(Tauobs) # scattering time tau
@@ -737,13 +737,13 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,
         # vectors below are [nz,NFRB] in length
         piws = survey.pws[:,iis1,iws1]*dkis1*dkws1 \
             + survey.pws[:,iis1,iws2]*dkis1*dkws2 \
-            + survey.pws[:,iis2,iws1]*dkis1*dkws1 \
-            + survey.pws[:,iis2,iws2]*dkis1*dkws2
+            + survey.pws[:,iis2,iws1]*dkis2*dkws1 \
+            + survey.pws[:,iis2,iws2]*dkis2*dkws2
         
         ptaus = survey.ptaus[:,itaus1,iws1]*dktaus1*dkws1\
             + survey.ptaus[:,itaus1,iws2]*dktaus1*dkws2 \
-            + survey.ptaus[:,itaus2,iws1]*dktaus1*dkws1 \
-            + survey.ptaus[:,itaus2,iws2]*dktaus1*dkws2
+            + survey.ptaus[:,itaus2,iws1]*dktaus2*dkws1 \
+            + survey.ptaus[:,itaus2,iws2]*dktaus2*dkws2
         
         # we now multiply by the z-dependencies
         ptaus *= zt_tomult
@@ -1266,7 +1266,11 @@ def calc_likelihoods_2D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,p
     if len(zlist) == 0:
         pdmz = False
         psnr = False
-
+    
+    # get coefficients. Pewrhaps these should be calculated by the survey? (speedup!)
+    idms1,idms2,dkdms1,dkdms2 = grid.get_dm_coeffs(DMobs)
+    izs1,izs2,dkzs1,dkzs2 = grid.get_z_coeffs(Zobs)
+    
     if pdmz:
         # normalise to total probability of 1
         if norm:
@@ -1278,9 +1282,6 @@ def calc_likelihoods_2D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,p
         # giving the probability of finding the FRB in the range z +- dz/2, dm +- dm/2.
         # threshold for when we shift from lower to upper is if z < zcentral,
         # weight slowly shifts from lower to upper bin
-        
-        idms1,idms2,dkdms1,dkdms2 = grid.get_dm_coeffs(DMobs)
-        izs1,izs2,dkzs1,dkzs2 = grid.get_z_coeffs(Zobs)
         
         ############## Calculate probability p(z,DM) ################
         if grid.state.MW.sigmaDMG == 0.0 and grid.state.MW.sigmaHalo == 0.0:
@@ -1301,6 +1302,7 @@ def calc_likelihoods_2D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,p
             pvals += rates[izs1,idms2]*dkdms2*dkzs1
             pvals += rates[izs2,idms2]*dkdms2*dkzs2
         else:
+            flg_baddm = False #cannot have bad DM due to smearing of DM
             dm_weights, iweights = calc_DMG_weights(DMobs, survey.DMhalos[zlist], survey.DMGs[zlist], dmvals, grid.state.MW.sigmaDMG, 
                                                     grid.state.MW.sigmaHalo, grid.state.MW.logu)
             pvals = np.zeros(len(izs1))
@@ -1312,18 +1314,20 @@ def calc_likelihoods_2D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,p
         flg_bad = False
         if np.any(bad):
             # This avoids a divide by 0 but we are in a NAN regime
-            pvals[bad] = 1e-50 # hopefully small but not infinitely so
+            pvals[bad] = 10**-PENALTY # small but not infinitely so
             flg_bad = True
         
         if flg_baddm:
-            pvals[baddm] = 1e-50 # change this to penalty constant?
+            pvals[baddm] = 10**-PENALTY
         
         # holds individual FRB data
         longlist+=np.log10(pvals)-np.log10(norm)
         
         llsum=np.sum(np.log10(pvals))
-        if flg_bad:
-            llsum = -1e10
+        
+        # should have caught the bad FRBs, with a penalty per FRB
+        #if flg_bad:
+        #    llsum = -PENALTY # in log-space
         # 
         llsum -= np.log10(norm)*Zobs.size # once per event
         lllist=[llsum]
@@ -1358,12 +1362,7 @@ def calc_likelihoods_2D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,p
             llpdm += np.sum(np.log10(pdmvals)) - np.log10(norm)*Zobs.size
             llpz += np.sum(np.log10(pzvals)) - np.log10(norm)*Zobs.size
             dolist5_return = [llpzgdm,llpdm,llpdmgz,llpz]
-    
-        # Linear interpolation
-        pvals = rates[izs1,idms1]*dkdms1*dkzs1
-        pvals += rates[izs2,idms1]*dkdms1*dkzs2
-        pvals += rates[izs1,idms2]*dkdms2*dkzs1
-        pvals += rates[izs2,idms2]*dkdms2*dkzs2
+        
     else:
         dm_weights, iweights = calc_DMG_weights(DMobs, survey.DMhalos[zlist], survey.DMGs[zlist], dmvals, grid.state.MW.sigmaDMG, 
                                                 grid.state.MW.sigmaHalo, grid.state.MW.logu)
@@ -1505,8 +1504,8 @@ def calc_likelihoods_2D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,p
         
         piws = survey.pws[ztizs1,iis1,iws1]*ztdkzs1*dkis1*dkws1 \
             + survey.pws[ztizs1,iis1,iws2]*ztdkzs1*dkis1*dkws2 \
-            + survey.pws[ztizs1,iis2,iws1]*ztdkzs1*dkis1*dkws1 \
-            + survey.pws[ztizs1,iis2,iws2]*ztdkzs1*dkis1*dkws2 \
+            + survey.pws[ztizs1,iis2,iws1]*ztdkzs1*dkis2*dkws1 \
+            + survey.pws[ztizs1,iis2,iws2]*ztdkzs1*dkis2*dkws2 \
             + survey.pws[ztizs2,iis1,iws1]*ztdkzs2*dkis1*dkws1 \
             + survey.pws[ztizs2,iis1,iws2]*ztdkzs2*dkis1*dkws2 \
             + survey.pws[ztizs2,iis2,iws1]*ztdkzs2*dkis2*dkws1 \
@@ -1514,8 +1513,8 @@ def calc_likelihoods_2D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,p
         
         ptaus = survey.ptaus[ztizs1,itaus1,iws1]*ztdkzs1*dktaus1*dkws1 \
             + survey.ptaus[ztizs1,itaus1,iws2]*ztdkzs1*dktaus1*dkws2 \
-            + survey.ptaus[ztizs1,itaus2,iws1]*ztdkzs1*dktaus1*dkws1 \
-            + survey.ptaus[ztizs1,itaus2,iws2]*ztdkzs1*dktaus1*dkws2 \
+            + survey.ptaus[ztizs1,itaus2,iws1]*ztdkzs1*dktaus2*dkws1 \
+            + survey.ptaus[ztizs1,itaus2,iws2]*ztdkzs1*dktaus2*dkws2 \
             + survey.ptaus[ztizs2,itaus1,iws1]*ztdkzs2*dktaus1*dkws1 \
             + survey.ptaus[ztizs2,itaus1,iws2]*ztdkzs2*dktaus1*dkws2 \
             + survey.ptaus[ztizs2,itaus2,iws1]*ztdkzs2*dktaus2*dkws1 \

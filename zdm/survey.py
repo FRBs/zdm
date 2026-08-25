@@ -604,10 +604,8 @@ class Survey:
         
         for i,B in enumerate(bvals):
             if B == -1: # code for "ignore it"
-                # still have to decide what to do here. Likely give equal weights?
+                # Give equal weights
                 frb_bweights[i,:] = 1./self.meta["NBINS"]
-                # this is incorrect. We need to keep an array of FRBs with bad bvalues.
-                
             elif B > self.beam_b[-1]: # greater value than max, just use max
                 frb_bweights[i,-1] = 1.
                 OKB[i] = 1
@@ -1185,11 +1183,11 @@ class Survey:
             k_DM=4.149 #ms GHz^2 pc^-1 cm^3
             smears = 2*(self.FRESs[ismear]/1.e3)*k_DM*DM/(self.FBARs[ismear]/1e3)**3 #smearing factor of FRB in the band
             # subtract that component in quadrature
-            self.WIDTHS[ismear] = (self.WIDTHS[ismear]**2 - smears**2)
+            self.WIDTHs[ismear] = (self.WIDTHs[ismear]**2 - smears**2)
             # check for bad values
             bad = np.where(self.WIDTHs[ismear] <= 0.)[0]
             if len(bad) > 0:
-                self.WIDTHs[ismear][bad] = 1e-2 # sets assumed width to 0.1ms
+                self.WIDTHs[ismear,bad] = 1e-2 # sets assumed width to 0.1ms
             self.WIDTHs[ismear] = self.WIDTHs[ismear]**0.5
         
         # adds scattering back in if applicable
@@ -1241,12 +1239,12 @@ class Survey:
                         print("WARNING: no coordinates calculable for FRB ",i)
                 else:  
                     Gb,Gl = misc_functions.j2000_to_galactic(self.frbs['RA'][i], self.frbs['DEC'][i])
-                    self.frbs[i,'Gb'] = Gb
-                    self.frbs[i,'Gl'] = Gl
+                    self.frbs.loc[i,'Gb'] = Gb
+                    self.frbs.loc[i,'Gl'] = Gl
             elif self.frbs['RA'][i] is None or self.frbs['DEC'][i] is None:
                 RA,Dec = misc_functions.galactic_to_j2000(self.frbs['Gl'][i], self.frbs['Gb'][i])
-                self.frbs[i,'RA'] = RA
-                self.frbs[i,'DEC'] = Dec
+                self.frbs.loc[i,'RA'] = RA
+                self.frbs.loc[i,'DEC'] = Dec
             
     def process_dmg(self):
         """ Estimates galactic DM according to

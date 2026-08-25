@@ -301,10 +301,10 @@ def calc_path_priors(frblist,ss=None,gs=None,wrappers=None,verbose=True,usemodel
                     frbs.append(frb)
                     break
                 
-                if imatch is None:
-                    if verbose:
-                        print("Could not find ",frb," in any survey")
-                    continue
+            if imatch is None:
+                if verbose:
+                    print("WARNING: Could not find ",frb," in any survey")
+                continue
         else:
             frbs.append(frb)
         
