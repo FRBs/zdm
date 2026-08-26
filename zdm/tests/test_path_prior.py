@@ -82,4 +82,5 @@ def test_path_priors():
         if not OK:
             raise ValueError("Some elements of magnitude priors are not finite")
 
-test_path_priors()
+if __name__ == "__main__":
+    test_path_priors()
