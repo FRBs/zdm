@@ -8,7 +8,7 @@ from zdm import iteration as it
 
 from zdm import parameters
 from astropy.cosmology import Planck18
-from zdm import MCMC2
+from zdm import MCMC
 
 import argparse
 import matplotlib.pyplot as plt
