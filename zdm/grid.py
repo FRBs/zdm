@@ -105,7 +105,7 @@ class Grid:
         self.source_function = cos.choose_source_evolution_function(
             state.FRBdemo.source_evolution
         )
-
+        
         # Energetics
         if self.state.energy.luminosity_function in [3]:
             self.use_log10 = True
@@ -116,7 +116,6 @@ class Grid:
         self.nuObs= survey.meta['FBAR']*1e6 #from MHz to Hz
         
         # Init the grid
-        #   THESE SHOULD BE THE SAME ORDER AS self.update()
         self.parse_grid(zDMgrid.copy(), zvals.copy(), dmvals.copy())
 
         if prev_grid is None:
@@ -127,10 +126,14 @@ class Grid:
             self.smear = prev_grid.smear.copy()
             self.smear_grid = prev_grid.smear_grid.copy()
         
-            
+        if wdist == False:
+            raise ValueError("Using old behaviour, use wdist=None")
+            wdist = None # check against old behaviour - could just fix instead of raising error
         if wdist is not None:
+            
             efficiencies = survey.efficiencies  # two OR three dimensions
             weights = survey.wplist
+            self.widths = survey.wlist
             # Warning -- THRESH could be different for each FRB, but we don't treat it that way
             self.calc_thresholds(survey.meta["THRESH"],
                              efficiencies,weights=weights)
@@ -138,6 +141,7 @@ class Grid:
             # this is called when the grid is not iterating over widths internally
             efficiencies = survey.mean_efficiencies # one dimension
             weights = None
+            self.widths = None
             self.calc_thresholds(survey.meta["THRESH"], efficiencies, weights=weights)
         
         # Calculate
@@ -208,6 +212,14 @@ class Grid:
         idms2=idms1+1
         dkdms2=kdms-idms1 # applies to idms2, i.e. the upper bin. If DM = ddm, then this should be 0.5
         dkdms1 = 1.-dkdms2 # applies to idms1
+        
+        # checks for values which are too large
+        toobigdm = np.where(DMlist > self.dmvals[-1] + self.ddm/2.)[0]
+        if len(toobigdm) > 0:
+            raise ValueError("DM values ",DMlist[toobigdm],
+                " too large for grid max of ",self.dmvals[-1] + self.ddm/2.)
+        
+        
         return idms1,idms2,dkdms1,dkdms2
     
     def get_z_coeffs(self,zlist):
@@ -362,7 +374,8 @@ class Grid:
         Assumed model: a power-law between Emin and Emax (erg)
                        with slope gamma.
         Efficiencies: list of efficiency response to DM
-        So-far: does NOT include time x solid-angle factor
+        So-far: does NOT include time x solid-angle factor. Just the fraction of the
+                luminosity function which is probed.
         
         NOW: this includes a solid-angle and beam factor if initialised
         
@@ -400,7 +413,6 @@ class Grid:
         
         # for some arbitrary reason, we treat the beamshape slightly differently... no need to keep an intermediate product!
         main_beam_b = self.beam_b
-        
         # call log10 beam
         if self.use_log10:
             new_thresh = np.log10(
@@ -428,7 +440,9 @@ class Grid:
                         * (self.array_cum_lf(
                             thresh, Emin, Emax, self.state.energy.gamma, self.use_log10
                         ).T * w.T).T
-                
+                nan_count = np.isnan(temp_wb).sum()
+                if nan_count > 0:
+                    print("WARNING: nans found for ",i,b,j,w)
                 # partial sum over all beam values for a given width
                 self.b_fractions[:, :, i] += temp_wb
                 
@@ -569,6 +583,13 @@ class Grid:
         
         rates = np.zeros(self.rates.shape)
         rates[:,:] = self.rates * 10**self.state.FRBdemo.lC
+        rates = self.get_dm_bias(rates)
+        return rates
+        
+    def get_dm_bias(self,rates):
+        """
+        processes various DM-dependent biases on a rates array
+        """
         # multiplies by DM mask if applicable
         if self.survey.dm_mask is not None:
             rates = rates*self.survey.dm_mask
@@ -730,7 +751,7 @@ class Grid:
         
         for i in np.arange(NFRB):
             if (i % 100) == 0:
-                print(i)
+                print("Generating MC FRB number ", i)
             
             # Regen if the survey would not find this FRB
             frb = self.GenMCFRB(Emax_boost)
@@ -790,6 +811,9 @@ class Grid:
                 if self.survey.max_dm is not None:
                     pzDM [:,setDMzero] = 0.
                 
+                if self.survey.dm_mask is not None:
+                    pzDM *= self.survey.dm_mask
+                
                 # weighted pzDM
                 wb_fraction = (self.beam_o[i]* w  * pzDM)
                 pdv = np.multiply(wb_fraction.T, self.dV).T
@@ -802,7 +826,7 @@ class Grid:
                 #if self.survey.observing.Z_PHOTO > 1.:
                 #    rate = self.smear_z(rate,self.survey.observing.Z_PHOTO)
                 #    #rate=np.copy(self.smear_zgrid)
-
+                
                 rates.append(rate)
                 pwb[i * nw + j] = np.sum(rate)
                 
@@ -812,9 +836,13 @@ class Grid:
                 
                 pzcs.append(pzc)
         
+        
         # generates cumulative distribution for sampling w,b
         pwbc = np.cumsum(pwb)
         pwbc /= pwbc[-1]
+        
+        # differential rates
+        self.MCpwb = pwb
         
         # saves cumulative distributions for sampling
         self.MCpwbc = pwbc
@@ -883,7 +911,7 @@ class Grid:
         i = int(which / nw)
         j = which - i * nw
         MCb = self.beam_b[i]
-        MCw = self.eff_weights[j]
+        MCw = self.widths[j]
         
         # get p(z,DM) distribution for this b,w
         pzDM = self.MCrates[which]
@@ -938,7 +966,7 @@ class Grid:
             kz3 = 0.
             iz1 = 0 # dummy
             iz3 = 0 # dummy
-            MCz = (self.zvals[iz2] + self.dz/0.5) * fz
+            MCz = (self.zvals[iz2] + self.dz/2.) * fz
             # Just use the value of lowest bin.
             # This is a gross and repugnant approximation
             pDM = pzDM[iz2, :]
@@ -970,7 +998,7 @@ class Grid:
                 kDM3 = 0.
                 iDM1 = 0    # dummy
                 iDM3 = 0    # dummy
-                MCDM = self.dmvals[iDM2] + (fDM - 0.5)*self.dDM # upper DM bins
+                MCDM = self.dmvals[iDM2] + (fDM - 0.5)*self.ddm # upper DM bins
             else:
                 kDM1 = 0.
                 kDM2 = 1.5-fDM
@@ -1025,242 +1053,6 @@ class Grid:
     def build_sz(self):
         pass
 
-    def update(self, vparams: dict, ALL=False, prev_grid=None):
-        """Update the grid based on a set of input
-        parameters
-        
-        Hierarchy:
-        Each indent corresponds to one 'level'.
-        This is used in the program control below
-        to dictate how far each tree should proceed
-        in calculation.
-        Direct variable inputs are always listed first
-        We see that sfr evolution and dm smearing
-        lie just before the pdv step
-        Hence, we deal with these first, and
-        calc rates as a final step regardless
-        of what else has changed.
-
-        Args:
-            vparams (dict):  dict containing the parameters
-                to be updated and their values
-            prev_grid (Grid, optional):
-                If provided, it is assumed this grid has been
-                updated on items that need not be repeated for
-                the current grid.  i.e. Speed up!
-            ALL (bool, optional):  If True, update the full grid
-        
-        calc_rates:
-            calc_pdv
-                Emin
-                Emax
-                gamma
-                H0
-                calc_thresholds
-                    F0
-                    alpha
-                    bandwidth
-            set_evolution
-                sfr_n
-                H0
-            
-            smear_grid
-                grid
-                mask
-                    dmx_params (lmean, lsigma)
-            dV
-            zdm_grid
-                H0
-        
-        Note that the grid is independent of the constant C (trivial dependence)
-
-        Args:
-            vparams (dict): [description]
-        """
-        warnings.warn("grid.update is deprecated, create a new instantiation instead", DeprecationWarning)
-
-        # Init
-        reset_cos, get_zdm, calc_dV = False, False, False
-        smear_mask, smear_dm, calc_pdv, set_evol = False, False, False, False
-        new_sfr_smear, new_pdv_smear, calc_thresh = False, False, False
-        
-        # if we are updating a grid, the MC will in-general need to be
-        # re-initialised
-        self.MCinit = False
-        
-        # Cosmology -- Only H0 so far
-        if self.chk_upd_param("H0", vparams, update=True):
-            reset_cos = True
-            get_zdm = True
-            calc_dV = True
-            smear_dm = True
-            calc_thresh = True
-            calc_pdv = True
-            set_evol = True
-            new_sfr_smear = True
-
-        # IGM
-        if self.chk_upd_param("logF", vparams, update=True):
-            get_zdm = True
-            smear_dm = True
-            # calc_thresh = False  # JMB
-            # calc_pdv = False  # JMB
-            # set_evol = False  # JMB
-            new_sfr_smear = True
-
-        # DM_host
-        # IT IS IMPORTANT TO USE np.any so that each item is executed!!
-        if np.any(
-            [
-                self.chk_upd_param("lmean", vparams, update=True),
-                self.chk_upd_param("lsigma", vparams, update=True),
-            ]
-        ):
-            smear_mask = True
-            smear_dm = True
-            new_sfr_smear = True
-
-        # SFR?
-        if self.chk_upd_param("sfr_n", vparams, update=True):
-            set_evol = True
-            new_sfr_smear = True  # True for either alpha_method
-        if self.chk_upd_param("alpha", vparams, update=True):
-            set_evol = True
-            if self.state.FRBdemo.alpha_method == 0:
-                calc_thresh = True
-                calc_pdv = True
-                new_pdv_smear = True
-            elif self.state.FRBdemo.alpha_method == 1:
-                new_sfr_smear = True
-
-        ##### examines the 'pdv tree' affecting sensitivity #####
-        # begin with alpha
-        # alpha does not change thresholds under rate scaling, only spec index
-        if np.any(
-            [
-                self.chk_upd_param("lEmin", vparams, update=True),
-                self.chk_upd_param("lEmax", vparams, update=True),
-                self.chk_upd_param("gamma", vparams, update=True),
-            ]
-        ):
-            calc_pdv = True
-            new_pdv_smear = True
-
-        if self.chk_upd_param("DMhalo", vparams, update=True):
-            # Update survey params
-            self.survey.init_DMEG(vparams["DMhalo"])
-            # NOTE: In future we can change this to not need to recalc every time
-            self.survey.get_efficiency_from_wlist(self.survey.DMlist,self.survey.wlist,self.survey.wplist,model=self.survey.meta['WBIAS'])
-            self.eff_table = self.survey.efficiencies
-
-            calc_thresh = True
-            calc_pdv = True
-            new_pdv_smear = True
-
-        # ###########################
-        # NOW DO THE REAL WORK!!
-
-        # TODO -- For cubes with multiple surveys can we do these
-        #   first two steps (even the first 5!) only once??
-        # Update cosmology?
-        if reset_cos and prev_grid is None:
-            cos.set_cosmology(self.state)
-            cos.init_dist_measures()
-
-        if get_zdm or ALL:
-            if prev_grid is None:
-                zDMgrid, zvals, dmvals = misc_functions.get_zdm_grid(
-                    self.state,
-                    new=True,
-                    plot=False,
-                    method="analytic",
-                    save=False,
-                    nz=self.zvals.size,
-                    zmax=self.zvals[-1],
-                    ndm=self.dmvals.size,
-                    dmmax=self.dmvals[-1],
-                    zlog=self.zlog,
-                )
-                self.parse_grid(zDMgrid, zvals, dmvals)
-            else:
-                # Pass a copy (just to be safe)
-                self.parse_grid(
-                    prev_grid.grid.copy(),
-                    prev_grid.zvals.copy(),
-                    prev_grid.dmvals.copy(),
-                )
-
-        if calc_dV or ALL:
-            if prev_grid is None:
-                self.calc_dV()
-            else:
-                self.dV = prev_grid.dV.copy()
-
-        # Smear?
-        if smear_mask or ALL:
-            if prev_grid is None:
-                self.smear = pcosmic.get_dm_mask(
-                    self.dmvals,
-                    (self.state.host.lmean, self.state.host.lsigma),
-                    self.zvals,
-                )
-            else:
-                self.smear = prev_grid.smear.copy()
-        if smear_dm or ALL:
-            if prev_grid is None:
-                self.smear_dm(self.smear)
-            else:
-                self.smear = prev_grid.smear.copy()
-                self.smear_grid = prev_grid.smear_grid.copy()
-
-        if calc_thresh or ALL:
-            self.calc_thresholds(
-                self.F0,
-                self.eff_table,
-                bandwidth=self.bandwidth,
-                weights=self.eff_weights,
-            )
-            
-        if calc_pdv or ALL:
-            self.calc_pdv()
-        if set_evol or ALL:
-            self.set_evolution()  # sets star-formation rate scaling with z - here, no evoltion...
-        if new_sfr_smear or ALL:
-            self.calc_rates()  # includes sfr smearing factors and pdv mult
-        elif new_pdv_smear:
-            self.rates = self.pdv * self.sfr_smear  # does pdv mult only, 'by hand'
-
-        # Catch all the changes just in case, e.g. lCf
-        # Can no longer do this because of repeat_grid
-        self.state.update_params(vparams)
-
-        return new_sfr_smear, new_pdv_smear, (get_zdm or smear_dm or calc_dV) # If either is true, need to also recalc repeater grids
-
-    def chk_upd_param(self, param: str, vparams: dict, update=False):
-        """ Check to see whether a parameter is
-        differs from that in self.state
-
-        Args:
-            param (str): Paramter in question
-            vparams (dict): Dict holding the value
-            update (bool, optional): If True,
-                update the value in self.state. 
-                Defaults to False.
-
-        Returns:
-            bool: True if the parameter is different
-        """
-        updated = False
-        DC = self.state.params[param]
-        # In dict?
-        if param in vparams.keys():
-            # Changed?
-            if vparams[param] != getattr(self.state[DC], param):
-                updated = True
-                if update:
-                    self.state.update_param(param, vparams[param])
-        #
-        return updated
     
     def smear_z(self,array,zsigma):
         """
@@ -1345,7 +1137,3 @@ class Grid:
         
         self.fz = newfz
         
-            
-        #np.save(path+"/"+name+"_fz",newfz)
-        #np.save(path+"/"+name+"_z",newz)
-

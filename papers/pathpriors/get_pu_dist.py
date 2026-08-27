@@ -73,7 +73,7 @@ def main():
     state = states.load_state("HoffmannHalo25",scat=None,rep=None)
     #state = parameters.State()
     
-    labels=['(a) ASKAP/ICS 900 MHz','(b) CHIME ($\delta=60^{\circ}$)','(c) MeerKAT coherent','(d) DSA']
+    labels=['(a) ASKAP/ICS 900 MHz','(b) CHIME ($\delta=60^{\circ}$)','(c) MeerKAT coherent','(d) DSA-110']
     tags=['ASKAP','CHIME','MeerKAT','DSA']
     names=['CRAFT_ICS_892','CHIME/CHIME_decbin_3_of_6','MeerTRAPcoherent','DSA']#,'CRAFT_ICS_1300','CRAFT_ICS_1632']
     ss,gs = loading.surveys_and_grids(survey_names=names,init_state=state)
@@ -83,6 +83,7 @@ def main():
     styles=[":","--","-"]
     NDM=20
     DMlist = np.linspace(50,1950,NDM)
+    locs = ["upper left","upper center","upper right"]
     
     for j,g in enumerate(gs):
         plt.figure()
@@ -91,6 +92,8 @@ def main():
         tag = tags[j]
         label = labels[j]
         plt.text(-250,1.04,label)
+        lines = []
+        legends = []
         for i in np.arange(3):
             
             opstate.id.pU_mean=TelMeans[i]
@@ -98,18 +101,34 @@ def main():
         
             PUs = get_PUs(opstate,g,DMlist)
             
+            
             if i==0:
-                l1,=plt.plot(DMlist,PUs[:,0],linestyle=styles[i])
-                l2,=plt.plot(DMlist,PUs[:,1],linestyle=styles[i])
-                l3,=plt.plot(DMlist,PUs[:,2],linestyle=styles[i])
-            elif i==2:
-                plt.plot(DMlist,PUs[:,0],label="Marnoch23",linestyle=styles[i],color=l1.get_color())
-                plt.plot(DMlist,PUs[:,1],label="Loudas25",linestyle=styles[i],color=l2.get_color())
-                plt.plot(DMlist,PUs[:,2],label="Naive",linestyle=styles[i],color=l3.get_color())
+                l1,=plt.plot(DMlist,PUs[:,0],label="Marnoch23",linestyle=styles[i])
+                l2,=plt.plot(DMlist,PUs[:,1],label="Loudas25",linestyle=styles[i])
+                l3,=plt.plot(DMlist,PUs[:,2],label="Naive",linestyle=styles[i])
+                
             else:
-                plt.plot(DMlist,PUs[:,0],linestyle=styles[i],color=l1.get_color())
-                plt.plot(DMlist,PUs[:,1],linestyle=styles[i],color=l2.get_color())
-                plt.plot(DMlist,PUs[:,2],linestyle=styles[i],color=l3.get_color())
+                l1,=plt.plot(DMlist,PUs[:,0],label="Marnoch23",linestyle=styles[i],color=l1.get_color())
+                l2,=plt.plot(DMlist,PUs[:,1],label="Loudas25",linestyle=styles[i],color=l2.get_color())
+                l3,=plt.plot(DMlist,PUs[:,2],label="Naive",linestyle=styles[i],color=l3.get_color())
+            lines.append([l1,l2,l3])
+            if j==0:
+                leg = plt.legend(labels = ["Marnoch23","Loudas25","Naive"], handles = [l1,l2,l3],title=TELs[i],loc=locs[i],fontsize=12)
+                plt.setp(leg.get_title(),fontsize='12')
+                legends.append(leg)
+            
+            #if i==0:
+            #    l1,=plt.plot(DMlist,PUs[:,0],linestyle=styles[i])
+            #    l2,=plt.plot(DMlist,PUs[:,1],linestyle=styles[i])
+            #    l3,=plt.plot(DMlist,PUs[:,2],linestyle=styles[i])
+            #elif i==2:
+            #    plt.plot(DMlist,PUs[:,0],label="Marnoch23",linestyle=styles[i],color=l1.get_color())
+            #    plt.plot(DMlist,PUs[:,1],label="Loudas25",linestyle=styles[i],color=l2.get_color())
+            #    plt.plot(DMlist,PUs[:,2],label="Naive",linestyle=styles[i],color=l3.get_color())
+            #else:
+            #    plt.plot(DMlist,PUs[:,0],linestyle=styles[i],color=l1.get_color())
+            #    plt.plot(DMlist,PUs[:,1],linestyle=styles[i],color=l2.get_color())
+            #    plt.plot(DMlist,PUs[:,2],linestyle=styles[i],color=l3.get_color())
             # plot kind of optical observation
         for i in np.arange(3):
             Tlabel=TELs[i]
@@ -117,8 +136,13 @@ def main():
         
         plt.ylim(0,1)
         plt.xlim(0,2000)
+        
         if j==0:
-            plt.legend(fontsize=12)
+        
+            plt.gca().add_artist(legends[0])
+            plt.gca().add_artist(legends[1])
+            #plt.gca().add_artist(legends[2])
+            #plt.legend(fontsize=12)
         plt.tight_layout()
         plt.savefig(opdir+tag+"pu_all.png")
         plt.close()

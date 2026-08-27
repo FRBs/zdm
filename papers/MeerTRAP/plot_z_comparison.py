@@ -172,12 +172,6 @@ def main():
         }
         plt_dicts.append(plt_styles)
 
-        # cont_styles = {
-        #     'color': data_clrs[i],
-        #     'label': point_labels[i]
-        # }
-        # cont_dicts.append(cont_styles)
-
 
     s=ss[0]
     g=gs[0]
@@ -188,27 +182,14 @@ def main():
         name=opdir+name+"_zDM_test.pdf",norm=3,log=False,
         label='$\\log_{10} p({\\rm DM}_{\\rm EG}$ [a.u.]',
         project=False,ylabel='${\\rm DM}_{\\rm EG}$',
-        zmax=3.9,DMmax=3000, FRBZs=Zs, FRBDMs=DMs, 
+        zmax=3.9,DMmax=3000, FRBZs=Zs, FRBDMs=DMs,
         # point_labels=point_labels, data_clrs=data_clrs, markersize=5, data_styles=markers,
         plt_dicts=plt_dicts, cont_dicts=cont_dicts,
         Aconts=[0.1],othergrids=[gs[1].rates,crates,gs[2].rates],
         othernames = ["MeerKAT","DSA","CHIME","ASKAP"], 
         cmap=cmr.prinsenvlag_r)
         #0.01, 0.1,0.5
-    # figures.plot_grid(
-    #     zDMgrid=crates[:,200:],
-    #     zvals=g.zvals,
-    #     dmvals=g.dmvals[200:],
-    #     zmax=2.5,
-    #     DMmax=2500,
-    #     norm=0,
-    #     log=False,
-    #     project=False,
-    #     Aconts=[0.01,0.1,0.5],
-    #     showplot=True,
-    #     save=True,
-    #     name="CHIME.pdf"
-    # )
+    
     
     ############ Plots z projection ##########
     plt.figure()

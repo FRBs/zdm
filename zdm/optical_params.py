@@ -49,7 +49,7 @@ class SimpleParams(data_class.myDataClass):
                   })
     AbsPriorMeth: int = field( 
         default=0, 
-        metadata={'help': "Model for abs mag prior and function description. 0: uniform distribution. Others to be implemented.",
+        metadata={'help': "Model for abs mag prior and function description. 0: uniform distribution. 1: use SPvalues. Others to be implemented.",
                   'unit': '', 
                   'Notation': '',
                   })
@@ -71,9 +71,69 @@ class SimpleParams(data_class.myDataClass):
                   'unit': '', 
                   'Notation': 'k',
                   })
+    SPv1: float = field( 
+        default=0.1, 
+        metadata={'help': "First value of absolute magnitude parameterisation",
+                  'unit': '', 
+                  'Notation': 'x_1',
+                  })
+    SPv2: float = field( 
+        default=0.1, 
+        metadata={'help': "Second value of absolute magnitude parameterisation",
+                  'unit': '', 
+                  'Notation': 'x_2',
+                  })
+    SPv3: float = field( 
+        default=0.1, 
+        metadata={'help': "Third value of absolute magnitude parameterisation",
+                  'unit': '', 
+                  'Notation': 'x_3',
+                  })
+    SPv4: float = field( 
+        default=0.1, 
+        metadata={'help': "Fourth value of absolute magnitude parameterisation",
+                  'unit': '', 
+                  'Notation': 'x_4',
+                  })
+    SPv5: float = field( 
+        default=0.1, 
+        metadata={'help': "Fifth value of absolute magnitude parameterisation",
+                  'unit': '', 
+                  'Notation': 'x_5',
+                  })
+    SPv6: float = field( 
+        default=0.1, 
+        metadata={'help': "Sixth value of absolute magnitude parameterisation",
+                  'unit': '', 
+                  'Notation': 'x_6',
+                  })
+    SPv7: float = field( 
+        default=0.1, 
+        metadata={'help': "Seventh value of absolute magnitude parameterisation",
+                  'unit': '', 
+                  'Notation': 'x_7',
+                  })
+    SPv8: float = field( 
+        default=0.1, 
+        metadata={'help': "Eighth value of absolute magnitude parameterisation",
+                  'unit': '', 
+                  'Notation': 'x_8',
+                  })
+    SPv9: float = field( 
+        default=0.1, 
+        metadata={'help': "Ninth value of absolute magnitude parameterisation",
+                  'unit': '', 
+                  'Notation': 'x_9',
+                  })
+    SPv10: float = field( 
+        default=0.1, 
+        metadata={'help': "Tenth value of absolute magnitude parameterisation",
+                  'unit': '', 
+                  'Notation': 'x_{10}',
+                  })
 
 
-# Nick Loudas's SFR model
+# Nick Loudas's SFR model. Actually, we never really need many/any of these, it's all contained in optical
 @dataclass
 class LoudasParams(data_class.myDataClass):
     """
@@ -81,7 +141,7 @@ class LoudasParams(data_class.myDataClass):
     FRBs as some fraction of the star-formation rate.
     """
     fSFR: float = field( 
-        default=0.5, 
+        default=3, 
         metadata={'help': "Fraction of FRBs associated with star-formation", 
                   'unit': '', 
                   'Notation': '',
@@ -143,6 +203,24 @@ class Identification(data_class.myDataClass):
                   'unit': '', 
                   'Notation': '',
                   })
+    pU_method: int = field( 
+        default=0, 
+        metadata={'help': "Method of implementing p(U|m) cut in the data. 0: use mean, width above. 1: use min/max.", 
+                  'unit': '', 
+                  'Notation': '',
+                  })
+    pU_min: float = field( 
+        default=14, 
+        metadata={'help': "Minimum magnitude to consider in P(U|m) - sets this to zero for m < Pu_min. Used iff pUmeth=1", 
+                  'unit': '', 
+                  'Notation': '',
+                  })
+    pU_max: float = field( 
+        default=22, 
+        metadata={'help': "Maximum magnitude to consider in P(U|m) - sets this to zero for m > Pu_max. Used iff pUmeth=1", 
+                  'unit': '', 
+                  'Notation': '',
+                  })
 
 @dataclass
 class Apparent(data_class.myDataClass):
@@ -167,7 +245,27 @@ class Apparent(data_class.myDataClass):
                   'unit': '', 
                   'Notation': '',
                   })
+    iModel: int = field(
+        default = 0,
+        metadata={'help': "Id of optical model to use. 0,1,2 = Marnoch, Loudas, Naive",
+                  'unit': '',
+                  'Notation': '',
+                  })
 
+
+
+@dataclass
+class Path(data_class.myDataClass):
+    """
+    parameters to pass along to PATH analysis.
+    """
+    Scale: float = field( 
+        default=0.5, 
+        metadata={'help': "Exponential scale of radial distribution", 
+                  'unit': '}', 
+                  'Notation': '',
+                  })
+    
 class OpticalState(data_class.myData):
     """Initialize the full optical state dataset
     with the default parameters
@@ -183,6 +281,7 @@ class OpticalState(data_class.myData):
         self.loudas = LoudasParams()
         self.app = Apparent()
         self.id = Identification()
+        self.path = Path()
         
 
     def update_param(self, param:str, value):

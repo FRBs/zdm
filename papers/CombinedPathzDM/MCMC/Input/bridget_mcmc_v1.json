@@ -1,0 +1,108 @@
+{
+    "mcmc": {
+        "parameter_order": ["logF", "sfr_n", "alpha", "lmean", "lsigma", "lEmax", "gamma", "H0", "DMhalo"]
+    },
+    "mcmc_full": {
+        "parameter_order": ["logF", "sfr_n", "alpha", "lmean", "lsigma", "lEmax", "lEmin", "gamma", "H0", "DMhalo", "lRmin", "lRmax", "Rgamma", "sigmaDMG"]
+    },
+    "config": {
+        "luminosity_function": 2,
+        "alpha_method": 1,
+        "halo_method": 0,
+        "sigmaDMG": 0.0,
+        "sigmaHalo": 0.0,
+        "lEmin": 30,
+        "logF": -0.49485002168,
+        "alpha": 1.55,
+        "gamma": -1.12,
+        "lEmax": 40.9,
+        "H0": 70.63,
+        "DMhalo": 68.0,
+        "sfr_n": 2.88,
+        "lmean": 2.13,
+        "lsigma": 0.46,
+        "Wlogmean": 0.0,
+        "Wlogsigma": 0.42,
+        "WNbins": 5,
+        "WMin": 0.1,
+        "WidthFunction": 1,
+        "Wthresh": 0.5,
+        "Wmethod": 2,
+        "ScatFunction": 1,
+        "Slogmean": 0.305,
+        "Slogsigma": 0.75,
+        "Sfnorm": 600,
+        "Sfpower": -4.0,
+        "Smaxsigma": 3
+    },
+    "logF": {
+        "DC": "cosmo",
+        "min": -2.0,
+        "max": 0.0
+    },
+    "lEmax": {
+        "DC": "energy",
+        "min": 40.0,
+        "max": 43.0
+    },
+    "lEmin": {
+        "DC": "energy",
+        "min": 30.0, 
+        "max": 40.0
+    },
+    "DMhalo": {
+        "DC": "MW",
+        "min": 0.0, 
+        "max": 100
+    },
+    "sigmaDMG": {
+        "DC": "MW",
+        "min": 0.1, 
+        "max": 0.5
+    },
+    "H0": {
+        "DC": "cosmo",
+        "min": 30.0, 
+        "max": 120.0
+    },
+    "alpha": {
+        "DC": "energy",
+        "min": -2.0, 
+        "max": 6.0
+    },
+    "gamma": {
+        "DC": "energy",
+        "min": -2.0, 
+        "max": 0.0
+    },
+    "sfr_n": {
+        "DC": "FRBdemo",
+        "min": 0.0, 
+        "max": 4.0
+    },
+    "lmean": {
+        "DC": "host",
+        "min": 1.0, 
+        "max": 3.0
+    },
+    "lsigma": {
+        "DC": "host",
+        "min": 0.1, 
+        "max": 1.5
+    },
+    "lRmin": {
+        "DC": "rep",
+        "min": -2.0, 
+        "max": 1.0
+    },
+    "lRmax": {
+        "DC": "rep",
+        "min": 0.0, 
+        "max": 4.0
+    },
+    "Rgamma": {
+        "DC": "rep",
+        "min": -3.0, 
+        "max": -0.5
+    }
+}
