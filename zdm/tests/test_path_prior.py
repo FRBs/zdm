@@ -32,7 +32,7 @@ def test_path_priors():
     cos.init_dist_measures()
     model1 = opt.simple_host_model()
     model2 = opt.marnoch_model()
-    model3 = opt.loudas_model()
+    model3 = opt.loudas_model(fname="p_mr_distributions_dz0.01_z_in_0_1.2.h5")
     name='CRAFT_ICS_1300'
     ss,gs = loading.surveys_and_grids(survey_names=[name])
     g = gs[0]

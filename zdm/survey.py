@@ -1135,7 +1135,7 @@ class Survey:
             TEMP[toolow] = 0.01*self.frbs['TAU'].values[toolow]**2 # 10% of scattering width
             iwidths = TEMP**0.5 # scale to SNR max width assuming Gaussian shape
             self.IWIDTHs = iwidths
-            self.IWIDTHS[notOK] = float('nan') # ensures these values result in errors if ever used
+            self.IWIDTHs[notOK] = float('nan') # ensures these values result in errors if ever used
             self.TAUs = self.frbs['TAU'].values
             # checks for incorrectSNR values
             toolow = np.where(self.Ss < 1.)[0]
