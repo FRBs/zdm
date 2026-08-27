@@ -150,4 +150,5 @@ def test_scat_methods():
     plt.savefig(opdir+'/model_comparison.pdf')
     plt.close()
 
-test_scat_methods()
+if __name__ == "__main__":
+    test_scat_methods()
