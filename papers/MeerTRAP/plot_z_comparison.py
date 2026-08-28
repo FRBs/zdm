@@ -196,36 +196,6 @@ def main():
     
     names = ["MeerTRAP coherent", "DSA 110", "ASKAP ICS"]
     styles=["-","--","-."]
-
-    for i,g in enumerate(gs):
-        s=ss[i]
-        
-        # # Calc pz
-        # pz = np.sum(g.rates,axis=1)
-        # pz = pz / np.sum(pz)
-
-        # # Do plotting
-        # plt.plot(g.zvals,pz,label=names[i],linestyle=styles[i],linewidth=2)
-
-        # # # Calculate z0 at which P(z < z0) = 0.95
-        # # pz_cum = np.cumsum(pz) 
-        # # i_one_percent = np.where(pz_cum>0.95)[0][0]
-        # # one_percent = g.zvals[i_one_percent]
-        # # print(s.name, one_percent, pz_cum[i_one_percent])
-
-        # # # Calculate P(z > 2)
-        # # i_z_two = np.where(g.zvals>2)[0][0]
-        # # print(pz_cum[i_z_two])
-
-        # # Calculate P(z > 1 | DM_EG > 1000)
-        # i_z_one = np.where(g.zvals>1)[0][0]
-        # i_DM_1000 = np.where(g.dmvals>1000)[0][0]
-        # print("P(z>1 and DM>1000)", s.name, np.sum(g.rates[i_z_one:,i_DM_1000:])/np.sum(g.rates))
-        # print("max(z>1 and DM>1000)", s.name, np.max(g.rates[i_z_one:,i_DM_1000:]))
-        # print("max(DM > 1000)", s.name, np.max(g.rates[:,i_DM_1000:]))
-        # print("P(DM>1000)", s.name, np.sum(g.rates[:,i_DM_1000:])/np.sum(g.rates))
-        # print("P(z>1|DM>1000)", s.name, np.sum(g.rates[i_z_one:,i_DM_1000:]) / np.sum(g.rates[:,i_DM_1000:]))
-        # print("P(z>1)", s.name, np.sum(g.rates[i_z_one:,:])/np.sum(g.rates))
     
     # Calculate P(z > 1 | DM_EG > 1000)
     i_z_one = np.where(g.zvals>1)[0][0]
@@ -241,16 +211,6 @@ def main():
     # adds CHIME
     pz = np.sum(crates[:,200:],axis=1)
     pz = pz / np.sum(pz)
-
-    # # Calculate z0 at which P(z < z0) = 0.95
-    # pz_cum = np.cumsum(pz)
-    # i_one_percent = np.where(pz_cum>0.95)[0][0]
-    # one_percent = g.zvals[i_one_percent]
-    # print("CHIME", one_percent, pz_cum[i_one_percent])
-    
-    # # Calculate P(z > 2)
-    # i_z_two = np.where(g.zvals>2)[0][0]
-    # print(pz_cum[i_z_two])
     
     plt.plot(g.zvals,pz,label="CHIME",linestyle=":",linewidth=2)
     
