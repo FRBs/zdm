@@ -63,7 +63,7 @@ def valid_parameter_combination(param_dict, state):
     )
     lEmin = param_dict.get('lEmin', state.energy.lEmin)
     lEmax = param_dict.get('lEmax', state.energy.lEmax)
-    if luminosity_function == 4:
+    if luminosity_function in (4, 6):
         lEb = param_dict.get('lEb', state.energy.lEb)
         return bool(lEmin < lEb < lEmax)
     if luminosity_function == 5:
@@ -95,7 +95,7 @@ def get_initial_walkers(state, params, nwalkers, rng=None, max_attempts=10000):
         else:
             raise ValueError(
                 "Could not initialize MCMC walkers inside the joint priors. "
-                "For luminosity_function=4 or 5, ensure the prior ranges "
+                "For luminosity_function=4, 5, or 6, ensure the prior ranges "
                 "permit the required ordering of break energies."
             )
 

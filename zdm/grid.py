@@ -178,9 +178,14 @@ class Grid:
             self.vector_cum_lf = self._vector_cum_double_broken_power_law
             self.array_diff_lf = self._array_diff_double_broken_power_law
             self.vector_diff_lf = self._vector_diff_double_broken_power_law
+        elif self.luminosity_function == 6: #Broken Schechter
+            self.array_cum_lf = self._array_cum_broken_schechter
+            self.vector_cum_lf = self._vector_cum_broken_schechter
+            self.array_diff_lf = self._array_diff_broken_schechter
+            self.vector_diff_lf = self._vector_diff_broken_schechter
         else:
             raise ValueError(
-                "Luminosity function must be one of 0, 1, 2, 3, 4, or 5; "
+                "Luminosity function must be one of 0, 1, 2, 3, 4, 5, or 6; "
                 f"got {self.luminosity_function}"
             )
 
@@ -245,6 +250,29 @@ class Grid:
     ):
         params = self._double_broken_power_law_params(Emin, Emax, gamma1)
         return energetics.vector_diff_double_broken_power_law(Eth, *params)
+
+    def _broken_schechter_params(self, Emin, Ecut, gamma1):
+        """
+        Expand standard grid LF arguments for a broken-Schechter function.
+        """
+        return (Emin,Ecut,gamma1,self.state.energy.gamma2,10 ** self.state.energy.lEb)
+
+    def _array_cum_broken_schechter(self,Eth,Emin,Ecut,gamma1,*unused,):
+        params = self._broken_schechter_params(Emin, Ecut, gamma1)
+        return energetics.array_cum_broken_schechter(Eth,*params)
+
+    def _vector_cum_broken_schechter(self,Eth,Emin,Ecut,gamma1,*unused):
+        params = self._broken_schechter_params(Emin,Ecut,gamma1)
+        return energetics.vector_cum_broken_schechter(Eth, *params)
+
+    def _array_diff_broken_schechter(self,E,Emin,Ecut,gamma1,*unused):
+        params = self._broken_schechter_params(Emin,Ecut,gamma1)
+        return energetics.array_diff_broken_schechter(E,*params)
+
+    def _vector_diff_broken_schechter(self,E,Emin,Ecut,gamma1,*unused):
+        params = self._broken_schechter_params(Emin,Ecut,gamma1)
+        return energetics.vector_diff_broken_schechter(E,*params)
+    
 
     def parse_grid(self, zDMgrid, zvals, dmvals):
         self.grid = zDMgrid
@@ -789,7 +817,7 @@ class Grid:
         
         """
         # Boost?
-        if self.state.energy.luminosity_function in [1, 2]:
+        if self.state.energy.luminosity_function in [1, 2, 6]:
             Emax_boost = 3.0
         else:
             Emax_boost = 0.0

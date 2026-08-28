@@ -187,3 +187,51 @@ def test_double_broken_power_law_rejects_invalid_energy_order():
     params = (1.0, 1000.0, -0.5, -1.0, -2.0, 100.0, 10.0)
     with pytest.raises(ValueError, match="Emin < Eb1 < Eb2 < Emax"):
         energetics.vector_cum_double_broken_power_law(10.0, *params)
+
+def test_broken_schechter_boundaries_and_monotonicity():
+    params = (1e37,1e42,-0.5,-1.2,1e40)
+    energies = np.logspace(36, 45, 300)
+
+    cumulative = energetics.vector_cum_broken_schechter(energies, *params)
+
+    assert cumulative[0] == 1.0
+    assert np.all(cumulative >= 0.0)
+    assert np.all(cumulative <= 1.0)
+    assert np.all(np.diff(cumulative) <= 1e-12)
+    assert cumulative[-1] < 1e-10
+
+
+def test_broken_schechter_is_continuous_at_break():
+    params = (1e37,1e42,-0.5,-1.2,1e40)
+
+    Eb = params[-1]
+    epsilon = Eb * 1e-8
+
+    values = energetics.vector_diff_broken_schechter(np.array([Eb - epsilon, Eb + epsilon]), *params)
+    np.testing.assert_allclose(values[0], values[1], rtol=1e-6)
+
+
+def test_broken_schechter_diff_matches_cumulative_derivative():
+    params = (1e37,1e42,-0.5,-1.2,1e40)
+
+    energies = np.array([2e37,1e39,2e40,1e42])
+    step = energies * 1e-5
+
+    upper = energetics.vector_cum_broken_schechter(energies + step, *params)
+    lower = energetics.vector_cum_broken_schechter(energies - step, *params)
+
+    numerical_density = -(upper - lower) / (2.0 * step)
+    density = energetics.vector_diff_broken_schechter(energies, *params)
+
+    np.testing.assert_allclose(density, numerical_density, rtol=1e-5)
+
+
+def test_broken_schechter_array_wrappers():
+    params = (1e37,1e42,-0.5,-1.2,1e40)
+
+    energies = np.array([[1e37, 1e39], [1e40, 1e42]])
+    cumulative = energetics.array_cum_broken_schechter(energies, *params)
+    differential = energetics.array_diff_broken_schechter(energies, *params)
+
+    assert cumulative.shape == energies.shape
+    assert differential.shape == energies.shape

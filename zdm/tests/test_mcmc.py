@@ -175,3 +175,29 @@ def test_grid_selects_double_broken_power_law_functions():
     assert cumulative[0] == 1.0
     assert cumulative[-1] == 0.0
     assert np.all(differential > 0)
+
+
+def test_broken_schechter_joint_prior():
+    state = parameters.State()
+
+    state.energy.luminosity_function = 6
+    state.energy.lEmin = 38.0
+    state.energy.lEb = 40.0
+    state.energy.lEmax = 42.0
+
+    assert MCMC.valid_parameter_combination({}, state)
+
+    assert MCMC.valid_parameter_combination(
+        {"lEb": 41.0},
+        state,
+    )
+
+    assert not MCMC.valid_parameter_combination(
+        {"lEb": 37.0},
+        state,
+    )
+
+    assert not MCMC.valid_parameter_combination(
+        {"lEb": 43.0},
+        state,
+    )

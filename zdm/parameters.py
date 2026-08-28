@@ -443,7 +443,7 @@ class EnergeticsParams(data_class.myDataClass):
     gamma2: float = field(
         default=-2.0,
         metadata={
-            "help": "second slope of a broken power-law luminosity function",
+            "help": "second slope of a broken power law, or Schechter-segment shape index for a broken-Schechter function",
             "unit": "",
             "Notation": "\\gamma_2",
         },
@@ -459,7 +459,7 @@ class EnergeticsParams(data_class.myDataClass):
     lEb: float = field(
         default=40.0,
         metadata={
-            "help": "$\\log_{10}$ of the break energy for a broken power law",
+            "help": "$\\log_{10}$ of the break energy for a broken power law or broken-Schechter function",
             "unit": "erg",
             "Notation": "\\log_{10} E_{\\rm b}",
         },
@@ -475,7 +475,7 @@ class EnergeticsParams(data_class.myDataClass):
     luminosity_function: int = field(
         default=2,
         metadata={
-            "help": "luminosity function applied (0=power-law, 1=gamma, 2=spline+gamma, 3=gamma+linear+log10, 4=broken power-law, 5=doubly-broken power-law)"
+            "help": "luminosity function applied (0=power-law, 1=gamma, 2=spline+gamma, 3=gamma+linear+log10, 4=broken power-law, 5=doubly-broken power-law, 6=broken-Schechter)",
         },
     )
 

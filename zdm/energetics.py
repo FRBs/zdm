@@ -7,6 +7,10 @@ implemented are:
 
 1. **Power Law**: Simple power-law distribution dN/dE ~ E^gamma between Emin and Emax
 2. **Gamma Function**: Upper incomplete gamma function distribution with exponential cutoff
+3. **Break Power Law**: A continuous two-segment power law with one break energy Eb
+4. **Two Break Power Law**: A continuous three-segment power law with two break energies
+5. **Break-Schechter Function**: A power law with slope gamma1 below the break energy Eb 
+   and a Schechter-like distribution with slope gamma2 and exponential cutoff above Eb
 
 The gamma function implementation uses spline interpolation for efficiency, as
 direct evaluation of the incomplete gamma function is computationally expensive
@@ -17,6 +21,7 @@ Key Functions
 - `vector_cum_power_law`: Cumulative power-law luminosity function
 - `vector_cum_broken_power_law`: Cumulative broken power-law luminosity function
 - `vector_cum_double_broken_power_law`: Cumulative two-break power-law luminosity function
+- `vector_cum_broken_gamma`: Cumulative Break-Schechter luminosity function.
 - `vector_cum_gamma_spline`: Cumulative gamma function with spline interpolation
 - `array_cum_gamma_spline`: N-dimensional array wrapper for gamma function
 - `init_igamma_splines`: Initialize spline lookup tables for gamma functions
@@ -503,6 +508,178 @@ def array_diff_double_broken_power_law(Eth, *params):
     return result.reshape(dims)
 
 
+########### broken Schechter functions #############
+
+def _broken_schechter_upper_gamma(x, gamma):
+    """
+    Fast upper incomplete Gamma(gamma, x), using the existing spline cache.
+    """
+    global SplineLog
+
+    x = np.asarray(x, dtype=float)
+    scalar_input = x.ndim == 0
+    x = np.atleast_1d(x)
+
+    if np.any(x <= 0.0):
+        raise ValueError("Upper incomplete gamma arguments must be positive")
+
+    if gamma not in igamma_splines:
+        init_igamma_splines([gamma])
+
+    if SplineLog:
+        result = 10 ** interpolate.splev(np.log10(x), igamma_splines[gamma])
+    else:
+        result = interpolate.splev(x, igamma_splines[gamma])
+
+    result = np.asarray(result, dtype=float)
+
+    if scalar_input:
+        return result[0]
+
+    return result
+
+
+def _broken_schechter_lower_integral(x, gamma):
+    """
+    Integral of u^(gamma - 1) from x to 1.
+
+    Equal to (1 - x**gamma)/gamma, with the gamma=0 logarithmic limit.
+    """
+    x = np.asarray(x, dtype=float)
+
+    if np.isclose(gamma, 0.0):
+        return -np.log(x)
+
+    return -np.expm1(gamma * np.log(x)) / gamma
+
+
+def _broken_schechter_normalization(Emin, Ecut, gamma1, gamma2, Eb):
+    """
+    Dimensionless normalization for the broken-Schechter distribution.
+    """
+    low_mass = _broken_schechter_lower_integral(Emin / Eb, gamma1)
+
+    high_scale = (np.exp(Eb / Ecut) * (Ecut / Eb) ** gamma2)
+    high_mass = (high_scale * _broken_schechter_upper_gamma(Eb / Ecut, gamma2))
+
+    return low_mass + high_mass, high_scale, high_mass
+
+
+def vector_cum_broken_schechter(Eth, *params):
+    """
+    Survival function P(E > Eth) for a broken-Schechter energy function.
+
+    Parameters
+    ----------
+    Eth : scalar or one-dimensional ndarray
+        Energy threshold in erg.
+    params : tuple
+        (Emin, Ecut, gamma1, gamma2, Eb)
+
+    Notes
+    -----
+    Ecut corresponds to the existing zdm Gamma parameter called Emax.
+    It is a characteristic exponential cutoff energy, not a hard maximum.
+    """
+    Emin, Ecut, gamma1, gamma2, Eb = params
+
+    if not (0.0 < Emin < Eb < Ecut):
+        raise ValueError("Broken Schechter energies must satisfy 0 < Emin < Eb < Ecut")
+
+    Eth = np.asarray(Eth, dtype=float)
+    scalar_input = Eth.ndim == 0
+
+    if Eth.ndim > 1:
+        raise ValueError("Eth must be scalar or one-dimensional")
+
+    Eth = np.atleast_1d(Eth)
+
+    normalization, high_scale, high_at_break = (_broken_schechter_normalization(Emin, Ecut, gamma1, gamma2, Eb))
+
+    result = np.empty_like(Eth)
+
+    below_min = Eth < Emin
+    below_break = (Eth >= Emin) & (Eth < Eb)
+    above_break = Eth >= Eb
+
+    result[below_min] = 1.0
+    result[below_break] = (_broken_schechter_lower_integral(Eth[below_break] / Eb, gamma1) + high_at_break) / normalization
+
+    if np.any(above_break):
+        result[above_break] = (high_scale * _broken_schechter_upper_gamma(Eth[above_break] / Ecut, gamma2) / normalization)
+
+    result = np.clip(result, 0.0, 1.0)
+
+    if scalar_input:
+        return result[0]
+
+    return result
+
+
+def array_cum_broken_schechter(Eth, *params):
+    """
+    N-dimensional wrapper for vector_cum_broken_schechter.
+    """
+    Eth = np.asarray(Eth, dtype=float)
+    original_shape = Eth.shape
+
+    result = vector_cum_broken_schechter(Eth.ravel(), *params,)
+
+    return result.reshape(original_shape)
+
+
+def vector_diff_broken_schechter(E, *params):
+    """
+    Normalized differential broken-Schechter distribution dP/dE.
+
+    Parameters
+    ----------
+    E : scalar or one-dimensional ndarray
+        Energy in erg.
+    params : tuple
+        (Emin, Ecut, gamma1, gamma2, Eb)
+    """
+    Emin, Ecut, gamma1, gamma2, Eb = params
+
+    if not (0.0 < Emin < Eb < Ecut):
+        raise ValueError("Broken Schechter energies must satisfy 0 < Emin < Eb < Ecut")
+
+    E = np.asarray(E, dtype=float)
+    scalar_input = E.ndim == 0
+
+    if E.ndim > 1:
+        raise ValueError("E must be scalar or one-dimensional")
+
+    E = np.atleast_1d(E)
+
+    normalization, _, _ = _broken_schechter_normalization(Emin, Ecut, gamma1, gamma2, Eb)
+
+    result = np.zeros_like(E)
+
+    below_break = (E >= Emin) & (E < Eb)
+    above_break = E >= Eb
+
+    result[below_break] = ((E[below_break] / Eb) ** (gamma1 - 1.0) / (Eb * normalization))
+    result[above_break] = ((E[above_break] / Eb) ** (gamma2 - 1.0) * np.exp(-(E[above_break] - Eb) / Ecut) / (Eb * normalization))
+
+    if scalar_input:
+        return result[0]
+
+    return result
+
+
+def array_diff_broken_schechter(E, *params):
+    """
+    N-dimensional wrapper for vector_diff_broken_schechter.
+    """
+    E = np.asarray(E, dtype=float)
+    original_shape = E.shape
+
+    result = vector_diff_broken_schechter(E.ravel(), *params,)
+
+    return result.reshape(original_shape)
+
+
 
 ########### gamma functions #############
 
@@ -538,8 +715,7 @@ def vector_cum_gamma(Eth, *params):
     norm = float(mpmath.gammainc(gamma, a=Emin/Emax))
     Eth_Emax = Eth/Emax
     # If this is too slow, we can adopt scipy + recurrance
-    numer = np.array([float(mpmath.gammainc(
-        gamma, a=iEE)) for iEE in Eth_Emax])
+    numer = np.array([float(mpmath.gammainc(gamma, a=iEE)) for iEE in Eth_Emax])
     result=numer/norm
 
     # Low end

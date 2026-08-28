@@ -1538,6 +1538,15 @@ def ConvertToMeaningfulConstant(state,Eref=1e39):
             10 ** state.energy.lEb,
             10 ** state.energy.lEb2,
         )
+    elif state.energy.luminosity_function == 6:
+        factor = energetics.vector_cum_broken_schechter(
+            np.array([Eref]),
+            Emin,
+            Emax,
+            gamma,
+            state.energy.gamma2,
+            10 ** state.energy.lEb,
+        )
     else:
         factor = energetics.vector_cum_gamma(np.array([Eref]),Emin,Emax,gamma)
     const *= factor
