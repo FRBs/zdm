@@ -51,42 +51,12 @@ from zdm import cosmology as cos
 from zdm import misc_functions as mf
 from zdm import repeat_grid
 import os
-import cProfile
 
 from zdm import optical_numerics as on
 from zdm import optical as opt
 from zdm import optical_params as op
 #==============================================================================
 
-PROFILED_PID = None
-
-def profiled_calc_log_posterior(param_vals, state, params, surveys_sep, Pn=False, Pns=False, Pnr=False,
-                pNreps=True, psnr=True, ptauw=False, pwb=False,
-                log_halo=False, lin_host=False, ind_surveys=False, g0info=None, nz=500, ndm=1400,
-                zmax=5.,dmmax=7000.,
-                dopath=False, opstate=None, opt_params=None, opt_model=None):
-    
-    global PROFILED_PID
-    pid = os.getpid()
-
-    # If we haven't chosen a worker yet, choose this one
-    if PROFILED_PID is None:
-        PROFILED_PID = pid
-
-    if pid == PROFILED_PID:
-        profiler_output = f"worker_{pid}.prof"
-        return cProfile.runctx(
-            "calc_log_posterior(param_vals, state, params, surveys_sep, Pn, Pns, Pnr, "
-            "pNreps, psnr, ptauw, pwb, log_halo, lin_host, ind_surveys, g0info, nz, ndm, zmax,dmmax, "
-            "dopath, opstate, opt_params, opt_model)", 
-            globals(), 
-            locals(), 
-            profiler_output
-        )
-    else:
-        return calc_log_posterior(param_vals, state, params, surveys_sep, Pn, Pns, Pnr, 
-                pNreps, psnr, ptauw, pwb, log_halo, lin_host, ind_surveys, g0info, nz, ndm, zmax,dmmax,
-                dopath, opstate, opt_params, opt_model)
 
 def calc_log_posterior(param_vals, state, params, surveys_sep, Pn=False, Pns=False, Pnr=False,
                 pNreps=True, psnr=True, ptauw=False, pwb=False,
@@ -416,8 +386,11 @@ def mcmc_runner(logpf, outfile, state, params, surveys, nwalkers=10, nsteps=100,
     
     # may or may not be needed
     #os.environ["OMP_NUM_THREADS"] = "1"
-    cpus = int(os.environ.get("SLURM_CPUS_PER_TASK", 1))
-    print(f"Using {cpus} CPUs from Slurm allocation")
+    if "SLURM_CPUS_PER_TASK" in os.environ:
+        cpus = int(os.environ.get("SLURM_CPUS_PER_TASK", 1))
+        print(f"Using {cpus} CPUs from Slurm allocation")
+    else:
+        cpus = None
     Pool = mp.get_context('fork').Pool
     
     # num_cpus = mp.cpu_count()
