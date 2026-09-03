@@ -105,7 +105,7 @@ class Grid:
         self.source_function = cos.choose_source_evolution_function(
             state.FRBdemo.source_evolution
         )
-
+        
         # Energetics
         if self.state.energy.luminosity_function in [3]:
             self.use_log10 = True
@@ -116,7 +116,6 @@ class Grid:
         self.nuObs= survey.meta['FBAR']*1e6 #from MHz to Hz
         
         # Init the grid
-        #   THESE SHOULD BE THE SAME ORDER AS self.update()
         self.parse_grid(zDMgrid.copy(), zvals.copy(), dmvals.copy())
 
         if prev_grid is None:
@@ -127,10 +126,14 @@ class Grid:
             self.smear = prev_grid.smear.copy()
             self.smear_grid = prev_grid.smear_grid.copy()
         
-            
+        if wdist == False:
+            raise ValueError("Using old behaviour, use wdist=None")
+            wdist = None # check against old behaviour - could just fix instead of raising error
         if wdist is not None:
+            
             efficiencies = survey.efficiencies  # two OR three dimensions
             weights = survey.wplist
+            self.widths = survey.wlist
             # Warning -- THRESH could be different for each FRB, but we don't treat it that way
             self.calc_thresholds(survey.meta["THRESH"],
                              efficiencies,weights=weights)
@@ -138,6 +141,7 @@ class Grid:
             # this is called when the grid is not iterating over widths internally
             efficiencies = survey.mean_efficiencies # one dimension
             weights = None
+            self.widths = None
             self.calc_thresholds(survey.meta["THRESH"], efficiencies, weights=weights)
         
         # Calculate
@@ -309,6 +313,14 @@ class Grid:
         idms2=idms1+1
         dkdms2=kdms-idms1 # applies to idms2, i.e. the upper bin. If DM = ddm, then this should be 0.5
         dkdms1 = 1.-dkdms2 # applies to idms1
+        
+        # checks for values which are too large
+        toobigdm = np.where(DMlist > self.dmvals[-1] + self.ddm/2.)[0]
+        if len(toobigdm) > 0:
+            raise ValueError("DM values ",DMlist[toobigdm],
+                " too large for grid max of ",self.dmvals[-1] + self.ddm/2.)
+        
+        
         return idms1,idms2,dkdms1,dkdms2
     
     def get_z_coeffs(self,zlist):
@@ -463,7 +475,8 @@ class Grid:
         Assumed model: a power-law between Emin and Emax (erg)
                        with slope gamma.
         Efficiencies: list of efficiency response to DM
-        So-far: does NOT include time x solid-angle factor
+        So-far: does NOT include time x solid-angle factor. Just the fraction of the
+                luminosity function which is probed.
         
         NOW: this includes a solid-angle and beam factor if initialised
         
@@ -501,7 +514,6 @@ class Grid:
         
         # for some arbitrary reason, we treat the beamshape slightly differently... no need to keep an intermediate product!
         main_beam_b = self.beam_b
-        
         # call log10 beam
         if self.use_log10:
             new_thresh = np.log10(
@@ -529,7 +541,9 @@ class Grid:
                         * (self.array_cum_lf(
                             thresh, Emin, Emax, self.state.energy.gamma, self.use_log10
                         ).T * w.T).T
-                
+                nan_count = np.isnan(temp_wb).sum()
+                if nan_count > 0:
+                    print("WARNING: nans found for ",i,b,j,w)
                 # partial sum over all beam values for a given width
                 self.b_fractions[:, :, i] += temp_wb
                 
@@ -670,6 +684,13 @@ class Grid:
         
         rates = np.zeros(self.rates.shape)
         rates[:,:] = self.rates * 10**self.state.FRBdemo.lC
+        rates = self.get_dm_bias(rates)
+        return rates
+        
+    def get_dm_bias(self,rates):
+        """
+        processes various DM-dependent biases on a rates array
+        """
         # multiplies by DM mask if applicable
         if self.survey.dm_mask is not None:
             rates = rates*self.survey.dm_mask
@@ -831,7 +852,7 @@ class Grid:
         
         for i in np.arange(NFRB):
             if (i % 100) == 0:
-                print(i)
+                print("Generating MC FRB number ", i)
             
             # Regen if the survey would not find this FRB
             frb = self.GenMCFRB(Emax_boost)
@@ -891,6 +912,9 @@ class Grid:
                 if self.survey.max_dm is not None:
                     pzDM [:,setDMzero] = 0.
                 
+                if self.survey.dm_mask is not None:
+                    pzDM *= self.survey.dm_mask
+                
                 # weighted pzDM
                 wb_fraction = (self.beam_o[i]* w  * pzDM)
                 pdv = np.multiply(wb_fraction.T, self.dV).T
@@ -903,7 +927,7 @@ class Grid:
                 #if self.survey.observing.Z_PHOTO > 1.:
                 #    rate = self.smear_z(rate,self.survey.observing.Z_PHOTO)
                 #    #rate=np.copy(self.smear_zgrid)
-
+                
                 rates.append(rate)
                 pwb[i * nw + j] = np.sum(rate)
                 
@@ -913,9 +937,13 @@ class Grid:
                 
                 pzcs.append(pzc)
         
+        
         # generates cumulative distribution for sampling w,b
         pwbc = np.cumsum(pwb)
         pwbc /= pwbc[-1]
+        
+        # differential rates
+        self.MCpwb = pwb
         
         # saves cumulative distributions for sampling
         self.MCpwbc = pwbc
@@ -984,7 +1012,7 @@ class Grid:
         i = int(which / nw)
         j = which - i * nw
         MCb = self.beam_b[i]
-        MCw = self.eff_weights[j]
+        MCw = self.widths[j]
         
         # get p(z,DM) distribution for this b,w
         pzDM = self.MCrates[which]
@@ -1039,7 +1067,7 @@ class Grid:
             kz3 = 0.
             iz1 = 0 # dummy
             iz3 = 0 # dummy
-            MCz = (self.zvals[iz2] + self.dz/0.5) * fz
+            MCz = (self.zvals[iz2] + self.dz/2.) * fz
             # Just use the value of lowest bin.
             # This is a gross and repugnant approximation
             pDM = pzDM[iz2, :]
@@ -1071,7 +1099,7 @@ class Grid:
                 kDM3 = 0.
                 iDM1 = 0    # dummy
                 iDM3 = 0    # dummy
-                MCDM = self.dmvals[iDM2] + (fDM - 0.5)*self.dDM # upper DM bins
+                MCDM = self.dmvals[iDM2] + (fDM - 0.5)*self.ddm # upper DM bins
             else:
                 kDM1 = 0.
                 kDM2 = 1.5-fDM
@@ -1449,7 +1477,6 @@ class Grid:
         newfz[toohigh] = 1.
         
         self.fz = newfz
-        
-            
+                    
         #np.save(path+"/"+name+"_fz",newfz)
         #np.save(path+"/"+name+"_z",newz)

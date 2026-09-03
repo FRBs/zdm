@@ -319,7 +319,7 @@ class WidthParams(data_class.myDataClass):
         metadata={"help": "Number of bins for FRB width distribution", "unit": ""},
     )
     WNInternalBins: int = field(
-        default=1000,
+        default=10000,
         metadata={
             "help": "Number of internal bins to use for calculation purposes in numerical estimates of the width distribution",
             "unit": "",
