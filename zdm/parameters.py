@@ -417,7 +417,7 @@ class EnergeticsParams(data_class.myDataClass):
         },
     )
     lEmax: float = field(
-        default=41.84,
+        default=43.0,
         metadata={
             "help": "$\log_{10}$ of maximum FRB energy",
             "unit": "erg",
@@ -435,15 +435,47 @@ class EnergeticsParams(data_class.myDataClass):
     gamma: float = field(
         default=-1.16,
         metadata={
-            "help": "slope of luminosity distribution function",
+            "help": "slope of luminosity distribution function; gamma1 for a broken power law",
             "unit": "",
             "Notation": "\gamma",
+        },
+    )
+    gamma2: float = field(
+        default=-2.0,
+        metadata={
+            "help": "second slope of a broken power law, or Schechter-segment shape index for a broken-Schechter function",
+            "unit": "",
+            "Notation": "\\gamma_2",
+        },
+    )
+    gamma3: float = field(
+        default=-3.0,
+        metadata={
+            "help": "highest-energy slope of a doubly-broken power-law luminosity function",
+            "unit": "",
+            "Notation": "\\gamma_3",
+        },
+    )
+    lEb: float = field(
+        default=40.0,
+        metadata={
+            "help": "$\\log_{10}$ of the break energy for a broken power law or broken-Schechter function",
+            "unit": "erg",
+            "Notation": "\\log_{10} E_{\\rm b}",
+        },
+    )
+    lEb2: float = field(
+        default=41.0,
+        metadata={
+            "help": "$\\log_{10}$ of the second break energy for a doubly-broken power law",
+            "unit": "erg",
+            "Notation": "\\log_{10} E_{\\rm b,2}",
         },
     )
     luminosity_function: int = field(
         default=2,
         metadata={
-            "help": "luminosity function applied (0=power-law, 1=gamma, 2=spline+gamma, 3=gamma+linear+log10)"
+            "help": "luminosity function applied (0=power-law, 1=gamma, 2=spline+gamma, 3=gamma+linear+log10, 4=broken power-law, 5=doubly-broken power-law, 6=broken-Schechter)",
         },
     )
 
@@ -553,5 +585,3 @@ class PhotometricParams(data_class.myDataClass):
     sigma:float =field(default=0.035)
 
     sigma_width:int =field(default=6)
-
-
