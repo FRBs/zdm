@@ -11,7 +11,7 @@ from matplotlib import pyplot as plt
 
 # Here are different plotting functions
 
-def plot_walkers(samples,labels,outfile,burnin=None,legend=True,xlim=None):
+def plot_walkers(samples,labels,outfile,burnin=None,legend=True,xlim=None,truths=None):
     """
     Puts all walkers from all samples on one plot
     If you want different samples per plot, call this function
@@ -30,14 +30,22 @@ def plot_walkers(samples,labels,outfile,burnin=None,legend=True,xlim=None):
     # get the number of parameters
     fig, axes = plt.subplots(len(labels), 1, figsize=(20,30), sharex=True)
     #plt.title("Sample: " + filenames[j])
+    maxsize=0
     for j,sample in enumerate(samples):
+        
         for i,ax in enumerate(axes):
             for k in range(sample.shape[1]):
                 if burnin is None:
                     ax.plot(sample[:,k,i], '.-', label=str(k))
+                    size=sample[:,k,i].size
+                    if size > maxsize:
+                        maxsize = size
                 else:
                     ax.plot(sample[burnin[j]:,k,i], '.-', label=str(k))
-        
+                    size=sample[burnin[j]:,k,i].size
+                    if size > maxsize:
+                        maxsize = size
+                        
             ax.set_ylabel(labels[i])
             if xlim is not None:
                 ax.set_xlim(xlim[0],xlim[1])
@@ -45,6 +53,11 @@ def plot_walkers(samples,labels,outfile,burnin=None,legend=True,xlim=None):
         if legend:
             axes[-1].legend()
     
+    # adds truths
+    if truths is not None:
+        for i,ax in enumerate(axes):
+            ax.plot([0,maxsize],[truths[i],truths[i]],linewidth=2,color="black",linestyle="--")
+            
     plt.tight_layout()
     plt.savefig(outfile)
     plt.close()  

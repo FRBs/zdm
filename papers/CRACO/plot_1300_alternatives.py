@@ -40,31 +40,62 @@ def main():
     """
     # in case you wish to switch to another output directory
     
+    # common features - zdm state, directoruy for surveys, dm and z range, etc
+    state = states.load_state("HoffmannRepeaters26Pn",scat="updated",rep=None)
+    sdir = resources.files('zdm').joinpath('../papers/CRACO/Surveys')
     opdir="TestSurveys/"
-    
-    # approximate best-fit values from recent analysis
-    # best-fit from Jordan et al
-    #state = states.load_state("HoffmannHalo25",scat="CHIME",rep=None) #scat="updated",rep=None)
-    state = states.load_state("HoffmannHalo25",scat="updated",rep=None) #scat="updated",rep=None)
-    #state = states.load_state("JamesH022",scat="CHIME",rep=None) #scat="updated",rep=None)
-    
-    #check_FE(state)
-    
-    
-    if not os.path.exists(opdir):
-        os.mkdir(opdir)
-    
-    # Initialise surveys and grids
-    sdir = resources.files('zdm').joinpath('../papers/CRACO/TestSurveys')
-    names=['CRAFT_CRACO_1300','CRAFT_CRACO_1300_w1.28','CRAFT_CRACO_1300_nodm',
-            'CRAFT_CRACO_1300_3ms','CRAFT_CRACO_1300_3ms_alldm','CRAFT_CRACO_1300_3ms_at_1.28_alldm']
-    labels = ["CRACO 1300 MHz","$t_{\\rm samp} = 1.28$ ms","All DMs searched",
-                "3.4 ms","3.4ms all DM"," at 1.28ms"]
-    linestyles=["-","-.","--",":","-","-.","--",":","-"]
     nz=400
     zmax=4
     ndm=500
     dmmax=5000
+    #do_dm_width(state,sdir,opdir,nz,zmax,ndm,dmmax)
+    do_comparison_plots(state,sdir,opdir,nz,zmax,ndm,dmmax)
+    
+def do_dm_width(state,sdir,opdir,nz,zmax,ndm,dmmax):
+    """
+    see descriptions above
+    """
+    ###############################################################
+    ############### PART 1: DM and width efficiency   #############
+    ###############################################################
+    
+    dm_ratios=[]
+    w_ratios=[]
+    itsamps = [2,4,8,16,64]
+    for itsamp in itsamps:
+        name1 = 'CRACO_1300_itsamp_'+str(itsamp)
+        name2 = name1+"_nodm"
+        name3 = name1+"_icsw"
+        names=[name1,name2,name3]
+        ss,gs = loading.surveys_and_grids(survey_names=names,repeaters=False,
+                                    init_state=state,sdir=sdir,
+                                    zmax=zmax,nz=nz,dmmax=dmmax,ndm=ndm)
+        R1 = np.sum(gs[0].get_rates())
+        R2 = np.sum(gs[1].get_rates())
+        R3 = np.sum(gs[2].get_rates())
+        dm_ratios.append(R1/R2)
+        w_ratios.append(R1/R3)
+    np.save("1300_nodm.npy",dm_ratios)
+    np.save("1300_icsw.npy",w_ratios)
+    for i,itsamp in enumerate(itsamps):
+        print("For itsamp ",itsamp," at 1300 MHz, DM efficiency is ",dm_ratios[i]," width eff is ",w_ratios[i])
+    
+def do_comparison_plots(state,sdir,opdir,nz,zmax,ndm,dmmax):
+    """
+    see descriptions above
+    """
+    ###############################################################
+    ####################### PART 2: Plotting   ####################
+    ###############################################################
+    
+    if not os.path.exists(opdir):
+        os.mkdir(opdir)
+    
+    names=['CRACO_1300_itsamp_8','CRACO_1300_itsamp_2','CRACO_1300_ics_like']
+    
+    labels = ["1300 MHz: 13.8 ms","1300 MHz:  3.5 ms","1300 MHz: ICS-like"]
+    linestyles=["-","-.","--",":","-","-.","--",":","-"]
+    
     
     ss,gs = loading.surveys_and_grids(survey_names=names,repeaters=False,
                                     init_state=state,sdir=sdir,
@@ -80,6 +111,8 @@ def main():
     DMmax=4000
     zmax=4.
     
+    
+    ### these plot eveything for z and dm
     plt.figure()
     ax1 = plt.gca()
     plt.xlabel("redshift $z$")
@@ -94,6 +127,8 @@ def main():
     plt.ylim(0,1)
     plt.xlim(0,4000)
     
+    
+    
     zvals = gs[0].zvals
     dz = zvals[1]-zvals[0]
     dmvals = gs[0].dmvals
@@ -102,6 +137,7 @@ def main():
     pzs=[]
     pdms=[]
     # chooses the first arbitrarily to extract zvals etc from
+    
     for i,g in enumerate(gs):
         
         s=ss[i]
@@ -113,9 +149,14 @@ def main():
             project=False,ylabel='${\\rm DM}_{\\rm IGM} + {\\rm DM}_{\\rm host}$',
             zmax=zmax,DMmax=DMmax,Aconts=[0.01,0.1,0.5])
         
-        rates = gs[i].rates * 10**g.state.FRBdemo.lC 
+        rates = gs[i].get_rates()
         rate = np.sum(rates)
-        print("Relative rate for ",name," is ",rate," per day")
+        if i==0:
+            print("Relative rate for ",name," is ",1.0," per day")
+            rate0 = rate
+        else:
+            print("Relative rate for ",name," is ",rate/rate0," per day")
+        
         pz = np.sum(rates,axis=1)
         pz /= dz
         
@@ -125,36 +166,22 @@ def main():
         pzs.append(pz)
         pdms.append(pdm)
     
-    znorm = np.max(pzs[1])
-    dmnorm = np.max(pdms[1])
+    znorm = np.max(pzs)
+    dmnorm = np.max(pdms)
+    
     
     for i,g in enumerate(gs):
         pz = pzs[i]/znorm
         pdm = pdms[i]/dmnorm
         
+        # just does everything
         plt.sca(ax1)
         plt.plot(zvals,pz,label=labels[i],linestyle=linestyles[i])
-    
-        if i==1:
-            plt.legend()
-            plt.tight_layout()
-            plt.savefig("Plots/CRACO1300_zcomparison1.png")
-        if i==2:
-            plt.legend()
-            plt.tight_layout()
-            plt.savefig("Plots/CRACO1300_zcomparison2.png")
-            
+        
         plt.sca(ax2)
         plt.plot(dmvals,pdm,label=labels[i],linestyle=linestyles[i])
-    
-        if i==1:
-            plt.legend()
-            plt.tight_layout()
-            plt.savefig("Plots/CRACO1300_dmcomparison1.png")
-        if i==2:
-            plt.legend()
-            plt.tight_layout()
-            plt.savefig("Plots/CRACO1300_dmcomparison2.png")
+        
+            
             
     plt.sca(ax1)
     plt.legend()
@@ -167,6 +194,7 @@ def main():
     plt.tight_layout()
     plt.savefig("Plots/CRACO1300_dmcomparison.png")
     plt.close()
+    
     
 def plot_efficiencies(gs,ss):
     """

@@ -40,15 +40,23 @@ import time
 
 from zdm import loading
 from zdm import parameters
+from zdm import energetics
 
 from astropy.cosmology import Planck18
 
 import multiprocessing as mp
 
+from zdm import cosmology as cos
 from zdm import misc_functions as mf
 from zdm import repeat_grid
 import os
+import cProfile
+
+from zdm import optical_numerics as on
+from zdm import optical as opt
+from zdm import optical_params as op
 #==============================================================================
+
 
 def valid_parameter_combination(param_dict, state):
     """Check joint constraints that cannot be expressed as 1-D priors.
@@ -101,12 +109,15 @@ def get_initial_walkers(state, params, nwalkers, rng=None, max_attempts=10000):
 
     return walkers
 
-#==============================================================================
-
-def calc_log_posterior(param_vals, state, params, surveys_sep, Pn=False, pNreps=True, psnr=True, ptauw=False, pwb=False,
-                log_halo=False, lin_host=False, ind_surveys=False, g0info=None):
+def calc_log_posterior(param_vals, state, params, surveys_sep, Pn=False, Pns=False, Pnr=False,
+                pNreps=True, psnr=True, ptauw=False, pwb=False,
+                log_halo=False, lin_host=False, ind_surveys=False, g0info=None, nz=500, ndm=1400,
+                zmax=5.,dmmax=7000.,
+                dopath=False, opstate=None, opt_params=None, opt_model=None):
     """Calculate log-posterior probability for a parameter vector.
-
+    
+    Alternate version of main function, which aims to initialise only one survet at a time
+    
     This is the main function called by emcee samplers. It evaluates the
     log-posterior (proportional to log-likelihood for uniform priors) by
     building grids and computing likelihoods for all surveys.
@@ -124,6 +135,10 @@ def calc_log_posterior(param_vals, state, params, surveys_sep, Pn=False, pNreps=
         Two-element list: [non_repeater_surveys, repeater_surveys].
     Pn : bool, optional
         Include Poisson likelihood for total number of FRBs. Default False.
+    Pns : bool, optional
+        Include Poisson likelihood for non-repeating surveys. Default False.
+    Pnr : bool, optional
+        Include Poisson likelihood for repeating surveys. Default False.
     pNreps : bool, optional
         Include likelihood for number of repeaters. Default True.
     ptauw : bool, optional
@@ -138,7 +153,15 @@ def calc_log_posterior(param_vals, state, params, surveys_sep, Pn=False, pNreps=
         If True, return list of individual survey likelihoods. Default False.
     g0info : list, optional
         Pre-computed [zDMgrid, zvals, DMvals] for speedup.
-
+    dopath:  bool, optional
+        Include PATH host likelihoods according to optical model
+    opstate: optical.state, optional
+        State object of optical parameters
+    opt_params:  dictionary, optional
+        Optical parameter names, min and max values
+    opt_model: optical.model, optional
+        Optical model object, to modify
+    
     Returns
     -------
     float or tuple
@@ -152,6 +175,13 @@ def calc_log_posterior(param_vals, state, params, surveys_sep, Pn=False, pNreps=
     in_priors = True
     param_dict = {}
     
+    # if including path, determine which parameter values are for zDM, which for optical properties
+    if dopath:
+        Nopt = len(opt_params)
+        opt_param_vals = param_vals[-Nopt:]
+        param_vals = param_vals[:-Nopt]
+    
+    # this iterates over zdm parameters
     for i, (key,val) in enumerate(params.items()):
         if param_vals[i] < val['min'] or param_vals[i] > val['max']:
             in_priors = False
@@ -161,7 +191,17 @@ def calc_log_posterior(param_vals, state, params, surveys_sep, Pn=False, pNreps=
             param_dict[key] = np.log10(param_vals[i])
         else:
             param_dict[key] = param_vals[i]
-
+    
+    # performs same check for optical parameters, if used
+    if dopath:
+        opt_param_dict = {}
+        for i, (key,val) in enumerate(opt_params.items()):
+            if opt_param_vals[i] < val['min'] or opt_param_vals[i] > val['max']:
+                in_priors = False
+                break
+        
+            opt_param_dict[key] = opt_param_vals[i]
+    
     if in_priors and not valid_parameter_combination(param_dict, state):
         in_priors = False
 
@@ -179,6 +219,9 @@ def calc_log_posterior(param_vals, state, params, surveys_sep, Pn=False, pNreps=
     if in_priors is False:
         llsum = -np.inf
     else:
+        # calculate all the likelihoods
+        llsum = 0
+        
         # minimise_const_only does the grid updating so we don't need to do it explicitly beforehand
         # In an MCMC analysis the parameter spaces are sampled throughout and hence with so many parameters
         # it is easy to reach impossible regions of the parameter space. This results in math errors
@@ -188,35 +231,20 @@ def calc_log_posterior(param_vals, state, params, surveys_sep, Pn=False, pNreps=
         
         # Set state
         state.update_params(param_dict)
-
-        surveys = surveys_sep[0] + surveys_sep[1]
-
-        # Recreate grids every time, but not surveys, so must update survey params
-        for i,s in enumerate(surveys):
-            
-            
-            # updates survey according to DMhalo estimates
-            if 'DMhalo' in param_dict:
-                if log_halo:
-                    DMhalo = 10**param_dict['DMhalo']
-                else:
-                    DMhalo = param_dict['DMhalo']
-                s.init_DMEG(DMhalo)
-                
-            if ('Wlogmean' in param_dict or 'Wlogsigma' in param_dict or \
-                'Slogmean'  in param_dict or 'Slogsigma' in param_dict):
-                state.scat.Sbackproject = True
-                s.init_widths(state=state)
-            elif 'DMhalo' in param_dict:
-                # this would get re-done within init_widths above, so only do this
-                # if it has *not* been recalculated
-                s.do_efficiencies() #get_efficiency_from_wlist(s.wlist,s.wplist,model=s.meta['WBIAS']) 
         
-        # Initialise grids
-        grids = []
+        # special updates
+        if 'DMhalo' in param_dict:
+            if log_halo:
+                DMhalo = 10**param_dict['DMhalo']
+                state.MW.DMhalo = DMhalo
+        
+        
+        surveys = surveys_sep[0] + surveys_sep[1]
         
         # gets new zDM grid if F and H0 in the param_dict
         if 'H0' in param_dict or 'logF' in param_dict or g0info is None:
+            cos.set_cosmology(state)
+            cos.init_dist_measures()
             datdir = resources.files('zdm').joinpath('GridData')
             grid_kwargs = {}
             if g0info is not None:
@@ -234,39 +262,117 @@ def calc_log_posterior(param_vals, state, params, surveys_sep, Pn=False, pNreps=
                 }
             zDMgrid, zvals,dmvals = mf.get_zdm_grid(
                 state, new=True, plot=False, method='analytic',
-                datdir=datdir, **grid_kwargs)
+                datdir=datdir,nz=nz,ndm=ndm,zmax=zmax,dmmax=dmmax)
             g0info = [zDMgrid, zvals,dmvals]
         
-        if len(surveys_sep[0]) != 0:
-            # generates zdm grid
-            grids += mf.initialise_grids(surveys_sep[0], zDMgrid, zvals, dmvals, state, wdist=True, repeaters=False)
+        if dopath:
+            opstate.update_params(opt_param_dict)
+            opt_model = opt.select_model(opstate) #initialise optical model
+            # technically, we need one model wrapper per optical survey sensitivity
+            # it doesn't need to be associated with a given FRB survey, or grid
         
-        if len(surveys_sep[1]) != 0:
-            # generates zdm grid
-            grids += mf.initialise_grids(surveys_sep[1], zDMgrid, zvals, dmvals, state, wdist=True, repeaters=True)
+        # holds expected rates and observed rates. We calculate these likelihoods later
+        # so we don't have tohold all the grids in memory
+        rs = []
+        obs = []
         
-        # Minimse the constant accross all surveys
-        if Pn:
-            newC, llC = it.minimise_const_only(None, grids, surveys, update=True)
-
-        # calculate all the likelihoods
-        llsum = 0
-        for s, grid in zip(surveys, grids):
-            ll = it.get_log_likelihood(grid,s,Pn=Pn,pNreps=pNreps,psnr=psnr,ptauw=ptauw,pwb=pwb)
+        
+        # Recreate grids every time, but not surveys, so must update survey params
+        for i,s in enumerate(surveys):
+            
+            # reinitialises survey using updated state variables
+            # just generally safest to do this. Noe that this does NOT
+            # change 'analysis' variables which govern e.g. which FRBs
+            # are or are not included in the sample
+            # In theory, we could save time by checking if this needs to be done or not
+            # But generally, it does need to be done
+            s.reinit(state)
+            
+            # Initialise grids
+            if dopath:
+                wrappers = []
+            
+            
+            ident = np.random.randint(0,1000000)
+            sident = str(ident)
+            
+            
+            if i < len(surveys_sep[0]):
+                # generate normal zdm grid
+                grids = mf.initialise_grids([s], zDMgrid, zvals, dmvals, state, wdist=True, repeaters=False)
+                g = grids[0]
+                if s.TOBS is not None and (Pn or Pns):
+                    rs.append(np.sum(g.get_rates())*s.TOBS)
+                    obs.append(s.NORM_FRB)
+            else:
+                # generates repeating zdm grid
+                grids = mf.initialise_grids([s], zDMgrid, zvals, dmvals, state, wdist=True, repeaters=True)
+                g = grids[0]
+                # TOBS is already taken into account in the singles/repeater calculation.
+                # But still need Pn or Pnr
+                if Pn or Pnr:
+                    rs.append(np.sum(g.get_exact_singles()))
+                    rs.append(np.sum(g.get_exact_reps()))
+                    obs.append(s.NORM_SINGLES)
+                    obs.append(s.NORM_REPS)
+            
+            
+            
+            if dopath:
+                w = opt.model_wrapper(opt_model,g.zvals)
+            
+            if dopath:
+                ll,result = it.get_joint_path_zdm_likelihoods(g, s, w, Pn=False, pNreps=pNreps,
+                                                        psnr=psnr,ptauw=ptauw,pwb=pwb,
+                                                        return_all=True)
+            else:
+                ll = it.get_log_likelihood(g,s,Pn=False,pNreps=pNreps,psnr=psnr,ptauw=ptauw,pwb=pwb)
+            
+            
+            debug=False
+            if debug:
+                # write state and resulting likelihood for later tests
+                # generate prefix filename to allow files to be match
+                rand = np.random.randint(low=0,high=999999999)
+                statefile="Debug/"+str(rand)+".json"
+                state.write(statefile)
+                # now also write likelihood info
+                lfile = "Debug/"+str(rand)+".dat"
+                with open(lfile,'w') as out:
+                    out.write(str(ll))
+                
+                # writes optical state
+                if opstate is not None:
+                    pathfile="Debug/path_"+str(rand)+".json"
+                    opstate.write(pathfile)
+            
             llsum += ll
             if ind_surveys:
                 ll_list.append(ll)
-
-        #except ValueError as e:
-        #    print("Error, setting likelihood to -inf: " + str(e))
-        #    llsum = -np.inf
-        #    ll_list = [-np.inf for _ in range(len(surveys))]
+        
+        # keep this text here for debug purposes. use it to save states,
+        # which can then be loaded to allow likelihood tests
+        # generate a random number. This is because there is no way to order or label internal MCMC
+        # states. So just generated a random number, and hope for no double-ups
+        
+        # state.write
+        
+        # Minimse the constant accross all surveys
+        if (Pn or Pns or Pnr) and (len(obs) > 0):
+            # dC is change in log constant from current number
+            # llc is log probability
+            obs = np.array(obs)
+            rs = np.array(rs)
+            dC, llC = it.minimise_const_only2(obs,rs)
+            llsum += llC # adds Pn to llsum
 
     if np.isnan(llsum):
         print("llsum was NaN. Setting to -infinity", param_dict)    
         llsum = -np.inf
     
-    # print("Posterior calc time: " + str(time.time()-t0) + " seconds", flush=True)
+    # now clean up memory from energetics. Gammas are floating-point numbers,
+    # and will never be re-used
+    energetics.reset()
     
     if ind_surveys:
         return llsum, ll_list
@@ -275,9 +381,10 @@ def calc_log_posterior(param_vals, state, params, surveys_sep, Pn=False, pNreps=
 
 #==============================================================================
 
-def mcmc_runner(logpf, outfile, state, params, surveys, nwalkers=10, nsteps=100, nthreads=1, Pn=False,
-                pNreps=True, psnr=True, ptauw=False, pwb=False, log_halo=False, lin_host=False, ind_surveys=False, g0info=None,
-                reset=False):
+def mcmc_runner(logpf, outfile, state, params, surveys, nwalkers=10, nsteps=100, nthreads=1,
+                Pn=False, Pns=False, Pnr=False, pNreps=True, psnr=True, ptauw=False, pwb=False, log_halo=False,
+                lin_host=False, ind_surveys=False, g0info=None, nz=500, ndm=1400, zmax=5.,dmmax=7000., reset=False,
+                dopath=False, opstate=None, opt_params=None):
     """
     Handles the MCMC running.
 
@@ -293,25 +400,49 @@ def mcmc_runner(logpf, outfile, state, params, surveys, nwalkers=10, nsteps=100,
         nsteps      (int)           =   Number of steps
         nthreads    (int)           =   Number of worker processes
         Pn          (bool)          =   Include Pn or not
+        Pns          (bool)         =   Include Pn for non-repeating surveys or not or not
+        Pnr          (bool)         =   Include Pn for repeating surveys or not
         pNreps      (bool)          =   Include pNreps or not
         ptauw       (bool)          =   Include ptauw or not
         log_halo    (bool)          =   Use a log uniform prior on DMhalo
         ind_surveys (bool)          =   Return individual survey data
         g0info      (list)          =   List of [zDMgrid, zvals, DMvals] Passed to use as speedup if needed
-    
+        nz          (int)           =   Number of redshift (z) points ot use
+        ndm         (int)           =   Number of DM values to use
+        dopath      (bool)          =   Include PATH host likelihoods according to optical model
+        opstate     (optical.state) =   State object of optical parameters
+        opt_params  (dictionary)    =   Optical parameter names, min and max values
+        opt_model   (optical.model) =   Optical model object, to modify
+        
+        
     Outputs:
         posterior_sample    (emcee.EnsembleSampler) =   Final sample
         outfile.h5          (HDF5 file)             =   HDF5 file containing the sampler
     """
         
     ndim = len(params)
+    
+    if dopath:
+        ndim += len(opt_params)
+    
+    # Produce starting guesses for each parameter
+    starting_guesses = []
+    
     # Report priors in sampling order.
     for key,val in params.items():
         print(key + " priors: " + str(val['min']) + "," + str(val['max']))
-
+    
     # Draw only physically valid initial positions. Broken power-law walkers
     # must satisfy the required ordering of their characteristic energies.
     starting_guesses = get_initial_walkers(state, params, nwalkers)
+    
+    if dopath:
+        # Produce starting guesses for each optical parameter
+        starting_guesses2 = get_initial_walkers(state, opt_params, nwalkers)
+        
+        #for key,val in opt_params.items():
+        #    starting_guesses.append(st.uniform(loc=val['min'], scale=val['max']-val['min']).rvs(size=[nwalkers]))
+        #    print(key + " priors: " + str(val['min']) + "," + str(val['max']))
     
     # we only reset the backend if specifically requested.
     # This means that walkers will continue from a previous iteration
@@ -330,13 +461,30 @@ def mcmc_runner(logpf, outfile, state, params, surveys, nwalkers=10, nsteps=100,
 
     # Prevent numerical libraries from starting extra threads inside each
     # worker process, which can otherwise multiply both CPU and memory use.
-    os.environ["OMP_NUM_THREADS"] = "1"
-    import multiprocessing as mp
+    if "SLURM_CPUS_PER_TASK" in os.environ:
+        cpus = int(os.environ.get("SLURM_CPUS_PER_TASK", 1))
+        print(f"Using {cpus} CPUs from Slurm allocation")
+    else:
+        cpus = None
     Pool = mp.get_context('fork').Pool
-
+    
+    keys = params.keys()
+    # need to turn this on to enable fitting of these parameters
+    if ('Wlogmean' in keys or 'Wlogsigma' in keys or \
+        'Slogmean'  in keys or 'Slogsigma' in keys):
+        state.scat.Sbackproject = True
+    
+    # initialises cosmology. This is redundant if H0 is in the MCMC params, but it's safest to get
+    # it done here
+    cos.set_cosmology(state)
+    cos.init_dist_measures()
+    
     def run_sampler(pool):
-        sampler = emcee.EnsembleSampler(nwalkers, ndim, logpf, args=[state, params, surveys, Pn, pNreps, psnr,
-                                        ptauw, pwb, log_halo, lin_host, ind_surveys, g0info], backend=backend, pool=pool)
+        sampler = emcee.EnsembleSampler(nwalkers, ndim, logpf,
+                                        args=[state, params, surveys, Pn, Pns, Pnr, pNreps, psnr,
+                                            ptauw, pwb, log_halo, lin_host, ind_surveys, g0info,
+                                            nz, ndm, zmax, dmmax, dopath, opstate, opt_params],
+                                        backend=backend, pool=pool)
         if exists:
             # start from last saved position
             sampler.run_mcmc(None, nsteps, progress=True)
@@ -344,7 +492,7 @@ def mcmc_runner(logpf, outfile, state, params, surveys, nwalkers=10, nsteps=100,
             # start from new random guesses
             sampler.run_mcmc(starting_guesses, nsteps, progress=True)
         return sampler
-
+    
     if nthreads == 1:
         # Avoid creating a second Python process for the memory-conservative
         # default mode.
@@ -352,7 +500,7 @@ def mcmc_runner(logpf, outfile, state, params, surveys, nwalkers=10, nsteps=100,
     else:
         # Recycling workers periodically releases arrays retained by Python's
         # allocator during repeated six-survey grid construction.
-        with Pool(processes=nthreads, maxtasksperchild=10) as pool:
+        with Pool(processes=cpus, maxtasksperchild=10) as pool:
             sampler = run_sampler(pool)
     end = time.time()
     print("Total time taken: " + str(end - start))

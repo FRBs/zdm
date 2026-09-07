@@ -10,30 +10,41 @@ import numpy as np
 import importlib.resources as resources
 import os
 import pandas as pd
+import glob
+
+# value of assumed scaling with flux
+#global alpha=1.5
+
 def main():
     """
     Loads in unique configs, and generates beamfiles for them,
     weighted by the time on sky
+    
+    Runs to add beamfactor with alpha=1.5, and beamfactora1 with alpha=1.5
     """
     
-    print("######## Generating beamfile for 13.8ms mode ######## ")
-    configfile="Logs/configs.csv"
-    logfile="Logs/craco_13ms_survey_db.weight.altaz.csv"
-    # turn on add to add beamfactors column
-    gen_weighted_beams("BeamHistograms/","FinalBeams/",configfile,logfile,add=False)
-    # turn on this to generate files for the primary beam
-    gen_weighted_beams("PrimaryBeams/","PrimaryBeams/",configfile,logfile,add=False)
+    config_files = glob.glob("Logs/configs_*.csv") 
+    key="a1bfactors"
+    alpha=1.0
+    finalopdir = os.path.join(resources.files('zdm'), 'data/BeamData/')
+    for configfile in config_files:
+        
+        part1 = configfile.split("_")
+        itsamp = part1[1].split(".")[0]
+        logfile = "Logs/itsamp_"+itsamp+".csv"
+        
+        
+        print("\n\n\n\n####### Analysing beam data for itsamp of ",itsamp,"#######\n")
+        
+        # turn on add to add beamfactors column
+        # adds a column of beamfactors to the logfile, to weight by
+        
+        gen_weighted_beams("BeamHistograms/",finalopdir,configfile,logfile,add=key,prefix=itsamp+"_",alpha=alpha)
+        
+        # turn on this to generate files for the primary beam
+        gen_weighted_beams("PrimaryBeams/","PrimaryBeams/",configfile,logfile,add=False,prefix=itsamp+"_",alpha=alpha)
     
-    #### 3ms background #####
-    print("######## Generating beamfile for 3.4ms mode ######## ")
-    configfile="Logs/3ms_configs.csv"
-    logfile="Logs/craco_3ms_survey_db.csv"
-    # turn on add to add beamfactors column
-    gen_weighted_beams("BeamHistograms/","FinalBeams/",configfile,logfile,add=True,prefix="3ms_")
-    # turn on this to generate files for the primary beam
-    gen_weighted_beams("PrimaryBeams/","PrimaryBeams/",configfile,logfile,add=False,prefix="3ms_")
-
-def gen_weighted_beams(indir,opdir,configfile,logfile,add=False,prefix=""):  
+def gen_weighted_beams(indir,opdir,configfile,logfile,add=False,prefix="",alpha=1.5):  
     """
     Generates summed beams over all configurations
     
@@ -54,11 +65,13 @@ def gen_weighted_beams(indir,opdir,configfile,logfile,add=False,prefix=""):
     nbins=bins.size-1
     bcentres = bins[0:-1] * (bins[1]/bins[0])**0.5
     # relative rate per solid angle: Euclidean expectation
-    bfactors = bcentres**1.5
+    bfactors = bcentres**alpha
     
     fcut = 1100
     name1=prefix+"CRACO_900_hist.npy"
     name2=prefix+"CRACO_1300_hist.npy"
+    bname1=prefix+"CRACO_900_bins.npy"
+    bname2=prefix+"CRACO_1300_bins.npy"
     t1=0.
     t2=0.
     h1 = np.zeros([nbins])
@@ -98,9 +111,10 @@ def gen_weighted_beams(indir,opdir,configfile,logfile,add=False,prefix=""):
             print("Cannot find ",basename)
             exit()
         
+        # weights by sensitivity assuming Euclidean scaling
         Bfactor = np.sum(bfactors * hist)
         bfs.append(Bfactor)
-        print(i," ",footprint," ",spitch," ",sfreq," beam factor is ",Bfactor)
+        print(i," ",footprint," ",spitch," ",sfreq," beam factor is ",Bfactor," from ",basename)
         
         
         if freq < fcut:
@@ -114,29 +128,36 @@ def gen_weighted_beams(indir,opdir,configfile,logfile,add=False,prefix=""):
             h2 += hist*teff
             fbar2 += freq*teff
     
-    h1 /= t1
-    h2 /= t2
-    fbar1 /= t1
-    fbar2 /= t2
-    print("Total time t1 is ",t1," mean freq of ",fbar1)
-    print("Total time t1 is ",t2," mean freq of ",fbar2)
+    if t1 > 0.:
+        h1 /= t1
+        fbar1 /= t1
+        print("Total time t1 is ",t1," mean freq of ",fbar1)
+        print("Total effective sensitivity of 900 MHz beam is ",np.sum(bfactors*h1))
+        np.save(opdir+name1,h1)
+        # creates a copy
+        os.system("cp "+opdir+"CRACO_900_bins.npy" + " "+opdir+bname1)
     
-    np.save(opdir+name1,h1)
-    np.save(opdir+name2,h2)
-    
-    print("Total effective sensitivity of 900 MHz beam is ",np.sum(bfactors*h1))
-    print("Total effective sensitivity of 1300 MHz beam is ",np.sum(bfactors*h2))
+    if t2 > 0.:
+        h2 /= t2
+        fbar2 /= t2
+        print("Total time t2 is ",t2," mean freq of ",fbar2)
+        print("Total effective sensitivity of 1300 MHz beam is ",np.sum(bfactors*h2))
+        np.save(opdir+name2,h2)
+        os.system("cp "+opdir+"CRACO_900_bins.npy" + " "+opdir+bname2)
     
     bfs = np.array(bfs)
+    bfs *= (180./np.pi)**2 # converts to units of effective deg2
     df = pd.read_csv(configfile)
-    df["bfactors"]=bfs
-    df.to_csv(configfile,index=False)
+    
     
     # adds beam factors to the  configs file
-    if add:
-        add_beamfactors(configfile,logfile)
+    if add is not False:
+        # if adding, add beamfactors to logfile
+        df[add]=bfs
+        df.to_csv(configfile,index=False)
+        add_beamfactors(configfile,logfile,key=add)
     
-def add_beamfactors(configfile,logfile):
+def add_beamfactors(configfile,logfile,key="bfactors"):
     """
     Adds relative beam factors as weighting to data
     
@@ -156,7 +177,7 @@ def add_beamfactors(configfile,logfile):
         footprint = dfc["footprint"][i]
         pitch = dfc["pitch"][i]
         fbar = dfc["fbar"][i]
-        bf = dfc["bfactors"][i]
+        bf = dfc[key][i]
         
         OK1 = np.where(df["footprint"] == footprint)[0]
         OK2 = np.where(df["pitch"] == pitch)[0]
@@ -166,11 +187,13 @@ def add_beamfactors(configfile,logfile):
         OK = np.intersect1d(OK,OK3)
         
         bfs[OK3] = bf
+    # Do we add relative or absolute beamfactor? Should be relative to something!
+    # maybe choose beamfactor for closepack 6x6 at 1.3 GHz?
+    # we choose not to normalise by the mean beamfactor here. Can do all this later
+    #mean_bf = np.sum(df["t_eff"]*bfs)/np.sum(df["t_eff"])
+    #bfs /= mean_bf
     
-    mean_bf = np.sum(df["t_eff"]*bfs)/np.sum(df["t_eff"])
-    bfs /= mean_bf
+    df[key]=bfs
     
-    df["bfactors"]=bfs
-    
-    df.to_csv(logfile)
+    df.to_csv(logfile,index=False)
 main()

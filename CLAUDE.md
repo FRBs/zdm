@@ -2,6 +2,17 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Working Conventions
+
+- **Git**: The user will perform all git commands themselves (add, commit, push, branch, etc.). Do not run git commands that modify the repository state; read-only commands (e.g. `git status`, `git log`, `git diff`) are fine.
+- **Logging**: When executing prompts (e.g. from files in `claude_prompts/`), log the work in the "Logs" section of the prompt file, using this format:
+
+  ```markdown
+  ### <Date> (Short summary of the work)
+
+  <Detailed description of the work and what you learned>
+  ```
+
 ## Project Overview
 
 The `zdm` package is a Python library for Fast Radio Burst (FRB) redshift-dispersion measure (z-DM) calculations. It implements statistical models for analyzing FRB populations, computing likelihoods, and constraining cosmological and FRB population parameters.
