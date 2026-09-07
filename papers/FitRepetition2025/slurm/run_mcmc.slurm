@@ -29,7 +29,7 @@ walkers=40
 steps=3000
 
 # surveys="DSA no_Tobs/MeerTRAPcoherent no_Tobs/MeerTRAPincoherent no_Tobs/FAST no_Tobs/CRAFT_class_I_and_II no_Tobs/parkes_mb_class_I_and_II"
-surveys="DSA MeerTRAPcoherent MeerTRAPincoherent FAST CRAFT_class_I_and_II parkes_mb_class_I_and_II"
+surveys="DSA_34 MeerTRAPcoherent MeerTRAPincoherent FAST CRAFT_class_I_and_II parkes_mb_class_I_and_II"
 
 rep_surveys="CRAFT_average_ICS CHIME/CHIME_decbin_0_of_6 CHIME/CHIME_decbin_1_of_6 CHIME/CHIME_decbin_2_of_6 CHIME/CHIME_decbin_3_of_6 CHIME/CHIME_decbin_4_of_6 CHIME/CHIME_decbin_5_of_6"
 # rep_surveys=CHIME/CHIME_decbin_3_of_6
