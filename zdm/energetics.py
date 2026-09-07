@@ -55,9 +55,9 @@ igamma_linear = {}
 igamma_linear_log10 = {}
 
 # Spline interpolation settings
-SplineMin = -6   # Log10 of minimum argument for incomplete gamma
+SplineMin = -9   # Log10 of minimum argument for incomplete gamma
 SplineMax = 6    # Log10 of maximum argument
-NSpline = 1000   # Number of spline points
+NSpline = 1500   # Number of spline points
 SplineLog = True # Use log-space interpolation (more accurate)
 
 def reset():

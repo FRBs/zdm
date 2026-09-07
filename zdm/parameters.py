@@ -417,7 +417,7 @@ class EnergeticsParams(data_class.myDataClass):
         },
     )
     lEmax: float = field(
-        default=43.0,
+        default=41.84,
         metadata={
             "help": "$\log_{10}$ of maximum FRB energy",
             "unit": "erg",

@@ -262,7 +262,7 @@ def calc_log_posterior(param_vals, state, params, surveys_sep, Pn=False, Pns=Fal
                 }
             zDMgrid, zvals,dmvals = mf.get_zdm_grid(
                 state, new=True, plot=False, method='analytic',
-                datdir=datdir,nz=nz,ndm=ndm,zmax=zmax,dmmax=dmmax)
+                datdir=datdir,**grid_kwargs)
             g0info = [zDMgrid, zvals,dmvals]
         
         if dopath:
