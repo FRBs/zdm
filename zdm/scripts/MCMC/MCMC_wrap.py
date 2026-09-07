@@ -50,7 +50,7 @@ def main():
     parser.add_argument('-o','--opfile', default=None, type=str, help="Output file for the data")
     parser.add_argument('-w', '--walkers', default=20, type=int, help="Number of MCMC walkers")
     parser.add_argument('-s', '--steps', default=100, type=int, help="Number of MCMC steps")
-    parser.add_argument('-n', '--nthreads', default=1, type=int, help="Number of threads")
+    parser.add_argument('-n', '--nthreads', default=None, type=int, help="Number of threads")
     parser.add_argument('--Nz', default=500, type=int, help="Number of z values")
     parser.add_argument('--Ndm', default=1400, type=int, help="Number of DM values")
     parser.add_argument('--zmax', default=5., type=int, help="Maximum z value")

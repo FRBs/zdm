@@ -458,7 +458,9 @@ def mcmc_runner(logpf, outfile, state, params, surveys, nwalkers=10, nsteps=100,
 
     # Prevent numerical libraries from starting extra threads inside each
     # worker process, which can otherwise multiply both CPU and memory use.
-    if "SLURM_CPUS_PER_TASK" in os.environ:
+    if nthreads is not None:
+        cpus = nthreads
+    elif "SLURM_CPUS_PER_TASK" in os.environ:
         cpus = int(os.environ.get("SLURM_CPUS_PER_TASK", 1))
         print(f"Using {cpus} CPUs from Slurm allocation")
     else:
