@@ -50,7 +50,7 @@ from zdm import cosmology as cos
 from zdm import misc_functions as mf
 from zdm import repeat_grid
 import os
-import cProfile
+#import cProfile
 
 from zdm import optical_numerics as on
 from zdm import optical as opt
@@ -381,7 +381,7 @@ def calc_log_posterior(param_vals, state, params, surveys_sep, Pn=False, Pns=Fal
 
 #==============================================================================
 
-def mcmc_runner(logpf, outfile, state, params, surveys, nwalkers=10, nsteps=100, nthreads=1,
+def mcmc_runner(logpf, outfile, state, params, surveys, nwalkers=10, nsteps=100, nthreads=None,
                 Pn=False, Pns=False, Pnr=False, pNreps=True, psnr=True, ptauw=False, pwb=False, log_halo=False,
                 lin_host=False, ind_surveys=False, g0info=None, nz=500, ndm=1400, zmax=5.,dmmax=7000., reset=False,
                 dopath=False, opstate=None, opt_params=None):
@@ -439,10 +439,7 @@ def mcmc_runner(logpf, outfile, state, params, surveys, nwalkers=10, nsteps=100,
     if dopath:
         # Produce starting guesses for each optical parameter
         starting_guesses2 = get_initial_walkers(state, opt_params, nwalkers)
-        
-        #for key,val in opt_params.items():
-        #    starting_guesses.append(st.uniform(loc=val['min'], scale=val['max']-val['min']).rvs(size=[nwalkers]))
-        #    print(key + " priors: " + str(val['min']) + "," + str(val['max']))
+        starting_guesses = np.concatenate((starting_guesses, starting_guesses2), axis=1)
     
     # we only reset the backend if specifically requested.
     # This means that walkers will continue from a previous iteration
@@ -465,7 +462,7 @@ def mcmc_runner(logpf, outfile, state, params, surveys, nwalkers=10, nsteps=100,
         cpus = int(os.environ.get("SLURM_CPUS_PER_TASK", 1))
         print(f"Using {cpus} CPUs from Slurm allocation")
     else:
-        cpus = None
+        cpus = os.cpu_count()
     Pool = mp.get_context('fork').Pool
     
     keys = params.keys()
