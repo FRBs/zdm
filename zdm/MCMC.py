@@ -36,7 +36,6 @@ import zdm.iteration as it
 import importlib.resources as resources
 
 import emcee
-import scipy.stats as st
 import time
 
 from zdm import loading
@@ -51,42 +50,64 @@ from zdm import cosmology as cos
 from zdm import misc_functions as mf
 from zdm import repeat_grid
 import os
-import cProfile
+#import cProfile
 
 from zdm import optical_numerics as on
 from zdm import optical as opt
 from zdm import optical_params as op
 #==============================================================================
 
-PROFILED_PID = None
 
-def profiled_calc_log_posterior(param_vals, state, params, surveys_sep, Pn=False, Pns=False, Pnr=False,
-                pNreps=True, psnr=True, ptauw=False, pwb=False,
-                log_halo=False, lin_host=False, ind_surveys=False, g0info=None, nz=500, ndm=1400,
-                zmax=5.,dmmax=7000.,
-                dopath=False, opstate=None, opt_params=None, opt_model=None):
-    
-    global PROFILED_PID
-    pid = os.getpid()
+def valid_parameter_combination(param_dict, state):
+    """Check joint constraints that cannot be expressed as 1-D priors.
 
-    # If we haven't chosen a worker yet, choose this one
-    if PROFILED_PID is None:
-        PROFILED_PID = pid
+    For broken power-law luminosity functions, the characteristic energies
+    are stored in log10 space and must remain strictly ordered.
+    Values absent from ``param_dict`` are taken from ``state``, allowing any
+    subset of the energy parameters to be sampled.
+    """
+    luminosity_function = param_dict.get(
+        'luminosity_function', state.energy.luminosity_function
+    )
+    lEmin = param_dict.get('lEmin', state.energy.lEmin)
+    lEmax = param_dict.get('lEmax', state.energy.lEmax)
+    if luminosity_function in (4, 6):
+        lEb = param_dict.get('lEb', state.energy.lEb)
+        return bool(lEmin < lEb < lEmax)
+    if luminosity_function == 5:
+        lEb = param_dict.get('lEb', state.energy.lEb)
+        lEb2 = param_dict.get('lEb2', state.energy.lEb2)
+        return bool(lEmin < lEb < lEb2 < lEmax)
+    return True
 
-    if pid == PROFILED_PID:
-        profiler_output = f"worker_{pid}.prof"
-        return cProfile.runctx(
-            "calc_log_posterior(param_vals, state, params, surveys_sep, Pn, Pns, Pnr, "
-            "pNreps, psnr, ptauw, pwb, log_halo, lin_host, ind_surveys, g0info, nz, ndm, zmax,dmmax, "
-            "dopath, opstate, opt_params, opt_model)", 
-            globals(), 
-            locals(), 
-            profiler_output
-        )
-    else:
-        return calc_log_posterior(param_vals, state, params, surveys_sep, Pn, Pns, Pnr, 
-                pNreps, psnr, ptauw, pwb, log_halo, lin_host, ind_surveys, g0info, nz, ndm, zmax,dmmax,
-                dopath, opstate, opt_params, opt_model)
+
+def get_initial_walkers(state, params, nwalkers, rng=None, max_attempts=10000):
+    """Draw walker positions from the priors, respecting joint constraints."""
+    if rng is None:
+        rng = np.random.default_rng()
+
+    param_names = list(params)
+    ndim = len(param_names)
+    walkers = np.empty((nwalkers, ndim), dtype=float)
+
+    for iwalker in range(nwalkers):
+        for _ in range(max_attempts):
+            candidate = np.array([
+                rng.uniform(params[name]['min'], params[name]['max'])
+                for name in param_names
+            ])
+            candidate_dict = dict(zip(param_names, candidate))
+            if valid_parameter_combination(candidate_dict, state):
+                walkers[iwalker] = candidate
+                break
+        else:
+            raise ValueError(
+                "Could not initialize MCMC walkers inside the joint priors. "
+                "For luminosity_function=4, 5, or 6, ensure the prior ranges "
+                "permit the required ordering of break energies."
+            )
+
+    return walkers
 
 def calc_log_posterior(param_vals, state, params, surveys_sep, Pn=False, Pns=False, Pnr=False,
                 pNreps=True, psnr=True, ptauw=False, pwb=False,
@@ -180,8 +201,10 @@ def calc_log_posterior(param_vals, state, params, surveys_sep, Pn=False, Pns=Fal
                 break
         
             opt_param_dict[key] = opt_param_vals[i]
-
     
+    if in_priors and not valid_parameter_combination(param_dict, state):
+        in_priors = False
+
     # Initialise list if requesting individual survey likelihoods
     if ind_surveys:
         ll_list = []
@@ -223,9 +246,23 @@ def calc_log_posterior(param_vals, state, params, surveys_sep, Pn=False, Pns=Fal
             cos.set_cosmology(state)
             cos.init_dist_measures()
             datdir = resources.files('zdm').joinpath('GridData')
+            grid_kwargs = {}
+            if g0info is not None:
+                # Preserve the resolution selected by MCMC_wrap. Previously,
+                # sampling H0/logF silently reverted every worker to the
+                # 500 x 1400 default grid, causing both shape errors and large
+                # unexpected memory use in low-resolution pilot runs.
+                dz = zvals[-1] - zvals[-2]
+                ddm = dmvals[-1] - dmvals[-2]
+                grid_kwargs = {
+                    'nz': zvals.size,
+                    'zmax': zvals[-1] + dz / 2,
+                    'ndm': dmvals.size,
+                    'dmmax': dmvals[-1] + ddm / 2,
+                }
             zDMgrid, zvals,dmvals = mf.get_zdm_grid(
                 state, new=True, plot=False, method='analytic',
-                datdir=datdir,nz=nz,ndm=ndm,zmax=zmax,dmmax=dmmax)
+                datdir=datdir,**grid_kwargs)
             g0info = [zDMgrid, zvals,dmvals]
         
         if dopath:
@@ -344,7 +381,7 @@ def calc_log_posterior(param_vals, state, params, surveys_sep, Pn=False, Pns=Fal
 
 #==============================================================================
 
-def mcmc_runner(logpf, outfile, state, params, surveys, nwalkers=10, nsteps=100, nthreads=1,
+def mcmc_runner(logpf, outfile, state, params, surveys, nwalkers=10, nsteps=100, nthreads=None,
                 Pn=False, Pns=False, Pnr=False, pNreps=True, psnr=True, ptauw=False, pwb=False, log_halo=False,
                 lin_host=False, ind_surveys=False, g0info=None, nz=500, ndm=1400, zmax=5.,dmmax=7000., reset=False,
                 dopath=False, opstate=None, opt_params=None):
@@ -361,7 +398,7 @@ def mcmc_runner(logpf, outfile, state, params, surveys, nwalkers=10, nsteps=100,
         grid_params (dictionary)    =   nz, ndm, dmmax
         nwalkers    (int)           =   Number of walkers
         nsteps      (int)           =   Number of steps
-        nthreads    (int)           =   Number of threads (currently not implemented - uses default)
+        nthreads    (int)           =   Number of worker processes
         Pn          (bool)          =   Include Pn or not
         Pns          (bool)         =   Include Pn for non-repeating surveys or not or not
         Pnr          (bool)         =   Include Pn for repeating surveys or not
@@ -384,23 +421,25 @@ def mcmc_runner(logpf, outfile, state, params, surveys, nwalkers=10, nsteps=100,
     """
         
     ndim = len(params)
+    
     if dopath:
         ndim += len(opt_params)
     
-    starting_guesses = []
-
     # Produce starting guesses for each parameter
+    starting_guesses = []
+    
+    # Report priors in sampling order.
     for key,val in params.items():
-        starting_guesses.append(st.uniform(loc=val['min'], scale=val['max']-val['min']).rvs(size=[nwalkers]))
         print(key + " priors: " + str(val['min']) + "," + str(val['max']))
+    
+    # Draw only physically valid initial positions. Broken power-law walkers
+    # must satisfy the required ordering of their characteristic energies.
+    starting_guesses = get_initial_walkers(state, params, nwalkers)
     
     if dopath:
         # Produce starting guesses for each optical parameter
-        for key,val in opt_params.items():
-            starting_guesses.append(st.uniform(loc=val['min'], scale=val['max']-val['min']).rvs(size=[nwalkers]))
-            print(key + " priors: " + str(val['min']) + "," + str(val['max']))
-    
-    starting_guesses = np.array(starting_guesses).T
+        starting_guesses2 = get_initial_walkers(state, opt_params, nwalkers)
+        starting_guesses = np.concatenate((starting_guesses, starting_guesses2), axis=1)
     
     # we only reset the backend if specifically requested.
     # This means that walkers will continue from a previous iteration
@@ -414,14 +453,19 @@ def mcmc_runner(logpf, outfile, state, params, surveys, nwalkers=10, nsteps=100,
     
     start = time.time()
     
-    # may or may not be needed
-    #os.environ["OMP_NUM_THREADS"] = "1"
-    cpus = int(os.environ.get("SLURM_CPUS_PER_TASK", 1))
-    print(f"Using {cpus} CPUs from Slurm allocation")
+    if nthreads < 1:
+        raise ValueError("nthreads must be at least 1")
+
+    # Prevent numerical libraries from starting extra threads inside each
+    # worker process, which can otherwise multiply both CPU and memory use.
+    if nthreads is not None:
+        cpus = nthreads
+    elif "SLURM_CPUS_PER_TASK" in os.environ:
+        cpus = int(os.environ.get("SLURM_CPUS_PER_TASK", 1))
+        print(f"Using {cpus} CPUs from Slurm allocation")
+    else:
+        cpus = os.cpu_count()
     Pool = mp.get_context('fork').Pool
-    
-    # num_cpus = mp.cpu_count()
-    # print(f"Number of CPUs detected: {num_cpus}")
     
     keys = params.keys()
     # need to turn this on to enable fitting of these parameters
@@ -434,7 +478,7 @@ def mcmc_runner(logpf, outfile, state, params, surveys, nwalkers=10, nsteps=100,
     cos.set_cosmology(state)
     cos.init_dist_measures()
     
-    with Pool(processes=cpus) as pool: # could add mp.Pool(ntrheads=5) or Pool = None
+    def run_sampler(pool):
         sampler = emcee.EnsembleSampler(nwalkers, ndim, logpf,
                                         args=[state, params, surveys, Pn, Pns, Pnr, pNreps, psnr,
                                             ptauw, pwb, log_halo, lin_host, ind_surveys, g0info,
@@ -446,6 +490,17 @@ def mcmc_runner(logpf, outfile, state, params, surveys, nwalkers=10, nsteps=100,
         else:
             # start from new random guesses
             sampler.run_mcmc(starting_guesses, nsteps, progress=True)
+        return sampler
+    
+    if nthreads == 1:
+        # Avoid creating a second Python process for the memory-conservative
+        # default mode.
+        sampler = run_sampler(None)
+    else:
+        # Recycling workers periodically releases arrays retained by Python's
+        # allocator during repeated six-survey grid construction.
+        with Pool(processes=cpus, maxtasksperchild=10) as pool:
+            sampler = run_sampler(pool)
     end = time.time()
     print("Total time taken: " + str(end - start))
     

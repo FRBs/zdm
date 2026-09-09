@@ -37,6 +37,7 @@ from scipy.optimize import minimize
 from zdm import cosmology as cos
 from scipy.stats import poisson
 import scipy.stats as st
+from zdm import energetics
 from zdm import repeat_grid as zdm_repeat_grid
 from zdm import optical_numerics as on
 
@@ -728,7 +729,7 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,
         
         # gets indices of noztaulist within nozlist
         zt_tomult = tomult[:,inoztaulist]
-        
+
         # This could all be precalculated within the survey.
         iws1,iws2,dkws1,dkws2 = survey.get_w_coeffs(Wobs) # total width in survey width bins
         itaus1,itaus2,dktaus1,dktaus2 = survey.get_internal_coeffs(Tauobs) # scattering time tau
@@ -746,8 +747,8 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,
             + survey.ptaus[:,itaus2,iws2]*dktaus2*dkws2
         
         # we now multiply by the z-dependencies
-        ptaus *= zt_tomult
-        piws *= zt_tomult
+        ptaus *= tz_tomult
+        piws *= tz_tomult
         
         # sum down the redshift axis to get sum p(tau,w|z)*p(z)
         ptaus = np.sum(ptaus,axis=0)
@@ -1717,9 +1718,9 @@ def calc_likelihoods_2D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,p
                     # multiplies by the width and beam weights for that FRB. These are pre-calculated in the survey
                     # each component below is a vector over nfrb
                     
-                    psnrbw += psnrbws[i,j,:]*zbweights[:,i]*zwweights[:,j]
-                    psnr_gbw += psnr_gbws[i,j,:] *zbweights[:,i]*zwweights[:,j]
-                    pbw += pbws[i,j,:]*zbweights[:,i]*zwweights[:,j]
+                    psnrbw += psnrbws[i,j,:]*bweights[:,i]*wweights[:,j]
+                    psnr_gbw += psnr_gbws[i,j,:] *bweights[:,i]*wweights[:,j]
+                    pbw += pbws[i,j,:]*bweights[:,i]*wweights[:,j]
                     
             
             # normalises pbw by normalised sum over all b,w. This gives dual p(b,w) for each FRB
@@ -1727,19 +1728,19 @@ def calc_likelihoods_2D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,p
             psnrbw = psnrbw / pwb_norm
             
             # psnr_gbws needs no normalisation, provided weights in each dimension sum to unity. But we check here just to be sure
-            psnr_gbw = psnr_gbw / (np.sum(zbweights,axis=1) * np.sum(zwweights,axis=1))
-            psnrbw = psnrbw / (np.sum(zbweights,axis=1) * np.sum(zwweights,axis=1))
+            psnr_gbw = psnr_gbw / (np.sum(bweights,axis=1) * np.sum(wweights,axis=1))
+            psnrbw = psnrbw / (np.sum(bweights,axis=1) * np.sum(wweights,axis=1))
             
             # calculates p(w) values
             # then normalises probability over all pbw
             for j,w in enumerate(grid.eff_weights):
-                pw[:] += pw_norm[j,:]*zwweights[:,j]
+                pw[:] += pw_norm[j,:]*wweights[:,j]
             pw = pw/pwb_norm
             
             # calculates p(b) values.
             # then normalised probability over all pbw
             for i,b in enumerate(survey.beam_b):
-                pb[:] += pb_norm[i,:]*zbweights[:,i]
+                pb[:] += pb_norm[i,:]*bweights[:,i]
             pb = pb/pwb_norm
             
             # calculates p(b|w,z,dM), using p(b|w) p(w) = p(b,w)
@@ -1931,8 +1932,36 @@ def ConvertToMeaningfulConstant(state,Eref=1e39):
     gamma=state.energy.gamma
     if state.energy.luminosity_function == 0:
         factor=(Eref/Emin)**gamma - (Emax/Emin)**gamma
+    elif state.energy.luminosity_function == 4:
+        factor = energetics.vector_cum_broken_power_law(
+            np.array([Eref]),
+            Emin,
+            Emax,
+            gamma,
+            state.energy.gamma2,
+            10 ** state.energy.lEb,
+        )
+    elif state.energy.luminosity_function == 5:
+        factor = energetics.vector_cum_double_broken_power_law(
+            np.array([Eref]),
+            Emin,
+            Emax,
+            gamma,
+            state.energy.gamma2,
+            state.energy.gamma3,
+            10 ** state.energy.lEb,
+            10 ** state.energy.lEb2,
+        )
+    elif state.energy.luminosity_function == 6:
+        factor = energetics.vector_cum_broken_schechter(
+            np.array([Eref]),
+            Emin,
+            Emax,
+            gamma,
+            state.energy.gamma2,
+            10 ** state.energy.lEb,
+        )
     else:
-        from zdm import energetics
         factor = energetics.vector_cum_gamma(np.array([Eref]),Emin,Emax,gamma)
     const *= factor
     return const
@@ -2153,7 +2182,9 @@ def minimise_const_only(vparams:dict,grids:list,surveys:list,
         else:
             result=minimize(minus_poisson_ps,startlog10C,
                         args=data,bounds=bounds)
-            dC=result.x
+            # scipy returns a one-element array for this one-dimensional
+            # optimization. Convert explicitly for NumPy 2 compatibility.
+            dC = result.x.item()
         t1=time.process_time()
         dC = np.array(dC) #ensures the type is a numpy array
         

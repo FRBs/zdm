@@ -1060,7 +1060,7 @@ def run_path(name,P_U=0.1,usemodel=False,sort=False,failOK=False,scale=0.5,ppath
     P_O=this_path.calc_priors()
     
     # Calculate p(O_i|x)
-    debug = True
+    debug = False
     P_Ox,P_Ux = this_path.calc_posteriors('local', 
                          box_hwidth=max_image_size, 
                          survey_radius=max_image_size, # max allowed galaxy radius
