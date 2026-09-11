@@ -22,7 +22,6 @@ from zdm import io
 from zdm import optical as opt
 from zdm import optical_params as op
 from zdm import states
-
 import numpy as np
 from zdm import survey
 from matplotlib import pyplot as plt
@@ -55,9 +54,8 @@ def main():
     # That's because of internal arrays that must be built up by the survey
     
     # load states from Hoffman et al 2025
-    state = states.load_state("HoffmannHalo25",scat="orig",rep=None)
+    state = states.load_state("HoffmannRepeaters26Pn",scat=None,rep=None)
     #state2 = states.load_state("HoffmannHalo25",scat="updated",rep=None)
-    
     
     # add estimation from ptauw
     #state2.scat.Sbackproject=True
@@ -80,7 +78,8 @@ def main():
     # simple method - quick
     ss,gs = loading.surveys_and_grids(survey_names=names,repeaters=False,
                                     init_state=state,sdir=sdir,survey_dict = None,
-                                    ndm=ndm, nz=nz) 
+                                    ndm=ndm, nz=nz)
+    
     ifrb=11
     zmin=1.31
     zmax=1.33
@@ -89,6 +88,12 @@ def main():
     
     g=gs[0]
     s=ss[0]
+    figures.plot_grid(g.rates,g.zvals,g.dmvals,
+        name=opdir+"CRACO_1300_zDM.pdf",norm=3,log=True,
+        label='$\\log_{10} p({\\rm DM}_{\\rm cosmic} + {\\rm DM}_{\\rm host},z)$ [a.u.]',
+        project=False,ylabel='${\\rm DM}_{\\rm IGM} + {\\rm DM}_{\\rm host}$',
+        zmax=2,DMmax=2000,Aconts=[0.01,0.1,0.5])
+    
     # we now make a plot for the following situations
     
     # 1: p(z) given DM
@@ -103,7 +108,7 @@ def main():
     plt.ylabel("$P(z)$")
     plt.xticks(np.linspace(0,2,5))
     
-    #################3# adds Bera et al prediction ##############
+    ################## adds Bera et al prediction ##############
     zmin=1.31
     zmax=1.33
     plt.fill_between([zmin,zmax],[ymax,ymax],color="gray",alpha=0.3)
@@ -119,7 +124,7 @@ def main():
     pz1 = g.rates[:,idm1]*kdm1 + g.rates[:,idm2]*kdm2
     pz1 /= np.sum(pz1) * (g.zvals[1]-g.zvals[0])
     
-    plt.plot(g.zvals,pz1,label="$p(z|DM)$",linestyle=":")
+    plt.plot(g.zvals,pz1,label="$P(z|DM)$",linestyle=":")
     
     print("\n\nCurve 1: p   min    max")
     intervals = calc_confidence_intervals(g.zvals, pz1,pvalues)
@@ -129,15 +134,26 @@ def main():
     fz = np.interp(zbar,g.zvals,pz1)
     p1 = fz*dz
     
+    # fake modifications, in case you wish to determine the dependence
+    #s.SNRs[ifrb]=10.
+    #s.Ss[ifrb]=1.
+    #s.frbs["B"][ifrb] = 1.0
+    #s.init_frb_bvals()
+    
     
     # specific p(z) based on these particular properties
     output = it.calc_likelihoods_1D(g, s, norm=True, psnr=True,dolist=0, Pn=False,
                                     ptauw=False,pwb=True, PATH=True)
+    
+    print("Plotting info for FRB ",s.frbs["TNS"][ifrb]," with DMEG of ",s.DMEGs[ifrb],
+            " S/N of ",s.SNRs[ifrb], " beam position ",s.frbs["B"][ifrb],
+                " with relative threshold s=",s.Ss[ifrb])
+    which = np.where(output["ilist"] == ifrb)[0]
+    
     pz2 = output["pzgsnrbwdm"]
-    print(pz2.shape)
     pz2 = pz2[:,ifrb]
     pz2 /= (g.zvals[1]-g.zvals[0])
-    plt.plot(g.zvals,pz2,label="$p(z|{\\bf x}_{\\rm rad})$",linestyle="-.")
+    plt.plot(g.zvals,pz2,label="$P(z|{\\bf x}_{\\rm rad})$",linestyle="-.")
     
     print("\n\nCurve 2: p   min    max")
     intervals = calc_confidence_intervals(g.zvals, pz2,pvalues)
@@ -179,7 +195,7 @@ def main():
     print(" p(U) is ",wrapper.estimate_unseen_prior())
         
     pzgu /= (g.zvals[1]-g.zvals[0])
-    plt.plot(g.zvals, pzgu, label="$p(z|U,{\\bf x}_{\\rm rad})$",linestyle="--")
+    plt.plot(g.zvals, pzgu, label="$P(z|U,{\\bf x}_{\\rm rad})$",linestyle="--")
         
     print("\n\nCurve 3: p   min    max")
     intervals = calc_confidence_intervals(g.zvals, pzgu,pvalues)

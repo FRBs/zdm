@@ -132,7 +132,7 @@ def plot_grid(
         plt_dicts = [{'color': clr, 'marker': 'o'} for clr in data_clrs]
     elif isinstance(plt_dicts, dict):
         plt_dicts = [plt_dicts]
-
+    
     if Aconts:
         linestyles = ['--', '-.', ':', '-']
         if c_cmap is None:
@@ -495,8 +495,8 @@ def plot_grid(
 
         # idea is that 1 point is 1, hence...
         zeval = zvals / dz
-        DMEG_mean = (DM_cosmic + meanHost/(1+zvals)) / ddm
-        DMEG_median = (DM_cosmic + medianHost/(1+zvals)) / ddm
+        DMEG_mean = (DM_cosmic + meanHost/(1.+zvals)) / ddm
+        DMEG_median = (DM_cosmic + medianHost/(1.+zvals)) / ddm
         plt.plot(
             zeval,
             DMEG_mean,

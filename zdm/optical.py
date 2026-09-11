@@ -470,7 +470,7 @@ class loudas_model:
                 centres (``self.rmags``), normalised to sum to unity.
         """
         # Find the appropriate redshift bin index
-        idx = np.clip(np.searchsorted(self.zbins, z) - 1, 0,  n_redshift_bins - 1)
+        idx = np.clip(np.searchsorted(self.zbins, z) - 1, 0,  self.nzbins - 1)
         return self.p_mr_mass[idx]
     
     def give_p_mr_sfr(self,z: float):
@@ -619,7 +619,7 @@ class simple_host_model:
         if self.opstate.AbsPriorMeth==0:
             # uniform prior in log space of absolute magnitude
             AbsPrior = np.full([self.ModelNBins],1./self.ModelNBins)
-        elif self.opstate.AbsPriorMeth==0:
+        elif self.opstate.AbsPriorMeth==1:
             self.set_args() #sets according to opstate
         else:
             # other methods to be added as required
@@ -1776,7 +1776,7 @@ def SimplekAbsoluteMags(App,k,zs):
     dMag = 2.5*np.log10((lds/dabs)**(2)) + dk
     
     
-    if np.isscalar(zs) or np.isscalar(Abs):
+    if np.isscalar(zs) or np.isscalar(App):
         # just return the product, be it scalar x scalar,
         # scalar x array, or array x scalar
         # this also ensures that the dimensions are as expected
@@ -1788,7 +1788,7 @@ def SimplekAbsoluteMags(App,k,zs):
         temp1 = 10**App
         temp2 = 10**-dMag
         AbsoluteMags = np.outer(temp1,temp2)
-        AbsoluteMags = np.log10(ApparentMags)
+        AbsoluteMags = np.log10(AbsoluteMags)
     return AbsoluteMags
 
 def SimpleAbsoluteMags(App,zs,outer=False):
