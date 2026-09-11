@@ -265,7 +265,7 @@ def set_fit_params(vparams,case):
         vparams['energy']['luminosity_function'] = 2
     
     elif case == "HoffmannRepeaters26Pn":
-        # case of no P(n) information
+        # case of including P(n) information
         vparams['energy']['lEmin'] = 35.61
         vparams['energy']['lEmax'] = 41.35
         vparams['energy']['alpha'] = 1.50
@@ -274,7 +274,7 @@ def set_fit_params(vparams,case):
         
         vparams['FRBdemo']['alpha_method'] = 1
         vparams['FRBdemo']['source_evolution'] = 0
-        vparams['FRBdemo']['sfr_n'] = 0.65
+        vparams['FRBdemo']['sfr_n'] = 0.76
         vparams['FRBdemo']['lC'] = 3.3249
         
         vparams['host']['lmean'] = 2.07
@@ -334,21 +334,21 @@ def set_fit_params(vparams,case):
         less information, but avoids any potential bias from P(n) being dodgy
         """
         # case of no P(n) information
-        vparams['energy']['lEmin'] = 34.48
-        vparams['energy']['lEmax'] = 41.33
-        vparams['energy']['alpha'] = 2.12
-        vparams['energy']['gamma'] = -0.82
+        vparams['energy']['lEmin'] = 36.68
+        vparams['energy']['lEmax'] = 41.28
+        vparams['energy']['alpha'] = 1.97
+        vparams['energy']['gamma'] = -0.79
         vparams['energy']['luminosity_function'] = 2
         
         vparams['FRBdemo']['alpha_method'] = 1
         vparams['FRBdemo']['source_evolution'] = 0
-        vparams['FRBdemo']['sfr_n'] = 0.92
-        vparams['FRBdemo']['lC'] = 3.3249
+        vparams['FRBdemo']['sfr_n'] = 0.76
+        vparams['FRBdemo']['lC'] = -5.49
         
-        vparams['host']['lmean'] = 2.05
-        vparams['host']['lsigma'] = 0.58
+        vparams['host']['lmean'] = 2.10
+        vparams['host']['lsigma'] = 0.57
         
-        vparams['MW']['DMhalo']=58.36
+        vparams['MW']['DMhalo']=56.33
         vparams['MW']['ISM']=35
         vparams['MW']['halo_method']=0
         vparams['MW']['sigmaHalo']=15.0
@@ -358,7 +358,7 @@ def set_fit_params(vparams,case):
         # this was not fit
         vparams['IGM']['logF'] = -0.494850021680094
         
-        vparams['cosmo']['H0'] = 70.24
+        vparams['cosmo']['H0'] = 69.05
         vparams['cosmo']["Omega_b"] = 0.04492445246610533
         vparams['cosmo']["Omega_b_h2"] = 0.0224178568132
         vparams['cosmo']["Omega_k"] = 0.0
@@ -374,9 +374,9 @@ def set_fit_params(vparams,case):
         # Rc is not the fitted parameter
         vparams["rep"]["RC"] = 0.01
         vparams["rep"]["RE0"] = 1e+39
-        vparams["rep"]["Rgamma"] = -2.22
-        vparams["rep"]["lRmax"] = -3.92
-        vparams["rep"]["lRmin"] = 2.47
+        vparams["rep"]["Rgamma"] = -2.20
+        vparams["rep"]["lRmax"] = 3.66
+        vparams["rep"]["lRmin"] = -4.23
         
         vparams["scat"]["Sbackproject"] =  False
         vparams["scat"]["ScatDist"] =  2

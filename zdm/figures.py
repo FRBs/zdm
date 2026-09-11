@@ -17,6 +17,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib
 import cmasher as cmr
+from zdm import pcosmic
 
 from zdm import cosmology as cos
 
@@ -158,6 +159,13 @@ def plot_grid(
             del l_cont_dicts[i]['colors']
             l_cont_dicts[i]['linestyle'] = l_cont_dicts[i]['linestyles'][0]
             del l_cont_dicts[i]['linestyles']
+
+        # l_meerkat = {'color': cont_clrs[0], 'linestyle': "--"}
+        # l_inc = {'color': cont_clrs[1], 'linestyle': "-."}
+        # l_dsa = {'color': cont_clrs[2], 'linestyle': ":", 'marker': 'o', 'markeredgewidth': 1, 'markersize': 4}
+        # l_chime = {'color': cont_clrs[3], 'linestyle': "-"}#, 'markeredgewidth': 1, 'markersize': 4}
+        # l_askap = {'color': cont_clrs[4], 'linestyle': "--", 'marker': 'x', 'markeredgewidth': 1, 'markersize': 5}
+        # l_cont_dicts = [l_meerkat, l_inc, l_dsa, l_chime, l_askap]
 
     ##### imshow of grid #######
 
@@ -364,12 +372,13 @@ def plot_grid(
         )
         cntrs=[cs]
         if othernames is not None:
+            # h,=plt.plot([-1e6,-2e6],[-1e6,-2e6],**l_cont_dicts[0],label=othernames[0])
             h,=plt.plot([-1e6,-2e6],[-1e6,-2e6],**l_cont_dicts[0],label=othernames[0])
             handles=[h]
         else:
             handles=[]
             for iA,Alevel in enumerate(Aconts):
-                    h,=plt.plot([-1e6,-2e6],[-1e6,-2e6],**l_cont_dicts[iA],label=str(1.-Alevel)+"%")
+                    h,=plt.plot([-1e6,-2e6],[-1e6,-2e6],**l_cont_dicts[iA],label=str((1.-Alevel)*100)+"%")
             handles.append(h)
         
         if othergrids is not None:
@@ -465,7 +474,7 @@ def plot_grid(
             j = int(nc - i - 1)
             plt.plot(np.arange(nz), carray[j, :], label=str(int(conts[j]*100))+"%", color="white",\
                     linestyle=cont_styles[cstyle])
-        l = plt.legend(loc="upper left", fontsize=8)
+        l = plt.legend(loc="lower right", fontsize=8)
         # l=plt.legend(bbox_to_anchor=(0.2, 0.8),fontsize=8)
         for text in l.get_texts():
             text.set_color("white")
@@ -486,8 +495,8 @@ def plot_grid(
 
         # idea is that 1 point is 1, hence...
         zeval = zvals / dz
-        DMEG_mean = (DM_cosmic + meanHost/(1+zeval)) / ddm
-        DMEG_median = (DM_cosmic + medianHost/(1+zeval)) / ddm
+        DMEG_mean = (DM_cosmic + meanHost/(1+zvals)) / ddm
+        DMEG_median = (DM_cosmic + medianHost/(1+zvals)) / ddm
         plt.plot(
             zeval,
             DMEG_mean,
@@ -535,7 +544,7 @@ def plot_grid(
             iZ = FRBZs / dz
             plt.plot(iZ[OK], iDMs[OK], 'ro',linestyle="")
             
-    legend = plt.legend(loc='upper left')
+    legend = plt.legend(loc='lower right')
     # legend = plt.legend(loc='upper left', bbox_to_anchor=(0.0, -0.15), fontsize=12, markerscale=1, ncol=2)
     # legend.get_frame().set_facecolor('lightgrey')
 
