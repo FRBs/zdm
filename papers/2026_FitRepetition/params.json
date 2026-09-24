@@ -1,0 +1,91 @@
+{
+    "mcmc": {
+        "parameter_order": ["sfr_n", "alpha", "lmean", "lsigma", "lEmax", "lEmin", "gamma", "H0", "DMhalo", "lRmin", "lRmax", "Rgamma"]
+    },
+    "mcmc_full": {
+        "parameter_order": ["logF", "sfr_n", "alpha", "lmean", "lsigma", "lEmax", "lEmin", "gamma", "H0", "DMhalo", "lRmin", "lRmax", "Rgamma", "sigmaDMG"]
+    },
+    "config": {
+        "luminosity_function": 2,
+        "alpha_method": 1,
+        "halo_method": 0,
+        "sigmaHalo": 15,
+        "sigmaDMG": 0.2,
+        "min_lat": 20.0
+    },
+    "logF": {
+        "DC": "cosmo",
+        "min": -2.0,
+        "max": 0.0
+    },
+    "lEmax": {
+        "DC": "energy",
+        "min": 38.5,
+        "max": 42.5
+    },
+    "lEmin": {
+        "DC": "energy",
+        "min": 30.0, 
+        "max": 40.5
+    },
+    "DMhalo": {
+        "DC": "MW",
+        "min": 10.0, 
+        "max": 200.0
+    },
+    "sigmaDMG": {
+        "DC": "MW",
+        "min": 0.1, 
+        "max": 0.5
+    },
+    "H0": {
+        "DC": "cosmo",
+        "min": 66.9, 
+        "max": 74.08
+    },
+    "H0_full": {
+        "DC": "cosmo",
+        "min": 35.0, 
+        "max": 110.0
+    },
+    "alpha": {
+        "DC": "energy",
+        "min": 0.5, 
+        "max": 2.5
+    },
+    "gamma": {
+        "DC": "energy",
+        "min": -3.0, 
+        "max": 1.0
+    },
+    "sfr_n": {
+        "DC": "FRBdemo",
+        "min": -2.0, 
+        "max": 6.0
+    },
+    "lmean": {
+        "DC": "host",
+        "min": 1.0, 
+        "max": 3.0
+    },
+    "lsigma": {
+        "DC": "host",
+        "min": 0.1, 
+        "max": 1.5
+    },
+    "lRmin": {
+        "DC": "rep",
+        "min": -8.0, 
+        "max": -1.0
+    },
+    "lRmax": {
+        "DC": "rep",
+        "min": -2.5, 
+        "max": 8.0
+    },
+    "Rgamma": {
+        "DC": "rep",
+        "min": -4.0, 
+        "max": -0.5
+    }
+}
