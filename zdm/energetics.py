@@ -525,7 +525,7 @@ def _broken_schechter_upper_gamma(x, gamma):
         raise ValueError("Upper incomplete gamma arguments must be positive")
     
     toolow = np.where(x < 10**SplineMin)[0]
-    ltl = len(too_low)
+    ltl = len(toolow)
     if ltl > 0:
         SplineMin = np.log10(floor(np.nanmin(x)))
         NSpline = (SplineMax - Spline_Min )*100
