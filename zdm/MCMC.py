@@ -241,7 +241,8 @@ def calc_log_posterior(param_vals, state, params, surveys_sep, Pn=False, Pns=Fal
         
         surveys = surveys_sep[0] + surveys_sep[1]
         
-        # gets new zDM grid if F and H0 in the param_dict
+        # gets new zDM grid if F and H0 in the param_dict,
+        # or an old one is not passed to us
         if 'H0' in param_dict or 'logF' in param_dict or g0info is None:
             cos.set_cosmology(state)
             cos.init_dist_measures()
@@ -258,8 +259,16 @@ def calc_log_posterior(param_vals, state, params, surveys_sep, Pn=False, Pns=Fal
                     'nz': zvals.size,
                     'zmax': zvals[-1] + dz / 2,
                     'ndm': dmvals.size,
-                    'dmmax': dmvals[-1] + ddm / 2,
-                }
+                    'dmmax': dmvals[-1] + ddm / 2
+                    }
+            else:
+                grid_kwargs = {
+                    'nz': nz,
+                    'zmax': zmax,
+                    'ndm': dndm,
+                    'dmmax': dmmax
+                    }
+                    
             zDMgrid, zvals,dmvals = mf.get_zdm_grid(
                 state, new=True, plot=False, method='analytic',
                 datdir=datdir,**grid_kwargs)
@@ -453,18 +462,22 @@ def mcmc_runner(logpf, outfile, state, params, surveys, nwalkers=10, nsteps=100,
     
     start = time.time()
     
-    if nthreads < 1:
-        raise ValueError("nthreads must be at least 1")
-
+    
     # Prevent numerical libraries from starting extra threads inside each
     # worker process, which can otherwise multiply both CPU and memory use.
+    os.environ["OMP_NUM_THREADS"] = "1"
+    
     if nthreads is not None:
+        if nthreads < 1:
+            raise ValueError("nthreads must be at least 1")
         cpus = nthreads
     elif "SLURM_CPUS_PER_TASK" in os.environ:
         cpus = int(os.environ.get("SLURM_CPUS_PER_TASK", 1))
         print(f"Using {cpus} CPUs from Slurm allocation")
     else:
         cpus = os.cpu_count()
+        print(f"Using all {cpus} available CPU")
+    
     Pool = mp.get_context('fork').Pool
     
     keys = params.keys()

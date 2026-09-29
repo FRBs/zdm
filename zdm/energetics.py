@@ -265,6 +265,27 @@ def vector_cum_power_law(Eth, *params):
 
 ########### simple broken power law functions #############
 
+def _broken_schechter_lower_integral(x, gamma):
+    """
+    Integral of u^(gamma - 1) from x to 1.
+
+    Equal to (1 - x**gamma)/gamma, with the gamma=0 logarithmic limit.
+    """
+    x = np.asarray(x, dtype=float)
+    return lower_integral(x,gamma)
+
+def lower_integral(ratio, gamma):
+    """Return (1 - ratio**gamma) / gamma stably."""
+    if np.isclose(gamma, 0.0):
+        return -np.log(ratio)
+    return -np.expm1(gamma * np.log(ratio)) / gamma
+
+def upper_integral(ratio, gamma):
+    """Return (ratio**gamma - 1) / gamma stably."""
+    if np.isclose(gamma, 0.0):
+        return np.log(ratio)
+    return np.expm1(gamma * np.log(ratio)) / gamma
+
 def vector_cum_broken_power_law(Eth, *params):
     """Cumulative broken power-law luminosity function.
 
@@ -302,23 +323,13 @@ def vector_cum_broken_power_law(Eth, *params):
     if Eth.ndim > 1:
         raise ValueError("Eth must be a one-dimensional array")
     Eth = np.atleast_1d(Eth)
-
-    def lower_integral(ratio, gamma):
-        """Return (1 - ratio**gamma) / gamma stably."""
-        if gamma == 0:
-            return -np.log(ratio)
-        return -np.expm1(gamma * np.log(ratio)) / gamma
-
-    def upper_integral(ratio, gamma):
-        """Return (ratio**gamma - 1) / gamma stably."""
-        if gamma == 0:
-            return np.log(ratio)
-        return np.expm1(gamma * np.log(ratio)) / gamma
-
+    
     upper_at_break = upper_integral(Emax / Eb, gamma2)
     normalization = (lower_integral(Emin / Eb, gamma1) + upper_at_break)
 
-    result = np.empty_like(Eth)
+    # we initialise with nans, such that anything failing the below comparisons
+    # remains a nan
+    result = np.full_like(Eth, np.nan)
     below_min = Eth < Emin
     above_max = Eth > Emax
     below_break = (Eth >= Emin) & (Eth < Eb)
@@ -373,12 +384,7 @@ def vector_diff_broken_power_law(Eth, *params):
         raise ValueError("Eth must be a one-dimensional array")
     Eth = np.atleast_1d(Eth)
 
-    def integral(ratio, gamma):
-        if gamma == 0:
-            return np.log(ratio)
-        return np.expm1(gamma * np.log(ratio)) / gamma
-
-    normalization = (-integral(Emin / Eb, gamma1) + integral(Emax / Eb, gamma2))
+    normalization = (-upper_integral(Emin / Eb, gamma1) + upper_integral(Emax / Eb, gamma2))
 
     result = np.zeros_like(Eth)
     lower = (Eth >= Emin) & (Eth < Eb)
@@ -430,19 +436,7 @@ def vector_cum_double_broken_power_law(Eth, *params):
     if Eth.ndim > 1:
         raise ValueError("Eth must be a one-dimensional array")
     Eth = np.atleast_1d(Eth)
-
-    def lower_integral(ratio, gamma):
-        """Return (1 - ratio**gamma) / gamma stably."""
-        if gamma == 0:
-            return -np.log(ratio)
-        return -np.expm1(gamma * np.log(ratio)) / gamma
-
-    def upper_integral(ratio, gamma):
-        """Return (ratio**gamma - 1) / gamma stably."""
-        if gamma == 0:
-            return np.log(ratio)
-        return np.expm1(gamma * np.log(ratio)) / gamma
-
+    
     break_ratio = Eb2 / Eb1
     middle_total = upper_integral(break_ratio, gamma2)
     # The extra factor follows from continuity of dP/dE at Eb2.
@@ -489,14 +483,9 @@ def vector_diff_double_broken_power_law(Eth, *params):
         raise ValueError("Eth must be a one-dimensional array")
     Eth = np.atleast_1d(Eth)
 
-    def integral(ratio, gamma):
-        if gamma == 0:
-            return np.log(ratio)
-        return np.expm1(gamma * np.log(ratio)) / gamma
-
     break_ratio = Eb2 / Eb1
     high_scale = break_ratio ** gamma2
-    normalization = (-integral(Emin / Eb1, gamma1)+ integral(break_ratio, gamma2)+ high_scale * integral(Emax / Eb2, gamma3))
+    normalization = (-upper_integral(Emin / Eb1, gamma1)+ upper_integral(break_ratio, gamma2)+ high_scale * upper_integral(Emax / Eb2, gamma3))
 
     result = np.zeros_like(Eth)
     first = (Eth >= Emin) & (Eth < Eb1)
@@ -526,7 +515,7 @@ def _broken_schechter_upper_gamma(x, gamma):
     """
     Fast upper incomplete Gamma(gamma, x), using the existing spline cache.
     """
-    global SplineLog
+    global SplineLog, SplineMin, SplineMax, NSpline
 
     x = np.asarray(x, dtype=float)
     scalar_input = x.ndim == 0
@@ -534,8 +523,14 @@ def _broken_schechter_upper_gamma(x, gamma):
 
     if np.any(x <= 0.0):
         raise ValueError("Upper incomplete gamma arguments must be positive")
-
-    if gamma not in igamma_splines:
+    
+    toolow = np.where(x < 10**SplineMin)[0]
+    ltl = len(too_low)
+    if ltl > 0:
+        SplineMin = np.log10(floor(np.nanmin(x)))
+        NSpline = (SplineMax - Spline_Min )*100
+        
+    if gamma not in igamma_splines or ltl > 0:
         init_igamma_splines([gamma])
 
     if SplineLog:
@@ -549,20 +544,6 @@ def _broken_schechter_upper_gamma(x, gamma):
         return result[0]
 
     return result
-
-
-def _broken_schechter_lower_integral(x, gamma):
-    """
-    Integral of u^(gamma - 1) from x to 1.
-
-    Equal to (1 - x**gamma)/gamma, with the gamma=0 logarithmic limit.
-    """
-    x = np.asarray(x, dtype=float)
-
-    if np.isclose(gamma, 0.0):
-        return -np.log(x)
-
-    return -np.expm1(gamma * np.log(x)) / gamma
 
 
 def _broken_schechter_normalization(Emin, Ecut, gamma1, gamma2, Eb):

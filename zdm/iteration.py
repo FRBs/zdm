@@ -747,8 +747,8 @@ def calc_likelihoods_1D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,
             + survey.ptaus[:,itaus2,iws2]*dktaus2*dkws2
         
         # we now multiply by the z-dependencies
-        ptaus *= tz_tomult
-        piws *= tz_tomult
+        ptaus *= zt_tomult
+        piws *= zt_tomult
         
         # sum down the redshift axis to get sum p(tau,w|z)*p(z)
         ptaus = np.sum(ptaus,axis=0)
@@ -1224,8 +1224,8 @@ def calc_likelihoods_2D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,p
             DMobs=survey.DMEGs[survey.zreps]
             Zobs=survey.Zs[survey.zreps]
             zlist=survey.zreps
-            zbweights = survey.frb_zbweights_reps
-            zwweights = survey.frb_zwweights_reps
+            bweights = survey.frb_zbweights_reps
+            wweights = survey.frb_zwweights_reps
         else:
             raise ValueError("No localised singles in this survey, cannot calculate 2D likelihoods")
     elif grid_type == 2: 
@@ -1234,8 +1234,8 @@ def calc_likelihoods_2D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,p
             DMobs=survey.DMEGs[survey.zsingles]
             Zobs=survey.Zs[survey.zsingles]
             zlist=survey.zsingles
-            zbweights = survey.frb_zbweights_singles
-            zwweights = survey.frb_zwweights_singles
+            bweights = survey.frb_zbweights_singles
+            wweights = survey.frb_zwweights_singles
         else:
             raise ValueError("No localised repeaters in this survey, cannot calculate 2D likelihoods")
     else: 
@@ -1244,8 +1244,8 @@ def calc_likelihoods_2D(grid,survey,doplot=False,norm=True,pdmz=True,psnr=True,p
             DMobs=survey.DMEGs[survey.zlist]
             Zobs=survey.Zs[survey.zlist]
             zlist=survey.zlist
-            zbweights = survey.frb_zbweights
-            zwweights = survey.frb_zwweights
+            bweights = survey.frb_zbweights
+            wweights = survey.frb_zwweights
         else:
             raise ValueError("No localised FRBs in this survey, cannot calculate 2D likelihoods")
     
@@ -1931,6 +1931,7 @@ def ConvertToMeaningfulConstant(state,Eref=1e39):
     Emax=10**state.energy.lEmax
     gamma=state.energy.gamma
     if state.energy.luminosity_function == 0:
+        # TODO: check normalisation here
         factor=(Eref/Emin)**gamma - (Emax/Emin)**gamma
     elif state.energy.luminosity_function == 4:
         factor = energetics.vector_cum_broken_power_law(
@@ -1940,7 +1941,7 @@ def ConvertToMeaningfulConstant(state,Eref=1e39):
             gamma,
             state.energy.gamma2,
             10 ** state.energy.lEb,
-        )
+        )[0]
     elif state.energy.luminosity_function == 5:
         factor = energetics.vector_cum_double_broken_power_law(
             np.array([Eref]),
@@ -1951,7 +1952,7 @@ def ConvertToMeaningfulConstant(state,Eref=1e39):
             state.energy.gamma3,
             10 ** state.energy.lEb,
             10 ** state.energy.lEb2,
-        )
+        )[0]
     elif state.energy.luminosity_function == 6:
         factor = energetics.vector_cum_broken_schechter(
             np.array([Eref]),
@@ -1960,9 +1961,9 @@ def ConvertToMeaningfulConstant(state,Eref=1e39):
             gamma,
             state.energy.gamma2,
             10 ** state.energy.lEb,
-        )
+        )[0]
     else:
-        factor = energetics.vector_cum_gamma(np.array([Eref]),Emin,Emax,gamma)
+        factor = energetics.vector_cum_gamma(np.array([Eref]),Emin,Emax,gamma)[0]
     const *= factor
     return const
 
