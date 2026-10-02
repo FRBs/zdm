@@ -20,7 +20,7 @@ from zdm import iteration as it
 from zdm import loading
 from zdm import io
 from zdm import optical as opt
-
+from zdm import figures as fig
 import numpy as np
 from zdm import survey
 from matplotlib import pyplot as plt
@@ -116,7 +116,7 @@ def main():
     s=ss[0]
     g=gs[0]
     name = names[0]
-    misc_functions.plot_grid_2(mean_rates,g.zvals,g.dmvals,
+    fig.plot_grid(mean_rates,g.zvals,g.dmvals,
         name=opdir+"three_freq_zDM.pdf",norm=3,log=True,
         label='$\\log_{10} p({\\rm DM}_{\\rm IGM} + {\\rm DM}_{\\rm host},z)$ [a.u.]',
         project=False,ylabel='${\\rm DM}_{\\rm IGM} + {\\rm DM}_{\\rm host}$',
@@ -124,7 +124,7 @@ def main():
     
     gavg_rates = gavg.rates * savg.TOBS * 10**g.state.FRBdemo.lC
     repavg_rates = repavg.exact_singles * repavg.Rc * repavg.Nfields
-    misc_functions.plot_grid_2(gavg_rates,g.zvals,g.dmvals,
+    fig.plot_grid(gavg_rates,g.zvals,g.dmvals,
         name=opdir+"Average_zDM.pdf",norm=3,log=True,
         label='$\\log_{10} p({\\rm DM}_{\\rm IGM} + {\\rm DM}_{\\rm host},z)$ [a.u.]',
         project=False,ylabel='${\\rm DM}_{\\rm IGM} + {\\rm DM}_{\\rm host}$',
