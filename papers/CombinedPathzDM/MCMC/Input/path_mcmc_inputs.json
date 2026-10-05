@@ -1,0 +1,23 @@
+{
+    "mcmc": {
+        "parameter_order": ["fSFR","Scale"]
+    },
+    "config": {
+        "iModel": 1,
+        "pU_mean": 26.176,
+        "pU_width": 0.342,
+        "pU_method": 1,
+        "pU_min": 14.0,
+        "pU_max": 22.0
+    },
+    "fSFR": {
+        "DC": "loudas",
+        "min": 0,
+        "max": 2
+    },
+    "Scale": {
+        "DC": "path",
+        "min": 0.001,
+        "max": 6
+    }
+}

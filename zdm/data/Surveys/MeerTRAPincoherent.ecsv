@@ -18,7 +18,7 @@
 # - {name: XRA, datatype: string}
 # - {name: Z, datatype: float64}
 # meta: !!omap
-# - {survey_data: '{"observing": {"NORM_FRB": 10},
+# - {survey_data: '{"observing": {"MAX_LOC_DMEG": -1},
 #                   "telescope": {"BMETHOD": 0, "BTHRESH": 0.001, "DIAM": 13.5, "NBEAMS": 1, "NBINS": 5}}'}
 # schema: astropy-2.0
 TNS        BW   DM       DMG     FBAR  FRES   Gb       Gl       SNR    SNRTHRESH  THRESH  TRES     WIDTH   XDec           XRA             Z

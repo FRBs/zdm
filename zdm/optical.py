@@ -67,7 +67,7 @@ import os
 from importlib import resources
 import pandas
 import h5py
-
+from scipy.interpolate import interp1d
 from astropath import priors as pathpriors
 #import astropath.priors as pathpriors
 
@@ -76,6 +76,20 @@ from astropath import priors as pathpriors
 ############ Routines associated with Nick's model ################
 ###################################################################
 
+
+def select_model(opstate):
+    """
+    Routine to return model class
+    """
+    imodel = opstate.app.iModel
+    if imodel == 0:
+        return marnoch_model(opstate)
+    elif imodel == 1:
+        return loudas_model(opstate)
+    elif imodel==2:
+        return simple_host_model(opstate)
+    else:
+        raise ValueError("Model ids 0 (Marnoch), 1 (Loudas), 2 (Naive) implemented only")
 
 class marnoch_model:
     """
@@ -208,7 +222,7 @@ class loudas_model:
     
     """
     
-    def __init__(self,OpticalState=None,fname='p_mr_distributions_dz0.01_z_in_0_1.2.h5',data_dir=None,verbose=False):
+    def __init__(self,OpticalState=None,fname='p_mr_distributions_dz0.01_z_in_0_2.0.h5',data_dir=None,verbose=False):
         """
         Initialise the Loudas model, loading precomputed p(m_r | z) tables.
 
@@ -231,7 +245,6 @@ class loudas_model:
         self.opstate = self.OpticalState.loudas
         
         self.fsfr = self.opstate.fSFR
-        
         
         # checks that cosmology is initialised
         if not cos.INIT:
@@ -263,10 +276,8 @@ class loudas_model:
         # zbins represent ranges. We also calculate z-bin centres
         self.drmag = rmag_centres[1] - rmag_centres[0]
         self.zbins = zbins
-        self.nzbins = zbins.size-1
-        self.czbins = 0.5*(self.zbins[1:] + self.zbins[:-1])
+        self.nzbins = zbins.size # data calculated at the upper point of each bin
         self.logzbins = np.log10(zbins)
-        self.clogzbins = 0.5*(self.logzbins[1:] + self.logzbins[:-1])
         self.rmags = rmag_centres # centres of rmag bins
         self.p_mr_sfr = p_mr_sfr # sfr-weighted p_mr
         self.p_mr_mass = p_mr_mass # mass-weighted p_mr
@@ -322,25 +333,25 @@ class loudas_model:
         
         # gets interpolation coefficients
         lz = np.log10(z)
-        if lz < self.clogzbins[0]:
+        if lz < self.logzbins[0]:
             # sets values equal to that of smallest bin, to avoid interpolation
             i1=0
             i2=1
             k1=1.
             k2=0.
-        elif lz > self.clogzbins[-1]:
+        elif lz > self.logzbins[-1]:
             i1=self.nzbins-2
             i2=self.nzbins-1
             k1=0
             k2=1.
         else:
-            i1 = np.where(lz > self.clogzbins)[0][-1] # gets lowest value where zs are larger
+            i1 = np.where(lz > self.logzbins)[0][-1] # gets lowest value where zs are larger
             i2=i1+1
-            k2 = (lz-self.clogzbins[i1])/(self.clogzbins[i2]-self.clogzbins[i1])
+            k2 = (lz-self.logzbins[i1])/(self.logzbins[i2]-self.logzbins[i1])
             k1 = 1.-k2
         
-        z1=self.czbins[i1]
-        z2=self.czbins[i2]
+        z1=self.zbins[i1]
+        z2=self.zbins[i2]
         
         # the mr distributions are apparent magnitudes
         # hence, we have to interpolate between z-bins using first-order shifting
@@ -408,7 +419,8 @@ class loudas_model:
         
         return pmr
         
-    def load_p_mr_distributions(self,data_dir,fname: str = 'p_mr_distributions_dz0.01_z_in_0_1.2.h5') -> tuple:
+    def load_p_mr_distributions(self,data_dir,verbose=False,
+                            fname: str = 'p_mr_distributions_dz0.01_z_in_0_2.0.h5') -> tuple:
         """
         This code originally written by Nick Loudas. Used with permission
         
@@ -438,8 +450,8 @@ class loudas_model:
             p_mr_sfr = (p_mr_sfr.T / np.sum(p_mr_sfr,axis=1)).T
             p_mr_mass = (p_mr_mass.T / np.sum(p_mr_mass,axis=1)).T
         
-        print(f"p(mr|z) distributions loaded successfully from 'p_mr_dists/{fname}'")
-        n_redshift_bins = len(zbins) - 1
+        if verbose:
+            print(f"p(mr|z) distributions loaded successfully from 'p_mr_dists/{fname}'")
         return zbins, rmag_centers, p_mr_sfr, p_mr_mass
     
     def give_p_mr_mass(self,z: float):
@@ -458,7 +470,7 @@ class loudas_model:
                 centres (``self.rmags``), normalised to sum to unity.
         """
         # Find the appropriate redshift bin index
-        idx = np.clip(np.searchsorted(self.zbins, z) - 1, 0,  n_redshift_bins - 1)
+        idx = np.clip(np.searchsorted(self.zbins, z) - 1, 0,  self.nzbins - 1)
         return self.p_mr_mass[idx]
     
     def give_p_mr_sfr(self,z: float):
@@ -600,15 +612,15 @@ class simple_host_model:
         self.AppModelID = self.opstate.AppModelID
         self.AbsModelID = self.opstate.AbsModelID
         
-        
-        
         self.init_abs_bins()
         self.init_model_bins()
         
         # could perhaps use init args for this?
         if self.opstate.AbsPriorMeth==0:
             # uniform prior in log space of absolute magnitude
-            AbsPrior = np.full([self.ModelNBins],1./self.NAbsBins)
+            AbsPrior = np.full([self.ModelNBins],1./self.ModelNBins)
+        elif self.opstate.AbsPriorMeth==1:
+            self.set_args() #sets according to opstate
         else:
             # other methods to be added as required
             raise ValueError("Luminosity prior method ",self.opstate.AbsPriorMeth," not implemented")
@@ -626,6 +638,32 @@ class simple_host_model:
         # the below is done for the wrapper function
         #self.ZMAP = False # records that we need to initialise this
     
+    def set_args(self):
+        """
+        Sets arguments from the opstate variables. Works up to 10 currently
+        """
+        
+        if self.NModelBins >= 1:
+            self.AbsPrior[0] = self.opstate.SPv1 
+        if self.NModelBins >= 2:
+            self.AbsPrior[1] = self.opstate.SPv2
+        if self.NModelBins >= 3:
+            self.AbsPrior[2] = self.opstate.SPv3 
+        if self.NModelBins >= 4:
+            self.AbsPrior[3] = self.opstate.SPv4 
+        if self.NModelBins >= 5:
+            self.AbsPrior[4] = self.opstate.SPv5 
+        if self.NModelBins >= 6:
+            self.AbsPrior[5] = self.opstate.SPv6 
+        if self.NModelBins >= 7:
+            self.AbsPrior[6] = self.opstate.SPv7 
+        if self.NModelBins >= 8:
+            self.AbsPrior[7] = self.opstate.SPv8 
+        if self.NModelBins >= 9:
+            self.AbsPrior[8] = self.opstate.SPv9 
+        if self.NModelBins >= 10:
+            self.AbsPrior[9] = self.opstate.SPv10
+            
     def get_args(self):
         """
         function to return args as a vector in the form of init_args
@@ -924,8 +962,19 @@ class model_wrapper:
         self.OpticalState = model.OpticalState
         
         #parameters defining chance of identifying a galaxy with magnitude m
-        self.pU_mean = self.OpticalState.id.pU_mean
-        self.pU_width = self.OpticalState.id.pU_width
+        self.pU_meth = self.OpticalState.id.pU_method
+        
+        if self.pU_meth == 0:
+            # soft cuts on max only
+            self.pUfunc = pUgm
+            self.pU_arg1 = self.OpticalState.id.pU_mean
+            self.pU_arg2 = self.OpticalState.id.pU_width
+        else:
+            # hard cuts at min and max
+            self.pUfunc = pUgm_minmax
+            self.pU_arg1 = self.OpticalState.id.pU_min
+            self.pU_arg2 = self.OpticalState.id.pU_max
+        
         
         # specific substate of the model
         self.opstate = model.opstate
@@ -937,6 +986,7 @@ class model_wrapper:
         self.init_app_bins()
         
         self.init_zmapping(zvals)
+        
         
         
     def init_app_bins(self):
@@ -975,10 +1025,13 @@ class model_wrapper:
         """
         
         self.zvals=zvals
+        self.dz = zvals[1] - zvals[0]
+        self.zmin = zvals[0]
+        self.zmax = self.zvals[-1]
+        self.nz = zvals.size
         
         # we aim to produce a grid of p(z,m_r) for rapid convolution 
         # with a p(z) array
-        self.nz = zvals.size
         
         p_mr_z = np.zeros([self.NAppBins,self.nz])
         
@@ -995,13 +1048,139 @@ class model_wrapper:
         
         # records that this has been initialised
         self.ZMAP = True
-     
-    #############################################################
-    ##################    Path Calculations    #################
-    #############################################################
     
+    def gen_mc_mr(self,zvals):
+        """
+        Generates random samples of apparent magnitudes given redshifts
+        This works fine at high redshifts, but for very low values,
+        we should use a different method, by shifting the distributions
+        according to the luminosity distance
+        
+        Args:
+            zvals (float or np.ndarray of floats): redshifts of hosts
+        
+        Returns:
+            mr: apparent host magnitudes
+        
+        """
+        nmc = len(zvals)
+        
+        # randomly generate m_r
+        probs = np.random.rand(nmc)
+        
+        temp = np.zeros([self.NAppBins+1])
+        mrs = np.zeros([nmc])
+        for i,p in enumerate(probs):
+            # because the cumulative sum begins at zero at the left-hand bins
+            # pzs is the probability *in* the bin - hence, the cumulative
+            # value applies at the right-hand-side
+            
+            pmz = self.get_pm_g_z(zvals[i])
+            cpmz = np.cumsum(pmz)
+            cpmz /= cpmz[-1]
+            temp[1:] = cpmz
+            # interpolates magnitude
+            mag = np.interp(p,temp,self.AppBins)
+            mrs[i] = mag
+            
+        return mrs
+        
+    def get_pz_g_mr(self,mr,z=None):
+        """
+        Calculates probability of a given z-value given a magnitude
+        
+        Args:
+            mr: r-band magnitude of galaxy
+            z(float,  optional): z-value (if known) of galaxy
+        
+        Returns:
+            if z is specified: values of p(z|mr) at z
+            if z not specified: distribution p(z|mr) for self.zvals
+        """
+        
+        # intepolate linearly between magnitude bins
+        # note that self.AppMags are bin *edges*
+        # still use these for bins: if from 0.5 to 1.5, this is linear between
+        # bins 0 and 1
+        im1 = int(0.5+(mr - self.Appmin)/self.dAppmag) # bin middle
+        im2 = im1+1
+        k2 = (mr - self.AppMags[im1])/self.dAppmag
+        k1 = 1.-k2
+        
+        # get slice through p(mr|z) space
+        pmgz = self.p_mr_z[im1,:] * k1 + self.p_mr_z[im2,:]*k2
+        # get joint distribution, albeit along this axis only
+        pmz = pmgz * self.pz
+        # now normalise, but dividing by p(m)
+        pm = np.sum(pmz)
+        if pm > 0:
+            pzgm = pmz / pm
+        else:
+            pzgm = np.zeros(pmz.shape)
+        
+        bad = np.where(pzgm < 0.)[0]
+        if len(bad) > 0:
+            pzgm[bad] = 1.e-5
+            pzgm /= np.sum(pzgm)
+        
+        if z is not None:
+            # linear interpolation
+            iz1 = int((z-self.zvals[0])/self.dz)
+            iz2 = iz1+1
+            kz2 = (z-self.zvals[iz1])/self.dz
+            kz1 = 1.-kz2
+            pz = pzgm[iz1]*kz1 + pzgm[iz2]*kz2
+            # normalise to "per z"
+            pz /= self.dz # so that the integral comes to unity
+            if pz <= 0.:
+                pz = 1.e-5 # random small number. Hopefully small enough?
+            return pz
+        else:
+            return pzgm
     
-    def init_path_raw_prior_Oi(self,DM,grid):
+    def get_pm_g_z(self,z,mr=None):
+        """
+        Calculates probability of given magnitudes given z
+        
+        Args:
+            z(float): z-value (if known) of galaxy
+            
+            mr(float,optional): calculate z at these magnitudes if provided
+        
+        Returns:
+            p(z|m)
+        """
+        
+        # linear interpolation
+        if z >= self.zmax:
+            if mr is None:
+                return np.zeros([self.NAppBins])
+            else:
+                return 0.
+        iz1 = int((z-self.zvals[0])/self.dz)
+        iz2 = iz1+1
+        kz2 = (z-self.zvals[iz1])/self.dz
+        kz1 = 1.-kz2
+        pmgz = self.p_mr_z[:,iz1] * kz1 + self.p_mr_z[:,iz2] * kz2
+        pmgz /= np.sum(pmgz)
+        pmgz /= self.dAppmag
+        
+        if mr is not None:
+            # intepolate linearly between magnitude bins
+            # note that self.AppMags are bin *edges*
+            # still use these for bins: if from 0.5 to 1.5, this is linear between
+            # bins 0 and 1
+            im1 = int(0.5+(mr - self.Appmin)/self.dAppmag) # bin middle
+            im2 = im1+1
+            k2 = (mr - self.AppMags[im1])/self.dAppmag
+            k1 = 1.-k2
+            
+            # get slice through p(mr|z) space
+            pmgz = pmgz[im1] * k1 + pmgz[im2,:]*k2
+        
+        return pmgz
+        
+    def init_path_raw_prior_Oi(self,DM,grid=None,pz=None):
         """
         Initialise the apparent magnitude prior for a single FRB DM.
 
@@ -1023,33 +1202,66 @@ class model_wrapper:
         pointed at ``self.path_raw_prior_Oi``.
 
         Args:
-            DM (float): extragalactic dispersion measure of the FRB (pc cm⁻³).
+            DM (float): extragalactic dispersion measure of the FRB (pc cm^-3).
             grid (Grid): initialised zdm grid object providing p(z, DM).
+            pz (np float array): precalculated set of priors p(z|frb).
+            
+            At least one of grid or pz must be set
         """
-        
-        # we start by getting the posterior distribution p(z)
-        # for an FRB with DM DM seen by the 'grid'
-        pz = get_pz_prior(grid,DM)
+          
+        if pz is None:
+            if grid is None:
+                raise ValueError("Require one of grid or pz to be set!")
+            
+            # we start by getting the posterior distribution p(z)
+            # for an FRB with DM DM seen by the 'grid'
+            pz = get_pz_prior(grid,DM)
+        oldpz = np.copy(pz)
         
         # checks that pz is normalised
         pz /= np.sum(pz)
         
-        priors = np.sum(self.p_mr_z * pz,axis=1) # sums over z
+        # save pz for later
+        self.pz = pz
+        
+        # p_mr_z is initialised via init_zmapping. This creates a
+        # joint 2D distribution in mr and z
+        self.pmrz = self.p_mr_z * pz
+        
+        priors = np.sum(self.pmrz,axis=1) # sums over z
         
         # stores knowledge of the DM used to calculate the priors
         self.prior_DM = DM
         self.raw_priors = priors
         
-        pU = pUgm(self.AppMags,self.pU_mean,self.pU_width)
+        pU = self.pUfunc(self.AppMags,self.pU_arg1,self.pU_arg2)
+        #pU = pUgm(self.AppMags,self.pU_mean,self.pU_width)
         
+        # this calculation acts in 1D - over magnitude
         self.priors = self.raw_priors * (1.-pU)
         self.PUdist = self.raw_priors * pU
-        self.PU = np.sum(self.PUdist)
+        self.PU = np.sum(self.PUdist) # sum is over magnitude
+        
+        # sums over magnitude axis to give p(z|unseen)
+        self.pzgU = np.sum(self.pmrz.T*pU,axis=1)
+        self.pzgU /= np.sum(self.pzgU)
         
         # sets the PATH user function to point to its own
         pathpriors.USR_raw_prior_Oi = self.path_raw_prior_Oi
         
         #return priors
+    
+    def get_pz_g_U(self):
+        """
+        returns redshift distribution given the true host is unseen
+        
+        Args:
+            None
+            
+        Returns:
+            pzgU (np.ndarray): probability distribution in redshift.
+        """
+        return self.pzgU
     
     def get_posterior(self, grid, DM):
         """
@@ -1084,7 +1296,7 @@ class model_wrapper:
             papps = self.maghist*pz
         
         
-        return papps,pz    
+        return papps,pz
     
     
     def estimate_unseen_prior(self):
@@ -1101,26 +1313,13 @@ class model_wrapper:
             the visible magnitudes, and subtracting them from unity. 
         
         args:
-            mag_limit (float): maximum observable magnitude of host galaxies
+            None. P(U) will already have been computed
         
         returns:
             PU (float): probability PU of true hist being unseen in the optical
                             image.
         
         """
-        
-        # smooth cutoff
-        #pU_g_mr = pogm(self.AppMags,mean,width)
-        
-        # simple hard cutoff - now redundant
-        #invisible = np.where(self.AppMags > mag_limit)[0]
-        
-        #PU = np.sum(pU_g_mr * self.priors)
-        
-        #PU = np.sum(self.priors[invisible])
-        
-        # we now pre-calculate this at the init raw path prior stage
-        #PU = np.sum(self.PU)
         
         return self.PU
     
@@ -1157,16 +1356,6 @@ class model_wrapper:
             kmag2 -= imag1 #residual; float
             kmag1 = 1.-kmag2
             
-            # careful with interpolation - priors are for magnitude bins
-            # with bin edges give by Appmin + N dAppmag.
-            # We probably want to smooth this eventually due to minor
-            # numerical tweaks
-            
-            #kmag2 -= imag1
-            #kmag1 = 1.-kmag2
-            #imag2 = imag1+1
-            #prior = kmag1*self.priors[imag1] + kmag2*self.priors[imag2]
-            
             # simple linear interpolation
             Oi = self.priors[imag1] * kmag1 + self.priors[imag2] * kmag2
             
@@ -1179,8 +1368,6 @@ class model_wrapper:
         Ois = np.array(Ois)
         return Ois
         
-        
-    
     def path_raw_prior_Oi(self,mags,ang_sizes,Sigma_ms):
         """
         Function to pass to astropath module
@@ -1208,6 +1395,11 @@ class model_wrapper:
         
         """
         
+        # this is for test purposes only
+        if "ZDM_CORRECT_DRIVER_FLAG" in os.environ:
+            if os.environ["ZDM_CORRECT_DRIVER_FLAG"] == "True":
+                Sigma_ms *= (1.03 + 4.26 * np.exp(14.0-mags))
+        
         ngals = len(mags)
         Ois = []
         for i,mag in enumerate(mags):
@@ -1225,11 +1417,6 @@ class model_wrapper:
             # We probably want to smooth this eventually due to minor
             # numerical tweaks
             
-            #kmag2 -= imag1
-            #kmag1 = 1.-kmag2
-            #imag2 = imag1+1
-            #prior = kmag1*self.priors[imag1] + kmag2*self.priors[imag2]
-            
             # simple linear interpolation
             Oi = self.priors[imag1] * kmag1 + self.priors[imag2] * kmag2
             
@@ -1238,17 +1425,225 @@ class model_wrapper:
             Oi /= self.dAppmag 
             
             # modify sigma_ms by P(m|O)
-            pogm = (1.-pUgm(mag,self.pU_mean,self.pU_width))
+            pogm = 1.-self.pUfunc(mag,self.pU_arg1,self.pU_arg2)
+            #pogm = 1.-pUgm(mag,self.pU_mean,self.pU_width)
             numerator = Sigma_ms[i] * pogm
-            Oi /= numerator # normalise by host counts
-            
+            if numerator > 0.:
+                Oi /= numerator # normalise by host counts
+            else:
+                raise ValueError("Impossible galaxy found, please revise P(O|m) for mag ",mag,
+                                    "having chance of observation ",pogm)
             Ois.append(Oi)
         
         Ois = np.array(Ois)
+        
         return Ois
+
+class Field:
+    """
+    Model class for calculating p(z|m_r) for field galaxies
     
-
-
+    It is independent of all zDM calculations and optical properties,
+    hence required no input to initialise.
+    
+    Based on calculations from Nick Loudas
+       
+    """
+    def __init__(self):
+        """
+        Initialises model wrapper.
+        
+        
+        Args:
+            None
+            
+        """
+        # checks that cosmology is initialised. Need this for p(z)
+        if not cos.INIT:
+            cos.init_dist_measures()
+        
+        # initialises field galaxy data
+        self.init_p_mr_field()
+        
+        # calculates pz given mr
+        self.init_pzgmr()
+        
+    def init_pzgmr(self):
+        """
+        Initialises p(z|m) distribution from p(m,r) diustribution
+        
+        Assumes p(z) follows the volume of the Universe
+        """
+        
+        # dimensions are nz x nrmag
+        # calculate p(mrz) by multiplying p_mr_gz by p(z) \propto volume
+        self.volumes = cos.dv(self.zvals)
+        self.pmrz = ((self.p_mr_field.T)*self.volumes).T
+        
+        # produces p(z|mr) for every value of mr by simply normalising by the
+        # sum over mr
+        self.pm = np.sum(self.pmrz,axis=0) # sums over the z azis
+        
+        # added check against divide by zero
+        thesum = np.sum(self.pmrz,axis=0)
+        self.pzgmr = np.copy(self.pmrz)
+        OK = np.where(thesum > 0.)[0]
+        self.pzgmr[:,OK] /= thesum[OK]
+        
+        # smooth the distribution
+        hs = 2 # half width of filter, excluding centre
+        ts = 2*hs+1 # total width of filter
+        # replace central values
+        temp = np.copy(self.pzgmr)
+        
+        # we thus begin with hs moving left, and hs moving right
+        for i in np.arange(hs):
+            self.pzgmr[:self.nzbins-i-1,:] += temp[i+1:self.nzbins,:]
+        
+        # we thus begin with hs moving left, and hs moving right
+        for i in np.arange(hs):
+            self.pzgmr[i+1:self.nzbins,:] += temp[:self.nzbins-i-1,:]
+        
+        # renormalise
+        norm = np.full([self.nzbins],ts)
+        norm[0:hs] -= (np.arange(hs)+1)[::-1]
+        norm[-hs:] -= np.arange(hs)+1
+        
+        self.pzgmr = (self.pzgmr.T/norm).T
+        
+    def get_pzgm(self,m,z=None):
+        """
+        Samples from the pzgm distribution of field galaxies. Linear interpolation
+        
+        Args:
+            m (float): magnitude at which to return p(z|m)
+            z (optional, float): redshift value at which to perform
+                            calculation. If not present, full p(z|m)
+                            distribution is returned.
+        """
+        
+        i1 = int((m-self.rmags[0])/self.drmag)
+        i2 = i1+1
+        
+        if i1 < 0 or i1 > self.rmags.size-2:
+            raise ValueError("Rmag value ",m," outside of range ",self.rmags[0],"-",self.ramgs[-1])
+            
+        k2 = (m-self.rmags[i1])/self.drmag
+        k1 = 1.-k2
+        
+        pz = self.pzgmr[:,i1]*k1 + self.pzgmr[:,i2]*k2
+        
+        # normalises such that the integral is unity
+        pz /= self.dz
+        
+        if z is not None:
+            pz = np.interp(z,self.zvals,pz)
+            if pz <= 0.:
+                pz = 1.e-8 #hard-coded minimum
+        else:
+            toolow = np.where(pz <= 0.)[0]
+            if len(toolow) > 0:
+                pz[toolow] = 1.e-8
+        
+        return pz
+        
+    def init_p_mr_field(self):
+        """
+        Intialises data to calculate probability of field galaxy z|mr
+        
+        CHECK: is Fnzbins size-1 correct? These are not 'bins', they are
+        # calculated at specific values
+        
+        p_mr_field has dimensions nz,nrmag
+        """
+        
+        data_dir = os.path.join(resources.files('zdm'), 'data', 'optical')
+        zvals, rmag_centres, p_mr_unweighted = self.load_p_mr_field(data_dir)
+        
+        # zbins represent ranges. We also calculate z-bin centres
+        # "F" stands for field. Prefixing everything with this to avoid potential
+        # naming conflicts
+        self.drmag = rmag_centres[1] - rmag_centres[0]
+        self.zvals = zvals
+        self.zmin = zvals[0]
+        self.dz = zvals[1]-zvals[0]
+        self.nzbins = zvals.size
+        self.logzbins = np.log10(zvals)
+        self.rmags = rmag_centres # centres of rmag bins
+        self.p_mr_field = p_mr_unweighted # sfr-weighted p_mr. Dimensions: nz x nrmag
+    
+    def extrapolate_p_mr_field(self,newnz):
+        """
+        Extrapolates the p(mr|z) distribution based on luminosity distance alone
+        """
+        
+        oldnz = self.nzbins
+        nz = oldnz + newnz
+        zmin = self.zvals[0]
+        zmax = self.dz * (nz-1) + zmin
+        
+        # new z values
+        newzvals = np.linspace(zmin,zmax,nz)
+        
+        # new array
+        nrmag = self.rmags.size
+        new_p_mr_field = np.zeros([nz,nrmag])
+        new_p_mr_field[:oldnz,:] = self.p_mr_field
+        
+        # luminosity distances
+        lds = cos.dl(newzvals)
+        ld0 = lds[oldnz-1]
+        dmags = 5.*np.log10(lds/ld0)
+        
+        for i in np.arange(newnz):
+            pmr_lastz = interp1d(self.rmags,self.p_mr_field[-1,:])
+            newi = i+oldnz
+            newmags = self.rmags-dmags[newi]
+            # only ask for values it can find. Everything else set to zero.
+            OK = np.where(newmags >= self.rmags[0])[0]
+            new_p_mr_field[newi,OK] = pmr_lastz(newmags[OK])
+        
+        # store new values    
+        self.zvals=newzvals
+        self.p_mr_field = new_p_mr_field
+        self.nzbins = nz
+        
+        # re-initialise
+        self.init_pzgmr()
+        
+    def load_p_mr_field(self,data_dir,verbose=False,
+                    fname: str = 'p_mr_distributions_dz0.01_z_in_0_2.0.h5') -> tuple:
+        """
+        This code originally written by Nick Loudas. Used with permission
+        
+        Load the p(mr|z) distributions from an HDF5 file, for field galaxies
+        
+        Args:
+            fname (str): Input filename.
+            output_dir (str): Directory where the file is stored. Optional (otherwise defaults as below)
+        
+        Returns:
+            zbins (np.array): Redshift bin edges.
+            rmag_centers (np.array): Centers of r-band magnitude bins.
+            p_mr_unweighted (np.array): p(mr|z) for unweighted (field) population. Shape: (len(zbins) - 1,
+                    rmag_resolution). rmag_resolution(=len(rmag_centers)) is fixed across redshift bins.
+            
+        Note:
+            The PDF in m_r within a given redshift bin [z1,z2] has been computed at the right edge of the bin (z = z2).
+        """
+        infile = os.path.join(data_dir,fname)
+        with h5py.File(infile, 'r') as hf:
+            zbins = np.array(hf['zbins'])
+            zbins = zbins[1:] # first bin is extra because computation is at right-hand edge of bin
+            rmag_centers = np.array(hf['rmag_centers'])
+            p_mr_unweighted = np.array(hf['p_mr_unweighted'])
+            
+            # normalise these probabilities such that the bins sum to unity
+            p_mr_unweighted = (p_mr_unweighted.T / np.sum(p_mr_unweighted,axis=1)).T
+        
+        if verbose:
+            print(f"p(mr|z) distributions loaded successfully from 'p_mr_dists/{fname}'")
+        return zbins, rmag_centers, p_mr_unweighted
 
 ################# Useful functions not associated with a class #########
 
@@ -1290,8 +1685,8 @@ def get_pz_prior(grid, DM):
     kdm2 = (DM - dm1)/ddm
     kdm1 = 1.-kdm2
     
-    # calculate p(z) based on interpolating grid.rates
-    pz = kdm1 * grid.rates[:,idm1] + kdm2 * grid.rates[:,idm2]
+    # calculate p(z) based on interpolating grid FRB rates in z-DM space
+    pz = kdm1 * grid.get_rates()[:,idm1] + kdm2 * grid.get_rates()[:,idm2]
     pz = pz/np.sum(pz,axis=0)
     return pz
 
@@ -1381,7 +1776,7 @@ def SimplekAbsoluteMags(App,k,zs):
     dMag = 2.5*np.log10((lds/dabs)**(2)) + dk
     
     
-    if np.isscalar(zs) or np.isscalar(Abs):
+    if np.isscalar(zs) or np.isscalar(App):
         # just return the product, be it scalar x scalar,
         # scalar x array, or array x scalar
         # this also ensures that the dimensions are as expected
@@ -1393,10 +1788,10 @@ def SimplekAbsoluteMags(App,k,zs):
         temp1 = 10**App
         temp2 = 10**-dMag
         AbsoluteMags = np.outer(temp1,temp2)
-        AbsoluteMags = np.log10(ApparentMags)
+        AbsoluteMags = np.log10(AbsoluteMags)
     return AbsoluteMags
 
-def SimpleAbsoluteMags(App,zs):
+def SimpleAbsoluteMags(App,zs,outer=False):
     """
     Convert apparent to absolute magnitudes using the distance modulus only.
 
@@ -1424,19 +1819,21 @@ def SimpleAbsoluteMags(App,zs):
     dMag = 2.5*np.log10((lds/dabs)**(2))
     
     
-    if np.isscalar(zs) or np.isscalar(Abs):
-        # just return the product, be it scalar x scalar,
-        # scalar x array, or array x scalar
-        # this also ensures that the dimensions are as expected
-        
-        AbsoluteMags = App - dMag
-    else:
+    if outer:
         # Convert to multiplication so we can use
         # numpy.outer
         temp1 = 10**App
         temp2 = 10**-dMag
         AbsoluteMags = np.outer(temp1,temp2)
-        AbsoluteMags = np.log10(ApparentMags)
+        AbsoluteMags = np.log10(AbsoluteMags)
+    else:
+    
+        # just return the product, be it scalar x scalar,
+        # scalar x array, or array x scalar
+        # this also ensures that the dimensions are as expected
+        
+        AbsoluteMags = App - dMag
+        
     return AbsoluteMags
 
 def SimpleApparentMags(Abs,zs):
@@ -1559,20 +1956,22 @@ def simplify_name(TNSname):
             (six digits plus optional letter).
     """
     # reduces all FRBs to six integers
-    
-    if TNSname[0:3] == "FRB":
+    if len(TNSname) < 3: # very short - remove this
+        return TNSname
+    elif TNSname[0:3] == "FRB":
         TNSname = TNSname[3:]
     
-    if len(TNSname) == 9:
+    if len(TNSname) == 9: # assumes "20" at the start, and letter at the end - removes it
         name = TNSname[2:-1]
-    elif len(TNSname) == 8:
+    elif len(TNSname) == 8: # assumes there is "20" at the start - removes it
         name = TNSname[2:]
-    elif len(TNSname) == 7:
+    elif len(TNSname) == 7: # assumes there is a letter at the end - removes it
         name = TNSname[:-1]
     elif len(TNSname) == 6:
         name = TNSname
     else:
-        print("Do not know how to process ",TNSname)
+        name = TNSname
+        #print("Do not know how to process ",TNSname)
     return name
 
 def matchFRB(TNSname,survey):
@@ -1675,6 +2074,37 @@ def plot_frb(name,ralist,declist,plist,opfile):
     plt.tight_layout()
     plt.close()
 
+def pUgm_minmax(mag,themin,themax):
+    """
+    Return the probability that a galaxy is undetected as a function of magnitude.
+
+    Models the survey detection completeness as simple min and max cut
+    
+    Args:
+        mag (float or np.ndarray): r-band apparent magnitude(s) at which to
+            evaluate the detection-failure probability.
+        themin (float): magnitude below which p(U) = 1.
+        themax (float): magnitude above which p(U) = 1.
+
+    Returns:
+        pU (float or np.ndarray): probability of non-detection at each
+            magnitude in ``mag``, in the range [0, 1].
+    """
+    
+    if np.isscalar(mag):
+        if mag < themin:
+            pU = 1.
+        elif mag > themax:
+            pU = 1.
+        else:
+            pU = 0.
+    else:
+        pU = np.zeros([mag.size])
+        pU[np.where(mag < themin)[0]] = 1.
+        pU[np.where(mag > themax)[0]] = 1.
+    
+    return pU
+
 def pUgm(mag,mean,width):
     """
     Return the probability that a galaxy is undetected as a function of magnitude.
@@ -1705,5 +2135,3 @@ def pUgm(mag,mean,width):
     pU = 1./(1+np.exp(diff))
     
     return pU
-    
-    

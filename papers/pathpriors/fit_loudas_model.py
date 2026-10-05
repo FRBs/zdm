@@ -100,10 +100,14 @@ def main():
     
     outfile = opdir+"loudas_best_fit_apparent_magnitudes.png"
     wrappers = on.make_wrappers(model,gs)
-    NFRB,AppMags,AppMagPriors,ObsMags,ObsPriors,ObsPosteriors,PUprior,PUobs,sumPUprior,sumPUobs,frbs,dms = on.calc_path_priors(frblist,ss,gs,wrappers,verbose=False)
-    llstat = on.calculate_likelihood_statistic(NFRB,AppMags,AppMagPriors,ObsMags,ObsPosteriors,PUobs,PUprior,plotfile=outfile)
+    results = on.calc_path_priors(frblist,ss,gs,wrappers,verbose=False)
+    
+    llstat = on.calculate_likelihood_statistic(results["NFRB"],results["AppMags"],results["AppMagPriors"],
+                                    results["ObsMags"],results["POx"],results["PUx"],results["PU"],plotfile=outfile)
+    ksstat = on.calculate_ks_statistic(results["NFRB"],results["AppMags"],results["AppMagPriors"],
+                                    results["ObsMags"],results["POx"],
+                                    results["sumPUx"],results["sumPU"],plotfile=outfile,abc="(b)",tag="Loudas25: ",)
     llbest = llstat
-    ksstat = on.calculate_ks_statistic(NFRB,AppMags,AppMagPriors,ObsMags,ObsPosteriors,sumPUobs,sumPUprior,plotfile=outfile)
     
     print("Best-fit stats of the Loudas model are ll=",llstat," ks = ",ksstat)
     
@@ -123,17 +127,17 @@ def main():
         x=[f_sfr]
         model.init_args(x)
         wrappers = on.make_wrappers(model,gs)
-        NFRB,AppMags,AppMagPriors,ObsMags,ObsPriors,ObsPosteriors,PUprior,PUobs,sumPUprior,sumPUobs,frbs,dms = on.calc_path_priors(frblist,ss,gs,wrappers,verbose=False)
-        
-        NFRBlist.append(NFRB)
-        AppMagslist.append(AppMags)
-        AppMagPriorslist.append(AppMagPriors)
-        ObsMagslist.append(ObsMags)
-        ObsPosteriorslist.append(ObsPosteriors)
-        PUpriorlist.append(PUprior)
-        PUobslist.append(PUobs)
-        sumPUpriorlist.append(sumPUprior)
-        sumPUobslist.append(sumPUobs)
+        results = on.calc_path_priors(frblist,ss,gs,wrappers,verbose=False)
+    
+        NFRBlist.append(results["NFRB"])
+        AppMagslist.append(results["AppMags"])
+        AppMagPriorslist.append(results["AppMagPriors"])
+        ObsMagslist.append(results["ObsMags"])
+        ObsPosteriorslist.append(results["POx"])
+        PUpriorlist.append(results["PU"])
+        PUobslist.append(results["PUx"])
+        sumPUpriorlist.append(results["sumPU"])
+        sumPUobslist.append(results["sumPUx"])
     
     NMODELS = 3
     
@@ -154,10 +158,11 @@ def main():
             break
         model.init_args([sfr])
         wrappers = on.make_wrappers(model,gs)
-        NFRB,AppMags,AppMagPriors,ObsMags,ObsPriors,ObsPosteriors,PUprior,\
-        PUobs,sumPUprior,sumPUobs,frbs,dms = on.calc_path_priors(frblist,ss,gs,wrappers,verbose=False)
-        stat = on.calculate_likelihood_statistic(NFRB,AppMags,AppMagPriors,ObsMags,ObsPosteriors,PUobs,
-                        PUprior,plotfile=outfile,POxcut=POxcut)
+        
+        results = on.calc_path_priors(frblist,ss,gs,wrappers,verbose=False)
+        stat = on.calculate_likelihood_statistic(results["NFRB"],results["AppMags"],results["AppMagPriors"],
+                                    results["ObsMags"],results["POx"],results["PUx"],results["PU"],plotfile=outfile,POxcut=POxcut)
+        
         stats[istat] = stat
         dll = 2.*(llbest-stat) * np.log(10) # stat returned in log base 10, needs to be natural log
         p_wilks = 1.-chi2.cdf(dll,1)

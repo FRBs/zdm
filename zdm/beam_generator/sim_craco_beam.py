@@ -239,6 +239,7 @@ def _sim_one_beam(ibeam, xpoints, ypoints, askapbeam, cracobeam, primary ):
     ### primary beam response
     logger.info(f"get primary beam response for beam{ibeam}...")
     primresponse = askapbeam.primary_response(xpoints, ypoints, beamx, beamy, )
+    
     if primary:
         return beamaval * primresponse
     
@@ -287,7 +288,7 @@ def main():
     parser.add_argument("-sb", "--sbeam", help="size of the synthesized beam", type=float, default=40./3600.)
     parser.add_argument("-gs", "--gridsize", help="grid size in the unit of degree", type=float, default=10.)
     parser.add_argument("-gn", "--gridnpix", help="number of pixel in the grid", type=int, default=2560)
-    parser.add_argument("--primary", help="simulate the primary beam only", type=bool, default=False)
+    parser.add_argument("--primary", help="simulate the primary beam only",action='store_true')
     values = parser.parse_args()
     
     footprint=values.footprint
@@ -299,7 +300,6 @@ def main():
     gsize=values.gridsize
     gpix=values.gridnpix
     primary=values.primary
-            
     opfile = f"./craco_{footprint}_p{pitch:.2f}_f{freq:.1f}MHz_f{gsize:.1f}d_npix{gpix}.npy"
     if not os.path.exists(opfile):
         get_craco_allbeams(
