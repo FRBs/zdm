@@ -8,7 +8,7 @@ Sources, in order of precedence:
   1. Host JSONs in the FRB repo (frb/data/Galaxies); the literature values
      are now in the repo (frb/data/Galaxies/Literature; add_frbs.md)
   2. FRBs_base.csv (redshift fall-back, repeater flag, P(O|x))
-  3. public_hosts.csv P_Ox, where FRBs_base.csv has no P(O|x)
+  3. public_hosts.csv P_Ox, where FRBs_base.csv has no P(O|x) (reported, not cut on)
 
 Run in the `astro` env from papers/Mo_Repeaters:
     python py/build_host_table.py
@@ -28,10 +28,8 @@ HOSTS_FILE = os.path.join(GAL_PATH, 'public_hosts.csv')
 this_path = os.path.dirname(os.path.abspath(__file__))
 OUTFILE = os.path.join(this_path, '..', 'CHIME_FRB_hosts.csv')
 
-# Q33: ignore host values for FRBs with a PATH P(O|x) below this
-POX_MIN = 0.9
-# Set to True to drop those rows altogether (instead of blanking host values)
-DROP_LOW_POX = False
+# Q41: no P(O|x) cut is applied; the P_Ox column is reported instead
+#  so the user can choose the cut
 
 # Q12/Q21: CHIME-detected FRBs localized by another instrument (in the base table)
 EXTRA_BASE = ['FRB20121102A', 'FRB20201124A']
@@ -168,13 +166,7 @@ def main():
         pox = b['P(O|x)']
         if not np.isfinite(pox):
             pox = host_pox.get(name, np.nan)
-        if np.isfinite(pox) and pox < POX_MIN:
-            if DROP_LOW_POX:
-                continue
-            refs.append(f'host_ignored:P(O|x)={pox:.3f}<{POX_MIN}')
-            row['Refs'] = ';'.join(refs)
-            rows.append(row)
-            continue
+        row['P_Ox'] = pox
         zref = REF_MAP.get(str(b.refs).split(',')[0], str(b.refs).split(',')[0])
         host = load_host_json(b.Name)
         if host is not None:
@@ -209,7 +201,7 @@ def main():
         row['Refs'] = ';'.join(refs)
         rows.append(row)
 
-    cols = ['TNS_NAME', 'Repeater', 'Redshift', 'Redshift_err', 'Magnitude',
+    cols = ['TNS_NAME', 'Repeater', 'P_Ox', 'Redshift', 'Redshift_err', 'Magnitude',
             'Magnitude_err', 'Mag_flag', 'Band', 'Stellar_Mass', 'Mstar_err',
             'Mstar_source', 'SFR', 'SFR_err', 'SFR_flag', 'SFR_type', 'Refs']
     df = pandas.DataFrame(rows, columns=cols).sort_values('TNS_NAME')

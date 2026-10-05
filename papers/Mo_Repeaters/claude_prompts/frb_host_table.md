@@ -531,3 +531,13 @@ Read the `add_frbs.md` logs (prompts 1–9, Q1–Q13 and the TODO list). The rep
 - **Checked against the TODOs:** 20180814A (ellipse, P_Ox) and 20191106C (Leung mass) are pending outside replies. The draft notes both.
 
 Added Q41 (P(O|x) cut) and Q42 (non-repeater SFRs).
+
+### 2026-10-05 (Answers to Q41/Q42: P_Ox column, draft v2 for Clancy)
+
+- **Q41 (b):** `py/build_host_table.py` no longer cuts on P(O|x).
+  - It writes a `P_Ox` column (third column), taken from `FRBs_base.csv` or else `public_hosts.csv`.
+  - Removed `POX_MIN`/`DROP_LOW_POX` and the `host_ignored:` refs.
+  - Four hosts are now filled in: FRB20190110C (0.779), FRB20200223B (0.899), FRB20230311A (0.774) and FRB20231020A (0.571; Band Pan-STARRS_z, no r-band).
+  - Counts: repeaters 14/16 with z, M* and SFR; non-repeaters 18 with z, 8 with M*, 0 with SFR.
+- **Q42:** no change; non-repeater SFRs stay blank.
+- **README** (`CHIME_FRB_hosts_README.md`, now "DRAFT v2"): updated the sample, counts, `P_Ox` column, priors caveat and Band exception. 20181030A's blank P_Ox is explained as Bhardwaj+2021b's chance-coincidence probability (< 2.5×10⁻³), not PATH.
