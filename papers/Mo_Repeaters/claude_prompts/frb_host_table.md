@@ -41,6 +41,10 @@ Use Opus 5.5. Log your work in the Logs section below.
 6. I have answered your fifth round of questions.  Read them and move on to the other tasks.
 Use Opus 5.5. Log your work in the Logs section below.
 
+7. I have worked through all of the prompts in `add_frbs.md`.  There are a few lingering TODOs, but I think you can proceed to build a draft table for Clancy.
+If you have any additional questions, ask them in the Q&A section below.
+Use Opus 5.5. Log your work in the Logs section below.
+
 ## Missing Repeaters
 
 These are localized CHIME-discovered repeaters that are **not** flagged `repeater=TRUE` in `FRBs_base.csv`. As of Prompt #5, every value below was **verified against the paper PDF** in `papers/` (table, section or page given). Logs are base 10. "Ext?" says whether the paper states that the quoted magnitude is corrected for Galactic extinction.
@@ -353,6 +357,21 @@ Only two of the literature-only hosts state that their r magnitude is extinction
 
 >A. I agree with your choices.
 
+### Round 7 questions (Prompt #7)
+
+**Q41. The P(O|x) ≥ 0.9 cut now removes two spectroscopic repeater hosts.**
+With the Ibik+2024a P(U) = 0.1 values (`add_frbs.md` Q3), FRB20190110C (0.779) and FRB20200223B (0.899) are blanked. The draft therefore has 12 repeaters with a host, not 14. The cut also mixes priors: KKO, Shah, Tian and Hewitt each use their own P(U), and 20180814A has no PATH value at all, so it passes. Options:
+- (a) Keep the cut as is.
+- (b) **Recommended:** add a `P_Ox` column and stop blanking. Clancy then chooses the cut, and the rows show what each value is based on.
+- (c) Use the Ibik P(U) = 0 values (0.918, 0.994) for consistency with the other papers' default priors.
+
+>A. ok, go with (b)
+
+**Q42. No SFRs for the non-repeaters.**
+All 16 non-repeater hosts (KKO) have no SFR, and only 8 have M*. A repeater vs non-repeater comparison is limited to z, magnitude and (partly) M*. Q35 said "blank for now". Is that still fine for the draft going to Clancy, or should the README ask Clancy whether he needs SFRs, which would mean, for example, Hα from the KKO Lick/Keck/Gemini spectra?
+
+>A. Go with what we have for now
+
 ## Logs
 
 ### 2026-10-02 (Prompt #1: surveyed FRB repo, drafted questions)
@@ -485,3 +504,30 @@ Found while writing it: `Literature/bhardwaj2021_derived_FRB20181030A.csv` actua
 **Other edits:**
 - `py/fix_frb20181030A_host.py` now writes `SFR_nebular_err = -998` (lower limit, Q37).
 - The FRB repo is otherwise unchanged: the fix script still needs to be run by the user, and `add_frbs.md` is the only new file there.
+
+### 2026-10-05 (Prompt #7: built the draft table for Clancy)
+
+Read the `add_frbs.md` logs (prompts 1–9, Q1–Q13 and the TODO list). The repo now holds all the literature values. `py/build_host_table.py` (as updated in `add_frbs.md` prompt 9) reads only the repo.
+
+- Reran `py/build_host_table.py`. The output was identical to the CSV from `add_frbs.md` prompt 9.
+- Fixed two small bugs in the script:
+  - A NaN redshift (FRB20190208A) wrote a `z:hostJSON` ref even though no z was used. Now a z is only taken (and referenced) if it is finite.
+  - `sym_err` now returns the flag value for ±999 / −998 errors instead of combining them with real errors, and gives no log error for those.
+  - The only change in the CSV is that `Refs` entry.
+
+**Draft table: `CHIME_FRB_hosts.csv`.**
+- **Sample:** 97 rows, made up of the 95 `telescope == CHIME` rows plus 20121102A and 20201124A.
+  - 16 are repeaters: 12 have z, M* and SFR; 20190208A has a magnitude only; 20181119A has no host; 20190110C and 20200223B are blanked by the P(O|x) cut.
+  - 16 non-repeaters have a host with z. 8 of these have M*, and none has an SFR.
+- **Added `CHIME_FRB_hosts_README.md` for Clancy:** sample definition, columns and flags, tiers, and caveats. The caveats cover:
+  - coverage;
+  - mixed methods and IMFs;
+  - aperture-limited Hα;
+  - the 20191106C mass conflict;
+  - 20200120E/M81;
+  - the 20180814A TODOs;
+  - the 20190303A merger;
+  - catalog magnitudes of large galaxies.
+- **Checked against the TODOs:** 20180814A (ellipse, P_Ox) and 20191106C (Leung mass) are pending outside replies. The draft notes both.
+
+Added Q41 (P(O|x) cut) and Q42 (non-repeater SFRs).
