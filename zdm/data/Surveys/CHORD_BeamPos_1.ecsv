@@ -1,0 +1,27 @@
+# %ECSV 1.0
+# ---
+# datatype:
+# - {name: TNS, datatype: string}
+# - {name: BW, datatype: float64}
+# - {name: DM, datatype: float64}
+# - {name: DMG, datatype: float64}
+# - {name: FBAR, datatype: float64}
+# - {name: FRES, datatype: float64}
+# - {name: Gb, datatype: string, subtype: 'float64[null]'}
+# - {name: Gl, datatype: string, subtype: 'float64[null]'}
+# - {name: SNR, datatype: float64}
+# - {name: SNRTHRESH, datatype: float64}
+# - {name: THRESH, datatype: float64}
+# - {name: TRES, datatype: float64}
+# - {name: WIDTH, datatype: float64}
+# - {name: XC, datatype: string}
+# - {name: XDec, datatype: string}
+# - {name: XRA, datatype: string}
+# - {name: Z, datatype: float64}
+# meta: !!omap
+# - {survey_data: "{\n    \"observing\": {\n        \"NORM_FRB\": 0,\n        \"TOBS\": 1\n    },\n \
+#   \"telescope\": {\n     \"BEAM\": \"IGNORE\",\n        \"DIAM\": 48,\n        \"BMETHOD\": 0,\n  \
+#      \"FBAR\": 900.0,\n        \"NBEAMS\": 1,\n        \"TRES\": 1.0,\n        \"FRES\": 0.0375,\n  \
+#      \"BW\": 1200,\n        \"BTHRESH\": 0.001,\n    \"THRESH\": 5,\n        \"NBINS\": 10\n    }\n}"}
+# schema: astropy-2.0
+TNS BW DM DMG FBAR FRES Gb Gl SNR SNRTHRESH THRESH TRES WIDTH XC XDec XRA Z
