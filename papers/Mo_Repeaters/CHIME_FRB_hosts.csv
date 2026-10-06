@@ -1,6 +1,6 @@
 TNS_NAME,Repeater,P_Ox,Redshift,Redshift_err,Magnitude,Magnitude_err,Mag_flag,Band,Stellar_Mass,Mstar_err,Mstar_source,SFR,SFR_err,SFR_flag,SFR_type,Refs
 FRB20121102A,True,1,0.19273,,23.7306,0.14,0,GMOS_N_r,8.14,0.095,Prospector:Gordon2023,0.131768,,0,nebular,z:hostJSON(Tendulkar2017);mag:GMOS_N_r(Bassa2017);Mstar:Prospector:Gordon2023;SFR:nebular(repo)
-FRB20180814A,True,,0.06835,,16.7168,0.004363,0,Pan-STARRS_r,10.78,0.15,Prospector:Michilli2023,0.316228,,1,SED,z:hostJSON(Michilli2023);mag:Pan-STARRS_r(repo);Mstar:Prospector:Michilli2023;SFR:SED(Michilli2023)
+FRB20180814A,True,0.34,0.06835,,16.7168,0.004363,0,Pan-STARRS_r,10.78,0.15,Prospector:Michilli2023,0.316228,,1,SED,z:hostJSON(Michilli2023);mag:Pan-STARRS_r(repo);Mstar:Prospector:Michilli2023;SFR:SED(Michilli2023)
 FRB20180916B,True,1,0.0337,,17.0725,0.033298,0,Pan-STARRS_r,9.91,0.04,Prospector:Gordon2023,0.056232,,0,nebular,z:hostJSON(Marcote2020);mag:Pan-STARRS_r(repo);Mstar:Prospector:Gordon2023;SFR:nebular(repo)
 FRB20181030A,True,,0.0039,,12.5831,0.01,0,DECaL_r,9.76343,0.144724,Prospector:Bhardwaj2021b,0.36,0.08,0,UV+IR,z:hostJSON(Bhardwaj2021b);mag:DECaL_r(Bhardwaj2021b);Mstar:Prospector:Bhardwaj2021b;SFR:UV+IR(Bhardwaj2021b)
 FRB20181119A,True,,,,,,,,,,,,,,,
@@ -8,7 +8,7 @@ FRB20190110C,True,0.779,0.12244,,17.992,0.00550424,0,DECaL_r,10.3979,0.0238087,P
 FRB20190208A,True,0.9995,,,27.1717,0.16,0,GTC_OSIRIS_r,,,,,,,,mag:GTC_OSIRIS_r(Hewitt2024)
 FRB20190303A,True,0.976179,0.0644,,15.3596,0.00089288,0,DECaL_r,10.75,0.03,Other:SDSS:Michilli2023,6.91831,0.638101,0,SDSS,"z:hostJSON(CHIME/FRB+2025(ApJS280,6));mag:DECaL_r(repo);Mstar:Other:SDSS:Michilli2023;SFR:SDSS(Michilli2023_SDSS)"
 FRB20190417A,True,1,0.12817,,22.2553,0.06,0,GMOS_N_r,7.88,0.13,Prospector:Moroianu2025,0.19,0.01,0,nebular,z:hostJSON(Moroianu2025);mag:GMOS_N_r(Moroianu2025);Mstar:Prospector:Moroianu2025;SFR:nebular(Moroianu2025)
-FRB20191106C,True,0.984675,0.1079,,17.2628,0.00284247,0,DECaL_r,9.47,0.16,Photometric:CIGALE:Leung2025b,1.53,,0,nebular,"z:hostJSON(CHIME/FRB+2025(ApJS280,6));mag:DECaL_r(repo);Mstar_alt:10.65(Chang+2015 via Ibik+2024a);Mstar:Photometric:CIGALE:Leung2025b;SFR:nebular(Ibik2024a)"
+FRB20191106C,True,0.984675,0.1079,,17.2628,0.00284247,0,DECaL_r,10.43,0.13,Photometric:CIGALE:Leung2025b,1.53,,0,nebular,"z:hostJSON(CHIME/FRB+2025(ApJS280,6));mag:DECaL_r(repo);Mstar:Leung2025b_Table1_typo_corrected(C.Leung,priv.comm.);Mstar:Photometric:CIGALE:Leung2025b;SFR:nebular(Ibik2024a)"
 FRB20200120E,True,0.99999,0.0008,,7.62011,0.000171629,0,DECaL_r,10.8573,0.104514,Other:Bhardwaj2021,0.89,0.27,0,nebular,z:hostJSON(Bhardwaj2021);mag:DECaL_r(repo);Mstar:Other:Bhardwaj2021;SFR:nebular(Bhardwaj2021)
 FRB20200223B,True,0.899,0.06024,,15.9744,0.00117669,0,DECaL_r,10.7482,0.0796715,Prospector:Ibik2024a,0.59,0.04,0,SED,z:hostJSON(CHIME2023);mag:DECaL_r(repo);Mstar:Prospector:Ibik2024a;SFR:SED(Ibik2024a)
 FRB20201124A,True,1,0.0979,,17.865,0.029,0,Pan-STARRS_r,10.22,0.05,Prospector:Gordon2023,2.1,0.5,0,nebular,z:hostJSON(Kumar2021);mag:Pan-STARRS_r(Gordon2023);Mstar:Prospector:Gordon2023;SFR:nebular(Fong2021)

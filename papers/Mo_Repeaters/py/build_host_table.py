@@ -45,8 +45,8 @@ REF_SUFFIX = {'_CIGALE': ('Photometric', 'CIGALE'),
               '_NEDLVS': ('Other', 'NED-LVS'),
               '_SDSS': ('Other', 'SDSS')}
 
-# Notes added to Refs (Q38; add_frbs.md Q11)
-NOTES = {'FRB20191106C': 'Mstar_alt:10.65(Chang+2015 via Ibik+2024a)'}
+# Notes added to Refs (add_frbs.md Q11, prompt 10)
+NOTES = {'FRB20191106C': 'Mstar:Leung2025b_Table1_typo_corrected(C.Leung,priv.comm.)'}
 
 # Mag ranking (Q18): pointed > DECaL/DELVE/DES > Pan-STARRS > SDSS
 POINTED = ['WFC3_F606W', 'LRISr_R', 'VLT_FORS2_R', 'GMOS_S_r', 'GMOS_N_r',
