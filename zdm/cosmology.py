@@ -45,6 +45,7 @@ import astropy.units as u
 from astropy.cosmology import Planck18 as P18cosmo
 from astropy.cosmology import z_at_value
 from scipy.interpolate import interp1d
+from scipy.stats import skewnorm
 
 
 
@@ -695,15 +696,6 @@ def powerlaw_DTD_evolution(z,*params):
     dtdz = (1.0 / (H(z_grid) * (1.0 + z_grid)))*(1/(u.km/u.s/u.Mpc)).to(u.yr).value
     dtdz_interp = interp1d(z_grid, dtdz)
 
-    # make lookback time grid to evaluate, uniform in lookback time
-    tL_arr = np.linspace(P18cosmo.lookback_time(0.001).to(u.Gyr).value, P18cosmo.lookback_time(20.0).to(u.Gyr).value, 1000)
-
-    # get corresponding redshifts to linear lookback time grid
-    z_from_tL_vals = []
-    for tlb in tL_arr:
-        z_from_tL_vals.append(z_at_value(P18cosmo.lookback_time, tlb*(u.Gyr)))
-    z_from_tL_vals = np.asarray(z_from_tL_vals)
-
     # set up powerlaw
     def powerlaw(t_d, alpha, t_min, t_max):
     
@@ -741,6 +733,51 @@ def powerlaw_DTD_evolution(z,*params):
         
         # do integration from zprime=infinity (aka max z_grid) to zprime = passed z array values
         n[i] = integrate.quad(integrand, z_val, max(z_grid))[0] # [Mpc^-3 yr^-1]
+
+    return float(n[0]) if scalar_z else n
+
+def GC_DTD_evolution(z,*params):
+    ''' 
+    Function to parameterize the white dwarf merger rate density
+    from Kremer+23a assuming a Gaussian and skew Gaussian. 
+    
+    Parameters
+    ----------
+    z : float [dimensionless]
+        Redshift
+    *params : floats
+        Optional parameters to pass to function, none explicitly required
+
+    Returns
+    -------
+    n : float
+        Relative source density at redshift z [formally Mpc^-3 yr^-1]
+    '''
+
+    # handle scalar or array z
+    scalar_z = np.isscalar(z)
+    z_arr = np.atleast_1d(z)
+
+    # define curve parameters
+    A1 = 4.00453    # Amplitude of the Gaussian component centered at z=0.
+    sigma1 = 0.30564    #  Width of the Gaussian component centered at z=0.
+    A2 = 23.973 # Amplitude scaling for the skew-normal component.
+    mu2 = 1.5   # Location parameter of the skew-normal component, near the second peak.
+    sigma2 = 4.21046    # scale parameter controlling the width of the skew-normal component.
+    alpha2 = 5.1927 # Shape parameter controlling the skewness of the second peak.
+    c = -0.389043   # Constant baseline offset added to both components.
+
+    def curve(zz):
+        zz = np.asarray(zz, dtype='float')    
+        # define gaussians
+        peak1 = A1 * np.exp(-0.5 * (zz / sigma1)**2)
+        peak2 = A2 * skewnorm.pdf(zz, a=alpha2, loc=mu2, scale=sigma2)
+
+        # combine curves
+        return peak1 + peak2 + c
+
+    # clip to avoid issues with negative c
+    n = np.clip(curve(z_arr), 0.0, None)
 
     return float(n[0]) if scalar_z else n
 

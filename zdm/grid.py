@@ -355,6 +355,9 @@ class Grid:
         elif self.state.FRBdemo.source_evolution == 2:
             self.sfr=self.source_function(self.zvals, self.state.FRBdemo.pl_alpha, 
                                           self.state.FRBdemo.pl_tmin, self.state.FRBdemo.pl_tmax)
+        # add WD-WD GC merger rate if 3
+        elif self.state.FRBdemo.source_evolution ==3:
+            self.sfr=self.source_function(self.zvals, self.state.FRBdemo.sfr_n) # may not need to pass sfr_n?
         if self.state.FRBdemo.alpha_method==1:
             self.sfr *= (1.0 + self.zvals)**(-self.state.energy.alpha) #reduces rate with alpha
 
