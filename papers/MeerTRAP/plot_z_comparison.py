@@ -1,5 +1,5 @@
 """ 
-This script creates a redshift comparison figure of MeerTRAP,
+This script creates a redshifty comparison figure of MeerTRAP,
 ASKAP/CRACO (estimates), DSA, and CHIME
 
 
@@ -60,7 +60,7 @@ def main():
     
     # Initialise surveys and grids
     sdir = os.path.join(resource_filename('zdm', 'data'), 'Surveys')
-    names=["MeerTRAPcoherent","DSA","CRAFT_average_ICS"]
+    names=["MeerTRAPcoherent","MeerTRAPincoherent","DSA","CRAFT_ICS_1300", "FAST"]
     
     state = parameters.State()
     state.set_astropy_cosmo(Planck18)
@@ -113,6 +113,8 @@ def main():
     # defines CHIME grids to load
     NDECBINS=6
     cnames=[]
+    chime_Zs = np.array([])
+    chime_DMs = np.array([])
     for i in np.arange(NDECBINS):
         cname="CHIME_decbin_"+str(i)+"_of_6"
         cnames.append(cname)
@@ -132,92 +134,172 @@ def main():
             crates += g.rates * 10**g.state.FRBdemo.lC * s.TOBS
             creps += g.exact_reps * g.state.rep.RC
             csingles += g.exact_singles * g.state.rep.RC
-
+        chime_Zs = np.append(chime_Zs, css[i].Zs[css[i].zlist])
+        chime_DMs = np.append(chime_DMs, css[i].DMEGs[css[i].zlist])
+    print("CHIME_Zs", chime_Zs)
+    print("CHIME_DMs", chime_DMs)
 
     ###### Get list of z and dm for DSA, CRAFT and CHIME localised FRBs #####
     ICS_names=["CRAFT_ICS_892", "CRAFT_ICS_1632"]
     ics_ss, ics_gs = loading.surveys_and_grids(survey_names=ICS_names, init_state=state)
 
-    dsa_Zs = ss[1].Zs[ss[1].zlist]
-    dsa_DMs = ss[1].DMEGs[ss[1].zlist]
+    dsa_Zs = ss[2].Zs[ss[2].zlist]
+    dsa_DMs = ss[2].DMEGs[ss[2].zlist]
 
-    ics_Zs = np.array([ss[2].Zs[ss[2].zlist].tolist() + ics_ss[0].Zs[ics_ss[0].zlist].tolist() + ics_ss[1].Zs[ics_ss[1].zlist].tolist()])
-    ics_DMs = np.array([ss[2].DMEGs[ss[2].zlist].tolist() + ics_ss[0].DMEGs[ics_ss[0].zlist].tolist() + ics_ss[1].DMEGs[ics_ss[1].zlist].tolist()])
+    ics_Zs = np.array([ss[3].Zs[ss[3].zlist].tolist() + ics_ss[0].Zs[ics_ss[0].zlist].tolist() + ics_ss[1].Zs[ics_ss[1].zlist].tolist()])
+    ics_DMs = np.array([ss[3].DMEGs[ss[3].zlist].tolist() + ics_ss[0].DMEGs[ics_ss[0].zlist].tolist() + ics_ss[1].DMEGs[ics_ss[1].zlist].tolist()])
     
 
     ###### plots MeerTRAP zDM figure ###########
-    Zs = [np.array([2.148]), dsa_Zs, None, ics_Zs]
-    DMs = [np.array([2398.03]), dsa_DMs, None, ics_DMs]
-    point_labels = ["FRB 20240304B", None, None, None]
+    Zs = [np.array([2.148]), None, None, dsa_Zs, ics_Zs]
+    DMs = [np.array([2398.03]), None, None, dsa_DMs, ics_DMs]
+    point_labels = ["FRB 20240304B", None, None, "DSA", "ASKAP"]
+    # point_labels = [None, None, None, None]
 
     # Set colours and styles for plotting contours and FRBs
     cmap = cmr.arctic
-    data_clrs = cmap(np.linspace(0.0, 0.7, 4))
-    temp = data_clrs[1].copy()
-    data_clrs[1] = data_clrs[2]
-    data_clrs[2] = temp
-    markers=["*", "o", "o", "x"]
-    markersize = [10, 4, 4, 5]
-    ewidths = [1,1,1,1]
+    data_clrs = cmap(np.linspace(0.0, 0.7, 5))
+    # temp = data_clrs[1].copy()
+    # data_clrs[1] = data_clrs[2]
+    # data_clrs[2] = temp
+    markers=["*", ".", "+", "o", "x"]
+    markersize = [10, 4, 4, 4, 5]
+    ewidths = [1,1,1,1,1]
 
     plt_dicts = []
-    cont_dicts = None
+    cont_dicts = []
     for i in range(len(data_clrs)):
         plt_styles = {
             'color': data_clrs[i],
             'marker': markers[i],
             'markersize': markersize[i],
-            'label': point_labels[i],
+            'label': None,
             'markeredgewidth': ewidths[i]
         }
         plt_dicts.append(plt_styles)
 
+        # cont_styles = {
+        #     'color': data_clrs[i],
+        #     'label': point_labels[i]
+        # }
+        # cont_dicts.append(cont_styles)
+    plt_dicts[0]['label'] = point_labels[0]
+    # plt_dicts = None
+    cont_dicts = None
 
     s=ss[0]
     g=gs[0]
     name = names[0]
     
     # Do the plotting
-    figures.plot_grid(crates,g.zvals,g.dmvals,
-        name=opdir+name+"_zDM_test.pdf",norm=3,log=False,
-        label='$\\log_{10} p({\\rm DM}_{\\rm EG}$ [a.u.]',
-        project=False,ylabel='${\\rm DM}_{\\rm EG}$',
-        zmax=3.9,DMmax=3000, FRBZs=Zs, FRBDMs=DMs,
-        # point_labels=point_labels, data_clrs=data_clrs, markersize=5, data_styles=markers,
-        plt_dicts=plt_dicts, cont_dicts=cont_dicts,
-        Aconts=[0.1],othergrids=[gs[1].rates,crates,gs[2].rates],
-        othernames = ["MeerKAT","DSA","CHIME","ASKAP"], 
-        cmap=cmr.prinsenvlag_r)
-        #0.01, 0.1,0.5
+    # First plot the theoretical values
+    zvals = g.zvals
+    dmvals = g.dmvals
+    ndm = dmvals.size
+    nz = zvals.size
+    dz = zvals[1] - zvals[0]
+    ddm = dmvals[1] - dmvals[0]
+
+    # l_meerkat = {'color': cont_clrs[0], 'linestyle': "--"}
+    # l_dsa = {'color': cont_clrs[2], 'linestyle': "-.", 'marker': 'o', 'markeredgewidth': 1, 'markersize': 4}
+    # l_chime = {'color': cont_clrs[1], 'linestyle': ":", 'markeredgewidth': 1, 'markersize': 4}
+    # l_askap = {'color': cont_clrs[3], 'linestyle': "-", 'marker': 'x', 'markeredgewidth': 1, 'markersize': 5}
+    # l_cont_dicts = [l_meerkat, l_chime, l_dsa, l_askap]
     
+    # figures.plot_grid(g.rates,zvals,dmvals,
+    #     name=opdir+name+"_zDM_combined.pdf",norm=3,log=True,
+    #     label='$\\log_{10} p({\\rm DM}_{\\rm IGM} + {\\rm DM}_{\\rm host},z)$',
+    #     project=False,ylabel='${\\rm DM}_{\\rm IGM} + {\\rm DM}_{\\rm host}$',
+    #     zmax=4.5,DMmax=3500, FRBZs=Zs, FRBDMs=DMs, 
+    #     plt_dicts=plt_dicts, cont_dicts=cont_dicts,
+    #     Aconts=[0.1],othergrids=[gs[1].rates, gs[2].rates, crates, gs[3].rates],
+    #     othernames = ["Coherent", "Incoherent","DSA", "CHIME", "ASKAP"], 
+    #     cmap=cmr.prinsenvlag_r)
+    #     #0.01, 0.1,0.5
+    #     #Zs, DMs
     
-    ############ Plots z projection ##########
-    plt.figure()
+    # plt.figure()
+    # plt.clf()
+    # muDMhost = np.log(10 ** state.host.lmean)
+    # sigmaDMhost = np.log(10 ** state.host.lsigma)
+    # meanHost = np.exp(muDMhost + sigmaDMhost ** 2 / 2.0)
     
-    names = ["MeerTRAP coherent", "DSA 110", "ASKAP ICS"]
-    styles=["-","--","-."]
+    # plt.ylim(0, 3000)
+    # plt.xlim(0, 2.8)
+    # zmax = zvals[-1]
+    # nz = zvals.size
+    # # DMbar, zeval = igm.average_DM(zmax, cumul=True, neval=nz+1)
+    # DM_cosmic = pcosmic.get_mean_DM(zvals, state)
+
+    # # idea is that 1 point is 1, hence...
+    # # zeval = zvals / dz
+    # DMEG_mean = (DM_cosmic + meanHost/(1+zvals))
+    # # DMEG_mean[0] = 0.0
+    # plt.plot(
+    #     zvals,
+    #     DMEG_mean,
+    #     color="blue",
+    #     linewidth=2,
+    #     label="Macquart relation (mean)",
+    # )
+    # print(Zs, DMs)
+    # for i in range(len(Zs)):
+    #     plt.scatter(Zs[i], DMs[i], color=data_clrs[i], marker=markers[i], s=markersize[i] ** 2, label=point_labels[i])
+
+    # plt.ylabel("${\\rm DM}_{\\rm IGM} + {\\rm DM}_{\\rm host}$")
+    # plt.xlabel("z")
+    # plt.legend(loc="upper left", fontsize=12)
+    # plt.savefig(opdir + "data_Macquart.pdf")
+
+
+    # ############ Plots z projection ##########
+    # plt.figure()
     
-    # Calculate P(z > 1 | DM_EG > 1000)
-    i_z_one = np.where(g.zvals>1)[0][0]
-    i_DM_1000 = np.where(g.dmvals>1000)[0][0]
-    print(g.rates.shape, i_z_one, i_DM_1000)
-    print(len(g.zvals), len(g.dmvals))
-    print(g.zvals, g.dmvals)
-    print("P(z>1 and DM>1000) CHIME", np.sum(crates[i_z_one:,i_DM_1000:])/np.sum(crates))
-    print("P(DM>1000) CHIME", np.sum(crates[:,i_DM_1000:])/np.sum(crates))
-    print("P(z>1|DM>1000) CHIME", np.sum(crates[i_z_one:,i_DM_1000:]) / np.sum(crates[:,i_DM_1000:]))
-    print("P(z>1) CHIME", np.sum(crates[i_z_one:])/np.sum(crates))
+    # names = ["MeerTRAP coherent", "DSA 110", "ASKAP ICS"]
+    # styles=["-","--","-."]
+
+    for i,g in enumerate(gs):
+        s=ss[i]
+        
+        # Calc pz
+        pz = np.sum(g.rates,axis=1)
+        dz = g.zvals[1] - g.zvals[0]
+        pz = pz / np.sum(pz*dz)
+
+        # Do plotting
+        plt.plot(g.zvals,pz,label=names[i],linewidth=2)
+
+        # Calculate z0 at which P(z < z0) = 0.95
+        pz_cum = np.cumsum(pz) 
+        i_one_percent = np.where(pz_cum>0.95)[0][0]
+        one_percent = g.zvals[i_one_percent]
+        print(s.name, one_percent, pz_cum[i_one_percent])
+
+        # Calculate P(z > 2)
+        i_z_two = np.where(g.zvals>2)[0][0]
+        print("z>2", s.name, pz_cum[i_z_two])
+        print(pz_cum[-1])
     
-    # adds CHIME
-    pz = np.sum(crates[:,200:],axis=1)
-    pz = pz / np.sum(pz)
+    # # adds CHIME
+    # pz = np.sum(crates,axis=1)
+    # pz = pz / np.sum(pz)
+
+    # # Calculate z0 at which P(z < z0) = 0.95
+    # pz_cum = np.cumsum(pz)
+    # i_one_percent = np.where(pz_cum>0.95)[0][0]
+    # one_percent = g.zvals[i_one_percent]
+    # print("CHIME", one_percent, pz_cum[i_one_percent])
     
-    plt.plot(g.zvals,pz,label="CHIME",linestyle=":",linewidth=2)
+    # # Calculate P(z > 2)
+    # i_z_two = np.where(g.zvals>2)[0][0]
+    # print(pz_cum[i_z_two])
+    
+    # plt.plot(g.zvals,pz,label="CHIME",linestyle=":",linewidth=2)
     
     plt.xlabel("z")
     plt.ylabel("p(z)")
-    plt.xlim(0.,3)
-    # plt.ylim(0,1)
+    plt.xlim(0.,5)
+    plt.ylim(bottom=0)
     plt.legend(loc="lower right")
     plt.tight_layout()
     plt.savefig(opdir+"pz_comparison.pdf")
