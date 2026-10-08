@@ -590,6 +590,7 @@ def choose_source_evolution_function(which=0):
         - 1: Simple power law (1+z)^(2.7*n), without the high-z turnover.
              Useful for comparison with SFR model.
         - 2: Power-law delay time distribution convolved with Madau & Dickinson (2014) SFRD
+        - 3: WD-WD merger (GC-like) evolution
         
         Default is 0.
 
@@ -602,7 +603,7 @@ def choose_source_evolution_function(which=0):
     Raises
     ------
     ValueError
-        If `which` is not 0, 1 or 2.
+        If `which` is not 0, 1, 2 or 3.
     """
     if which==0:
         source_evolution=sfr_evolution
@@ -612,8 +613,10 @@ def choose_source_evolution_function(which=0):
         source_evolution=powerlaw_DTD_evolution
     elif which==3:
         source_evolution=GC_DTD_evolution
+    elif which==4:
+        source_evolution=GC_and_SFRD_evolution
     else:
-        raise ValueError("Undefined source evolution function ",which," choose 0, 1, 2, or 3")
+        raise ValueError("Undefined source evolution function ",which," choose 0, 1, 2, 3, or 4")
     return source_evolution
 
 def sfr_evolution(z,*params):
@@ -780,6 +783,62 @@ def GC_DTD_evolution(z,*params):
 
     # clip to avoid issues with negative c
     n = np.clip(curve(z_arr), 0.0, None)
+
+    return float(n[0]) if scalar_z else n
+
+def GC_and_SFRD_evolution(z, *params):
+    ''' 
+    Function to allow for mixed fraction of white dwarf merger rate
+    density evolution (Kremer+23a) and SFRD
+
+    Parameters
+    ----------
+    z : float [dimensionless]
+        Redshift
+    *params : float
+        params[0] = fraction following WD-WD evolution (0 = none, 1 = all)
+
+    Returns
+    -------
+    n : float
+        Relative source density at redshift z with each component normalized to 1 at z=0
+    '''
+
+    # pull out params
+    f_GC = params[0]
+
+    # handle scalar or array z
+    scalar_z = np.isscalar(z)
+    z_arr = np.atleast_1d(z)
+
+    # define curve parameters
+    A1 = 4.00453    # Amplitude of the Gaussian component centered at z=0.
+    sigma1 = 0.30564    #  Width of the Gaussian component centered at z=0.
+    A2 = 23.973 # Amplitude scaling for the skew-normal component.
+    mu2 = 1.5   # Location parameter of the skew-normal component, near the second peak.
+    sigma2 = 4.21046    # scale parameter controlling the width of the skew-normal component.
+    alpha2 = 5.1927 # Shape parameter controlling the skewness of the second peak.
+    c = -0.389043   # Constant baseline offset added to both components.
+
+    def curve(zz):
+        zz = np.asarray(zz, dtype='float')    
+        # define gaussians
+        peak1 = A1 * np.exp(-0.5 * (zz / sigma1)**2)
+        peak2 = A2 * skewnorm.pdf(zz, a=alpha2, loc=mu2, scale=sigma2)
+
+        # combine curves
+        return peak1 + peak2 + c
+
+    # clip to avoid issues with negative c and normalize at z=0
+    GC_n = np.clip(curve(z_arr), 0.0, None) / curve(0.0)
+
+    def SFRD(z):
+        z = np.asarray(z, dtype='float')
+        f = lambda zz: (((1+zz)**2.7)/(1+((1+zz)/2.9)**5.6) *1e9)
+        return f(z) / f(0.0) # Msun Gpc^-3 yr^-1; normalizing at z=0
+
+    # mixed GC and SFRD evolution
+    n = (1 - f_GC)*SFRD(z_arr) + f_GC*GC_n # dimensionless
 
     return float(n[0]) if scalar_z else n
 
