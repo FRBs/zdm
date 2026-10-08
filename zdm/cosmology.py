@@ -610,8 +610,10 @@ def choose_source_evolution_function(which=0):
         source_evolution=opz_evolution
     elif which==2:
         source_evolution=powerlaw_DTD_evolution
+    elif which==3:
+        source_evolution=GC_DTD_evolution
     else:
-        raise ValueError("Undefined source evolution function ",which," choose 0, 1, or 2")
+        raise ValueError("Undefined source evolution function ",which," choose 0, 1, 2, or 3")
     return source_evolution
 
 def sfr_evolution(z,*params):
