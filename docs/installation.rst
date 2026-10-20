@@ -47,7 +47,7 @@ The external FRB packages must be installed from GitHub:
 
 .. code-block:: bash
 
-   pip install git+https://github.com/FRBs/ne2001.git#egg=ne2001
+   pip install git+https://github.com/FRBs/ne2001#egg=ne2001
    pip install git+https://github.com/FRBs/FRB.git#egg=frb
 
 Full Installation Script
@@ -62,7 +62,7 @@ For a complete installation from scratch:
    cd zdm
 
    # Install external dependencies
-   pip install git+https://github.com/FRBs/ne2001.git#egg=ne2001
+   pip install git+https://github.com/FRBs/ne2001#egg=ne2001
    pip install git+https://github.com/FRBs/FRB.git#egg=frb
 
    # Install zdm in development mode
