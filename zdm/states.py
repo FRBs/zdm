@@ -268,21 +268,21 @@ def set_fit_params(vparams,case):
     
     elif case == "HoffmannRepeaters26Pn":
         # case of including P(n) information
-        vparams['energy']['lEmin'] = 35.61
-        vparams['energy']['lEmax'] = 41.35
-        vparams['energy']['alpha'] = 1.50
-        vparams['energy']['gamma'] = -0.83
+        vparams['energy']['lEmin'] = 36.08
+        vparams['energy']['lEmax'] = 41.34
+        vparams['energy']['alpha'] = 1.55
+        vparams['energy']['gamma'] = -0.84
         vparams['energy']['luminosity_function'] = 2
         
         vparams['FRBdemo']['alpha_method'] = 1
         vparams['FRBdemo']['source_evolution'] = 0
-        vparams['FRBdemo']['sfr_n'] = 0.76
+        vparams['FRBdemo']['sfr_n'] = 0.64
         vparams['FRBdemo']['lC'] = 3.3249
         
-        vparams['host']['lmean'] = 2.07
-        vparams['host']['lsigma'] = 0.56
+        vparams['host']['lmean'] = 2.14
+        vparams['host']['lsigma'] = 0.54
         
-        vparams['MW']['DMhalo']=56.69
+        vparams['MW']['DMhalo']=51.2
         vparams['MW']['ISM']=35
         vparams['MW']['halo_method']=0
         vparams['MW']['sigmaHalo']=15.0
@@ -308,9 +308,9 @@ def set_fit_params(vparams,case):
         # Rc is not the fitted parameter
         vparams["rep"]["RC"] = 0.01
         vparams["rep"]["RE0"] = 1e+39
-        vparams["rep"]["Rgamma"] = -2.16
-        vparams["rep"]["lRmin"] = -4.51
-        vparams["rep"]["lRmax"] = 3.78
+        vparams["rep"]["Rgamma"] = -2.21
+        vparams["rep"]["lRmin"] = -4.05
+        vparams["rep"]["lRmax"] = 3.74
         
         vparams["scat"]["Sbackproject"] =  False
         vparams["scat"]["ScatDist"] =  2
@@ -335,7 +335,6 @@ def set_fit_params(vparams,case):
         Including Pn only for repeater surveys. This effectively uses
         less information, but avoids any potential bias from P(n) being dodgy
         """
-        # case of no P(n) information
         vparams['energy']['lEmin'] = 36.68
         vparams['energy']['lEmax'] = 41.28
         vparams['energy']['alpha'] = 1.97

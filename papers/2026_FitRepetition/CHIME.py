@@ -40,7 +40,7 @@ def main():
     for i in np.arange(NDECBINS):
         name="CHIME_decbin_"+str(i)+"_of_6"
         names.append(name)
-    sdir = resources.files('zdm').joinpath('data/Surveys/CHIME')
+    sdir = resources.files('zdm').joinpath('../papers/2026_FitRepetition/Surveys/CHIME')
     ss,gs = loading.surveys_and_grids(survey_names=names, init_state=state, rand_DMG=False,sdir = sdir, repeaters=True)
     
     # compiles sums over all six declination bins
@@ -63,10 +63,10 @@ def main():
     np.save(opdir+opname+"_singles.npy", singles)
 
     # Plot dm and z idstributions
-    # plot_dm_z(gs[0], rates, reps, singles, opdir, opname)
+    # old_plot_dm_z(gs[0], rates, reps, singles, opdir, opname)
 
     # Plot cumulative dm distributions
-    plot_cumulative(gs[0], ss, reps+singles, reps, singles, opdir, opname, 10**state.host.lmean)
+    plot_cumulative(gs[0], ss, reps+singles, reps, singles, opdir, opname)#, 10**state.host.lmean)
 
 
 '''
@@ -86,7 +86,7 @@ It also calculates and prints the probability of z being greater than a specifie
             z and DM to the specified output directory.
 ===================================================================================================
 '''
-def plot_dm_z(g, rates, reps, singles, opdir, opname):
+def old_plot_dm_z(g, rates, reps, singles, opdir, opname):
     # set limits for plots   
     DMmax=3000
     zmax=3.
@@ -160,13 +160,13 @@ test to compare the empirical CDFs with the model CDFs and prints the KS statist
     singles: The 2D z-DM grid of single rates.
     opdir: The directory where the output files will be saved.
     opname: The name of the output file.
-    muhost: The mean DM of the host galaxy.
+    muhost: The mean DM of the host galaxy. (removed)
 
     output: Saves the plot of the cumulative distribution functions to the specified output 
             directory and prints the KS statistics and p-values for the comparisons.
 ===================================================================================================
 '''
-def plot_cumulative(g,ss,rates,reps,singles, opdir, opname, muhost=0.0):
+def plot_cumulative(g,ss,rates,reps,singles, opdir, opname): #, muhost=0.0):
 
     # Model predictions
     cumModel = np.cumsum(np.sum(rates,axis=0))/np.sum(rates)
@@ -188,35 +188,63 @@ def plot_cumulative(g,ss,rates,reps,singles, opdir, opname, muhost=0.0):
 
     DMs = np.sort(DMs)
     cumData = np.arange(1, len(DMs)+1) / len(DMs)
-    DMs = np.append(DMs, 3000)
-    cumData = np.append(cumData, 1.0)
+    
+    # OLD, incorrect
     cdf_interp = np.interp(DMs, g.dmvals, cumModel)
-    stat, p = st.ks_2samp(cumData, cdf_interp)
+    #stat, p = st.ks_2samp(cumData, cdf_interp)
+    
+    # new, thanks Claude
+    print("New code from Claude gives...")
+    model_cdf = lambda x: np.interp(x, g.dmvals, cumModel)
+    stat, p = st.kstest(DMs, model_cdf)
+    
     print("Cat 1 KS statistic:", stat)
     print("Cat 1 p-value:", p)
-
-    stat, p = st.ks_2samp(cumData[np.where(DMs>200)], cdf_interp[np.where(DMs>200)])
+    
+    # modified as per Claude
+    cut = np.where(DMs > 200)[0]
+    cut2 = np.where(g.dmvals > 200.)[0]
+    rescale_model = (cumModel[cut2] - cumModel[cut2][0]) / (1-cumModel[cut2][0])
+    
+    # old calculation
+    #stat, p = st.ks_2samp(cumData[np.where(DMs>200)], cdf_interp[np.where(DMs>200)])
+    rescale_model_cdf = lambda x: np.interp(x, g.dmvals[cut2], rescale_model)
+    stat, p = st.kstest(DMs[cut],rescale_model_cdf)
     print("Cat 1 KS statistic (DM>200):", stat)
     print("Cat 1 p-value (DM>200):", p)
-
+    
     DMSingles = np.sort(DMSingles)
     cumDataSingles = np.arange(1, len(DMSingles)+1) / len(DMSingles)
     cumModelSingles = np.cumsum(np.sum(singles,axis=0))/np.sum(singles)
-    cdf_interp_singles = np.interp(DMSingles, g.dmvals + muhost, cumModelSingles)
-    stat_singles, p_singles = st.ks_2samp(cumDataSingles, cdf_interp_singles)
+    #cdf_interp_singles = np.interp(DMSingles, g.dmvals + muhost, cumModelSingles)
+    
+    # old, incorrect version
+    #stat_singles, p_singles = st.ks_2samp(cumDataSingles, cdf_interp_singles)
+    single_cdf = lambda x: np.interp(x, g.dmvals, cumSingles)
+    stat_singles, p_singles = st.kstest(DMSingles,single_cdf)
     print("Cat 1 KS statistic (singles):", stat_singles)
     print("Cat 1 p-value (singles):", p_singles)
-
+    
     DMReps = np.sort(DMReps)
     cumDataReps = np.arange(1, len(DMReps)+1) / len(DMReps)
     cumModelReps = np.cumsum(np.sum(reps,axis=0))/np.sum(reps)
-    cdf_interp_reps = np.interp(DMReps, g.dmvals + muhost, cumModelReps)
-    stat_reps, p_reps = st.ks_2samp(cumDataReps, cdf_interp_reps)
+    #cdf_interp_reps = np.interp(DMReps, g.dmvals + muhost, cumModelReps)
+    # old, incorrect version
+    #stat_reps, p_reps = st.ks_2samp(cumDataReps, cdf_interp_reps)
+    rep_cdf = lambda x: np.interp(x, g.dmvals, cumReps)
+    stat_reps, p_reps = st.kstest(DMReps,rep_cdf)
     print("Cat 1 KS statistic (repeaters):", stat_reps)
     print("Cat 1 p-value (repeaters):", p_reps)
-
+    
     # Catalogue 2
-    cat2 = np.load(resources.files('zdm').joinpath('data/Surveys/chimefrbcat2.npy'))
+    path = resources.files('zdm').joinpath('data/Surveys/chimefrbcat2.npy')
+    if os.path.exists(path):
+        cat2 = np.load(resources.files('zdm').joinpath('data/Surveys/chimefrbcat2.npy'))
+    else:
+        print("Please download CHIME cat2 data from https://www.canfar.net/storage/vault/list/AstroDataCitationDOI/CISTI.CANFAR/25.0066/data/table")
+        print("Please place it in ",path)
+        exit()
+    
     print("Catalogue 2 bursts:", len(cat2))
 
     DMs2reps = []
@@ -245,19 +273,33 @@ def plot_cumulative(g,ss,rates,reps,singles, opdir, opname, muhost=0.0):
     DMs2 = np.sort(DMs2)
     cumData2 = np.arange(1, len(DMs2)+1) / len(DMs2)
     cdf_interp2 = np.interp(DMs2, g.dmvals, cumModel)
-    stat, p = st.ks_2samp(cumData2, cdf_interp2)
+    # incorrect, should be 1-sample
+    #stat, p = st.ks_2samp(cumData2, cdf_interp2)
+    # we use the same model here
+    stat, p = st.kstest(DMs2,model_cdf)
     print("Cat 2 KS statistic:", stat)
     print("Cat 2 p-value:", p)
-
-    stat, p = st.ks_2samp(cumData2[np.where(DMs2>200)], cdf_interp2[np.where(DMs2>200)])
+    
+    # changed to correct version
+    #stat, p = st.ks_2samp(cumData2[np.where(DMs2>200)], cdf_interp2[np.where(DMs2>200)])
+    stat, p = st.kstest(DMs2,rescale_model_cdf)
     print("Cat 2 KS statistic (DM>200):", stat)
     print("Cat 2 p-value (DM>200):", p)
-
-    cdf_interp2_1 = np.interp(DMs, DMs2, cumData2)
-    stat, p = st.ks_2samp(cumData, cdf_interp2_1)
+    
+    # original code
+    #cdf_interp2_1 = np.interp(DMs, DMs2, cumData2)
+    #stat, p = st.ks_2samp(cumData, cdf_interp2_1)
+    print("New, simple code from Claude gives...")
+    stat, p = st.ks_2samp(DMs, DMs2)
     print("Cat 1 vs 2 KS statistic:", stat)
     print("Cat 1 vs 2 p-value:", p)
-
+    
+    # NOTE: I have not changed the figure
+    
+    # adding for plotting
+    DMs = np.append(DMs, 3000)
+    cumData = np.append(cumData, 1.0)
+    
     plt.figure()
 
     plt.plot(g.dmvals,cumModel,label="CHIME model", linewidth=3, color="red", linestyle='--', zorder=10)
@@ -286,6 +328,7 @@ def plot_cumulative(g,ss,rates,reps,singles, opdir, opname, muhost=0.0):
     plt.ylim(0,1)
     plt.legend()
     plt.tight_layout()
+    #print("Saving as ",opdir+opname+"_pdm_cumulative.pdf")
     plt.savefig(opdir+opname+"_pdm_cumulative.pdf")
     plt.close()
 

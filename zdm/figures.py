@@ -57,7 +57,8 @@ def plot_grid(
     c_cmap = None,
     cont_clrs = None,
     alevels = None,
-    other_alevels = None
+    other_alevels = None,
+    legend_loc = "upper left"
 ):
     """
     Very complicated routine for plotting 2D zdm grids 
@@ -116,6 +117,7 @@ def plot_grid(
         other_alevels (float, optional): list of levels at which to plot contours for
                     other grids. Used only if othergrids is not None. Matches length of
                     Aconts.
+        legend_loc (string): location keyword to pass to legend. Default: "upper left"
     """
     if H0 is None:
         H0 = cos.cosmo.H0
@@ -378,7 +380,7 @@ def plot_grid(
         else:
             handles=[]
             for iA,Alevel in enumerate(Aconts):
-                    h,=plt.plot([-1e6,-2e6],[-1e6,-2e6],**l_cont_dicts[iA],label=str((1.-Alevel)*100)+"%")
+                    h,=plt.plot([-1e6,-2e6],[-1e6,-2e6],**l_cont_dicts[iA],label=f"{(1-Alevel)*100:.0f}%")
             handles.append(h)
         
         if othergrids is not None:
@@ -474,7 +476,7 @@ def plot_grid(
             j = int(nc - i - 1)
             plt.plot(np.arange(nz), carray[j, :], label=str(int(conts[j]*100))+"%", color="white",\
                     linestyle=cont_styles[cstyle])
-        l = plt.legend(loc="lower right", fontsize=8)
+        l = plt.legend(loc=legend_loc, fontsize=8)
         # l=plt.legend(bbox_to_anchor=(0.2, 0.8),fontsize=8)
         for text in l.get_texts():
             text.set_color("white")
