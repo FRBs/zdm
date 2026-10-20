@@ -24,7 +24,7 @@ The `zdm` package is a Python library for Fast Radio Burst (FRB) redshift-disper
 pip install -e .[dev]
 
 # Install dependencies for external FRB packages
-pip install git+https://github.com/FRBs/ne2001.git#egg=ne2001
+pip install git+https://github.com/FRBs/ne2001#egg=ne2001
 pip install git+https://github.com/FRBs/FRB.git#egg=frb
 ```
 

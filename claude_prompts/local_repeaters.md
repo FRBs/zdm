@@ -19,7 +19,37 @@ If you have any questions, put them in the Q&A section below and I will answer t
 3. While we are at it, please review this open PR, similar to what you did for PR #91: 
 `https://github.com/FRBs/zdm/pull/84`.  Use Opus 5.5.  Log your work.
 
+3. One or more of the CI tests are failing.  Please investigate and let me know
+how we might fix them.  Let me know what you think in QA/Tests.
+Use Opus 5.5.  Log your work.
+
 ## Q&A
+
+### Tests
+
+(From task 3b, CI failures, 2026-10-20.)
+
+**What is failing.** The latest run on this PR (run 39387908567, 2026-10-20) fails all three jobs. `3.12-test` and `3.12-test-alldeps` fail at the `pip install` step inside tox with `ResolutionImpossible`:
+
+```
+The user requested ne2001 0.0.2 (from git+https://github.com/FRBs/ne2001.git)
+frb 0.1.dev0 depends on ne2001 0.0.2 (from git+https://github.com/FRBs/ne2001)
+```
+
+`3.12-test-astropydev` did not fail on its own; it was cancelled by fail-fast when the other two jobs died. No zdm test actually ran. Nothing in this PR caused it: the identical branch passed on 2026-10-07, and pip is 26.2.1 in both runs.
+
+**Why.** On 2026-10-11 the FRB repo merged PR #237 (survey_revamp), which includes commit 293d58f "consistency with ne2001 repo". It changed FRB's `pyproject.toml` direct-URL dependencies from `.../ne2001.git` and `.../astropath.git` to `.../ne2001` and `.../astropath` (no `.git`). Our `setup.cfg` still lists `ne2001 @ git+https://github.com/FRBs/ne2001.git` and `astropath @ git+https://github.com/FRBs/astropath.git`. pip treats two direct-URL requirements for the same package as satisfiable only if the URL strings match exactly, so the resolver gives up even though both point to the same commit. The passing run pulled FRB at 996fcda (pre-merge, still `.git`); the failing run pulled 85ecfdd (the merge).
+
+**How to fix (pick one).**
+1. Match FRB's spelling in `setup.cfg` lines 49 and 51: drop the `.git` from the ne2001 and astropath URLs. Verified locally with `pip install --dry-run`: the current spec reproduces the `ResolutionImpossible` error, and the spec without `.git` resolves cleanly (`Would install FRB-0.1.dev0 ... astropath-0.3.dev0 ... ne2001-0.0.2 ...`).
+2. Delete the ne2001 and astropath lines from `setup.cfg` altogether and keep only `frb @ ...`. FRB already depends on both, so they get installed anyway, and we stop having to keep the URL strings in sync with FRB. This is the more robust option; the cost is that the dependency is implicit.
+
+Either way, the fix is to `setup.cfg` on this branch (or on `main` and then merged in). Nothing about the CI workflow or tox needs to change for this. I did not apply the change since the prompt asked for an assessment.
+
+**Two related notes.** The `README`/CLAUDE.md install instructions still say `pip install git+https://github.com/FRBs/ne2001.git#egg=ne2001`; that is harmless for a manual install but could be updated for consistency. And the earlier failure on `main` (run 37287081933, 2026-10-05) was a different, 3.11 `test-astropydev` failure that predates the 3.12-only matrix; it is not related to this one.
+
+### PR
+
 
 (From PR review, task 1. The questions marked "for PR author" are also posted on the PR.)
 
@@ -67,3 +97,19 @@ Other points: the lensed LF ignores use_log10, hard-codes Planck18 and does disk
 Posting failed: GitHub returned HTTP 500 for every write to PR #84. That includes REST reviews (even a bare review with no comments), GraphQL `addPullRequestReview`, and a plain `gh pr comment`. githubstatus.com reported all systems operational. I confirmed nothing was posted. Ready-to-post files are in the session scratchpad: `review84.json` (REST payload, event=COMMENT, 16 inline comments) and `review84_comment.md` (a single-comment version with permalinks).
 
 Update: GitHub recovered and a retry succeeded. The COMMENT review with 16 inline comments is posted as profxj: https://github.com/FRBs/zdm/pull/84#pullrequestreview-5444468748
+
+### 2026-10-20 (Task 3b: CI tests failing on PR #91; diagnosed, fix proposed in Q&A/Tests)
+
+All three `Tox env 3.12-*` jobs on run 39387908567 fail. `test` and `test-alldeps` die in `pip install` with `ResolutionImpossible` on `ne2001`; `test-astropydev` is just cancelled by fail-fast. The same branch passed on 2026-10-07 with the same pip (26.2.1), so the cause is external.
+
+Cause: FRB PR #237 (merged 2026-10-11, commit 293d58f) rewrote FRB's direct-URL deps as `git+https://github.com/FRBs/ne2001` and `.../astropath` (no `.git`). zdm's `setup.cfg` still uses the `.git` spelling. pip requires direct-URL requirements for the same package to match textually, so the two specs conflict even though they resolve to the same commit. The passing run had FRB at 996fcda (old spelling); the failing run had 85ecfdd (the merge).
+
+Verified with `pip install --dry-run` in fresh venvs in the scratchpad: the current three-URL spec reproduces the error (exit 1); dropping `.git` from the ne2001 and astropath URLs resolves (exit 0).
+
+Proposed fixes, written up in Q&A → Tests: (1) drop `.git` on `setup.cfg` lines 49 and 51, or (2) remove the ne2001/astropath lines and rely on FRB's own dependency on them. Did not edit `setup.cfg`, since the prompt asked for an assessment. Also noted that the 2026-10-05 failure on `main` was a separate 3.11 astropydev issue.
+
+### 2026-10-20 (Task 3b follow-up: applied option 1)
+
+User chose option 1 (keep the explicit dependencies, match FRB's URL spelling). Recommended it over removing the lines because zdm imports ne2001 (survey.py, MC_sample/mc.py) and astropath (optical.py, optical_numerics.py, scripts/Path/*) directly, so they should stay declared; the cost of keeping the URL spelling in sync with FRB is low and any future drift fails loudly at install time.
+
+Changes: dropped `.git` from the ne2001 and astropath URLs in `setup.cfg` (lines 49 and 51), and from the manual `pip install` line in `CLAUDE.md` and `docs/installation.rst` (two places) for consistency. The `frb @ .../FRB.git` line is untouched since nothing else depends on FRB by URL. Verified with `pip install --dry-run` of the edited package in a fresh venv: resolves with no conflict. Not committed; user handles git.
