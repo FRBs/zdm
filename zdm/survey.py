@@ -1574,7 +1574,6 @@ def calc_relative_sensitivity(DM_frb, DM, w, fbar, t_res, nu_res, Nchan=336, max
     # Check for Quadrature and Sammons
     elif model == 'Quadrature' or model == 'Sammons' or model == "StdDev":
         # constant of DM
-        print('---------------------------------------')
         k_DM = 4.149 #ms GHz^2 pc^-1 cm^3
         
         # total smearing factor within a channel
