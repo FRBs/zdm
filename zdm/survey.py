@@ -171,12 +171,12 @@ class Survey:
         # perform all state-based initialisations here
         # The sole exception is the analysis-dependent variables, which are required for
         # process_survey_file
+        self.cluster = cluster
         self.reinit(state)
         
         # --- Cluster scattering setup ---
         # Store cluster flag and load per-(z, beam) scattering distributions
         # if cluster scattering is requested.
-        self.cluster = cluster
         if cluster:
             if opdir is None or bPosNum is None:
                 raise ValueError("opdir and bPosNum must be provided when cluster=True")
@@ -1574,10 +1574,12 @@ def calc_relative_sensitivity(DM_frb, DM, w, fbar, t_res, nu_res, Nchan=336, max
     # Check for Quadrature and Sammons
     elif model == 'Quadrature' or model == 'Sammons' or model == "StdDev":
         # constant of DM
+        print('---------------------------------------')
         k_DM = 4.149 #ms GHz^2 pc^-1 cm^3
         
         # total smearing factor within a channel
         dm_smearing = 2 * (nu_res / 1.e3) * k_DM * DM / (fbar / 1e3) ** 3 #smearing factor of FRB in the band
+        #dm_smearing = 2 * (nu_res / 1.e3) * k_DM * (DM-3000) / (fbar / 1e3) ** 3 #smearing factor of FRB in the band
         
         # this assumes that what we see are measured widths including all the smearing factors
         # hence we must first adjust for this prior to estimating the DM-dependence
