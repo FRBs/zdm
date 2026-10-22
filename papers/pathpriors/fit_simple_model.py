@@ -134,11 +134,14 @@ def main():
     ############# Generate a KS-like plot showing the best fits ####################
     outfile = opdir+"simple_best_fit_apparent_magnitudes.png"
     wrappers = on.make_wrappers(model,gs)
-    NFRB,AppMags,AppMagPriors,ObsMags,ObsPriors,ObsPosteriors,PUprior,PUobs,sumPUprior,sumPUobs,frbs,dms = on.calc_path_priors(frblist,ss,gs,wrappers,verbose=False)
     
-    llstat = on.calculate_likelihood_statistic(NFRB,AppMags,AppMagPriors,ObsMags,ObsPosteriors,PUobs,PUprior,plotfile=outfile)
-    ksstat = on.calculate_ks_statistic(NFRB,AppMags,AppMagPriors,ObsMags,ObsPosteriors,sumPUobs,
-                                    sumPUprior,plotfile=outfile,abc="(c)",tag="Naive: ",)
+    results = on.calc_path_priors(frblist,ss,gs,wrappers,verbose=False)
+    
+    llstat = on.calculate_likelihood_statistic(results["NFRB"],results["AppMags"],results["AppMagPriors"],
+                                    results["ObsMags"],results["POx"],results["PUx"],results["PU"],plotfile=outfile)
+    ksstat = on.calculate_ks_statistic(results["NFRB"],results["AppMags"],results["AppMagPriors"],
+                                    results["ObsMags"],results["POx"],
+                                    results["sumPUx"],results["sumPU"],plotfile=outfile,abc="(c)",tag="Naive: ",)
     
     print("Best-fit stats of the naive model are ll=",llstat," ks = ",ksstat)
     
@@ -160,8 +163,9 @@ def main():
         x[0] = kcorr
         model.init_args(x)
         wrappers = on.make_wrappers(model,gs)
-        NFRB,AppMags,AppMagPriors,ObsMags,ObsPriors,ObsPosteriors,PUprior,PUobs,sumPUprior,sumPUobs,frbs,dms = on.calc_path_priors(frblist,ss,gs,wrappers,verbose=False)
-        stat = on.calculate_likelihood_statistic(NFRB,AppMags,AppMagPriors,ObsMags,ObsPosteriors,PUobs,PUprior)
+        results = on.calc_path_priors(frblist,ss,gs,wrappers,verbose=False)
+        stat = on.calculate_likelihood_statistic(results["NFRB"],results["AppMags"],results["AppMagPriors"],
+                                    results["ObsMags"],results["POx"],results["PUx"],results["PU"])
         stats[i] = stat
         dll = 2.*(llbest-stat) * np.log(10) # stat returned in log base 10, needs to be natural log
         p_wilks = 1.-chi2.cdf(dll,1)
@@ -205,11 +209,12 @@ def main():
     
     # calculates the original PATH result
     outfile = opdir+"original_fit_apparent_magnitudes.png"
-    NFRB2,AppMags2,AppMagPriors2,ObsMags2,ObsPriors2,ObsPosteriors2,PUprior2,PUobs2,sumPUprior2,sumPUobs2,frbs,dms = on.calc_path_priors(frblist,ss,gs,wrappers,verbose=False,usemodel=False)
+    results2 = on.calc_path_priors(frblist,ss,gs,wrappers,verbose=False,usemodel=False)
+    #NFRB2,AppMags2,AppMagPriors2,ObsMags2,ObsPriors2,ObsPosteriors2,PUprior2,PUobs2,sumPUprior2,sumPUobs2,frbs,dms = on.calc_path_priors(frblist,ss,gs,wrappers,verbose=False,usemodel=False)
     
     # flattens lists of lists
-    ObsPosteriors = [x for xs in ObsPosteriors for x in xs]
-    ObsPosteriors2 = [x for xs in ObsPosteriors2 for x in xs]
+    ObsPosteriors = [x for xs in results["POx"] for x in xs]
+    ObsPosteriors2 = [x for xs in results2["POx"] for x in xs]
     
     # plots original vs updated posteriors
     plt.figure()
@@ -218,7 +223,7 @@ def main():
     plt.xlim(0,1)
     plt.ylim(0,1)
     plt.scatter(ObsPosteriors2,ObsPosteriors,label="Hosts",marker='x')
-    plt.scatter(PUobs2,PUobs,label="Unobserved",marker='+')
+    plt.scatter(results2["PUx"],results["PUx"],label="Unobserved",marker='+')
     plt.legend()
     plt.tight_layout()
     plt.savefig(opdir+"Scatter_plot_comparison.png")

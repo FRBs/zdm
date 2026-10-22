@@ -10,7 +10,7 @@ import copy
 import numpy as np
 import time
 
-from zdm import misc_functions
+from zdm import figures
 from zdm import iteration as it
 from zdm import loading
 
@@ -64,7 +64,7 @@ def generate(
     if do_plots:
         Zs = sample[:, 0]
         DMEGs = sample[:, 1]
-        misc_functions.plot_grid_2(
+        figures.plot_grid(
             grid.rates,
             grid.zvals,
             grid.dmvals,

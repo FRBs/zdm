@@ -17,6 +17,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib
 import cmasher as cmr
+from zdm import pcosmic
 
 from zdm import cosmology as cos
 
@@ -54,7 +55,10 @@ def plot_grid(
     othergrids=None,
     othernames=None,
     c_cmap = None,
-    cont_clrs = None
+    cont_clrs = None,
+    alevels = None,
+    other_alevels = None,
+    legend_loc = "upper left"
 ):
     """
     Very complicated routine for plotting 2D zdm grids 
@@ -108,6 +112,12 @@ def plot_grid(
             Used only if othergrids is not None. Must be length of othergrids +1.
         c_cmap (string): Name of colormap used to plot "Acont" contours
         cont_clrs (float, np.ndarray): list of colors in colourmap to use for contours
+        alevels (float, optional): list of levels at which to plot contours for
+                    the grids. Used only Aconts is set, and over-rides these values.
+        other_alevels (float, optional): list of levels at which to plot contours for
+                    other grids. Used only if othergrids is not None. Matches length of
+                    Aconts.
+        legend_loc (string): location keyword to pass to legend. Default: "upper left"
     """
     if H0 is None:
         H0 = cos.cosmo.H0
@@ -124,7 +134,7 @@ def plot_grid(
         plt_dicts = [{'color': clr, 'marker': 'o'} for clr in data_clrs]
     elif isinstance(plt_dicts, dict):
         plt_dicts = [plt_dicts]
-
+    
     if Aconts:
         linestyles = ['--', '-.', ':', '-']
         if c_cmap is None:
@@ -151,6 +161,13 @@ def plot_grid(
             del l_cont_dicts[i]['colors']
             l_cont_dicts[i]['linestyle'] = l_cont_dicts[i]['linestyles'][0]
             del l_cont_dicts[i]['linestyles']
+
+        # l_meerkat = {'color': cont_clrs[0], 'linestyle': "--"}
+        # l_inc = {'color': cont_clrs[1], 'linestyle': "-."}
+        # l_dsa = {'color': cont_clrs[2], 'linestyle': ":", 'marker': 'o', 'markeredgewidth': 1, 'markersize': 4}
+        # l_chime = {'color': cont_clrs[3], 'linestyle': "-"}#, 'markeredgewidth': 1, 'markersize': 4}
+        # l_askap = {'color': cont_clrs[4], 'linestyle': "--", 'marker': 'x', 'markeredgewidth': 1, 'markersize': 5}
+        # l_cont_dicts = [l_meerkat, l_inc, l_dsa, l_chime, l_askap]
 
     ##### imshow of grid #######
 
@@ -254,13 +271,14 @@ def plot_grid(
     # sets contours according to norm
     if Aconts:
         
-        alevels = get_alevels(zDMgrid,Aconts)
+        if alevels is None:
+            alevels = get_alevels(zDMgrid,Aconts)
         if norm == 1:
             alevels /= ddm
         elif norm == 2:
             alevels /= xnorm
         
-        if othergrids is not None:
+        if othergrids is not None and other_alevels is None:
             other_alevels=[]
             for grid in othergrids:
                 other_alevels.append(get_alevels(grid,Aconts))
@@ -356,17 +374,18 @@ def plot_grid(
         )
         cntrs=[cs]
         if othernames is not None:
+            # h,=plt.plot([-1e6,-2e6],[-1e6,-2e6],**l_cont_dicts[0],label=othernames[0])
             h,=plt.plot([-1e6,-2e6],[-1e6,-2e6],**l_cont_dicts[0],label=othernames[0])
             handles=[h]
         else:
             handles=[]
             for iA,Alevel in enumerate(Aconts):
-                    h,=plt.plot([-1e6,-2e6],[-1e6,-2e6],**l_cont_dicts[iA],label=str(1.-Alevel)+"%")
+                    h,=plt.plot([-1e6,-2e6],[-1e6,-2e6],**l_cont_dicts[iA],label=f"{(1-Alevel)*100:.0f}%")
             handles.append(h)
         
         if othergrids is not None:
             for i,grid in enumerate(othergrids):
-                print("size of i in othergrids is ",i)
+                print("size of i in othergrids is ",i,"levels are ",other_alevels[i])
                 cntr = ax.contour(grid.T, levels=other_alevels[i], origin="lower",
                     **cont_dicts[i+1])
                 if othernames is not None:
@@ -424,7 +443,11 @@ def plot_grid(
             zstop = kDM * zvals[stop2] + (1.0 - kDM) * zvals[stop1]
             zstop /= zvals[1] - zvals[0]
             DM /= dmvals[1] - dmvals[0]
-            plt.plot([0, zstop], [DM, DM], color=plt_dicts[0]['color'], linestyle=":")
+            if plt_dicts is not None and "color" in plt_dicts[0]:
+                color = plt_dicts[0]['color']
+            else:
+                color = "black"
+            plt.plot([0, zstop], [DM, DM], color=color, linestyle=":")
 
     if DMlims is not None:
         for DMlim in DMlims:
@@ -453,7 +476,7 @@ def plot_grid(
             j = int(nc - i - 1)
             plt.plot(np.arange(nz), carray[j, :], label=str(int(conts[j]*100))+"%", color="white",\
                     linestyle=cont_styles[cstyle])
-        l = plt.legend(loc="upper left", fontsize=8)
+        l = plt.legend(loc=legend_loc, fontsize=8)
         # l=plt.legend(bbox_to_anchor=(0.2, 0.8),fontsize=8)
         for text in l.get_texts():
             text.set_color("white")
@@ -474,8 +497,8 @@ def plot_grid(
 
         # idea is that 1 point is 1, hence...
         zeval = zvals / dz
-        DMEG_mean = (DM_cosmic + meanHost) / ddm
-        DMEG_median = (DM_cosmic + medianHost) / ddm
+        DMEG_mean = (DM_cosmic + meanHost/(1.+zvals)) / ddm
+        DMEG_median = (DM_cosmic + medianHost/(1.+zvals)) / ddm
         plt.plot(
             zeval,
             DMEG_mean,
@@ -523,7 +546,7 @@ def plot_grid(
             iZ = FRBZs / dz
             plt.plot(iZ[OK], iDMs[OK], 'ro',linestyle="")
             
-    legend = plt.legend(loc='upper left')
+    legend = plt.legend(loc='lower right')
     # legend = plt.legend(loc='upper left', bbox_to_anchor=(0.0, -0.15), fontsize=12, markerscale=1, ncol=2)
     # legend.get_frame().set_facecolor('lightgrey')
 

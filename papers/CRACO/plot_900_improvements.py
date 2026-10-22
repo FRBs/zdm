@@ -43,55 +43,22 @@ def main():
     
     # approximate best-fit values from recent analysis
     # best-fit from Jordan et al
-    state = states.load_state("HoffmannHalo25",scat="updated",rep=None)
+    state = states.load_state("HoffmannRepeaters26Pn",scat="updated",rep=None)
     
     if not os.path.exists(opdir):
         os.mkdir(opdir)
     
     # Initialise surveys and grids
-    sdir = resources.files('zdm').joinpath('../papers/CRACO/ImprovedSurveys')
-    """
-    ORIGINAL INVESTIGATION
-    names=['CRAFT_CRACO_900','CRAFT_CRACO_900_imp1',
-            'CRAFT_CRACO_900_imp2.1_div2','CRAFT_CRACO_900_imp2.1_div4','CRAFT_CRACO_900_imp2.1_div8',
-            'CRAFT_CRACO_900_imp2.2_div2','CRAFT_CRACO_900_imp2.2_div4','CRAFT_CRACO_900_imp2.2_div8',
-            'CRAFT_CRACO_900_imp2.3_div2','CRAFT_CRACO_900_imp2.3_div4','CRAFT_CRACO_900_imp2.3_div8',
-            'CRAFT_CRACO_900_imp3'
-            ]
-    labels = ["CRACO 900 MHz","1: $T_{\\rm sys}=25^{\\circ}$ K",
-               "2.1 $t_{\\rm rs}=6.8$\\,ms","2.1 $t_{\\rm rs}=3.4$\\,ms","2.1 $t_{\\rm rs}=1.7$\\,ms",
-               "2.2 $t_{\\rm rs}=6.8$\\,ms","2.2 $t_{\\rm rs}=3.4$\\,ms","2.2 $t_{\\rm rs}=1.7$\\,ms",
-               "2.3 $t_{\\rm rs}=6.8$\\,ms","2.3 $t_{\\rm rs}=3.4$\\,ms","2.3 $t_{\\rm rs}=1.7$\\,ms",
-               "3: $\\nu_{\\rm res}=167\\,kHz"
-               ]
-    linestyles=["-","-","-.","-.","-.","--","--","--",":",":",":","-"]
-    """
-    
-    """
-    names=['CRAFT_CRACO_900',
-            'CRAFT_CRACO_900_imp2.3_div2','CRAFT_CRACO_900_imp2.3_div4','CRAFT_CRACO_900_imp2.3_div8',
-            'CRAFT_CRACO_900_imp2.4_div2','CRAFT_CRACO_900_imp2.4_div4','CRAFT_CRACO_900_imp2.4_div8',
-            'CRAFT_CRACO_900_imp2.4_div8_primary',
-            #'CRAFT_CRACO_900_imp1',
-            'CRAFT_CRACO_900_imp_all'
-            ]
-    labels = ["CRACO 900 MHz",
-            "1: $t_{\\rm rs}=6.8$\\,ms","2: $t_{\\rm rs}=3.4$\\,ms","2: $t_{\\rm rs}=1.7$\\,ms",
-                "2: $t_{\\rm rs}=6.8$\\,ms","3: $t_{\\rm rs}=3.4$\\,ms","3: $t_{\\rm rs}=1.7$\\,ms",
-                "3: Perfect imaging",
-                #"4: $T_{\\rm sys}=25^{\\circ}$ K",
-                 "4: $T_{\\rm sys}=25^{\\circ}$ K"]
-    linestyles=["-",":",":",":","--","--","--","-.","-"]
-    """
+    sdir = resources.files('zdm').joinpath('../papers/CRACO/Surveys')
     
     
-    names=['CRAFT_CRACO_900',
-            'CRAFT_CRACO_900_imp2.3_div8',
-            'CRAFT_CRACO_900_imp2.4_div8',
-            'CRAFT_CRACO_900_imp2.4_div8_primary',
-            'CRAFT_CRACO_900_imp_all'
+    names=['CRACO_900_itsamp_8',
+            'CRACO_900_imp1',
+            'CRACO_900_imp2',
+            'CRACO_900_imp3',
+            'CRACO_900_imp4'
             ]
-    labels = ["CRACO 900 MHz",
+    labels = ["CRACO 900 MHz 13.8 ms",
                "1: $t_{\\rm res}=1.7$ ms",
                 "2: $\\nu_{\\rm res} = 167$ kHz",
                 "3: Perfect imaging",
@@ -106,11 +73,6 @@ def main():
     ss,gs = loading.surveys_and_grids(survey_names=names,repeaters=False,
                                     init_state=state,sdir=sdir,
                                     zmax=zmax,nz=nz,dmmax=dmmax,ndm=ndm) 
-    
-    
-    ##### prints total relative rates #####
-    for i,n in enumerate(names):
-        print("Total rate for survey ",labels[i]," is ",np.sum(gs[i].rates)/np.sum(gs[0].rates))
     
     
     
@@ -185,13 +147,13 @@ def main():
     plt.sca(ax1)
     plt.legend(fontsize=12)
     plt.tight_layout()
-    plt.savefig("ImprovedSurveys/improved_zs.png")
+    plt.savefig("Plots/improved_zs.png")
     plt.close()
     
     plt.sca(ax2)
     plt.legend(fontsize=12)
     plt.tight_layout()
-    plt.savefig("ImprovedSurveys/improved_dms.png")
+    plt.savefig("Plots/improved_dms.png")
     plt.close()
     
 def plot_efficiencies(gs,ss):

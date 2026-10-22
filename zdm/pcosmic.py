@@ -257,13 +257,12 @@ def get_mean_DM(zeds: np.ndarray, state: parameters.State, Plot=False):
     DMbar = tempDMbar[:-1:2]
     
     # performs a test to check if igm.average_DM has been fixed yet or not
-    if np.abs(DMbar[0]/DMbar[1] - 1./3.) > 1e-2:
-        print("DMbar is not scaling as expected! Central bins ",
+    if np.abs(DMbar[0]/DMbar[1] - 1./3.) > dz:
+        raise ValueError("DMbar is not scaling as expected! Central bins ",
                 zeds[0]," and ",zeds[1]," have respective DM of ",
                 DMbar[0]," and ",DMbar[1]," . Expected the second ",
                 "value to be ",DMbar[0]*3.," . Perhaps ",
                 igm.average_DM," has been fixed?",DMbar[0]/DMbar[1] - 1./3.)
-        exit()
     
     if Plot:
         plt.figure()

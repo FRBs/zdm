@@ -7,19 +7,18 @@ import numpy as np
 import importlib.resources as resources
 import os
 import pandas as pd
+import glob
 
 def main():
     """
     Loads in unique configs, and generates beamfiles for them
     """
     
-    configfile="Logs/configs.csv"
-    sim_all_configs("BeamHistograms/",configfile,False)
-    sim_all_configs("PrimaryBeams/",configfile,True)
-    
-    configfile="Logs/3ms_configs.csv"
-    sim_all_configs("BeamHistograms/",configfile,False)
-    sim_all_configs("PrimaryBeams/",configfile,True)
+    config_files = glob.glob("Logs/configs_*.csv")
+    for configfile in config_files:
+        print(configfile)
+        sim_all_configs("BeamHistograms/",configfile,primary=False)
+        sim_all_configs("PrimaryBeams/",configfile,primary=True)
 
 def sim_all_configs(Bdir,configfile,primary=False):
     """
@@ -55,14 +54,16 @@ def sim_all_configs(Bdir,configfile,primary=False):
         
         gsize = 10.
         gpix = 2560
-        basename = f"{Bdir}/hist_craco_{footprint}_p{fpitch:.2f}_f{freq:.1f}MHz_f{gsize:.1f}d_npix{gpix}_.npy"
+        basename = f"{Bdir}hist_craco_{footprint}_p{fpitch:.2f}_f{freq:.1f}MHz_f{gsize:.1f}d_npix{gpix}_.npy"
         basename2 = f"./hist_craco_{footprint}_p{fpitch:.2f}_f{freq:.1f}MHz_f{gsize:.1f}d_npix{gpix}_.npy"
         basename3 = f"./craco_{footprint}_p{fpitch:.2f}_f{freq:.1f}MHz_f{gsize:.1f}d_npix{gpix}.npy"
         if os.path.exists(basename):
             print("Found ",basename)
         else:
-            command = "python "+pyfile +" -fp " + footprint + " -p " + spitch + " -f " + sfreq[0:7] + " --primary="+str(primary)
-            
+            command = "python "+pyfile +" -fp " + footprint + " -p " + spitch + " -f " + sfreq[0:7]
+            if primary:
+                command = command + " --primary"
+            print(command)
             os.system(command)
             
             command = "mv "+basename2+" "+Bdir

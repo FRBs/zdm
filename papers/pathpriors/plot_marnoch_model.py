@@ -74,11 +74,14 @@ def main():
     
     outfile = opdir+"marnoch_best_fit_apparent_magnitudes.png"
     wrappers = on.make_wrappers(model,gs)
-    NFRB,AppMags,AppMagPriors,ObsMags,ObsPriors,ObsPosteriors,PUprior,PUobs,sumPUprior,sumPUobs,frbs,dms = on.calc_path_priors(frblist,ss,gs,wrappers,verbose=False)
-    llstat = on.calculate_likelihood_statistic(NFRB,AppMags,AppMagPriors,ObsMags,ObsPosteriors,PUobs,PUprior,plotfile=outfile)
     
-    ksstat = on.calculate_ks_statistic(NFRB,AppMags,AppMagPriors,ObsMags,ObsPosteriors,sumPUobs,
-                                    sumPUprior,plotfile=outfile,abc="(a)",tag="Marnoch23: ")
+    results = on.calc_path_priors(frblist,ss,gs,wrappers,verbose=False)
+    
+    llstat = on.calculate_likelihood_statistic(results["NFRB"],results["AppMags"],results["AppMagPriors"],
+                                    results["ObsMags"],results["POx"],results["PUx"],results["PU"],plotfile=outfile)
+    ksstat = on.calculate_ks_statistic(results["NFRB"],results["AppMags"],results["AppMagPriors"],results["ObsMags"],
+                                    results["POx"],results["sumPUx"],results["sumPU"],plotfile=outfile,abc="(a)",tag="Marnoch23: ")
+    
     
     print("Best-fit stats of the Marnoch model are ll=",llstat," ks = ",ksstat)
     

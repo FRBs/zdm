@@ -105,14 +105,14 @@ def test_scat_methods():
     
     plt.scatter(s2.wlist,s2.wplist/np.max(s2.wplist),label='Scattering (new) model')
     
-    scale_mean=(1200/600.)**-4
-    scale_mean=1
-    h,b=survey.geometric_lognormals(g2.state.width.Wlogmean,g2.state.width.Wlogsigma,g2.state.scat.Slogmean*scale_mean,g2.state.scat.Slogsigma,bins=x1,Nrand=100000)
+    #scale_mean=(1200/600.)**-4
+    #scale_mean=1
+    #h,b=survey.geometric_lognormals(g2.state.width.Wlogmean,g2.state.width.Wlogsigma,g2.state.scat.Slogmean*scale_mean,g2.state.scat.Slogsigma,bins=x1,Nrand=100000)
     
     
-    plotb=(b[0:-1]+b[1:])/2.
-    temph=h*plotb
-    plt.plot(plotb,temph/np.max(temph),label='CHIME scatter + width model')
+    #plotb=(b[0:-1]+b[1:])/2.
+    #temph=h*plotb
+    #plt.plot(plotb,temph/np.max(temph),label='CHIME scatter + width model')
     
     plt.legend(loc='upper left')
     ############ cumulative ##########
@@ -150,4 +150,5 @@ def test_scat_methods():
     plt.savefig(opdir+'/model_comparison.pdf')
     plt.close()
 
-test_scat_methods()
+if __name__ == "__main__":
+    test_scat_methods()

@@ -1,0 +1,92 @@
+{
+    "mcmc": {
+        "parameter_order": [
+            "sfr_n",
+            "alpha",
+            "lmean",
+            "lsigma",
+            "lEmin",
+            "lEb",
+            "lEmax",
+            "gamma",
+            "gamma2",
+            "H0"
+        ]
+    },
+    "config": {
+        "luminosity_function": 6,
+        "alpha_method": 1,
+        "source_evolution": 0,
+        "logF": -0.494850021680094,
+        "DMhalo": 50.0,
+        "sigmaDMG": 0.2,
+        "sigmaHalo": 15.0,
+        "halo_method": 0,
+        "Wlogmean": 0.0,
+        "Wlogsigma": 0.42,
+        "WNbins": 5,
+        "WidthFunction": 1,
+        "Wthresh": 0.5,
+        "Wmethod": 2,
+        "WMin": 0.1,
+        "WMax": 100.0,
+        "WNInternalBins": 100,
+        "Slogmean": 0.305,
+        "Slogsigma": 0.75,
+        "ScatFunction": 1,
+        "Sbackproject": true,
+        "Sfnorm": 600.0,
+        "Sfpower": -4.0,
+        "Smaxsigma": 3.0
+    },
+    "sfr_n": {
+        "DC": "FRBdemo",
+        "min": -2.0,
+        "max": 4.0
+    },
+    "alpha": {
+        "DC": "energy",
+        "min": -0.5,
+        "max": 2.5
+    },
+    "lmean": {
+        "DC": "host",
+        "min": 1.0,
+        "max": 3.0
+    },
+    "lsigma": {
+        "DC": "host",
+        "min": 0.1,
+        "max": 1.5
+    },
+    "lEmin": {
+        "DC": "energy",
+        "min": 36.0,
+        "max": 40.5
+    },
+    "lEb": {
+        "DC": "energy",
+        "min": 36.0,
+        "max": 45.0
+    },
+    "lEmax": {
+        "DC": "energy",
+        "min": 40.5,
+        "max": 45.0
+    },
+    "gamma": {
+        "DC": "energy",
+        "min": -3.0,
+        "max": 0.0
+    },
+    "gamma2": {
+        "DC": "energy",
+        "min": -3.0,
+        "max": 0.0
+    },
+    "H0": {
+        "DC": "cosmo",
+        "min": 35.0,
+        "max": 110.0
+    }
+}

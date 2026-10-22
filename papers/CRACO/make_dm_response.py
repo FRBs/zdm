@@ -28,10 +28,14 @@ def main():
     3.4ms and 13.8ms surveys
     """
     
-    analyseDM("craco_13ms_survey_db.weight.altaz.csv")
-    analyseDM("craco_3ms_survey_db.csv",prefix="3ms_")
+    for itsamp in [1,2,4,8,16,64]:
+        logfile="Logs/itsamp_"+str(itsamp)+".csv"
+        prefix="itsamp_"+str(itsamp)+"_"
+        analyseDM(logfile,prefix)
+    
+    #analyseDM("craco_3ms_survey_db.csv",prefix="3ms_")
 
-def analyseDM(logfile,prefix=""):
+def analyseDM(logfile,prefix):
     """
     Main program to run masks and plotting for
     - low and mid frequencies
@@ -45,37 +49,56 @@ def analyseDM(logfile,prefix=""):
     #logfile="craco_13ms_survey_db.weight.altaz.csv"
     #logfile="craco_3ms_survey_db.csv"
     
-    df = pd.read_csv("Logs/"+logfile)
+    df = pd.read_csv(logfile)
+    
+    # effective time, now weighted by beam factors, units of seconds - convert to hrs
+    # WARNING: needs to normalise teffs by a sensible number!!!
+    teffs = np.array(df["t_eff"]*df["bfactors"])/3600.
     
     fcut = 1100 # threshold frequency between low and high
     low = np.where(df["fbar"] < fcut)[0]
     mid = np.where(df["fbar"] >= fcut)[0]
     
-    
     savedir = os.path.join(resources.files('zdm'), 'data','Efficiencies')
     dmvals = np.linspace(0,10000,1000)
-    low_max_dm = np.array(df["maxdm"][low])
-    mid_max_dm = np.array(df["maxdm"][mid])
-    teffs = np.array(df["t_eff"]*df["bfactors"])/3600.
-    lteffs=teffs[low]
-    mteffs=teffs[mid]
     
+    # for plotting
+    a1=[]
+    a2=[]
+    a3=[]
+    a4=[]
+    a5=[]
+    
+    if len(low)>0:
+        low_max_dm = np.array(df["maxdm"][low])
+        lteffs=teffs[low]
+        l_max_dm_sorted,l_cum_teffs_sorted = make_dm_mask(dmvals,lteffs,low_max_dm,savedir,prefix+'craco_900_mask.npy')
+        a1.append(l_max_dm_sorted)
+        a2.append(l_cum_teffs_sorted)
+        a3.append("900 MHz")
+        ltraws=np.array(df["tobs"][low])/3600
+        l_max_dm_sorted,l_cum_traws_sorted = make_dm_mask(dmvals,ltraws,low_max_dm,savedir,None)
+        a4.append(l_max_dm_sorted)
+        a5.append(l_cum_traws_sorted)
+        
+    if len(mid)>0:
+        mid_max_dm = np.array(df["maxdm"][mid])
+        mteffs=teffs[mid]
+        m_max_dm_sorted,m_cum_teffs_sorted = make_dm_mask(dmvals,mteffs,mid_max_dm,savedir,prefix+'craco_1300_mask.npy')
+        a1.append(m_max_dm_sorted)
+        a2.append(m_cum_teffs_sorted)
+        a3.append("1300 MHz")
+        mtraws=np.array(df["tobs"][mid])/3600
+        m_max_dm_sorted,m_cum_traws_sorted = make_dm_mask(dmvals,mtraws,mid_max_dm,savedir,None)
+        a4.append(m_max_dm_sorted)
+        a5.append(m_cum_traws_sorted)
     # effective observation times  
-    l_max_dm_sorted,l_cum_teffs_sorted = make_dm_mask(dmvals,lteffs,low_max_dm,savedir,prefix+'craco_900_mask.npy')
-    m_max_dm_sorted,m_cum_teffs_sorted = make_dm_mask(dmvals,mteffs,mid_max_dm,savedir,prefix+'craco_1300_mask.npy')
     
-    plot_dm_masks([l_max_dm_sorted,m_max_dm_sorted],[l_cum_teffs_sorted,m_cum_teffs_sorted],
-                ["900 MHz","1300 MHz"],"Plots/"+prefix+"max_searched_dm.png","$T_{\\rm eff}$ [hr]")
+    plot_dm_masks(a1,a2,a3,"Plots/"+prefix+"max_searched_dm.png","$\\Omega_{\\rm eff} T_{\\rm eff}$ [deg$^2$ hr]")
     
     
     # raw observation times
-    ltraws=np.array(df["tobs"][low])/3600
-    mtraws=np.array(df["tobs"][mid])/3600
-    l_max_dm_sorted,l_cum_traws_sorted = make_dm_mask(dmvals,ltraws,low_max_dm,savedir,None)
-    m_max_dm_sorted,m_cum_traws_sorted = make_dm_mask(dmvals,mtraws,mid_max_dm,savedir,None)
-    
-    plot_dm_masks([l_max_dm_sorted,m_max_dm_sorted],[l_cum_traws_sorted,m_cum_traws_sorted],
-                ["900 MHz","1300 MHz"],"Plots/"+prefix+"raw_max_searched_dm.png","$T_{\\rm obs}$ [hr]")
+    plot_dm_masks(a4,a5,a3,"Plots/"+prefix+"raw_max_searched_dm.png","$\\Omega_{\\rm eff} T_{\\rm obs}$ [deg$^2$ hr]")
     
 def make_dm_mask(dmvals,teffs,max_dms,savedir,savename):
     """
@@ -133,17 +156,24 @@ def plot_dm_masks(max_dms,cum_teffs_sorteds,labels,savefile,ylabel):
     styles=["-","--",":","-."]
     
     plt.figure()
-    plt.ylim(0,3000)
+    #plt.ylim(bottom=0)
+    
     plt.xlim(0,5000)
     plt.ylabel(ylabel)
     plt.xlabel("DM [pc cm$^{-3}$]")
-    
+    ymax=0
     for i,max_dm_sorted in enumerate(max_dms):
         max_dm_sorted = np.concatenate((max_dm_sorted,np.array([0])))
         cum_teffs_sorted = cum_teffs_sorteds[i]
+        themax = np.max(cum_teffs_sorted)
+        if themax > ymax:
+            ymax = themax
         cum_teffs_sorted = np.concatenate((cum_teffs_sorted,np.array([cum_teffs_sorted[-1]])))
         
         plt.plot(max_dm_sorted,cum_teffs_sorted,label=labels[i],linestyle = styles[i])
+    
+    ymax = (int(ymax/100)+1)*100
+    plt.ylim(0,ymax)
     plt.legend()
     plt.tight_layout()
     plt.savefig(savefile)
