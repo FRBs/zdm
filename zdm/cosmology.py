@@ -17,7 +17,7 @@ Key Features
 - Cosmological volume elements (dV) and time-volume elements (dVdtau)
 - Interpolated lookup tables for fast array operations
 - Energy-fluence conversions for FRB analysis
-- Source evolution functions (SFR, power-law)
+- Source evolution functions (SFR, power-law, DTDs)
 
 Usage
 -----
@@ -40,6 +40,12 @@ import scipy.constants as constants
 import numpy as np
 import scipy.integrate as integrate
 from zdm import parameters
+
+import astropy.units as u
+from astropy.cosmology import Planck18 as P18cosmo
+from astropy.cosmology import z_at_value
+from scipy.interpolate import interp1d
+from scipy.stats import skewnorm
 
 
 
@@ -583,6 +589,9 @@ def choose_source_evolution_function(which=0):
              SFR(z)^n where SFR follows the cosmic star formation history.
         - 1: Simple power law (1+z)^(2.7*n), without the high-z turnover.
              Useful for comparison with SFR model.
+        - 2: Power-law delay time distribution convolved with Madau & Dickinson (2014) SFRD
+        - 3: WD-WD merger (GC-like) evolution
+        
         Default is 0.
 
     Returns
@@ -594,14 +603,20 @@ def choose_source_evolution_function(which=0):
     Raises
     ------
     ValueError
-        If `which` is not 0 or 1.
+        If `which` is not 0, 1, 2 or 3.
     """
     if which==0:
         source_evolution=sfr_evolution
     elif which==1:
         source_evolution=opz_evolution
+    elif which==2:
+        source_evolution=powerlaw_DTD_evolution
+    elif which==3:
+        source_evolution=GC_DTD_evolution
+    elif which==4:
+        source_evolution=GC_and_SFRD_evolution
     else:
-        raise ValueError("Undefined source evolution function ",which," choose 0 or 1")
+        raise ValueError("Undefined source evolution function ",which," choose 0, 1, 2, 3, or 4")
     return source_evolution
 
 def sfr_evolution(z,*params):
@@ -646,6 +661,186 @@ def opz_evolution(z,*params):
         Relative source density at redshift z.
     """
     return (1+z)**(2.7*params[0])
+
+def powerlaw_DTD_evolution(z,*params):
+    '''
+    Function to convolve a power-law delay time distribution with the 
+    Madau & Dickinson 2014 star formation rate density for a single 
+    FRB redshift. Implements equations 2, 3, and 4 of Zevin et al 2022
+    generalized to any transient.
+
+    Parameters
+    ----------
+    z : float or array_like [dimensionless]
+        Redshift
+    *params : floats 
+        Power-law parameters. First is pl_alpha [dimensionless] the power-law index, second is pl_tmin [Gyr] the minimum delay time, third is pl_tmax [Gyr] the maximum delay time.
+
+    Returns
+    -------
+    n : float
+        Relative source density at redshift z [formally Mpc^-3 yr^-1]
+    '''
+    # pull out DTD params
+    pl_alpha = params[0]
+    pl_tmin = params[1]
+    pl_tmax = params[2]
+
+    # convert power law time bounds to yrs
+    pl_tmin = (pl_tmin*(u.Gyr)).to(u.yr).value
+    pl_tmax = (pl_tmax*(u.Gyr)).to(u.yr).value
+
+    # set up fine redshift grid for interpolations
+    z_grid = np.linspace(0.0, 30.0, 10000)
+
+    # compute MD14 SFRD over fine redshift grid
+    SFRD = 0.015 * (((1+z_grid)**2.7)/(1+((1+z_grid)/2.9)**5.6))
+    SFRD_interp = interp1d(z_grid, SFRD)
+
+    # compute dtdz over fine redshift grid and convert to yr
+    dtdz = (1.0 / (H(z_grid) * (1.0 + z_grid)))*(1/(u.km/u.s/u.Mpc)).to(u.yr).value
+    dtdz_interp = interp1d(z_grid, dtdz)
+
+    # set up powerlaw
+    def powerlaw(t_d, alpha, t_min, t_max):
+    
+        # ensure t_d is a numpy array
+        t_d = np.asarray(t_d)
+
+        # compute normalization constant
+        if alpha == -1:
+            norm = 1.0 / np.log(t_max / t_min)
+        else:
+            norm = (1.0 + alpha) / (t_max**(1.0 + alpha) - t_min**(1.0+alpha))
+    
+        # power-law
+        p = norm * np.power(t_d, alpha)
+
+        # set values outside tmin/tmax bounds to (essentially) zero
+        p = np.where(((t_d < t_min) | (t_d > t_max)), 1e-40, p)
+
+        return np.asarray(p)
+
+    # handle scalar or array z
+    scalar_z = np.isscalar(z)
+    z_arr = np.atleast_1d(z)
+
+    # initialize array to store merger rates
+    n = np.zeros_like(z_arr, dtype=float)
+
+    # set up integral and integrate
+    for i, z_val in enumerate(z_arr):
+        def integrand(zprime, zmerge=z_val):
+            lam = 1 # Msun^-1 formation efficiency
+            t_eval = P18cosmo.lookback_time(zprime).to(u.yr).value - P18cosmo.lookback_time(zmerge).to(u.yr).value
+            val = powerlaw(t_eval, pl_alpha, pl_tmin, pl_tmax) * lam * SFRD_interp(zprime) * dtdz_interp(zprime)
+            return val
+        
+        # do integration from zprime=infinity (aka max z_grid) to zprime = passed z array values
+        n[i] = integrate.quad(integrand, z_val, max(z_grid))[0] # [Mpc^-3 yr^-1]
+
+    return float(n[0]) if scalar_z else n
+
+def GC_DTD_evolution(z,*params):
+    ''' 
+    Function to parameterize the white dwarf merger rate density
+    from Kremer+23a assuming a Gaussian and skew Gaussian. 
+    
+    Parameters
+    ----------
+    z : float [dimensionless]
+        Redshift
+    *params : floats
+        Optional parameters to pass to function, none explicitly required
+
+    Returns
+    -------
+    n : float
+        Relative source density at redshift z [formally Mpc^-3 yr^-1]
+    '''
+
+    # handle scalar or array z
+    scalar_z = np.isscalar(z)
+    z_arr = np.atleast_1d(z)
+
+    # define curve parameters
+    A1 = 4.00453    # Amplitude of the Gaussian component centered at z=0.
+    sigma1 = 0.30564    #  Width of the Gaussian component centered at z=0.
+    A2 = 23.973 # Amplitude scaling for the skew-normal component.
+    mu2 = 1.5   # Location parameter of the skew-normal component, near the second peak.
+    sigma2 = 4.21046    # scale parameter controlling the width of the skew-normal component.
+    alpha2 = 5.1927 # Shape parameter controlling the skewness of the second peak.
+    c = -0.389043   # Constant baseline offset added to both components.
+
+    def curve(zz):
+        zz = np.asarray(zz, dtype='float')    
+        # define gaussians
+        peak1 = A1 * np.exp(-0.5 * (zz / sigma1)**2)
+        peak2 = A2 * skewnorm.pdf(zz, a=alpha2, loc=mu2, scale=sigma2)
+
+        # combine curves
+        return peak1 + peak2 + c
+
+    # clip to avoid issues with negative c
+    n = np.clip(curve(z_arr), 0.0, None)
+
+    return float(n[0]) if scalar_z else n
+
+def GC_and_SFRD_evolution(z, *params):
+    ''' 
+    Function to allow for mixed fraction of white dwarf merger rate
+    density evolution (Kremer+23a) and SFRD
+
+    Parameters
+    ----------
+    z : float [dimensionless]
+        Redshift
+    *params : float
+        params[0] = fraction following WD-WD evolution (0 = none, 1 = all)
+
+    Returns
+    -------
+    n : float
+        Relative source density at redshift z with each component normalized to 1 at z=0
+    '''
+
+    # pull out params
+    f_GC = params[0]
+
+    # handle scalar or array z
+    scalar_z = np.isscalar(z)
+    z_arr = np.atleast_1d(z)
+
+    # define curve parameters
+    A1 = 4.00453    # Amplitude of the Gaussian component centered at z=0.
+    sigma1 = 0.30564    #  Width of the Gaussian component centered at z=0.
+    A2 = 23.973 # Amplitude scaling for the skew-normal component.
+    mu2 = 1.5   # Location parameter of the skew-normal component, near the second peak.
+    sigma2 = 4.21046    # scale parameter controlling the width of the skew-normal component.
+    alpha2 = 5.1927 # Shape parameter controlling the skewness of the second peak.
+    c = -0.389043   # Constant baseline offset added to both components.
+
+    def curve(zz):
+        zz = np.asarray(zz, dtype='float')    
+        # define gaussians
+        peak1 = A1 * np.exp(-0.5 * (zz / sigma1)**2)
+        peak2 = A2 * skewnorm.pdf(zz, a=alpha2, loc=mu2, scale=sigma2)
+
+        # combine curves
+        return peak1 + peak2 + c
+
+    # clip to avoid issues with negative c and normalize at z=0
+    GC_n = np.clip(curve(z_arr), 0.0, None) / curve(0.0)
+
+    def SFRD(z):
+        z = np.asarray(z, dtype='float')
+        f = lambda zz: (((1+zz)**2.7)/(1+((1+zz)/2.9)**5.6) *1e9)
+        return f(z) / f(0.0) # Msun Gpc^-3 yr^-1; normalizing at z=0
+
+    # mixed GC and SFRD evolution
+    n = (1 - f_GC)*SFRD(z_arr) + f_GC*GC_n # dimensionless
+
+    return float(n[0]) if scalar_z else n
 
 
 def sfr(z):

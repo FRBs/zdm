@@ -142,8 +142,8 @@ class FRBDemoParams(data_class.myDataClass):
         default=0,
         metadata={
             "help": "Integer flag specifying the function used.  "
-            + "0: SFR^n; 1: (1+z)^(2.7n)",
-            "options": [0, 1],
+            + "0: SFR^n; 1: (1+z)^(2.7n); 2: power-law DTD; 3: GC rate; 4: Mixed GC and SFRD rate",
+            "options": [0, 1, 2, 3, 4],
         },
     )
     alpha_method: int = field(
@@ -166,6 +166,36 @@ class FRBDemoParams(data_class.myDataClass):
     lC: float = field(
         default=3.3249,
         metadata={"help": "log10 constant in number per Mpc^-3 day^-1 at z=0"},
+    )
+    pl_alpha: float = field(
+        default = -1.0,
+        metadata={
+            "help": "Power-law delay time distribution power-law index",
+            "unit": "",
+        }
+    )
+    pl_tmin: float = field(
+        default = 0.01,
+        metadata={
+            "help": "Power-law minimum delay time",
+            "unit": "Gyr",
+            "Notation": "t_{\\rm min}",
+        }
+    )
+    pl_tmax: float = field(
+        default = 14.0,
+        metadata={
+            "help": "Power-law maximum delay time",
+            "unit": "Gyr",
+            "Notation": "t_{\\rm max}",
+        }
+    )
+    f_GC: float = field(
+        default = 0.5,
+        metadata={
+            "help": "Fraction of FRBs from WD-WD merger",
+            "unit": "",
+        }
     )
 
 
