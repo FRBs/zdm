@@ -142,8 +142,8 @@ class FRBDemoParams(data_class.myDataClass):
         default=0,
         metadata={
             "help": "Integer flag specifying the function used.  "
-            + "0: SFR^n; 1: (1+z)^(2.7n); 2: power-law DTD; 3: GC rate; 4: Mixed GC and SFRD rate",
-            "options": [0, 1, 2, 3, 4],
+            + "0: SFR^n; 1: (1+z)^(2.7n); 2: power-law DTD; 3: GC-like rate; 4: CCSN-like rate 5: Mixed GC and CCSN rate",
+            "options": [0, 1, 2, 3, 4, 5],
         },
     )
     alpha_method: int = field(
@@ -195,6 +195,14 @@ class FRBDemoParams(data_class.myDataClass):
         metadata={
             "help": "Fraction of FRBs from WD-WD merger",
             "unit": "",
+        }
+    )
+
+    k_type: int = field(
+        default = 0,
+        metadata={
+            "help": "Integer flag specifying assumption on number of CCSNe formed per unit stellar mass." + "0: single star only, k=0.00668 Msun^-1" + "1: binary, k=0.0128 Msun^-1",
+            "options": [0,1],
         }
     )
 

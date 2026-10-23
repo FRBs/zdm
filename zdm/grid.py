@@ -358,9 +358,14 @@ class Grid:
         # add WD-WD GC merger rate if 3
         elif self.state.FRBdemo.source_evolution == 3:
             self.sfr=self.source_function(self.zvals) 
-        # pass f_GC for WD-WD GC merger rate and SFRD mixture if 4
+
+        # add CCSN-like rate if 4
         elif self.state.FRBdemo.source_evolution == 4:
-            self.sfr=self.source_function(self.zvals, self.state.FRBdemo.f_GC)
+            self.sfr = self.source_function(self.zvals, self.state.FRBdemo.k_type)
+        
+        # pass f_GC for WD-WD GC merger rate and CCSN-like mixture if 5
+        elif self.state.FRBdemo.source_evolution == 5:
+            self.sfr=self.source_function(self.zvals, self.state.FRBdemo.f_GC, self.state.FRBdemo.k_type)
         
         if self.state.FRBdemo.alpha_method==1:
             self.sfr *= (1.0 + self.zvals)**(-self.state.energy.alpha) #reduces rate with alpha

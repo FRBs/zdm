@@ -591,6 +591,8 @@ def choose_source_evolution_function(which=0):
              Useful for comparison with SFR model.
         - 2: Power-law delay time distribution convolved with Madau & Dickinson (2014) SFRD
         - 3: WD-WD merger (GC-like) evolution
+        - 4: CCSN-like evolution
+        - 5: Mixture evolution of GC-like and CCSN-like
         
         Default is 0.
 
@@ -603,7 +605,7 @@ def choose_source_evolution_function(which=0):
     Raises
     ------
     ValueError
-        If `which` is not 0, 1, 2 or 3.
+        If `which` is not 0, 1, 2, 3, 4, or 5.
     """
     if which==0:
         source_evolution=sfr_evolution
@@ -612,11 +614,13 @@ def choose_source_evolution_function(which=0):
     elif which==2:
         source_evolution=powerlaw_DTD_evolution
     elif which==3:
-        source_evolution=GC_DTD_evolution
+        source_evolution=GC_evolution
     elif which==4:
-        source_evolution=GC_and_SFRD_evolution
+        source_evolution=CCSNe_evolution
+    elif which==4:
+        source_evolution=GC_and_CCSNe_evolution
     else:
-        raise ValueError("Undefined source evolution function ",which," choose 0, 1, 2, 3, or 4")
+        raise ValueError("Undefined source evolution function ",which," choose 0, 1, 2, 3, 4, or 5")
     return source_evolution
 
 def sfr_evolution(z,*params):
@@ -741,10 +745,9 @@ def powerlaw_DTD_evolution(z,*params):
 
     return float(n[0]) if scalar_z else n
 
-def GC_DTD_evolution(z,*params):
+def GC_evolution(z,*params):
     ''' 
-    Function to parameterize the white dwarf merger rate density
-    from Kremer+23a assuming a Gaussian and skew Gaussian. 
+    Function to implement source evolution following the Kremer+23a globular cluster white dwarf merger evolution. Parameterizes their empirical rate in fig 8 as a normal plus skew Gaussian. The rate is clipped to 0 where the extrapolated curve becomes negative (at z>11).
     
     Parameters
     ----------
@@ -756,12 +759,15 @@ def GC_DTD_evolution(z,*params):
     Returns
     -------
     n : float
-        Relative source density at redshift z [formally Mpc^-3 yr^-1]
+        Relative source density at redshift z [formally Gpc^-3 yr^-1]
     '''
 
     # handle scalar or array z
     scalar_z = np.isscalar(z)
     z_arr = np.atleast_1d(z)
+
+    # define redshift cut to avoid negative GC curve
+    z_cut = 11.0
 
     # define curve parameters
     A1 = 4.00453    # Amplitude of the Gaussian component centered at z=0.
@@ -772,73 +778,133 @@ def GC_DTD_evolution(z,*params):
     alpha2 = 5.1927 # Shape parameter controlling the skewness of the second peak.
     c = -0.389043   # Constant baseline offset added to both components.
 
-    def curve(zz):
-        zz = np.asarray(zz, dtype='float')    
-        # define gaussians
-        peak1 = A1 * np.exp(-0.5 * (zz / sigma1)**2)
-        peak2 = A2 * skewnorm.pdf(zz, a=alpha2, loc=mu2, scale=sigma2)
+    # define gaussians
+    peak1 = A1 * np.exp(-0.5 * (z / sigma1)**2)
+    peak2 = A2 * skewnorm.pdf(z, a=alpha2, loc=mu2, scale=sigma2)
 
-        # combine curves
-        return peak1 + peak2 + c
+    # combine curves
+    n = peak1 + peak2 + c
 
-    # clip to avoid issues with negative c
-    n = np.clip(curve(z_arr), 0.0, None)
+    # cut when rate goes negative
+    n = np.where(z <= z_cut, np.clip(n, 0.0, None), 0.0)
 
     return float(n[0]) if scalar_z else n
 
-def GC_and_SFRD_evolution(z, *params):
+
+def CCSNe_evolution(z, *params):
     ''' 
-    Function to allow for mixed fraction of white dwarf merger rate
-    density evolution (Kremer+23a) and SFRD
+    Function to implement source evolution following the core-collapse supernova rate from MD14 eqn 16. 
 
     Parameters
     ----------
     z : float [dimensionless]
         Redshift
-    *params : float
-        params[0] = fraction following WD-WD evolution (0 = none, 1 = all)
+    
+    *params :
+        params[0] = assumption for the number of core collapse supernovae formed per unit stellar mass; if 0, k=0.00668 Msun^-1 from Vassallo+26; if 1, k=0.0128 Msun^-1 from Zapartas+17
 
     Returns
     -------
     n : float
-        Relative source density at redshift z with each component normalized to 1 at z=0
+        Relative source density at redshift z
     '''
-
     # pull out params
-    f_GC = params[0]
+    k_type = params[0]
+
+    if k_type==0:
+        k_CCSN = 0.00668 # Msun^-1
+    elif k_type==1:
+        k_CCSN = 0.0128 # Msun^-1
 
     # handle scalar or array z
     scalar_z = np.isscalar(z)
     z_arr = np.atleast_1d(z)
 
-    # define curve parameters
+    # MD14
+    psi = (0.015 * (1 + z)**2.7 / (1 + ((1 + z) / 2.9)**5.6)) *1e9   # MD14 in Msun Gpc^-3 yr^-1
+
+    # CCSN rate 
+    n = psi*k_CCSN
+
+    return float(n[0]) if scalar_z else n
+
+def GC_and_CCSNe_evolution(z, *params):
+    ''' 
+    Function to allow for mixed source evolution between white dwarf mergers (Kremer+23a) and the comoving volumetric core-collapse supernova rate from MD14. Each component is normalized to 1. The WD merger rate is clipped to 0 where the extrapolated curve becomes negative at z>11; for consistency the CCSN curve is clipped at the same redshift.
+
+    Parameters
+    ----------
+    z : float [dimensionless]
+        Redshift
+    *params : float [0,1], string
+        params[0] = f_GC, fraction of sources following WD-WD evolution (0 = none aka pure CCSNe; 1 = all aka pure WD-WD)
+        
+        params[1] = assumption for the number of core collapse supernovae formed per unit stellar mass; if 0, k=0.00668 Msun^-1 from Vassallo+26; if 1, k=0.0128 Msun^-1 from Zapartas+17
+
+    Returns
+    -------
+    n : float
+        Relative source density at redshift z
+    '''
+
+    # pull out params
+    f_GC = params[0]
+    k_type = params[1]
+
+    if k_type==0:
+        k_CCSN = 0.00668 # Msun^-1
+    elif k_type==1:
+        k_CCSN = 0.0128 # Msun^-1
+
+    # handle scalar or array z
+    scalar_z = np.isscalar(z)
+    z_arr = np.atleast_1d(z)
+
+    # define find redshift grid for curve normalization
+    z_grid = np.linspace(0.0, 30.0, 10000)
+
+    # define redshift cut to avoid negative GC curve
+    z_cut = 11.0
+
+    # calculate cosmology weighting for normalization
+    dV_dz = P18cosmo.differential_comoving_volume(z_grid).to_value(u.Gpc**3/u.sr)
+    w_grid = dV_dz / (1+z_grid)
+
+    # define GC curve parameters
     A1 = 4.00453    # Amplitude of the Gaussian component centered at z=0.
     sigma1 = 0.30564    #  Width of the Gaussian component centered at z=0.
     A2 = 23.973 # Amplitude scaling for the skew-normal component.
     mu2 = 1.5   # Location parameter of the skew-normal component, near the second peak.
     sigma2 = 4.21046    # scale parameter controlling the width of the skew-normal component.
     alpha2 = 5.1927 # Shape parameter controlling the skewness of the second peak.
-    c = -0.389043   # Constant baseline offset added to both components.
+    c = -0.389043   # Constant baseline offset
 
-    def curve(zz):
-        zz = np.asarray(zz, dtype='float')    
+    def n_GC(z):
+        z = np.asarray(z, dtype='float')    
+
         # define gaussians
-        peak1 = A1 * np.exp(-0.5 * (zz / sigma1)**2)
-        peak2 = A2 * skewnorm.pdf(zz, a=alpha2, loc=mu2, scale=sigma2)
+        peak1 = A1 * np.exp(-0.5 * (z / sigma1)**2)
+        peak2 = A2 * skewnorm.pdf(z, a=alpha2, loc=mu2, scale=sigma2)
 
         # combine curves
-        return peak1 + peak2 + c
+        n = peak1 + peak2 + c
 
-    # clip to avoid issues with negative c and normalize at z=0
-    GC_n = np.clip(curve(z_arr), 0.0, None) / curve(0.0)
+        # return clipped GC curve so any negatives (possible due to c) go to 0; only affects z>11
+        return np.where(z <= z_cut, np.clip(n, 0.0, None), 0.0)
 
-    def SFRD(z):
+    def n_CCSN(z, k_CCSN):
         z = np.asarray(z, dtype='float')
-        f = lambda zz: (((1+zz)**2.7)/(1+((1+zz)/2.9)**5.6) *1e9)
-        return f(z) / f(0.0) # Msun Gpc^-3 yr^-1; normalizing at z=0
+        psi = (0.015 * (1 + z)**2.7 / (1 + ((1 + z) / 2.9)**5.6)) *1e9   # MD14 in Msun Gpc^-3 yr^-1
 
-    # mixed GC and SFRD evolution
-    n = (1 - f_GC)*SFRD(z_arr) + f_GC*GC_n # dimensionless
+        # return clipped CCSN curve over same redshift range as GC curve
+        return np.where(z <= z_cut, k_CCSN*psi, 0.0)
+
+    # normalize curves N_i = int[n_i(z) w(z) dz]
+    N_GC = np.trapezoid(n_GC(z_grid)*w_grid, z_grid)
+    N_CCSN = np.trapezoid(n_CCSN(z_grid,k_CCSN)*w_grid, z_grid)
+
+    # combine CCSN and GC curves with normalizations
+    n = (1-f_GC)*n_CCSN(z_arr,k_CCSN)/N_CCSN + f_GC*n_GC(z_arr)/N_GC
 
     return float(n[0]) if scalar_z else n
 
