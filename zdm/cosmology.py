@@ -617,7 +617,7 @@ def choose_source_evolution_function(which=0):
         source_evolution=GC_evolution
     elif which==4:
         source_evolution=CCSNe_evolution
-    elif which==4:
+    elif which==5:
         source_evolution=GC_and_CCSNe_evolution
     else:
         raise ValueError("Undefined source evolution function ",which," choose 0, 1, 2, 3, 4, or 5")
