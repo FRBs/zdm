@@ -167,7 +167,7 @@ class FRBDemoParams(data_class.myDataClass):
         default=3.3249,
         metadata={"help": "log10 constant in number per Mpc^-3 day^-1 at z=0"},
     )
-    pl_alpha: float = field(
+    pl_beta: float = field(
         default = -1.0,
         metadata={
             "help": "Power-law delay time distribution power-law index",

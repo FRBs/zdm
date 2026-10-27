@@ -353,7 +353,7 @@ class Grid:
                                           self.state.FRBdemo.sfr_n)
         # pass powerlaw parameters if 2
         elif self.state.FRBdemo.source_evolution == 2:
-            self.sfr=self.source_function(self.zvals, self.state.FRBdemo.pl_alpha, 
+            self.sfr=self.source_function(self.zvals, self.state.FRBdemo.pl_beta, 
                                           self.state.FRBdemo.pl_tmin, self.state.FRBdemo.pl_tmax)
         # add WD-WD GC merger rate if 3
         elif self.state.FRBdemo.source_evolution == 3:
@@ -1080,7 +1080,7 @@ class Grid:
                     bandwidth
             set_evolution
                 sfr_n
-                pl_alpha
+                pl_beta
                 H0
             
             smear_grid
@@ -1144,7 +1144,7 @@ class Grid:
             set_evol = True
             new_sfr_smear = True  # True for either alpha_method
         # ensure evolution and smearing still updates if power-law DTD selected
-        if self.chk_upd_param("pl_alpha", vparams, update=True):
+        if self.chk_upd_param("pl_beta", vparams, update=True):
             set_evol = True
             new_sfr_smear = True
         if self.chk_upd_param("alpha", vparams, update=True):

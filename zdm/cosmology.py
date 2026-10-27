@@ -678,7 +678,7 @@ def powerlaw_DTD_evolution(z,*params):
     z : float or array_like [dimensionless]
         Redshift
     *params : floats 
-        Power-law parameters. First is pl_alpha [dimensionless] the power-law index, second is pl_tmin [Gyr] the minimum delay time, third is pl_tmax [Gyr] the maximum delay time.
+        Power-law parameters. First is pl_beta [dimensionless] the power-law index, second is pl_tmin [Gyr] the minimum delay time, third is pl_tmax [Gyr] the maximum delay time.
 
     Returns
     -------
@@ -686,7 +686,7 @@ def powerlaw_DTD_evolution(z,*params):
         Relative source density at redshift z [formally Mpc^-3 yr^-1]
     '''
     # pull out DTD params
-    pl_alpha = params[0]
+    pl_beta = params[0]
     pl_tmin = params[1]
     pl_tmax = params[2]
 
@@ -706,19 +706,19 @@ def powerlaw_DTD_evolution(z,*params):
     dtdz_interp = interp1d(z_grid, dtdz)
 
     # set up powerlaw
-    def powerlaw(t_d, alpha, t_min, t_max):
+    def powerlaw(t_d, beta, t_min, t_max):
     
         # ensure t_d is a numpy array
         t_d = np.asarray(t_d)
 
         # compute normalization constant
-        if alpha == -1:
+        if beta == -1:
             norm = 1.0 / np.log(t_max / t_min)
         else:
-            norm = (1.0 + alpha) / (t_max**(1.0 + alpha) - t_min**(1.0+alpha))
+            norm = (1.0 + beta) / (t_max**(1.0 + beta) - t_min**(1.0+beta))
     
         # power-law
-        p = norm * np.power(t_d, alpha)
+        p = norm * np.power(t_d, beta)
 
         # set values outside tmin/tmax bounds to (essentially) zero
         p = np.where(((t_d < t_min) | (t_d > t_max)), 1e-40, p)
@@ -737,7 +737,7 @@ def powerlaw_DTD_evolution(z,*params):
         def integrand(zprime, zmerge=z_val):
             lam = 1 # Msun^-1 formation efficiency
             t_eval = P18cosmo.lookback_time(zprime).to(u.yr).value - P18cosmo.lookback_time(zmerge).to(u.yr).value
-            val = powerlaw(t_eval, pl_alpha, pl_tmin, pl_tmax) * lam * SFRD_interp(zprime) * dtdz_interp(zprime)
+            val = powerlaw(t_eval, pl_beta, pl_tmin, pl_tmax) * lam * SFRD_interp(zprime) * dtdz_interp(zprime)
             return val
         
         # do integration from zprime=infinity (aka max z_grid) to zprime = passed z array values
