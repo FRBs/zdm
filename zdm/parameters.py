@@ -142,8 +142,8 @@ class FRBDemoParams(data_class.myDataClass):
         default=0,
         metadata={
             "help": "Integer flag specifying the function used.  "
-            + "0: SFR^n; 1: (1+z)^(2.7n); 2: power-law DTD; 3: GC-like rate; 4: CCSN-like rate 5: Mixed GC and CCSN rate",
-            "options": [0, 1, 2, 3, 4, 5],
+            + "0: SFR^n; 1: (1+z)^(2.7n); 2: power-law DTD; 3: GC-like rate; 4: CCSN-like rate 5: Mixed GC and CCSN rate; 6: lognormal DTD",
+            "options": [0, 1, 2, 3, 4, 5, 6],
         },
     )
     alpha_method: int = field(
@@ -206,6 +206,23 @@ class FRBDemoParams(data_class.myDataClass):
         }
     )
 
+    lognorm_tau: float = field(
+        default = 1,
+        metadata={
+            "help": "Characteristic median delay time",
+            "unit": "Gyr",
+            "Notation": "\\tau_{\\rm lognorm}",
+        }
+    )
+
+    lognorm_sigma: float = field(
+        default = 0.3,
+        metadata={
+            "help": "Characteristic width of lognorm DTD",
+            "unit": "",
+            "Notation": "\\sigma_{\\rm lognorm}",
+        }
+    )
 
 
 @dataclass

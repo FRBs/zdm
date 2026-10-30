@@ -366,7 +366,11 @@ class Grid:
         # pass f_GC for WD-WD GC merger rate and CCSN-like mixture if 5
         elif self.state.FRBdemo.source_evolution == 5:
             self.sfr=self.source_function(self.zvals, self.state.FRBdemo.f_GC, self.state.FRBdemo.k_type)
-        
+
+        # pass lognorm parameters if 6
+        elif self.state.FRBdemo.source_evolution == 6:
+            self.sfr=self.source_function(self.zvals, self.state.FRBdemo.lognorm_tau, self.state.FRBdemo.lognorm_sigma)
+
         if self.state.FRBdemo.alpha_method==1:
             self.sfr *= (1.0 + self.zvals)**(-self.state.energy.alpha) #reduces rate with alpha
 
@@ -1081,6 +1085,7 @@ class Grid:
             set_evolution
                 sfr_n
                 pl_beta
+                lognorm_tau
                 H0
             
             smear_grid
@@ -1147,6 +1152,10 @@ class Grid:
         if self.chk_upd_param("pl_beta", vparams, update=True):
             set_evol = True
             new_sfr_smear = True
+        # ensure evolution and smearing still updates if lognorm DTD selected
+        if self.chk_upd_param("lognorm_tau", vparams, update=True):
+                set_evol = True
+                new_sfr_smear = True
         if self.chk_upd_param("alpha", vparams, update=True):
             set_evol = True
             if self.state.FRBdemo.alpha_method == 0:

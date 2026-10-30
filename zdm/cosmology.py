@@ -45,7 +45,7 @@ import astropy.units as u
 from astropy.cosmology import Planck18 as P18cosmo
 from astropy.cosmology import z_at_value
 from scipy.interpolate import interp1d
-from scipy.stats import skewnorm
+from scipy.stats import skewnorm, lognorm
 
 
 
@@ -593,6 +593,7 @@ def choose_source_evolution_function(which=0):
         - 3: WD-WD merger (GC-like) evolution
         - 4: CCSN-like evolution
         - 5: Mixture evolution of GC-like and CCSN-like
+        - 6: Lognormal delay time distribution convolved with Madau & Dickinson (2014) SFRD
         
         Default is 0.
 
@@ -605,7 +606,7 @@ def choose_source_evolution_function(which=0):
     Raises
     ------
     ValueError
-        If `which` is not 0, 1, 2, 3, 4, or 5.
+        If `which` is not 0, 1, 2, 3, 4, 5, or 6.
     """
     if which==0:
         source_evolution=sfr_evolution
@@ -619,8 +620,10 @@ def choose_source_evolution_function(which=0):
         source_evolution=CCSNe_evolution
     elif which==5:
         source_evolution=GC_and_CCSNe_evolution
+    elif which==6:
+        sourve_evolution=lognormal_DTD_evolution
     else:
-        raise ValueError("Undefined source evolution function ",which," choose 0, 1, 2, 3, 4, or 5")
+        raise ValueError("Undefined source evolution function ",which," choose 0, 1, 2, 3, 4, 5, or 6")
     return source_evolution
 
 def sfr_evolution(z,*params):
@@ -683,7 +686,7 @@ def powerlaw_DTD_evolution(z,*params):
     Returns
     -------
     n : float
-        Relative source density at redshift z [formally Mpc^-3 yr^-1]
+        Relative source density at redshift z [formally Gpc^-3 yr^-1]
     '''
     # pull out DTD params
     pl_beta = params[0]
@@ -705,6 +708,18 @@ def powerlaw_DTD_evolution(z,*params):
     dtdz = (1.0 / (H(z_grid) * (1.0 + z_grid)))*(1/(u.km/u.s/u.Mpc)).to(u.yr).value
     dtdz_interp = interp1d(z_grid, dtdz)
 
+    # compute lookback time grid
+    tlb = P18cosmo.lookback_time(z_grid).to(u.yr).value
+    tlb_interp = interp1d(z_grid, tlb)
+    z_of_tlb = interp1d(tlb, z_grid)
+
+    # handle scalar or array z
+    scalar_z = np.isscalar(z)
+    z_arr = np.atleast_1d(z)
+
+    # initialize array to store merger rates
+    n = np.zeros_like(z_arr, dtype=float)
+
     # set up powerlaw
     def powerlaw(t_d, beta, t_min, t_max):
     
@@ -725,23 +740,29 @@ def powerlaw_DTD_evolution(z,*params):
 
         return np.asarray(p)
 
-    # handle scalar or array z
-    scalar_z = np.isscalar(z)
-    z_arr = np.atleast_1d(z)
-
-    # initialize array to store merger rates
-    n = np.zeros_like(z_arr, dtype=float)
 
     # set up integral and integrate
     for i, z_val in enumerate(z_arr):
+
+        # get merger time
+        tlb_merge = float(tlb_interp(z_val))
+
         def integrand(zprime, zmerge=z_val):
             lam = 1 # Msun^-1 formation efficiency
-            t_eval = P18cosmo.lookback_time(zprime).to(u.yr).value - P18cosmo.lookback_time(zmerge).to(u.yr).value
-            val = powerlaw(t_eval, pl_beta, pl_tmin, pl_tmax) * lam * SFRD_interp(zprime) * dtdz_interp(zprime)
+            t_eval = float(tlb_interp(zprime)) - tlb_merge
+            DTD = powerlaw(t_eval, pl_beta, pl_tmin, pl_tmax)
+            val = DTD * lam * SFRD_interp(zprime) * dtdz_interp(zprime)
             return val
+
+        # add breakpoints to help integration
+        points = [float(z_of_tlb(tlb_merge + t)) for t in (pl_tmin, pl_tmax)
+       if tlb_merge + t < tlb[-1]]
         
         # do integration from zprime=infinity (aka max z_grid) to zprime = passed z array values
-        n[i] = integrate.quad(integrand, z_val, max(z_grid))[0] # [Mpc^-3 yr^-1]
+        n[i] = integrate.quad(integrand, z_val, max(z_grid), points=points or None, limit=500)[0] # [Mpc^-3 yr^-1]
+
+    # convert to Gpc^-3 yr^-1
+    n = n * 1e9
 
     return float(n[0]) if scalar_z else n
 
@@ -806,7 +827,7 @@ def CCSNe_evolution(z, *params):
     Returns
     -------
     n : float
-        Relative source density at redshift z
+        Relative source density at redshift z [formally Gpc^-3 yr^-1]
     '''
     # pull out params
     k_type = params[0]
@@ -821,10 +842,13 @@ def CCSNe_evolution(z, *params):
     z_arr = np.atleast_1d(z)
 
     # MD14
-    psi = (0.015 * (1 + z)**2.7 / (1 + ((1 + z) / 2.9)**5.6)) *1e9   # MD14 in Msun Gpc^-3 yr^-1
+    psi = (0.015 * (1 + z)**2.7 / (1 + ((1 + z) / 2.9)**5.6))   # MD14 in Msun Gpc^-3 yr^-1
 
     # CCSN rate 
     n = psi*k_CCSN
+
+    # convert to Gpc^-3 yr^1
+    n = n * 1e9
 
     return float(n[0]) if scalar_z else n
 
@@ -844,7 +868,7 @@ def GC_and_CCSNe_evolution(z, *params):
     Returns
     -------
     n : float
-        Relative source density at redshift z
+        Relative source density at redshift z [dimensionless]
     '''
 
     # pull out params
@@ -905,6 +929,87 @@ def GC_and_CCSNe_evolution(z, *params):
 
     # combine CCSN and GC curves with normalizations
     n = (1-f_GC)*n_CCSN(z_arr,k_CCSN)/N_CCSN + f_GC*n_GC(z_arr)/N_GC
+
+    return float(n[0]) if scalar_z else n
+
+def lognormal_DTD_evolution(z,*params):
+    ''' 
+    Function to convolve a lognormal delay time distribution with the
+    Madau & Dickinson 2014 star formation rate density for a single or
+    array of FRB redshifts. Takes structure of powerlaw_DTD_evolution,
+    implementing the lognormal distribution from Hao & Yuan 2013 (eqn 16).
+
+    Parameters
+    ----------
+    z : float [dimensionless]
+        Redshift
+    *params : floats
+        Lognormal parameters. First is lognorm_tau [Gyr] the characteristic
+        (median) delay time (tau_* in HY13), second is lognorm_sigma 
+        [dimesionless] the characteristic width in ln(t).
+
+    Returns1
+    -------
+    n : float
+        Relative source density at redshift z [formally Gpc^-3 yr^-1]
+    '''
+
+    # pull out DTD params
+    lognorm_tau = params[0] # this will be scale in scipy fnc
+    lognorm_sigma = params[1] # this will be s in scipy fnc
+
+    # set up fine redshift grid for interpolations
+    z_grid = np.linspace(0.0, 30.0, 10000)
+
+    # compute MD14 SFRD over fine redshift grid
+    SFRD = 0.015 * (((1+z_grid)**2.7)/(1+((1+z_grid)/2.9)**5.6))
+    SFRD_interp = interp1d(z_grid, SFRD)
+
+    # compute dtdz over fine redshift grid and convert to yr
+    dtdz = (1.0 / (H(z_grid) * (1.0 + z_grid)))*(1/(u.km/u.s/u.Mpc)).to(u.yr).value
+    dtdz_interp = interp1d(z_grid, dtdz)
+
+    # compute lookback time grid
+    tlb = P18cosmo.lookback_time(z_grid).to(u.Gyr).value
+    tlb_interp = interp1d(z_grid, tlb)
+    z_of_tlb = interp1d(tlb, z_grid)
+    tlb_max = tlb[-1]
+
+    # handle scalar or array z
+    scalar_z = np.isscalar(z)
+    z_arr = np.atleast_1d(z)
+
+    # initialize array to store merger rates
+    n = np.zeros_like(z_arr, dtype=float)
+
+    # set up integral and integrate
+    for i, z_val in enumerate(z_arr):
+        
+        # get merger time
+        tlb_merge = float(tlb_interp(z_val))
+
+        def integrand(zprime, zmerge=z_val):
+            lam = 1 # Msun^-1 formation efficiency
+            t_eval = float(tlb_interp(zprime)) - tlb_merge
+            DTD = lognorm.pdf(t_eval, s=lognorm_sigma, loc=0, scale=lognorm_tau)/1e9 # Gyr -> yr to match dtdz
+            val = DTD * lam * SFRD_interp(zprime) * dtdz_interp(zprime)
+            return val
+
+        # add breakpoints at the redshifts where the delay is scale*exp(k*sigma) for k=(-4,4) (breaks quad integration for short delays)
+        points = []
+        for k in range(-4, 5):
+            t = tlb_merge + lognorm_tau * np.exp(k * lognorm_sigma)
+            if t < tlb_max:
+                zp = float(z_of_tlb(t))
+                if z_val < zp < max(z_grid):
+                    points.append(zp)
+        points = sorted(set(points))
+
+        # do integration from zprime=infinity (aka max z_grid) to zprime=passed z array values
+        n[i] = integrate.quad(integrand, z_val, max(z_grid), points=points or None, limit=500, epsabs=0, epsrel=1e-6)[0] # [Mpc^-3 yr^-1]
+
+    # convert to Gpc^-3 yr^-1
+    n = n * 1e9
 
     return float(n[0]) if scalar_z else n
 
