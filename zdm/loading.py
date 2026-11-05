@@ -219,7 +219,8 @@ def surveys_and_grids(init_state=None, alpha_method=1,
                       sdir=None, edir=None,
                       rand_DMG=False, discard_empty=False,
                       state_dict=None,
-                      survey_dict=None,verbose=False): 
+                      survey_dict=None,verbose=False,
+                      rmult=1.): 
     """ Load up a survey and grid for a real dataset
 
     Args:
@@ -247,6 +248,7 @@ def surveys_and_grids(init_state=None, alpha_method=1,
         discard_empty (bool, optional):
             If true, does not calculate empty surveys (mostly for after latitude cuts)
         survey_dict (dict,None): list of survey metadata and values to apply
+        rmult (float, None): multiplier of survey time. Defaults to unity (no effect)
     Raises:
         IOError: [description]
 
@@ -288,6 +290,14 @@ def surveys_and_grids(init_state=None, alpha_method=1,
                                NFRB=NFRB, sdir=sdir, edir=edir, 
                                rand_DMG=rand_DMG,survey_dict=survey_dict)
         
+        # allows multiplication of observation times
+        if rmult is not None:
+            if s.meta['DRIFT_SCAN'] == 2: # it is a draft scan obs, with beam_o being time
+                s.beam_o *= rmult
+            else:
+                if s.TOBS is not None:
+                    s.TOBS *= rmult
+                    
         if discard_empty == False or s.NFRB != 0:
             # Check necessary parameters exist if considering repeaters
             if repeaters:
