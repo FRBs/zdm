@@ -167,7 +167,7 @@ class repeat_Grid(grid.Grid):
         
         # to remove alpha effect from grid.sfr if alpha_method==1
         if self.state.FRBdemo.alpha_method==1:
-            self.use_sfr = self.source_function(self.zvals,self.state.FRBdemo.sfr_n)
+            self.use_sfr = self.base_sfr
         else:
             self.use_sfr = self.sfr
         
@@ -226,7 +226,7 @@ class repeat_Grid(grid.Grid):
 
         if new_sfr_smear or ALL:
             if self.state.FRBdemo.alpha_method==1:
-                self.use_sfr = self.source_function(self.zvals,self.state.FRBdemo.sfr_n)
+                self.use_sfr = self.base_sfr
             else:
                 self.use_sfr = self.sfr
 

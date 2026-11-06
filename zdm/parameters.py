@@ -176,6 +176,7 @@ class FRBDemoParams(data_class.myDataClass):
         metadata={
             "help": "Power-law delay time distribution power-law index",
             "unit": "",
+            "Notation": "\\alpha_{dtd}",
         }
     )
     pl_tmin: float = field(
@@ -189,7 +190,7 @@ class FRBDemoParams(data_class.myDataClass):
     pl_tmax: float = field(
         default = 14.0,
         metadata={
-            "help": "Power-law maximum delay time",
+            "help": "Power-law maximum delay time. Universe age is ~13.8 Gyr",
             "unit": "Gyr",
             "Notation": "t_{\\rm max}",
         }
@@ -197,7 +198,7 @@ class FRBDemoParams(data_class.myDataClass):
     f_GC: float = field(
         default = 0.5,
         metadata={
-            "help": "Fraction of FRBs from WD-WD merger",
+            "help": "Fraction of FRBs from WD-WD merger at z=0",
             "unit": "",
         }
     )
