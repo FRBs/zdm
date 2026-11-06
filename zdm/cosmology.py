@@ -43,7 +43,6 @@ from zdm import parameters
 
 import astropy.units as u
 from astropy.cosmology import Planck18 as P18cosmo
-from astropy.cosmology import z_at_value
 from scipy.interpolate import interp1d
 from scipy.stats import skewnorm
 
@@ -95,6 +94,7 @@ dvdtaus=1
 # tracks whether or not this module has been initialised
 INIT=False
 
+# this sets the cosmological parameters used in this work
 cosmo = parameters.CosmoParams()
 
 
@@ -591,14 +591,15 @@ def choose_source_evolution_function(which=0):
              Useful for comparison with SFR model.
         - 2: Power-law delay time distribution convolved with Madau & Dickinson (2014) SFRD
         - 3: WD-WD merger (GC-like) evolution
+        - 4: SFRD (0) evolution and WD-WD merger (3) combination
         
         Default is 0.
 
     Returns
     -------
     callable
-        Source evolution function with signature f(z, n) where z is redshift
-        and n is the evolution power parameter.
+        Source evolution function with variable signature. Arguments will
+        by redshift z, plus model params.
 
     Raises
     ------
@@ -665,8 +666,8 @@ def opz_evolution(z,*params):
 def powerlaw_DTD_evolution(z,*params):
     '''
     Function to convolve a power-law delay time distribution with the 
-    Madau & Dickinson 2014 star formation rate density for a single 
-    FRB redshift. Implements equations 2, 3, and 4 of Zevin et al 2022
+    Madau & Dickinson 2014 star formation rate density for
+    FRB redshifts z. Implements equations 2, 3, and 4 of Zevin et al 2022
     generalized to any transient.
 
     Parameters
@@ -678,13 +679,17 @@ def powerlaw_DTD_evolution(z,*params):
 
     Returns
     -------
-    n : float
+    n : float or nd array
         Relative source density at redshift z [formally Mpc^-3 yr^-1]
+        Normalised to unity at z=0
     '''
     # pull out DTD params
     pl_alpha = params[0]
     pl_tmin = params[1]
     pl_tmax = params[2]
+    
+    if pl_tmax < pl_tmin:
+        raise ValueError("power law DTD has max time < min time!, i.e.",pl_tmax," < ",pl_tmin)
 
     # convert power law time bounds to yrs
     pl_tmin = (pl_tmin*(u.Gyr)).to(u.yr).value
@@ -696,49 +701,87 @@ def powerlaw_DTD_evolution(z,*params):
     # compute MD14 SFRD over fine redshift grid
     SFRD = 0.015 * (((1+z_grid)**2.7)/(1+((1+z_grid)/2.9)**5.6))
     SFRD_interp = interp1d(z_grid, SFRD)
-
+    
     # compute dtdz over fine redshift grid and convert to yr
     dtdz = (1.0 / (H(z_grid) * (1.0 + z_grid)))*(1/(u.km/u.s/u.Mpc)).to(u.yr).value
     dtdz_interp = interp1d(z_grid, dtdz)
-
-    # set up powerlaw
-    def powerlaw(t_d, alpha, t_min, t_max):
     
+    # set up simple interpolation
+    t_lookback_3 = np.cumsum(dtdz)*(z_grid[1]-z_grid[0])
+    lookback_time_interp = interp1d(z_grid, t_lookback_3)
+    
+    # set up powerlaw
+    def integral_powerlaw(td1,td2, alpha, t_min, t_max):
+        """
+        Integrates power-law from td1 to td2
+        """
         # ensure t_d is a numpy array
-        t_d = np.asarray(t_d)
-
+        td1 = np.asarray(td1)
+        td2 = np.asarray(td2)
+        
+        # the above are integration limits. We now truncate these
+        # at t_min and t_max limits
+        toolow1 = np.where(td1 < t_min)[0]
+        td1[toolow1] = t_min
+        toolow2 = np.where(td2 < t_min)[0]
+        td2[toolow2] = t_min
+        
+        toohigh1 = np.where(td1 > t_max)[0]
+        td1[toohigh1] = t_max
+        toohigh2 = np.where(td2 > t_max)[0]
+        td2[toohigh2] = t_max
+        
         # compute normalization constant
         if alpha == -1:
             norm = 1.0 / np.log(t_max / t_min)
+            p = norm * (np.log(td2/td1))
         else:
             norm = (1.0 + alpha) / (t_max**(1.0 + alpha) - t_min**(1.0+alpha))
     
-        # power-law
-        p = norm * np.power(t_d, alpha)
+            # power-law
+            p = norm * (np.power(td2, alpha+1) - np.power(td1, alpha+1))/(alpha+1)
 
         # set values outside tmin/tmax bounds to (essentially) zero
-        p = np.where(((t_d < t_min) | (t_d > t_max)), 1e-40, p)
+        #p = np.where(((t_d < t_min) | (t_d > t_max)), 1e-40, p)
 
         return np.asarray(p)
-
+    
     # handle scalar or array z
     scalar_z = np.isscalar(z)
     z_arr = np.atleast_1d(z)
-
+    z_arr = np.insert(z_arr, 0, 0.) # insert a leading zero. We remove it later. This is purely for normalisation.
+    
     # initialize array to store merger rates
     n = np.zeros_like(z_arr, dtype=float)
 
-    # set up integral and integrate
+    # new method. This one assumes the power-law can turn on arbitrarily quickly, but SFR is slow
+    # hence, we treat SFR as being constant over each dz bin, and integrate the power-law exactly
+    lam=1
     for i, z_val in enumerate(z_arr):
-        def integrand(zprime, zmerge=z_val):
-            lam = 1 # Msun^-1 formation efficiency
-            t_eval = P18cosmo.lookback_time(zprime).to(u.yr).value - P18cosmo.lookback_time(zmerge).to(u.yr).value
-            val = powerlaw(t_eval, pl_alpha, pl_tmin, pl_tmax) * lam * SFRD_interp(zprime) * dtdz_interp(zprime)
-            return val
+        # convert dzs into dts for lookback time purposes
+        # the idea is that we begin at some time lookback_time_interp(z_val)
+        # and our grid of z has effectively shorter lookback times
+        dts = t_lookback_3 - lookback_time_interp(z_val)
         
-        # do integration from zprime=infinity (aka max z_grid) to zprime = passed z array values
-        n[i] = integrate.quad(integrand, z_val, max(z_grid))[0] # [Mpc^-3 yr^-1]
-
+        # note that dts will go from negative to positive
+        ltz = np.where(dts < 0.)[0]
+        if len(ltz) > 0:
+            firsti = ltz[-1]
+            use_dts = dts[firsti:]
+            use_dts[0] = 0. # set first dt, which would have been negative, to zero
+        else:
+            use_dts = dts
+            firsti=0
+        # the below is slightly innaccurate when we substitute a zero as the first dt, since it still calculates 
+        vals = integral_powerlaw(use_dts[:-1],use_dts[1:], pl_alpha, pl_tmin, pl_tmax)  * lam * 0.5*(SFRD[firsti:-1]+SFRD[firsti+1:])
+        
+        # sums total, and adds contribution near zero via trapezoidal rule
+        total = np.sum(vals)
+        n[i] = total
+    
+    # remove fake first z=0 bin, but normalise by it
+    n = n[1:] / n[0]
+    
     return float(n[0]) if scalar_z else n
 
 def GC_DTD_evolution(z,*params):
@@ -783,6 +826,10 @@ def GC_DTD_evolution(z,*params):
 
     # clip to avoid issues with negative c
     n = np.clip(curve(z_arr), 0.0, None)
+    
+    #normalisation to unity at z=0
+    n0 = curve(0.)
+    n /= n0
 
     return float(n[0]) if scalar_z else n
 
@@ -803,43 +850,27 @@ def GC_and_SFRD_evolution(z, *params):
     n : float
         Relative source density at redshift z with each component normalized to 1 at z=0
     '''
-
-    # pull out params
-    f_GC = params[0]
-
+    
     # handle scalar or array z
     scalar_z = np.isscalar(z)
     z_arr = np.atleast_1d(z)
 
-    # define curve parameters
-    A1 = 4.00453    # Amplitude of the Gaussian component centered at z=0.
-    sigma1 = 0.30564    #  Width of the Gaussian component centered at z=0.
-    A2 = 23.973 # Amplitude scaling for the skew-normal component.
-    mu2 = 1.5   # Location parameter of the skew-normal component, near the second peak.
-    sigma2 = 4.21046    # scale parameter controlling the width of the skew-normal component.
-    alpha2 = 5.1927 # Shape parameter controlling the skewness of the second peak.
-    c = -0.389043   # Constant baseline offset added to both components.
-
-    def curve(zz):
-        zz = np.asarray(zz, dtype='float')    
-        # define gaussians
-        peak1 = A1 * np.exp(-0.5 * (zz / sigma1)**2)
-        peak2 = A2 * skewnorm.pdf(zz, a=alpha2, loc=mu2, scale=sigma2)
-
-        # combine curves
-        return peak1 + peak2 + c
-
-    # clip to avoid issues with negative c and normalize at z=0
-    GC_n = np.clip(curve(z_arr), 0.0, None) / curve(0.0)
-
-    def SFRD(z):
-        z = np.asarray(z, dtype='float')
-        f = lambda zz: (((1+zz)**2.7)/(1+((1+zz)/2.9)**5.6) *1e9)
-        return f(z) / f(0.0) # Msun Gpc^-3 yr^-1; normalizing at z=0
-
+    # pull out params
+    f_GC = params[0]
+    
+    
+    GC_n = GC_DTD_evolution(z)
+    
     # mixed GC and SFRD evolution
-    n = (1 - f_GC)*SFRD(z_arr) + f_GC*GC_n # dimensionless
-
+    n = (1 - f_GC)*sfr(z_arr) + f_GC*GC_n # dimensionless
+    
+    # clip to avoid issues with negatives
+    n = np.clip(n, 0.0, None)
+    
+    # normalise to unity at z=0. Should not be needed!
+    n0 = (1 - f_GC)*sfr(0.) + f_GC*GC_DTD_evolution(0.)
+    n /= n0
+    
     return float(n[0]) if scalar_z else n
 
 

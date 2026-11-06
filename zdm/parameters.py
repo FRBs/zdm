@@ -142,7 +142,11 @@ class FRBDemoParams(data_class.myDataClass):
         default=0,
         metadata={
             "help": "Integer flag specifying the function used.  "
-            + "0: SFR^n; 1: (1+z)^(2.7n); 2: power-law DTD; 3: GC rate; 4: Mixed GC and SFRD rate",
+            + "0: SFR^n; scaled Madau Dickinson rate to power n. Takes 1 argument: n"
+            + "1: (1+z)^(2.7n); power law; tales 1 argument: n"
+            + "2: power-law DTD; takles 3 arguments: slope alpha, min and max times td_min and td_max"
+            + "3: GC rate; takes no arguments"
+            + "4: Mixed GC and SFRD rate: takes 1 argument as fraction f of GC, SFR is 1-f",
             "options": [0, 1, 2, 3, 4],
         },
     )

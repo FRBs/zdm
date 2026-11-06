@@ -474,7 +474,9 @@ class Grid:
         # pass f_GC for WD-WD GC merger rate and SFRD mixture if 4
         elif self.state.FRBdemo.source_evolution == 4:
             self.sfr=self.source_function(self.zvals, self.state.FRBdemo.f_GC)
-        
+        else:
+            raise ValueError("source_evolution function id must be 0--4; here, it is ",\
+                                    self.state.FRBdemo.source_evolution)
         if self.state.FRBdemo.alpha_method==1:
             self.sfr *= (1.0 + self.zvals)**(-self.state.energy.alpha) #reduces rate with alpha
 
