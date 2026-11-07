@@ -472,12 +472,19 @@ class Grid:
         # add WD-WD GC merger rate if 3
         elif self.state.FRBdemo.source_evolution == 3:
             self.base_sfr=self.source_function(self.zvals) 
-        # pass f_GC for WD-WD GC merger rate and SFRD mixture if 4
+        
+        # pass f_GC for WD-WD GC merger rate
         elif self.state.FRBdemo.source_evolution == 4:
             self.base_sfr=self.source_function(self.zvals, self.state.FRBdemo.f_GC)
+            
+        # pass lognorm parameters if 5
+        elif self.state.FRBdemo.source_evolution == 5:
+            self.base_sfr=self.source_function(self.zvals, self.state.FRBdemo.lognorm_tau, self.state.FRBdemo.lognorm_sigma)
+        
         else:
-            raise ValueError("source_evolution function id must be 0--4; here, it is ",\
+            raise ValueError("source_evolution function id must be 0--5; here, it is ",\
                                     self.state.FRBdemo.source_evolution)
+        
         if self.state.FRBdemo.alpha_method==1:
             self.sfr = self.base_sfr * (1.0 + self.zvals)**(-self.state.energy.alpha) #reduces rate with alpha
 
