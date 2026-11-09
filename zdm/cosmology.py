@@ -17,7 +17,7 @@ Key Features
 - Cosmological volume elements (dV) and time-volume elements (dVdtau)
 - Interpolated lookup tables for fast array operations
 - Energy-fluence conversions for FRB analysis
-- Source evolution functions (SFR, power-law)
+- Source evolution functions (SFR, power-law, DTDs)
 
 Usage
 -----
@@ -40,6 +40,11 @@ import scipy.constants as constants
 import numpy as np
 import scipy.integrate as integrate
 from zdm import parameters
+
+import astropy.units as u
+from astropy.cosmology import Planck18 as P18cosmo
+from scipy.interpolate import interp1d
+from scipy.stats import skewnorm, lognorm
 
 
 
@@ -89,6 +94,7 @@ dvdtaus=1
 # tracks whether or not this module has been initialised
 INIT=False
 
+# this sets the cosmological parameters used in this work
 cosmo = parameters.CosmoParams()
 
 
@@ -581,27 +587,41 @@ def choose_source_evolution_function(which=0):
         Model selection:
         - 0: Star formation rate from Madau & Dickinson (2014) raised to power n.
              SFR(z)^n where SFR follows the cosmic star formation history.
+             This is typically CCSNe evolution, to within a constant
         - 1: Simple power law (1+z)^(2.7*n), without the high-z turnover.
              Useful for comparison with SFR model.
+        - 2: Power-law delay time distribution convolved with Madau & Dickinson (2014) SFRD
+        - 3: WD-WD merger (GC-like) evolution
+        - 4: Mixture evolution of GC-like and CCSN-like
+        - 5: Lognormal delay time distribution convolved with Madau & Dickinson (2014) SFRD
+        
         Default is 0.
 
     Returns
     -------
     callable
-        Source evolution function with signature f(z, n) where z is redshift
-        and n is the evolution power parameter.
+        Source evolution function with variable signature. Arguments will
+        by redshift z, plus model params.
 
     Raises
     ------
     ValueError
-        If `which` is not 0 or 1.
+        If `which` is not 0, 1, 2, 3, 4, 5, or 6.
     """
     if which==0:
         source_evolution=sfr_evolution
     elif which==1:
         source_evolution=opz_evolution
+    elif which==2:
+        source_evolution=powerlaw_DTD_evolution
+    elif which==3:
+        source_evolution=GC_evolution
+    elif which==4:
+        source_evolution=GC_and_CCSNe_evolution
+    elif which==5:
+        source_evolution=lognormal_DTD_evolution
     else:
-        raise ValueError("Undefined source evolution function ",which," choose 0 or 1")
+        raise ValueError("Undefined source evolution function ",which," choose 0, 1, 2, 3, 4, or 5")
     return source_evolution
 
 def sfr_evolution(z,*params):
@@ -623,7 +643,7 @@ def sfr_evolution(z,*params):
     float or ndarray
         Relative source density at redshift z, normalized to 1 at z=0.
     """
-    return (1.0025738*(1+z)**2.7 / (1 + ((1+z)/2.9)**5.6))**params[0]
+    return (1.0025738*(1+z)**2.7 / (1. + ((1+z)/2.9)**5.6))**params[0]
 
 
 def opz_evolution(z,*params):
@@ -646,6 +666,288 @@ def opz_evolution(z,*params):
         Relative source density at redshift z.
     """
     return (1+z)**(2.7*params[0])
+
+def powerlaw_DTD_evolution(z,*params):
+    '''
+    Function to convolve a power-law delay time distribution with the 
+    Madau & Dickinson 2014 star formation rate density for
+    FRB redshifts z. Implements equations 2, 3, and 4 of Zevin et al 2022
+    generalized to any transient.
+
+    Parameters
+    ----------
+    z : float or array_like [dimensionless]
+        Redshift
+    *params : floats 
+        Power-law parameters. First is pl_beta [dimensionless] the power-law index,
+        second is pl_tmin [Gyr] the minimum delay time
+        third is pl_tmax [Gyr] the maximum delay time.
+
+    Returns
+    -------
+    n : float or nd array
+        Relative source density at redshift z [formally Mpc^-3 yr^-1]
+        Normalised to unity at z=0
+    '''
+    # pull out DTD params
+    pl_beta = params[0]
+    pl_tmin = params[1]
+    pl_tmax = params[2]
+    
+    if pl_tmax < pl_tmin:
+        raise ValueError("power law DTD has max time < min time!, i.e.",pl_tmax," < ",pl_tmin)
+
+    # convert power law time bounds to yrs
+    pl_tmin = (pl_tmin*(u.Gyr)).to(u.yr).value
+    pl_tmax = (pl_tmax*(u.Gyr)).to(u.yr).value
+
+    # set up fine redshift grid for interpolations
+    z_grid = np.linspace(0.0, 30.0, 10000)
+    SFRD = sfr(z_grid)
+    
+    # compute dtdz over fine redshift grid and convert to yr
+    dtdz = (1.0 / (H(z_grid) * (1.0 + z_grid)))*(1/(u.km/u.s/u.Mpc)).to(u.yr).value
+    dtdz_interp = interp1d(z_grid, dtdz)
+    
+    # set up simple interpolation
+    t_lookback_3 = np.cumsum(dtdz)*(z_grid[1]-z_grid[0])
+    lookback_time_interp = interp1d(z_grid, t_lookback_3)
+    
+    # set up powerlaw
+    def integral_powerlaw(td1,td2, beta, t_min, t_max):
+        """
+        Integrates power-law from td1 to td2
+        """
+        # ensure t_d is a numpy array
+        td1 = np.asarray(td1)
+        td2 = np.asarray(td2)
+        
+        # the above are integration limits. We now truncate these
+        # at t_min and t_max limits
+        toolow1 = np.where(td1 < t_min)[0]
+        td1[toolow1] = t_min
+        toolow2 = np.where(td2 < t_min)[0]
+        td2[toolow2] = t_min
+        
+        toohigh1 = np.where(td1 > t_max)[0]
+        td1[toohigh1] = t_max
+        toohigh2 = np.where(td2 > t_max)[0]
+        td2[toohigh2] = t_max
+        
+        # compute normalization constant
+        if beta == -1:
+            norm = 1.0 / np.log(t_max / t_min)
+            p = norm * (np.log(td2/td1))
+        else:
+            norm = (1.0 + beta) / (t_max**(1.0 + beta) - t_min**(1.0+beta))
+    
+            # power-law
+            p = norm * (np.power(td2, beta+1) - np.power(td1, beta+1))/(beta+1)
+
+        # set values outside tmin/tmax bounds to (essentially) zero
+        #p = np.where(((t_d < t_min) | (t_d > t_max)), 1e-40, p)
+        
+        return np.asarray(p)
+    
+    
+    # handle scalar or array z
+    scalar_z = np.isscalar(z)
+    z_arr = np.atleast_1d(z)
+    z_arr = np.insert(z_arr, 0, 0.) # insert a leading zero. We remove it later. This is purely for normalisation.
+    
+    # initialize array to store merger rates
+    n = np.zeros_like(z_arr, dtype=float)
+    
+    # new method. This one assumes the power-law can turn on arbitrarily quickly, but SFR is slow
+    # hence, we treat SFR as being constant over each dz bin, and integrate the power-law exactly
+    lam=1
+    for i, z_val in enumerate(z_arr):
+        # convert dzs into dts for lookback time purposes
+        # the idea is that we begin at some time lookback_time_interp(z_val)
+        # and our grid of z has effectively shorter lookback times
+        dts = t_lookback_3 - lookback_time_interp(z_val)
+        
+        # note that dts will go from negative to positive
+        ltz = np.where(dts < 0.)[0]
+        if len(ltz) > 0:
+            firsti = ltz[-1]
+            use_dts = dts[firsti:]
+            use_dts[0] = 0. # set first dt, which would have been negative, to zero
+        else:
+            use_dts = dts
+            firsti=0
+        # the below is slightly innaccurate when we substitute a zero as the first dt, since it still calculates 
+        vals = integral_powerlaw(use_dts[:-1],use_dts[1:], pl_beta, pl_tmin, pl_tmax)  * lam * 0.5*(SFRD[firsti:-1]+SFRD[firsti+1:])
+        
+        # sums total, and adds contribution near zero via trapezoidal rule
+        total = np.sum(vals)
+        n[i] = total
+    
+    # remove fake first z=0 bin, but normalise by it
+    n = n[1:] / n[0]
+    
+    return float(n[0]) if scalar_z else n
+
+def GC_evolution(z,*params):
+    ''' 
+    Function to implement source evolution following the Kremer+23a globular cluster white dwarf merger evolution. Parameterizes their empirical rate in fig 8 as a normal plus skew Gaussian. The rate is clipped to 0 where the extrapolated curve becomes negative (at z>11).
+    
+    Parameters
+    ----------
+    z : float [dimensionless]
+        Redshift
+    *params : floats
+        Optional parameters to pass to function, none explicitly required
+
+    Returns
+    -------
+    n : float
+        Relative source density at redshift z [formally Gpc^-3 yr^-1]
+    '''
+
+    # handle scalar or array z
+    scalar_z = np.isscalar(z)
+    z_arr = np.atleast_1d(z)
+    z_arr = np.insert(z_arr, 0, 0.) # insert a leading zero. We remove it later. This is purely for normalisation.
+    
+    # define redshift cut to avoid negative GC curve
+    z_cut = 11.0
+
+    # define curve parameters
+    A1 = 4.00453    # Amplitude of the Gaussian component centered at z=0.
+    sigma1 = 0.30564    #  Width of the Gaussian component centered at z=0.
+    A2 = 23.973 # Amplitude scaling for the skew-normal component.
+    mu2 = 1.5   # Location parameter of the skew-normal component, near the second peak.
+    sigma2 = 4.21046    # scale parameter controlling the width of the skew-normal component.
+    alpha2 = 5.1927 # Shape parameter controlling the skewness of the second peak.
+    c = -0.389043   # Constant baseline offset added to both components.
+
+    # define gaussians
+    peak1 = A1 * np.exp(-0.5 * (z_arr / sigma1)**2)
+    peak2 = A2 * skewnorm.pdf(z_arr, a=alpha2, loc=mu2, scale=sigma2)
+
+    # combine curves
+    n = peak1 + peak2 + c
+    
+    # cut when rate goes negative
+    n = np.where(z_arr <= z_cut, np.clip(n, 0.0, None), 0.0)
+    
+    #normalisation to unity at z=0
+    n = n[1:]/n[0]
+    
+    return float(n[0]) if scalar_z else n
+    
+def GC_and_CCSNe_evolution(z, *params):
+    ''' 
+    Function to allow for mixed source evolution between white dwarf mergers (Kremer+23a) and the comoving volumetric core-collapse supernova rate from MD14. Each component is normalized to 1. The WD merger rate is clipped to 0 where the extrapolated curve becomes negative at z>11; for consistency the CCSN curve is clipped at the same redshift.
+    NOTE: the number of core collapse supernovae formed per unit stellar mass (which we don't normalise here) is
+        k=0.00668 Msun^-1 from Vassallo+26
+        k=0.0128 Msun^-1 from Zapartas+17
+
+    Parameters
+    ----------
+    z : float [dimensionless]
+        Redshift
+    *params : float [0,1], string
+        params[0] = f_GC, fraction of sources following WD-WD evolution (0 = none aka pure CCSNe; 1 = all aka pure GC, ~WD-WD)
+        
+        
+    Returns
+    -------
+    n : float
+        Relative source density at redshift z [dimensionless]
+    '''
+    f_GC = params[0]
+    scalar_z = np.isscalar(z)
+    
+    # combine CCSN and GC curves with normalizations
+    n = (1-f_GC)*sfr(z) + f_GC*GC_evolution(z)
+
+    return float(n[0]) if scalar_z else n
+
+def lognormal_DTD_evolution(z,*params):
+    ''' 
+    Function to convolve a lognormal delay time distribution with the
+    Madau & Dickinson 2014 star formation rate density for a single or
+    array of FRB redshifts. Takes structure of powerlaw_DTD_evolution,
+    implementing the lognormal distribution from Hao & Yuan 2013 (eqn 16).
+
+    Parameters
+    ----------
+    z : float [dimensionless]
+        Redshift
+    *params : floats
+        Lognormal parameters. First is lognorm_tau [Gyr] the characteristic
+        (median) delay time (tau_* in HY13), second is lognorm_sigma 
+        [dimesionless] the characteristic width in ln(t).
+
+    Returns1
+    -------
+    n : float
+        Relative source density at redshift z [formally Gpc^-3 yr^-1]
+    '''
+
+    # pull out DTD params
+    lognorm_tau = params[0] # this will be scale in scipy fnc
+    lognorm_sigma = params[1] # this will be s in scipy fnc
+
+    # set up fine redshift grid for interpolations
+    z_grid = np.linspace(0.0, 30.0, 10000)
+    
+    # compute MD14 SFRD over fine redshift grid
+    SFRD = sfr(z_grid)
+    SFRD_interp = interp1d(z_grid, SFRD)
+
+    # compute dtdz over fine redshift grid and convert to yr
+    dtdz = (1.0 / (H(z_grid) * (1.0 + z_grid)))*(1/(u.km/u.s/u.Mpc)).to(u.yr).value
+    dtdz_interp = interp1d(z_grid, dtdz)
+
+    # compute lookback time grid
+    tlb = P18cosmo.lookback_time(z_grid).to(u.Gyr).value
+    tlb_interp = interp1d(z_grid, tlb)
+    z_of_tlb = interp1d(tlb, z_grid)
+    tlb_max = tlb[-1]
+
+    # handle scalar or array z
+    scalar_z = np.isscalar(z)
+    z_arr = np.atleast_1d(z)
+    z_arr = np.insert(z_arr, 0, 0.) # insert a leading zero. We remove it later. This is purely for normalisation.
+
+    # initialize array to store merger rates
+    n = np.zeros_like(z_arr, dtype=float)
+
+    # set up integral and integrate
+    for i, z_val in enumerate(z_arr):
+        
+        # get merger time
+        tlb_merge = float(tlb_interp(z_val))
+
+        def integrand(zprime, zmerge=z_val):
+            lam = 1 # Msun^-1 formation efficiency
+            t_eval = float(tlb_interp(zprime)) - tlb_merge
+            DTD = lognorm.pdf(t_eval, s=lognorm_sigma, loc=0, scale=lognorm_tau)/1e9 # Gyr -> yr to match dtdz
+            val = DTD * lam * SFRD_interp(zprime) * dtdz_interp(zprime)
+            return val
+
+        # add breakpoints at the redshifts where the delay is scale*exp(k*sigma) for k=(-4,4) (breaks quad integration for short delays)
+        points = []
+        for k in range(-4, 5):
+            t = tlb_merge + lognorm_tau * np.exp(k * lognorm_sigma)
+            if t < tlb_max:
+                zp = float(z_of_tlb(t))
+                if z_val < zp < max(z_grid):
+                    points.append(zp)
+        points = sorted(set(points))
+
+        # do integration from zprime=infinity (aka max z_grid) to zprime=passed z array values
+        n[i] = integrate.quad(integrand, z_val, max(z_grid), points=points or None, limit=500, epsabs=0, epsrel=1e-6)[0] # [Mpc^-3 yr^-1]
+
+    # convert to Gpc^-3 yr^-1
+    # these are officially unitless
+    #n = n * 1e9
+    n = n[1:]/n[0] # normalise to unity at z=0
+    
+    return float(n[0]) if scalar_z else n
 
 
 def sfr(z):

@@ -142,8 +142,13 @@ class FRBDemoParams(data_class.myDataClass):
         default=0,
         metadata={
             "help": "Integer flag specifying the function used.  "
-            + "0: SFR^n; 1: (1+z)^(2.7n)",
-            "options": [0, 1],
+            + "0: SFR^n; scaled Madau Dickinson rate to power n. Takes 1 argument: n"
+            + "1: (1+z)^(2.7n); power law; tales 1 argument: n"
+            + "2: power-law DTD; takles 3 arguments: slope alpha, min and max times td_min and td_max"
+            + "3: GC rate; takes no arguments"
+            + "4: Mixed GC and SFRD rate: takes 1 argument as fraction f of GC, SFR is 1-f"
+            + "5: lognormal DTD, takes 2 args: mu and sigma",
+            "options": [0, 1, 2, 3, 4, 5],
         },
     )
     alpha_method: int = field(
@@ -167,7 +172,63 @@ class FRBDemoParams(data_class.myDataClass):
         default=3.3249,
         metadata={"help": "log10 constant in number per Mpc^-3 day^-1 at z=0"},
     )
+    pl_beta: float = field(
+        default = -1.0,
+        metadata={
+            "help": "Power-law delay time distribution power-law index",
+            "unit": "",
+            "Notation": "\\alpha_{dtd}",
+        }
+    )
+    pl_tmin: float = field(
+        default = 0.01,
+        metadata={
+            "help": "Power-law minimum delay time",
+            "unit": "Gyr",
+            "Notation": "t_{\\rm min}",
+        }
+    )
+    pl_tmax: float = field(
+        default = 14.0,
+        metadata={
+            "help": "Power-law maximum delay time. Universe age is ~13.8 Gyr",
+            "unit": "Gyr",
+            "Notation": "t_{\\rm max}",
+        }
+    )
+    f_GC: float = field(
+        default = 0.5,
+        metadata={
+            "help": "Fraction of FRBs from WD-WD merger at z=0",
+            "unit": "",
+        }
+    )
 
+    k_type: int = field(
+        default = 0,
+        metadata={
+            "help": "Integer flag specifying assumption on number of CCSNe formed per unit stellar mass." + "0: single star only, k=0.00668 Msun^-1" + "1: binary, k=0.0128 Msun^-1",
+            "options": [0,1],
+        }
+    )
+
+    lognorm_tau: float = field(
+        default = 1,
+        metadata={
+            "help": "Characteristic median delay time",
+            "unit": "Gyr",
+            "Notation": "\\tau_{\\rm lognorm}",
+        }
+    )
+
+    lognorm_sigma: float = field(
+        default = 0.3,
+        metadata={
+            "help": "Characteristic width of lognorm DTD",
+            "unit": "",
+            "Notation": "\\sigma_{\\rm lognorm}",
+        }
+    )
 
 
 @dataclass
