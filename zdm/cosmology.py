@@ -643,7 +643,7 @@ def sfr_evolution(z,*params):
     float or ndarray
         Relative source density at redshift z, normalized to 1 at z=0.
     """
-    return (1.0025738*(1+z)**2.7 / (1 + ((1+z)/2.9)**5.6))**params[0]
+    return (1.0025738*(1+z)**2.7 / (1. + ((1+z)/2.9)**5.6))**params[0]
 
 
 def opz_evolution(z,*params):
@@ -679,7 +679,9 @@ def powerlaw_DTD_evolution(z,*params):
     z : float or array_like [dimensionless]
         Redshift
     *params : floats 
-        Power-law parameters. First is pl_beta [dimensionless] the power-law index, second is pl_tmin [Gyr] the minimum delay time, third is pl_tmax [Gyr] the maximum delay time.
+        Power-law parameters. First is pl_beta [dimensionless] the power-law index,
+        second is pl_tmin [Gyr] the minimum delay time
+        third is pl_tmax [Gyr] the maximum delay time.
 
     Returns
     -------
@@ -701,6 +703,7 @@ def powerlaw_DTD_evolution(z,*params):
 
     # set up fine redshift grid for interpolations
     z_grid = np.linspace(0.0, 30.0, 10000)
+    SFRD = sfr(z_grid)
     
     # compute dtdz over fine redshift grid and convert to yr
     dtdz = (1.0 / (H(z_grid) * (1.0 + z_grid)))*(1/(u.km/u.s/u.Mpc)).to(u.yr).value
@@ -711,7 +714,7 @@ def powerlaw_DTD_evolution(z,*params):
     lookback_time_interp = interp1d(z_grid, t_lookback_3)
     
     # set up powerlaw
-    def integral_powerlaw(td1,td2, alpha, t_min, t_max):
+    def integral_powerlaw(td1,td2, beta, t_min, t_max):
         """
         Integrates power-law from td1 to td2
         """
@@ -732,21 +735,21 @@ def powerlaw_DTD_evolution(z,*params):
         td2[toohigh2] = t_max
         
         # compute normalization constant
-        if alpha == -1:
+        if beta == -1:
             norm = 1.0 / np.log(t_max / t_min)
             p = norm * (np.log(td2/td1))
         else:
-            norm = (1.0 + alpha) / (t_max**(1.0 + alpha) - t_min**(1.0+alpha))
+            norm = (1.0 + beta) / (t_max**(1.0 + beta) - t_min**(1.0+beta))
     
             # power-law
-            p = norm * (np.power(td2, alpha+1) - np.power(td1, alpha+1))/(alpha+1)
+            p = norm * (np.power(td2, beta+1) - np.power(td1, beta+1))/(beta+1)
 
         # set values outside tmin/tmax bounds to (essentially) zero
         #p = np.where(((t_d < t_min) | (t_d > t_max)), 1e-40, p)
-
+        
         return np.asarray(p)
     
-
+    
     # handle scalar or array z
     scalar_z = np.isscalar(z)
     z_arr = np.atleast_1d(z)
@@ -774,7 +777,7 @@ def powerlaw_DTD_evolution(z,*params):
             use_dts = dts
             firsti=0
         # the below is slightly innaccurate when we substitute a zero as the first dt, since it still calculates 
-        vals = integral_powerlaw(use_dts[:-1],use_dts[1:], pl_alpha, pl_tmin, pl_tmax)  * lam * 0.5*(SFRD[firsti:-1]+SFRD[firsti+1:])
+        vals = integral_powerlaw(use_dts[:-1],use_dts[1:], pl_beta, pl_tmin, pl_tmax)  * lam * 0.5*(SFRD[firsti:-1]+SFRD[firsti+1:])
         
         # sums total, and adds contribution near zero via trapezoidal rule
         total = np.sum(vals)
@@ -805,7 +808,8 @@ def GC_evolution(z,*params):
     # handle scalar or array z
     scalar_z = np.isscalar(z)
     z_arr = np.atleast_1d(z)
-
+    z_arr = np.insert(z_arr, 0, 0.) # insert a leading zero. We remove it later. This is purely for normalisation.
+    
     # define redshift cut to avoid negative GC curve
     z_cut = 11.0
 
@@ -819,19 +823,17 @@ def GC_evolution(z,*params):
     c = -0.389043   # Constant baseline offset added to both components.
 
     # define gaussians
-    peak1 = A1 * np.exp(-0.5 * (z / sigma1)**2)
-    peak2 = A2 * skewnorm.pdf(z, a=alpha2, loc=mu2, scale=sigma2)
+    peak1 = A1 * np.exp(-0.5 * (z_arr / sigma1)**2)
+    peak2 = A2 * skewnorm.pdf(z_arr, a=alpha2, loc=mu2, scale=sigma2)
 
     # combine curves
     n = peak1 + peak2 + c
-
     
-    # clip to avoid issues with negative c
-    n = np.clip(curve(z_arr), 0.0, None)
+    # cut when rate goes negative
+    n = np.where(z_arr <= z_cut, np.clip(n, 0.0, None), 0.0)
     
     #normalisation to unity at z=0
-    n0 = curve(0.)
-    n /= n0
+    n = n[1:]/n[0]
     
     return float(n[0]) if scalar_z else n
     
@@ -855,6 +857,8 @@ def GC_and_CCSNe_evolution(z, *params):
     n : float
         Relative source density at redshift z [dimensionless]
     '''
+    f_GC = params[0]
+    scalar_z = np.isscalar(z)
     
     # combine CCSN and GC curves with normalizations
     n = (1-f_GC)*sfr(z) + f_GC*GC_evolution(z)
