@@ -206,10 +206,10 @@ def main():
     p3 = fz*dz
     
     ####### p(z) from measured FRB host galaxy magnitude ########
-    mr = 29.1 
+    mr = 29.16 
     pz = wrapper.get_pz_g_mr(mr)
     pz /= (g.zvals[1]-g.zvals[0])
-    plt.plot(g.zvals, pz, label="$P(z|m=29.1,{\\bf x}_{\\rm rad})$")
+    plt.plot(g.zvals, pz, label="$P(z|m=29.16,{\\bf x}_{\\rm rad})$")
     
     print("\n\nCurve 4: p   min    max")
     intervals = calc_confidence_intervals(g.zvals, pz,pvalues)

@@ -141,13 +141,13 @@ class FRBDemoParams(data_class.myDataClass):
     source_evolution: int = field(
         default=0,
         metadata={
-            "help": "Integer flag specifying the function used.  "
-            + "0: SFR^n; scaled Madau Dickinson rate to power n. Takes 1 argument: n"
-            + "1: (1+z)^(2.7n); power law; tales 1 argument: n"
-            + "2: power-law DTD; takles 3 arguments: slope alpha, min and max times td_min and td_max"
-            + "3: GC rate; takes no arguments"
-            + "4: Mixed GC and SFRD rate: takes 1 argument as fraction f of GC, SFR is 1-f"
-            + "5: lognormal DTD, takes 2 args: mu and sigma",
+            "help": "Integer flag specifying the function used:\n"
+            + "0: SFR^n; scaled Madau Dickinson rate to power n. Takes 1 argument: n;\n"
+            + "1: (1+z)^(2.7n); power law; takes 1 argument: n;\n"
+            + "2: power-law DTD; takes 3 arguments: slope pl_beta, min and max times td_min and td_max;\n"
+            + "3: GC rate; takes no arguments;\n"
+            + "4: Mixed GC and SFRD rate: takes 1 argument as fraction f of GC, SFR is 1-f;\n"
+            + "5: lognormal DTD, takes 2 args: lognorm_tau and lognorm_sigma",
             "options": [0, 1, 2, 3, 4, 5],
         },
     )
@@ -177,7 +177,7 @@ class FRBDemoParams(data_class.myDataClass):
         metadata={
             "help": "Power-law delay time distribution power-law index",
             "unit": "",
-            "Notation": "\\alpha_{dtd}",
+            "Notation": "\\beta_{dtd}",
         }
     )
     pl_tmin: float = field(

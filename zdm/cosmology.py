@@ -606,7 +606,7 @@ def choose_source_evolution_function(which=0):
     Raises
     ------
     ValueError
-        If `which` is not 0, 1, 2, 3, 4, 5, or 6.
+        If `which` is not 0, 1, 2, 3, 4, or 5.
     """
     if which==0:
         source_evolution=sfr_evolution
@@ -790,7 +790,10 @@ def powerlaw_DTD_evolution(z,*params):
 
 def GC_evolution(z,*params):
     ''' 
-    Function to implement source evolution following the Kremer+23a globular cluster white dwarf merger evolution. Parameterizes their empirical rate in fig 8 as a normal plus skew Gaussian. The rate is clipped to 0 where the extrapolated curve becomes negative (at z>11).
+    Function to implement source evolution following the Kremer+23a globular
+    cluster white dwarf merger evolution. Parameterizes their empirical rate
+    in fig 8 as a normal plus skew Gaussian. The rate is clipped to 0 where
+    the extrapolated curve becomes negative (approximately z>11).
     
     Parameters
     ----------
@@ -843,7 +846,7 @@ def GC_and_CCSNe_evolution(z, *params):
     NOTE: the number of core collapse supernovae formed per unit stellar mass (which we don't normalise here) is
         k=0.00668 Msun^-1 from Vassallo+26
         k=0.0128 Msun^-1 from Zapartas+17
-
+    
     Parameters
     ----------
     z : float [dimensionless]
@@ -862,8 +865,9 @@ def GC_and_CCSNe_evolution(z, *params):
     
     # combine CCSN and GC curves with normalizations
     n = (1-f_GC)*sfr(z) + f_GC*GC_evolution(z)
-
-    return float(n[0]) if scalar_z else n
+    
+    # n will always have correct form - scalar if z scalar, array if array
+    return n
 
 def lognormal_DTD_evolution(z,*params):
     ''' 
@@ -884,67 +888,83 @@ def lognormal_DTD_evolution(z,*params):
     Returns1
     -------
     n : float
-        Relative source density at redshift z [formally Gpc^-3 yr^-1]
+        Relative source density at redshift z [formally Gpc^-3 yr^-1, before normalisation]
     '''
 
     # pull out DTD params
     lognorm_tau = params[0] # this will be scale in scipy fnc
     lognorm_sigma = params[1] # this will be s in scipy fnc
-
+    
     # set up fine redshift grid for interpolations
     z_grid = np.linspace(0.0, 30.0, 10000)
     
     # compute MD14 SFRD over fine redshift grid
     SFRD = sfr(z_grid)
     SFRD_interp = interp1d(z_grid, SFRD)
-
+    
     # compute dtdz over fine redshift grid and convert to yr
     dtdz = (1.0 / (H(z_grid) * (1.0 + z_grid)))*(1/(u.km/u.s/u.Mpc)).to(u.yr).value
     dtdz_interp = interp1d(z_grid, dtdz)
-
-    # compute lookback time grid
-    tlb = P18cosmo.lookback_time(z_grid).to(u.Gyr).value
+    
+    # set up simple interpolation of lookback time
+    tlb = np.cumsum(dtdz)*(z_grid[1]-z_grid[0])
     tlb_interp = interp1d(z_grid, tlb)
+    
+    # compute lookback time grid
+    #tlb = P18cosmo.lookback_time(z_grid).to(u.Gyr).value
+    #tlb_interp = interp1d(z_grid, tlb)
     z_of_tlb = interp1d(tlb, z_grid)
     tlb_max = tlb[-1]
-
+    
     # handle scalar or array z
     scalar_z = np.isscalar(z)
     z_arr = np.atleast_1d(z)
     z_arr = np.insert(z_arr, 0, 0.) # insert a leading zero. We remove it later. This is purely for normalisation.
-
+    
     # initialize array to store merger rates
     n = np.zeros_like(z_arr, dtype=float)
-
-    # set up integral and integrate
-    for i, z_val in enumerate(z_arr):
+    
+    def integral_lognormal(t1s,t2s):
+        """
+        cumulative distribution function from t1s to t2s, to calculate
+        exactly the probability between t1 and t2 for each instance
+        Could speed this up by a factor of 2 by assuming t1s = t0,t1,...,tn-1,
+        and t2s = t1,t2,...,tn
+        """
         
-        # get merger time
-        tlb_merge = float(tlb_interp(z_val))
-
-        def integrand(zprime, zmerge=z_val):
-            lam = 1 # Msun^-1 formation efficiency
-            t_eval = float(tlb_interp(zprime)) - tlb_merge
-            DTD = lognorm.pdf(t_eval, s=lognorm_sigma, loc=0, scale=lognorm_tau)/1e9 # Gyr -> yr to match dtdz
-            val = DTD * lam * SFRD_interp(zprime) * dtdz_interp(zprime)
-            return val
-
-        # add breakpoints at the redshifts where the delay is scale*exp(k*sigma) for k=(-4,4) (breaks quad integration for short delays)
-        points = []
-        for k in range(-4, 5):
-            t = tlb_merge + lognorm_tau * np.exp(k * lognorm_sigma)
-            if t < tlb_max:
-                zp = float(z_of_tlb(t))
-                if z_val < zp < max(z_grid):
-                    points.append(zp)
-        points = sorted(set(points))
-
-        # do integration from zprime=infinity (aka max z_grid) to zprime=passed z array values
-        n[i] = integrate.quad(integrand, z_val, max(z_grid), points=points or None, limit=500, epsabs=0, epsrel=1e-6)[0] # [Mpc^-3 yr^-1]
-
+        c1s = lognorm.cdf(t1s,s=lognorm_sigma,loc=0,scale=lognorm_tau)
+        c2s = lognorm.cdf(t2s,s=lognorm_sigma,loc=0,scale=lognorm_tau)
+        cums = c2s-c1s
+        return cums
+    
+    # new method. This one assumes the power-law can turn on arbitrarily quickly, but SFR is slow
+    # hence, we treat SFR as being constant over each dz bin, and integrate the power-law exactly
+    lam=1
+    for i, z_val in enumerate(z_arr):
+        # convert dzs into dts for lookback time purposes
+        # the idea is that we begin at some time lookback_time_interp(z_val)
+        # and our grid of z has effectively shorter lookback times
+        dts = tlb - tlb_interp(z_val)
+        
+        # note that dts will go from negative to positive. We only consider positive cases
+        ltz = np.where(dts < 0.)[0]
+        if len(ltz) > 0:
+            firsti = ltz[-1]
+            use_dts = dts[firsti:]
+            use_dts[0] = 0. # set first dt, which would have been negative, to zero
+        else:
+            use_dts = dts
+            firsti=0
+        
+        # the below is slightly innaccurate when we substitute a zero as the first dt, since it still calculates 
+        vals = integral_lognormal(use_dts[:-1],use_dts[1:])  * lam * 0.5*(SFRD[firsti:-1]+SFRD[firsti+1:])
+        
+        # sums total, and adds contribution near zero via trapezoidal rule
+        total = np.sum(vals)
+        n[i] = total
+    
     # convert to Gpc^-3 yr^-1
     # these are officially unitless
-    #n = n * 1e9
     n = n[1:]/n[0] # normalise to unity at z=0
     
     return float(n[0]) if scalar_z else n

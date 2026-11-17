@@ -7,8 +7,11 @@ from matplotlib import pyplot as plt
 from zdm import cosmology as cos
 import time
 
-def run_test():
-    
+def test_source_evolution():
+    """
+    This test doesn't assert anything, but it runs to ensure that things 
+    do not crash
+    """
     zs = np.linspace(0.,5.,40)
     alpha=1. # dimensionless slope
     pl_tmin=0.001 # in Gyr

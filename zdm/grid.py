@@ -467,7 +467,7 @@ class Grid:
                                           self.state.FRBdemo.sfr_n)
         # pass powerlaw parameters if 2
         elif self.state.FRBdemo.source_evolution == 2:
-            self.base_sfr=self.source_function(self.zvals, self.state.FRBdemo.pl_alpha, 
+            self.base_sfr=self.source_function(self.zvals, self.state.FRBdemo.pl_beta, 
                                           self.state.FRBdemo.pl_tmin, self.state.FRBdemo.pl_tmax)
         # add WD-WD GC merger rate if 3
         elif self.state.FRBdemo.source_evolution == 3:
@@ -489,7 +489,7 @@ class Grid:
             self.sfr = self.base_sfr * (1.0 + self.zvals)**(-self.state.energy.alpha) #reduces rate with alpha
 
             # changes absolute normalisation at z=0 according to central frequency
-            self.sfr = self.base_sfr * (
+            self.sfr = self.sfr * (
                 self.nuObs / self.nuRef
                 ) ** -self.state.energy.alpha  # alpha positive, nuObs<nuref, expected rate increases
         else:
